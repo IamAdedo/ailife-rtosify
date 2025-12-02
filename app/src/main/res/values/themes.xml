@@ -1,0 +1,15 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Tema Base da Aplicação -->
+    <style name="Theme.Smartwatch" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Cores principais (Baseadas no seu layout) -->
+        <item name="colorPrimary">#3DAADC</item>
+        <item name="colorPrimaryVariant">#2A7294</item>
+        <item name="colorOnPrimary">#000000</item>
+        <item name="colorSecondary">#DC3D3D</item>
+        <item name="colorSecondaryVariant">#852626</item>
+        <item name="colorOnSecondary">#000000</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+</resources>
