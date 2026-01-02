@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingHorizontal="24dp"
+    android:paddingVertical="16dp"
+    android:minHeight="72dp"
+    android:background="?android:attr/selectableItemBackground">
+
+    <!-- Ícone (ID: imgIcon para coincidir com seu Adapter) -->
+    <ImageView
+        android:id="@+id/imgIcon"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        app:tint="?android:attr/textColorSecondary"/>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:layout_marginStart="24dp">
+
+        <!-- Título (ID: tvTitle para coincidir com seu Adapter) -->
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+            android:textColor="?android:attr/textColorPrimary"/>
+
+        <!-- Subtítulo (ID: tvSubtitle para coincidir com seu Adapter) -->
+        <TextView
+            android:id="@+id/tvSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+            android:textColor="?android:attr/textColorSecondary"
+            android:visibility="gone"/>
+    </LinearLayout>
+
+    <!-- Extra Info (ID: tvExtraInfo para coincidir com seu Adapter) -->
+    <TextView
+        android:id="@+id/tvExtraInfo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
+        android:textColor="?attr/colorPrimary"
+        android:visibility="gone"/>
+
+</LinearLayout>
