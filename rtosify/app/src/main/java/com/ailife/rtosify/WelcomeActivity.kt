@@ -16,7 +16,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.card.MaterialCardView
+import android.widget.TextView
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -35,6 +36,7 @@ class WelcomeActivity : AppCompatActivity() {
         }
     private val backgroundLocationLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+            startAutomaticSetup()
         }
 
     private val installPermissionLauncher =
@@ -51,16 +53,102 @@ class WelcomeActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_welcome)
 
+        findViewById<android.widget.Button>(R.id.btnRetry).setOnClickListener {
+            startAutomaticSetup()
+        }
+
         checkBatteryOptimizationDirect()
         checkAndRequestPermissions()
+    }
 
-        val cardSmartphone = findViewById<MaterialCardView>(R.id.cardSmartphone)
-        val cardWatch = findViewById<MaterialCardView>(R.id.cardWatch)
+    private fun startAutomaticSetup() {
+        lifecycleScope.launch {
+            val statusText = findViewById<TextView>(R.id.tvWelcomeStatus)
+            val progressBar = findViewById<android.view.View>(R.id.progressBarSetup)
+            val btnRetry = findViewById<android.view.View>(R.id.btnRetry)
+            
+            progressBar.visibility = android.view.View.VISIBLE
+            btnRetry.visibility = android.view.View.GONE
+            
+            val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+            prefs.edit { putString("device_type", "PHONE") }
 
-        // Rtosify app is for PHONE mode only
-        cardSmartphone.setOnClickListener { finishSetup("PHONE") }
-        cardWatch.setOnClickListener {
-            // Disabled in phone app - redirect to phone mode
+            val btManager = getSystemService(BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
+            val adapter = btManager.adapter
+
+            if (adapter == null || !adapter.isEnabled) {
+                statusText.text = getString(R.string.welcome_bt_disabled)
+                progressBar.visibility = android.view.View.GONE
+                btnRetry.visibility = android.view.View.VISIBLE
+                return@launch
+            }
+
+            statusText.text = getString(R.string.welcome_searching)
+            
+            // Wait a bit to ensure UI updates
+            delay(1000)
+
+            // Tenta encontrar um relógio já pareado
+            val bondedDevices = try {
+                adapter.bondedDevices.toList()
+            } catch (e: SecurityException) {
+                android.util.Log.e("Welcome", "SecurityException access bonded devices", e)
+                emptyList()
+            }
+
+            android.util.Log.d("Welcome", "Bonded devices found: ${bondedDevices.size}")
+
+            if (bondedDevices.isNotEmpty()) {
+                // Filtra possíveis relógios
+                val candidates = bondedDevices.filter { 
+                    val name = it.name ?: ""
+                    name.contains("Watch", ignoreCase = true) || 
+                    name.contains("Marinov", ignoreCase = true) ||
+                    name.contains("rtosify", ignoreCase = true) ||
+                    name.contains("Companion", ignoreCase = true)
+                }
+
+                if (candidates.size == 1) {
+                    // Se houver apenas UM candidato provável, usa ele direto
+                    val watch = candidates.first()
+                    android.util.Log.d("Welcome", "Automatic match: ${watch.name}")
+                    completeSetupWithDevice(watch)
+                } else {
+                    // Se houver vários ou nenhum óbvio, deixa o usuário escolher
+                    progressBar.visibility = android.view.View.GONE
+                    btnRetry.visibility = android.view.View.VISIBLE
+                    
+                    val devicesToShow = if (candidates.isNotEmpty()) candidates else bondedDevices
+                    val names = devicesToShow.map { "${it.name ?: "Unknown"} (${it.address})" }.toTypedArray()
+                    
+                    AlertDialog.Builder(this@WelcomeActivity)
+                        .setTitle("Select your Watch")
+                        .setItems(names) { _, which ->
+                            completeSetupWithDevice(devicesToShow[which])
+                        }
+                        .setNegativeButton("Cancel") { _, _ ->
+                            statusText.text = "Selection cancelled. Please try again."
+                        }
+                        .show()
+                }
+            } else {
+                android.util.Log.w("Welcome", "No bonded devices found")
+                statusText.text = getString(R.string.welcome_no_paired_found)
+                progressBar.visibility = android.view.View.GONE
+                btnRetry.visibility = android.view.View.VISIBLE
+            }
+        }
+    }
+
+    private fun completeSetupWithDevice(device: android.bluetooth.BluetoothDevice) {
+        val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+        val statusText = findViewById<TextView>(R.id.tvWelcomeStatus)
+        
+        prefs.edit { putString("last_mac", device.address) }
+        statusText.text = getString(R.string.welcome_watch_found, device.name ?: "Device")
+        
+        lifecycleScope.launch {
+            delay(1000)
             finishSetup("PHONE")
         }
     }
@@ -90,7 +178,11 @@ class WelcomeActivity : AppCompatActivity() {
                     // Android 10 pede direto no popup
                     backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
                 }
+            } else {
+                startAutomaticSetup()
             }
+        } else {
+            startAutomaticSetup()
         }
     }
 

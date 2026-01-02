@@ -35,6 +35,7 @@ class WelcomeActivity : AppCompatActivity() {
         }
     private val backgroundLocationLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+            startAutomaticSetup()
         }
 
     private val installPermissionLauncher =
@@ -53,19 +54,11 @@ class WelcomeActivity : AppCompatActivity() {
 
         checkBatteryOptimizationDirect()
         checkAndRequestPermissions()
+    }
 
-        val cardSmartphone = findViewById<MaterialCardView>(R.id.cardSmartphone)
-        val cardWatch = findViewById<MaterialCardView>(R.id.cardWatch)
-
-        // Companion app is for WATCH mode only
-        cardSmartphone.setOnClickListener {
-            // Disabled in companion app - redirect to watch mode
-            checkRootAndSetup()
-        }
-        cardWatch.setOnClickListener {
-            // 1. Inicia com a verificação de Root
-            checkRootAndSetup()
-        }
+    private fun startAutomaticSetup() {
+        // Inicia automaticamente o processo que antes era manual
+        checkRootAndSetup()
     }
 
     // Lógica para solicitar Localização em Background ("O Tempo Todo")
@@ -93,16 +86,22 @@ class WelcomeActivity : AppCompatActivity() {
                     // Android 10 pede direto no popup
                     backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
                 }
+            } else {
+                startAutomaticSetup()
             }
+        } else {
+            startAutomaticSetup()
         }
     }
 
     // 2. Faz a verificação de Root e DEPOIS chama a permissão de instalação.
     private fun checkRootAndSetup() {
         lifecycleScope.launch(Dispatchers.IO) {
+            android.util.Log.d("Welcome", "Starting root check...")
             checkRootAccess() // Essa chamada dispara o prompt de root (se houver magisk/su)
 
             withContext(Dispatchers.Main) {
+                android.util.Log.d("Welcome", "Root check done, requesting install permission...")
                 // Após o prompt de root ser tratado, pedimos a permissão de instalação
                 requestInstallPermission()
             }

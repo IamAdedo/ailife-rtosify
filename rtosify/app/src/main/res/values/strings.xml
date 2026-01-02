@@ -80,4 +80,11 @@
     <string name="welcome_permission_message">To display the SSID of the Wi-Fi network connected to the smartwatch, advanced location permission is required. To do this, select \'Allow all the time\' on the next screen.</string>
     <string name="welcome_permission_understood">Got it</string>
     <string name="welcome_permission_not_now">Not now</string>
+
+    <string name="welcome_configuring">Configuring…</string>
+    <string name="welcome_searching">Searching for your watch…</string>
+    <string name="welcome_searching_desc">Make sure your watch is paired in Bluetooth settings.</string>
+    <string name="welcome_bt_disabled">Bluetooth is disabled. Enable it to continue.</string>
+    <string name="welcome_watch_found">Watch found: %s\nFinalizing setup…</string>
+    <string name="welcome_no_paired_found">No paired watch found.\nPlease pair your watch in Bluetooth settings and restart the app.</string>
 </resources>

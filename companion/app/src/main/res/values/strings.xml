@@ -63,4 +63,7 @@
     <string name="welcome_permission_message">To display the SSID of the Wi-Fi network connected to the smartwatch, advanced location permission is required. To do this, select \'Allow all the time\' on the next screen.</string>
     <string name="welcome_permission_understood">Got it</string>
     <string name="welcome_permission_not_now">Not now</string>
+
+    <string name="welcome_configuring">Configuring…</string>
+    <string name="welcome_preparing">Please wait while we prepare your watch.</string>
 </resources>
