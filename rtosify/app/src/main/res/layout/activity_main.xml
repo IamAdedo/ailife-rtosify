@@ -22,7 +22,7 @@
             android:layout_width="match_parent"
             android:layout_height="128dp"
             app:layout_scrollFlags="scroll|exitUntilCollapsed|snap"
-            app:title="MarinovWatch"
+            app:title="@string/app_title"
             app:collapsedTitleTextAppearance="@style/TextAppearance.Material3.TitleLarge"
             app:expandedTitleTextAppearance="@style/TextAppearance.Material3.HeadlineMedium"
             app:expandedTitleMarginStart="20dp"
@@ -86,7 +86,7 @@
                         android:id="@+id/tvHeaderDeviceName"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Procurando..."
+                        android:text="@string/status_searching"
                         android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
                         android:textStyle="bold"
                         android:textColor="?android:attr/textColorPrimary"/>
@@ -95,7 +95,7 @@
                         android:id="@+id/tvHeaderStatus"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Desconectado"
+                        android:text="@string/status_disconnected"
                         android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
                         android:textColor="?android:attr/textColorSecondary"/> <!-- Cor padrão para evitar erro -->
                 </LinearLayout>
@@ -141,7 +141,7 @@
                             android:id="@+id/tvBatteryPercent"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="--%"
+                            android:text="@string/battery_placeholder"
                             android:layout_marginTop="4dp"
                             android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
                             android:textColor="?android:attr/textColorPrimary"/>
@@ -166,7 +166,7 @@
                             android:id="@+id/tvWifiSsid"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Verificando"
+                            android:text="@string/wifi_verifying"
                             android:gravity="center"
                             android:ellipsize="end"
                             android:maxLines="1"
@@ -199,7 +199,7 @@
                             android:id="@+id/tvDndStatus"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Normal"
+                            android:text="@string/dnd_normal"
                             android:layout_marginTop="4dp"
                             android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
                             android:textColor="?android:attr/textColorPrimary"/>
@@ -256,7 +256,7 @@
             android:id="@+id/tvWatchStatusBig"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Desconectado"
+            android:text="@string/status_disconnected"
             android:textAlignment="center"
             android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
             android:textColor="?android:attr/colorError" />

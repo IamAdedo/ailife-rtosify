@@ -85,7 +85,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             if (type == "PHONE") bluetoothService?.startSmartphoneLogic()
             else bluetoothService?.startWatchLogic()
 
-            updateStatusUI(bluetoothService?.currentStatus ?: "Iniciando...", bluetoothService?.isConnected == true)
+            updateStatusUI(bluetoothService?.currentStatus ?: getString(R.string.status_starting), bluetoothService?.isConnected == true)
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
@@ -113,7 +113,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         initViews()
 
         setSupportActionBar(toolbar)
-        supportActionBar?.title = "MarinovWatch"
+        supportActionBar?.title = getString(R.string.app_title)
 
         isPhoneMode = prefs.getString("device_type", "PHONE") == "PHONE"
         setupLayoutMode()
@@ -129,7 +129,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         if (isBound) {
             bluetoothService?.callback = this
             // Força a atualização da UI com os dados atuais do serviço
-            updateStatusUI(bluetoothService?.currentStatus ?: "Verificando...", bluetoothService?.isConnected == true)
+            updateStatusUI(bluetoothService?.currentStatus ?: getString(R.string.status_verifying), bluetoothService?.isConnected == true)
         }
     }
 
@@ -192,7 +192,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         if (bluetoothService?.isConnected == true) {
             action()
         } else {
-            Toast.makeText(this, "Watch não conectado.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_watch_not_connected), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -202,46 +202,46 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         val options = listOf(
             MenuOption(
-                "Gerenciar Aplicativos",
-                "Ver lista de apps instalados no Watch",
+                getString(R.string.menu_manage_apps),
+                getString(R.string.menu_manage_apps_desc),
                 android.R.drawable.ic_menu_sort_by_size,
                 // BLOQUEADO: Precisa de conexão para buscar lista
                 { runIfConnected { startActivity(Intent(this, AppListActivity::class.java)) } }
             ),
             MenuOption(
-                "Notificações",
-                "Escolher quais apps enviam alertas",
+                getString(R.string.menu_notifications),
+                getString(R.string.menu_notifications_desc),
                 android.R.drawable.ic_popup_reminder,
                 // BLOQUEADO: Geralmente só útil se o watch estiver ativo
                 { runIfConnected { startActivity(Intent(this, NotificationSettingsActivity::class.java)) } }
             ),
             MenuOption(
-                "Instalar APK",
-                "Enviar arquivo .apk para o Watch",
+                getString(R.string.menu_install_apk),
+                getString(R.string.menu_install_apk_desc),
                 android.R.drawable.ic_input_add,
                 // BLOQUEADO: Impossível enviar sem conexão
                 { runIfConnected { pickApkLauncher.launch("application/vnd.android.package-archive") } }
             ),
             MenuOption(
-                "Desligar Smartwatch",
-                "Desligar completamente o smartwatch",
+                getString(R.string.menu_shutdown_watch),
+                getString(R.string.menu_shutdown_watch_desc),
                 android.R.drawable.ic_lock_power_off,
                 // BLOQUEADO: Comando remoto
                 { runIfConnected { confirmShutdownWatch() } }
             ),
             MenuOption(
-                "Desconectar",
-                "Parar serviço Bluetooth",
+                getString(R.string.menu_disconnect),
+                getString(R.string.menu_disconnect_desc),
                 android.R.drawable.ic_menu_close_clear_cancel,
                 // PERMITIDO: O usuário precisa poder parar a busca/serviço mesmo se não conectou
                 {
                     bluetoothService?.stopConnectionLoopOnly()
-                    updateStatusUI("Parado", false)
+                    updateStatusUI(getString(R.string.status_stopped), false)
                 }
             ),
             MenuOption(
-                "Resetar Tudo",
-                "Apagar configurações e voltar ao início",
+                getString(R.string.menu_reset_all),
+                getString(R.string.menu_reset_all_desc),
                 android.R.drawable.ic_menu_delete,
                 // PERMITIDO: Ação local de emergência
                 { resetApp() }
@@ -257,9 +257,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun updateStatusUI(status: String, isConnected: Boolean) {
-        val deviceName = bluetoothService?.currentDeviceName ?: "Dispositivo"
-        tvHeaderDeviceName.text = if (isConnected) deviceName else "Aguardando..."
-        tvHeaderStatus.text = if (isConnected) "Conectado" else status
+        val deviceName = bluetoothService?.currentDeviceName ?: getString(R.string.device_name_default)
+        tvHeaderDeviceName.text = if (isConnected) deviceName else getString(R.string.status_waiting)
+        tvHeaderStatus.text = if (isConnected) getString(R.string.status_connected) else status
         tvHeaderStatus.setTextColor(if (isConnected) Color.GREEN else Color.RED)
         progressBarMain.visibility = if (!isConnected && status.contains("Conectando")) View.VISIBLE else View.INVISIBLE
 
@@ -271,11 +271,11 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         if (!isPhoneMode) {
             if (isConnected) {
-                tvWatchStatusBig.text = "Conectado"
+                tvWatchStatusBig.text = getString(R.string.status_connected)
                 tvWatchStatusBig.setTextColor(Color.GREEN)
                 imgWatchStatus.setImageTintList(ColorStateList.valueOf(Color.GREEN))
             } else {
-                tvWatchStatusBig.text = "Desconectado"
+                tvWatchStatusBig.text = getString(R.string.status_disconnected)
                 tvWatchStatusBig.setTextColor(Color.RED)
                 imgWatchStatus.setImageTintList(ColorStateList.valueOf(Color.RED))
             }
@@ -298,9 +298,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         layoutDndAction.alpha = 1.0f
 
         if (enabled) {
-            tvDndStatus.text = "DND ON"
+            tvDndStatus.text = getString(R.string.dnd_on)
         } else {
-            tvDndStatus.text = "DND OFF"
+            tvDndStatus.text = getString(R.string.dnd_off)
         }
     }
 
@@ -312,13 +312,13 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     private fun confirmApkUpload(uri: Uri) {
         AlertDialog.Builder(this)
-            .setTitle("Enviar APK?")
-            .setMessage("Deseja instalar este app no Watch?")
-            .setPositiveButton("Enviar") { _, _ ->
+            .setTitle(getString(R.string.dialog_upload_apk_title))
+            .setMessage(getString(R.string.dialog_upload_apk_message))
+            .setPositiveButton(getString(R.string.dialog_upload_apk_send)) { _, _ ->
                 bluetoothService?.sendApkFile(uri)
                 showUploadDialog()
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.dialog_upload_apk_cancel), null)
             .show()
     }
 
@@ -326,18 +326,18 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         // A verificação de segurança já foi feita no menu (runIfConnected),
         // mas mantemos uma verificação extra por segurança.
         if (bluetoothService?.isConnected != true) {
-            Toast.makeText(this, "Watch não conectado", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_watch_not_connected), Toast.LENGTH_SHORT).show()
             return
         }
         AlertDialog.Builder(this)
-            .setTitle("Desligar Smartwatch?")
-            .setMessage("O smartwatch será completamente desligado.\n\nDeseja continuar?")
+            .setTitle(getString(R.string.dialog_shutdown_title))
+            .setMessage(getString(R.string.dialog_shutdown_message))
             .setIcon(android.R.drawable.ic_dialog_alert)
-            .setPositiveButton("Desligar") { _, _ ->
+            .setPositiveButton(getString(R.string.dialog_shutdown_confirm)) { _, _ ->
                 bluetoothService?.sendShutdownCommand()
-                Toast.makeText(this, "Comando enviado", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.toast_command_sent), Toast.LENGTH_SHORT).show()
             }
-            .setNegativeButton("Cancelar", null)
+            .setNegativeButton(getString(R.string.dialog_shutdown_cancel), null)
             .show()
     }
 
@@ -360,13 +360,13 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             in 0..99 -> {
                 uploadProgressBar?.progress = progress
                 uploadPercentageText?.text = "$progress%"
-                uploadDescriptionText?.text = "Transferindo arquivo..."
+                uploadDescriptionText?.text = getString(R.string.upload_transferring)
             }
             100 -> {
                 uploadProgressBar?.progress = 100
                 uploadPercentageText?.text = "100%"
-                uploadTitleText?.text = "Envio concluído"
-                uploadDescriptionText?.text = "APK enviado com sucesso!"
+                uploadTitleText?.text = getString(R.string.upload_complete_title)
+                uploadDescriptionText?.text = getString(R.string.upload_complete_message)
                 uploadIconView?.setImageResource(android.R.drawable.stat_sys_upload_done)
                 uploadIconView?.setColorFilter(Color.GREEN)
                 uploadPercentageText?.setTextColor(Color.GREEN)
@@ -375,7 +375,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             }
             -1 -> {
                 dismissUploadDialog()
-                Toast.makeText(this, "Falha no envio.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, getString(R.string.toast_upload_failed), Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -389,11 +389,11 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         runOnUiThread { updateStatusUI(status, bluetoothService?.isConnected == true) }
     }
     override fun onDeviceConnected(deviceName: String) {
-        runOnUiThread { updateStatusUI("Conectado", true) }
+        runOnUiThread { updateStatusUI(getString(R.string.status_connected), true) }
     }
     override fun onDeviceDisconnected() {
         runOnUiThread {
-            updateStatusUI("Desconectado", false)
+            updateStatusUI(getString(R.string.status_disconnected), false)
             if (uploadDialog?.isShowing == true) {
                 // Se o progresso já for 100%, não trate a desconexão como falha.
                 if (uploadProgressBar?.progress != 100) {
@@ -412,9 +412,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         runOnUiThread {
             if (devices.isEmpty()) return@runOnUiThread
             if (isPhoneMode) {
-                val names = devices.map { "${it.name ?: "Sem nome"} (${it.address})" }.toTypedArray()
+                val names = devices.map { "${it.name ?: getString(R.string.device_no_name)} (${it.address})" }.toTypedArray()
                 AlertDialog.Builder(this)
-                    .setTitle("Selecione o Watch")
+                    .setTitle(getString(R.string.dialog_select_watch_title))
                     .setItems(names) { _, which -> bluetoothService?.connectToDevice(devices[which]) }
                     .show()
             }

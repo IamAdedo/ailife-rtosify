@@ -78,12 +78,12 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private fun fetchApps() {
         if (isBound && bluetoothService != null) {
             progressBar.visibility = View.VISIBLE
-            tvEmptyList.text = "Solicitando lista ao Watch..."
+            tvEmptyList.text = getString(R.string.applist_requesting)
             tvEmptyList.visibility = View.VISIBLE
             recyclerView.visibility = View.GONE
             bluetoothService?.requestRemoteAppList()
         } else {
-            Toast.makeText(this, "Serviço desconectado", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_service_disconnected), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -115,7 +115,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 apps.sortBy { it.name.lowercase() }
 
                 if (apps.isEmpty()) {
-                    tvEmptyList.text = "Nenhum app de usuário encontrado no relógio."
+                    tvEmptyList.text = getString(R.string.applist_empty)
                     tvEmptyList.visibility = View.VISIBLE
                     recyclerView.visibility = View.GONE
                 } else {
@@ -125,8 +125,8 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 }
 
             } catch (e: Exception) {
-                tvEmptyList.text = "Erro ao processar dados."
-                Toast.makeText(this, "Erro ao processar lista: ${e.message}", Toast.LENGTH_LONG).show()
+                tvEmptyList.text = getString(R.string.applist_error_processing)
+                Toast.makeText(this, getString(R.string.applist_error_processing_list, e.message), Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -136,7 +136,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     override fun onDeviceConnected(deviceName: String) {}
     override fun onDeviceDisconnected() {
         runOnUiThread {
-            Toast.makeText(this, "Watch desconectado!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_watch_disconnected), Toast.LENGTH_SHORT).show()
             finish()
         }
     }

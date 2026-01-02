@@ -79,12 +79,12 @@ class WelcomeActivity : AppCompatActivity() {
                 // pois o sistema irá redirecionar para as Configurações.
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                     AlertDialog.Builder(this)
-                        .setTitle("Permissão necessária.")
-                        .setMessage("Para que seja possível exibir o SSID da rede Wi-Fi conectada ao relógio inteligente, é necessário permissão de localização avançada. Para isso, selecione 'Pemitir o tempo todo' na tela a seguir.")
-                        .setPositiveButton("Entendi") { _, _ ->
+                        .setTitle(getString(R.string.welcome_permission_title))
+                        .setMessage(getString(R.string.welcome_permission_message))
+                        .setPositiveButton(getString(R.string.welcome_permission_understood)) { _, _ ->
                             backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
                         }
-                        .setNegativeButton("Agora não", null)
+                        .setNegativeButton(getString(R.string.welcome_permission_not_now), null)
                         .show()
                 } else {
                     // Android 10 pede direto no popup

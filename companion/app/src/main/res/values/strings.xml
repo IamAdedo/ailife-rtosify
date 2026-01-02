@@ -1,3 +1,66 @@
 <resources>
     <string name="app_name">Rtosify Companion</string>
+
+    <!-- App Title -->
+    <string name="app_title">MarinovWatch</string>
+
+    <!-- Connection Status -->
+    <string name="status_searching">Searching…</string>
+    <string name="status_waiting">Waiting…</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_disconnected">Disconnected</string>
+    <string name="status_stopped">Stopped</string>
+    <string name="status_starting">Starting…</string>
+    <string name="status_verifying">Verifying…</string>
+    <string name="device_name_default">Device</string>
+
+    <!-- Toast Messages -->
+    <string name="toast_watch_not_connected">Watch not connected.</string>
+    <string name="toast_command_sent">Command sent</string>
+    <string name="toast_upload_failed">Upload failed.</string>
+
+    <!-- DND (Do Not Disturb) -->
+    <string name="dnd_on">DND ON</string>
+    <string name="dnd_off">DND OFF</string>
+    <string name="dnd_normal">Normal</string>
+
+    <!-- Battery -->
+    <string name="battery_placeholder">—%</string>
+
+    <!-- Wi-Fi -->
+    <string name="wifi_verifying">Verifying</string>
+    <string name="wifi_placeholder">---</string>
+
+    <!-- Menu Options -->
+    <string name="menu_disconnect">Disconnect</string>
+    <string name="menu_disconnect_desc">Stop Bluetooth service</string>
+    <string name="menu_reset_all">Reset All</string>
+    <string name="menu_reset_all_desc">Clear settings and return to start</string>
+
+    <!-- Dialog: APK Upload -->
+    <string name="dialog_upload_apk_title">Send APK?</string>
+    <string name="dialog_upload_apk_message">Do you want to install this app on the Watch?</string>
+    <string name="dialog_upload_apk_send">Send</string>
+    <string name="dialog_upload_apk_cancel">Cancel</string>
+
+    <!-- Dialog: Shutdown Watch -->
+    <string name="dialog_shutdown_title">Shutdown Smartwatch?</string>
+    <string name="dialog_shutdown_message">The smartwatch will be completely powered off.\n\nDo you want to continue?</string>
+    <string name="dialog_shutdown_confirm">Shutdown</string>
+    <string name="dialog_shutdown_cancel">Cancel</string>
+
+    <!-- Dialog: Select Watch -->
+    <string name="dialog_select_watch_title">Select Watch</string>
+    <string name="device_no_name">Unnamed</string>
+
+    <!-- Upload Progress -->
+    <string name="upload_transferring">Transferring file…</string>
+    <string name="upload_complete_title">Upload complete</string>
+    <string name="upload_complete_message">APK sent successfully!</string>
+
+    <!-- Welcome Activity -->
+    <string name="welcome_permission_title">Permission required.</string>
+    <string name="welcome_permission_message">To display the SSID of the Wi-Fi network connected to the smartwatch, advanced location permission is required. To do this, select \'Allow all the time\' on the next screen.</string>
+    <string name="welcome_permission_understood">Got it</string>
+    <string name="welcome_permission_not_now">Not now</string>
 </resources>

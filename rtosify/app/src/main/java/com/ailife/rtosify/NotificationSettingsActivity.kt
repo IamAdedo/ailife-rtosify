@@ -200,7 +200,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         try {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         } catch (e: Exception) {
-            Toast.makeText(this, "Erro ao abrir configurações.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_error_open_settings), Toast.LENGTH_SHORT).show()
         }
     }
 
