@@ -1,10 +1,10 @@
-# Rtosify - Phone App
+# RTOSify - Phone App
 
-This is the **phone/smartphone** application for the Rtosify notification system.
+This is the **phone/smartphone** application for the RTOSify notification system.
 
 ## Description
 
-Rtosify is the main phone app that captures notifications from your Android phone and sends them to a companion smartwatch device via Bluetooth.
+RTOSify is the main phone app that captures notifications from your Android phone and sends them to a companion smartwatch device via Bluetooth.
 
 ## Features
 
@@ -29,17 +29,17 @@ Rtosify is the main phone app that captures notifications from your Android phon
    - Location (for Bluetooth scanning)
 3. Open the app and select **Smartphone** mode
 4. Configure which apps' notifications you want to mirror
-5. Pair with your smartwatch running the **Rtosify Companion** app
+5. Pair with your smartwatch running the **RTOSify Companion** app
 
 ## Package Information
 
 - **Package Name**: `com.ailife.rtosify`
-- **App Name**: Rtosify
+- **App Name**: RTOSify
 - **Version**: 1.0
 
 ## Related Projects
 
-- **Rtosify Companion**: The watch app that receives and displays notifications (install on your smartwatch)
+- **RTOSify Companion**: The watch app that receives and displays notifications (install on your smartwatch)
 
 ## How It Works
 

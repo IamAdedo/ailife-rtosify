@@ -39,8 +39,25 @@
             android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
             android:textColor="?android:attr/textColorSecondary"
             android:layout_marginTop="8dp"
-            android:layout_marginBottom="32dp"
+            android:layout_marginBottom="16dp"
             android:textAlignment="center"/>
+
+        <ImageView
+            android:id="@+id/imgQrCode"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:layout_marginBottom="16dp"
+            android:background="@android:color/white"
+            android:padding="8dp"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/btnFinishedSetup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Finished Setup"
+            android:visibility="gone"
+            android:layout_marginBottom="16dp"/>
 
         <ProgressBar
             android:id="@+id/progressBarSetup"

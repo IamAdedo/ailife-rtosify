@@ -83,7 +83,7 @@ class BluetoothService : Service() {
     private var globalOutputStream: DataOutputStream? = null
 
     private val APP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
-    private val APP_NAME = "MarinovWatchApp"
+    private val APP_NAME = "RTOSifyApp"
 
     private lateinit var prefs: SharedPreferences
     private val PREF_NAME = "AppPrefs"
@@ -159,10 +159,10 @@ class BluetoothService : Service() {
     private val CMD_PING = "PING"
 
     companion object {
-        const val ACTION_SEND_NOTIF_TO_WATCH = "com.marinov.watch.ACTION_SEND_NOTIF"
-        const val ACTION_SEND_REMOVE_TO_WATCH = "com.marinov.watch.ACTION_SEND_REMOVE"
-        const val ACTION_WATCH_DISMISSED_LOCAL = "com.marinov.watch.DISMISSED_LOCAL"
-        const val ACTION_CMD_DISMISS_ON_PHONE = "com.marinov.watch.CMD_DISMISS_PHONE"
+        const val ACTION_SEND_NOTIF_TO_WATCH = "com.ailife.rtosify.ACTION_SEND_NOTIF"
+        const val ACTION_SEND_REMOVE_TO_WATCH = "com.ailife.rtosify.ACTION_SEND_REMOVE"
+        const val ACTION_WATCH_DISMISSED_LOCAL = "com.ailife.rtosify.DISMISSED_LOCAL"
+        const val ACTION_CMD_DISMISS_ON_PHONE = "com.ailife.rtosify.CMD_DISMISS_PHONE"
 
         const val EXTRA_NOTIF_JSON = "extra_notif_json"
         const val EXTRA_NOTIF_KEY = "extra_notif_key"

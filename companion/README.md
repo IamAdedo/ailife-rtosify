@@ -1,10 +1,10 @@
-# Rtosify Companion - Watch App
+# RTOSify Companion - Watch App
 
-This is the **smartwatch/companion** application for the Rtosify notification system.
+This is the **smartwatch/companion** application for the RTOSify notification system.
 
 ## Description
 
-Rtosify Companion is the watch app that receives and displays notifications from your Android phone running the main Rtosify app.
+RTOSify Companion is the watch app that receives and displays notifications from your Android phone running the main RTOSify app.
 
 ## Features
 
@@ -30,17 +30,17 @@ Rtosify Companion is the watch app that receives and displays notifications from
    - Battery optimization exemption
 3. Open the app and select **Watch** mode
 4. The watch will wait for a connection from your phone
-5. On your phone, open **Rtosify** and connect to this watch
+5. On your phone, open **RTOSify** and connect to this watch
 
 ## Package Information
 
 - **Package Name**: `com.ailife.rtosifycompanion`
-- **App Name**: Rtosify Companion
+- **App Name**: RTOSify Companion
 - **Version**: 1.0
 
 ## Related Projects
 
-- **Rtosify**: The phone app that sends notifications (install on your smartphone)
+- **RTOSify**: The phone app that sends notifications (install on your smartphone)
 
 ## How It Works
 

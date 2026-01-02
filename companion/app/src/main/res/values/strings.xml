@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name">Rtosify Companion</string>
+    <string name="app_name">RTOSify companion</string>
 
     <!-- App Title -->
-    <string name="app_title">MarinovWatch</string>
+    <string name="app_title">RTOSify</string>
 
     <!-- Connection Status -->
     <string name="status_searching">Searching…</string>

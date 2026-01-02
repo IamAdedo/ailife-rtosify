@@ -1,4 +1,4 @@
-# Rtosify - Notification Mirroring System
+# RTOSify - Notification Mirroring System
 
 A Bluetooth-based notification mirroring system split into two separate Android apps:
 - **Phone App**: Sends notifications from your phone to your smartwatch

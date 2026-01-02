@@ -72,6 +72,13 @@
             android:exported="false"
             android:theme="@style/Theme.Smartwatch" />
 
+        <!-- Force QR Scanner to Portrait -->
+        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="portrait"
+            tools:replace="android:screenOrientation"
+            android:stateNotNeeded="true" />
+
         <!-- Lista de Apps (Watch) -->
         <activity
             android:name=".AppListActivity"

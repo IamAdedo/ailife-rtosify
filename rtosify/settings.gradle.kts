@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Rtosify"
+rootProject.name = "RTOSify"
 include(":app")

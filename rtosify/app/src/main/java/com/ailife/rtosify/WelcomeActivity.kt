@@ -17,10 +17,17 @@ import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import android.widget.TextView
+import android.widget.Toast
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.journeyapps.barcodescanner.ScanContract
+import com.journeyapps.barcodescanner.ScanOptions
+import android.bluetooth.BluetoothDevice
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
 
 class WelcomeActivity : AppCompatActivity() {
 
@@ -36,7 +43,12 @@ class WelcomeActivity : AppCompatActivity() {
         }
     private val backgroundLocationLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-            startAutomaticSetup()
+            checkBluetoothAndShowPairingOptions()
+        }
+
+    private val enableBluetoothLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            showPairingOptions()
         }
 
     private val installPermissionLauncher =
@@ -46,8 +58,114 @@ class WelcomeActivity : AppCompatActivity() {
 
     private val dndPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            finishSetup("WATCH")
+            finishSetup("PHONE")
         }
+
+    private val qrScannerLauncher = registerForActivityResult(ScanContract()) { result ->
+        if (result.contents != null) {
+            val qrData = result.contents
+            android.util.Log.d("Welcome", "QR Scanned: $qrData")
+
+            // Check if it's the new format (CODE-ANDROIDID) or old format (MAC address)
+            val macRegex = Regex("^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$")
+
+            if (macRegex.matches(qrData)) {
+                // Old format: direct MAC address
+                if (qrData == "02:00:00:00:00:00") {
+                    Toast.makeText(this, "Invalid MAC address. Please use updated watch app.", Toast.LENGTH_LONG).show()
+                } else {
+                    startPairingWithDevice(qrData)
+                }
+            } else if (qrData.contains("-")) {
+                // New format: CODE-ANDROIDID
+                val parts = qrData.split("-", limit = 2)
+                if (parts.size == 2) {
+                    val pairingCode = parts[0]
+                    val androidId = parts[1]
+                    android.util.Log.d("Welcome", "Pairing code: $pairingCode, Android ID: $androidId")
+                    startDiscoveryForPairingCode(pairingCode, androidId)
+                } else {
+                    Toast.makeText(this, "Invalid QR Code format", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(this, "Invalid QR Code format: $qrData", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private val bondStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == BluetoothDevice.ACTION_BOND_STATE_CHANGED) {
+                val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                val bondState = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE)
+
+                android.util.Log.d("Welcome", "Bond state changed for ${device?.address}: $bondState")
+
+                val targetMac = getSharedPreferences("AppPrefs", MODE_PRIVATE).getString("temp_mac", null)
+                if (device != null && device.address == targetMac) {
+                    when (bondState) {
+                        BluetoothDevice.BOND_BONDED -> {
+                            android.util.Log.d("Welcome", "Device bonded successfully")
+                            completeSetupWithDeviceAddress(device.address)
+                        }
+                        BluetoothDevice.BOND_NONE -> {
+                            android.util.Log.w("Welcome", "Pairing failed or cancelled")
+                            findViewById<TextView>(R.id.tvWelcomeStatus).text = "Pairing failed. Please try again."
+                            findViewById<android.view.View>(R.id.progressBarSetup).visibility = android.view.View.GONE
+                            findViewById<android.view.View>(R.id.btnRetry).visibility = android.view.View.VISIBLE
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private val discoveryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                BluetoothDevice.ACTION_FOUND -> {
+                    val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                    val deviceName = device?.name
+                    android.util.Log.d("Welcome", "Found device: $deviceName (${device?.address})")
+
+                    val targetCode = getSharedPreferences("AppPrefs", MODE_PRIVATE).getString("temp_pairing_code", null)
+                    if (deviceName != null && targetCode != null && deviceName == "rtosify-$targetCode") {
+                        android.util.Log.d("Welcome", "Found matching device!")
+
+                        // Stop discovery
+                        val btManager = getSystemService(BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
+                        try {
+                            btManager.adapter.cancelDiscovery()
+                        } catch (_: SecurityException) {}
+
+                        // Start pairing
+                        startPairingWithDevice(device.address)
+                    }
+                }
+                android.bluetooth.BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                    android.util.Log.d("Welcome", "Discovery finished")
+                    val targetCode = getSharedPreferences("AppPrefs", MODE_PRIVATE).getString("temp_pairing_code", null)
+                    if (targetCode != null) {
+                        // Device not found
+                        findViewById<TextView>(R.id.tvWelcomeStatus).text = "Watch not found. Make sure it's nearby and showing the QR code."
+                        findViewById<android.view.View>(R.id.progressBarSetup).visibility = android.view.View.GONE
+                        findViewById<android.view.View>(R.id.btnRetry).visibility = android.view.View.VISIBLE
+                        getSharedPreferences("AppPrefs", MODE_PRIVATE).edit { remove("temp_pairing_code") }
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(bondStateReceiver)
+        } catch (_: Exception) {}
+        try {
+            unregisterReceiver(discoveryReceiver)
+        } catch (_: Exception) {}
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +173,15 @@ class WelcomeActivity : AppCompatActivity() {
 
         findViewById<android.widget.Button>(R.id.btnRetry).setOnClickListener {
             startAutomaticSetup()
+        }
+
+        findViewById<android.widget.Button>(R.id.btnScanQr).setOnClickListener {
+            val options = ScanOptions()
+            options.setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+            options.setPrompt("Scan the QR Code on your Watch")
+            options.setBeepEnabled(true)
+            options.setOrientationLocked(false)
+            qrScannerLauncher.launch(options)
         }
 
         checkBatteryOptimizationDirect()
@@ -141,15 +268,129 @@ class WelcomeActivity : AppCompatActivity() {
     }
 
     private fun completeSetupWithDevice(device: android.bluetooth.BluetoothDevice) {
+        completeSetupWithDeviceAddress(device.address)
+    }
+
+    private fun completeSetupWithDeviceAddress(address: String) {
         val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
         val statusText = findViewById<TextView>(R.id.tvWelcomeStatus)
+        val progressBar = findViewById<android.view.View>(R.id.progressBarSetup)
         
-        prefs.edit { putString("last_mac", device.address) }
-        statusText.text = getString(R.string.welcome_watch_found, device.name ?: "Device")
+        prefs.edit { 
+            putString("last_mac", address)
+            remove("temp_mac")
+        }
+        
+        statusText.text = "Watch paired and ready!\nFinalizing setup..."
+        progressBar.visibility = android.view.View.VISIBLE
         
         lifecycleScope.launch {
-            delay(1000)
+            delay(1500)
             finishSetup("PHONE")
+        }
+    }
+
+    private fun startDiscoveryForPairingCode(pairingCode: String, androidId: String) {
+        val btManager = getSystemService(BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
+        val adapter = btManager.adapter
+
+        if (adapter == null || !adapter.isEnabled) {
+            Toast.makeText(this, "Bluetooth is not enabled. Please enable it and try again.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val statusText = findViewById<TextView>(R.id.tvWelcomeStatus)
+        val progressBar = findViewById<android.view.View>(R.id.progressBarSetup)
+        val btnRetry = findViewById<android.view.View>(R.id.btnRetry)
+
+        android.util.Log.d("Welcome", "Starting discovery for pairing code: $pairingCode")
+
+        // Save pairing code to identify device in receiver
+        getSharedPreferences("AppPrefs", MODE_PRIVATE).edit {
+            putString("temp_pairing_code", pairingCode)
+            putString("temp_android_id", androidId)
+        }
+
+        // Register discovery receiver
+        val filter = IntentFilter().apply {
+            addAction(BluetoothDevice.ACTION_FOUND)
+            addAction(android.bluetooth.BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+        }
+        registerReceiver(discoveryReceiver, filter)
+
+        // Also register bond state receiver for pairing
+        val bondFilter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+        registerReceiver(bondStateReceiver, bondFilter)
+
+        statusText.text = "Searching for your watch...\nMake sure it's showing the QR code."
+        progressBar.visibility = android.view.View.VISIBLE
+        btnRetry.visibility = android.view.View.GONE
+
+        // Start discovery
+        try {
+            if (adapter.isDiscovering) {
+                adapter.cancelDiscovery()
+            }
+            val started = adapter.startDiscovery()
+            if (!started) {
+                android.util.Log.e("Welcome", "Failed to start discovery")
+                statusText.text = "Could not start Bluetooth discovery"
+                progressBar.visibility = android.view.View.GONE
+                btnRetry.visibility = android.view.View.VISIBLE
+            }
+        } catch (e: SecurityException) {
+            android.util.Log.e("Welcome", "SecurityException starting discovery", e)
+            statusText.text = "Bluetooth permission denied"
+            progressBar.visibility = android.view.View.GONE
+            btnRetry.visibility = android.view.View.VISIBLE
+        }
+    }
+
+    private fun startPairingWithDevice(mac: String) {
+        val btManager = getSystemService(BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
+        val adapter = btManager.adapter
+
+        if (adapter == null || !adapter.isEnabled) {
+            Toast.makeText(this, "Bluetooth is not enabled. Please enable it and try again.", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val device = adapter.getRemoteDevice(mac)
+        val statusText = findViewById<TextView>(R.id.tvWelcomeStatus)
+        val progressBar = findViewById<android.view.View>(R.id.progressBarSetup)
+        val btnRetry = findViewById<android.view.View>(R.id.btnRetry)
+
+        android.util.Log.d("Welcome", "Starting pairing with $mac, current bond state: ${device.bondState}")
+
+        // Clear discovery code and save MAC
+        getSharedPreferences("AppPrefs", MODE_PRIVATE).edit {
+            putString("temp_mac", mac)
+            remove("temp_pairing_code")
+        }
+
+        // Register receiver if not already
+        val filter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+        try {
+            registerReceiver(bondStateReceiver, filter)
+        } catch (_: Exception) {
+            // Already registered
+        }
+
+        if (device.bondState == BluetoothDevice.BOND_BONDED) {
+            android.util.Log.d("Welcome", "Device already bonded")
+            completeSetupWithDeviceAddress(mac)
+        } else {
+            statusText.text = "Pairing with your watch...\nPlease confirm the request on both devices."
+            progressBar.visibility = android.view.View.VISIBLE
+            btnRetry.visibility = android.view.View.GONE
+
+            val initiated = device.createBond()
+            if (!initiated) {
+                android.util.Log.e("Welcome", "Failed to initiate pairing")
+                statusText.text = "Could not start pairing. Is the watch nearby?"
+                progressBar.visibility = android.view.View.GONE
+                btnRetry.visibility = android.view.View.VISIBLE
+            }
         }
     }
 
@@ -179,11 +420,41 @@ class WelcomeActivity : AppCompatActivity() {
                     backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
                 }
             } else {
-                startAutomaticSetup()
+                checkBluetoothAndShowPairingOptions()
             }
         } else {
-            startAutomaticSetup()
+            checkBluetoothAndShowPairingOptions()
         }
+    }
+
+    private fun checkBluetoothAndShowPairingOptions() {
+        val btManager = getSystemService(BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
+        val adapter = btManager.adapter
+
+        if (adapter == null) {
+            Toast.makeText(this, "This device doesn't support Bluetooth", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        if (!adapter.isEnabled) {
+            val enableBtIntent = Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            enableBluetoothLauncher.launch(enableBtIntent)
+        } else {
+            showPairingOptions()
+        }
+    }
+
+    private fun showPairingOptions() {
+        val statusText = findViewById<TextView>(R.id.tvWelcomeStatus)
+        val progressBar = findViewById<android.view.View>(R.id.progressBarSetup)
+        val btnRetry = findViewById<android.widget.Button>(R.id.btnRetry)
+        val btnScanQr = findViewById<android.widget.Button>(R.id.btnScanQr)
+
+        statusText.text = "How would you like to pair your watch?"
+        progressBar.visibility = android.view.View.GONE
+        btnRetry.visibility = android.view.View.VISIBLE
+        btnRetry.text = "Manual Selection"
+        btnScanQr.visibility = android.view.View.VISIBLE
     }
 
     // 2. Faz a verificação de Root e DEPOIS chama a permissão de instalação.
