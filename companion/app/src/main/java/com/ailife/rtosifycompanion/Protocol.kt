@@ -61,9 +61,17 @@ object MessageType {
     const val EXECUTE_NOTIFICATION_ACTION = "execute_notification_action"
     const val SEND_NOTIFICATION_REPLY = "send_notification_reply"
     const val MEDIA_CONTROL = "media_control"
+    const val CAMERA_START = "camera_start"
+    const val CAMERA_STOP = "camera_stop"
+    const val CAMERA_FRAME = "camera_frame"
+    const val CAMERA_SHUTTER = "camera_shutter"
 }
 
 // Data classes for specific message types
+data class CameraFrameData(
+    val imageBase64: String
+)
+
 data class MediaControlData(
     val command: String,
     val volume: Int? = null
@@ -238,6 +246,24 @@ object ProtocolHelper {
         data.addProperty("command", command)
         if (volume != null) data.addProperty("volume", volume)
         return ProtocolMessage(type = MessageType.MEDIA_CONTROL, data = data)
+    }
+
+    fun createCameraFrame(imageBase64: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("imageBase64", imageBase64)
+        return ProtocolMessage(type = MessageType.CAMERA_FRAME, data = data)
+    }
+
+    fun createCameraStart(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.CAMERA_START, data = JsonObject())
+    }
+
+    fun createCameraStop(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.CAMERA_STOP, data = JsonObject())
+    }
+
+    fun createCameraShutter(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.CAMERA_SHUTTER, data = JsonObject())
     }
 
     // Helper to extract data from message

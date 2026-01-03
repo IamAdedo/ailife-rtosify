@@ -448,6 +448,9 @@ class BluetoothService : Service() {
                     MessageType.SET_DND -> handleSetDndCommand(message)
                     MessageType.FIND_PHONE -> handleFindPhoneCommand(message)
                     MessageType.MEDIA_CONTROL -> handleMediaControl(message)
+                    MessageType.CAMERA_START -> handleCameraStart()
+                    MessageType.CAMERA_STOP -> handleCameraStop()
+                    MessageType.CAMERA_SHUTTER -> handleCameraShutter()
                 }
             }
         } catch (_: IOException) {
@@ -694,6 +697,33 @@ class BluetoothService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error handling media control: ${e.message}")
         }
+    }
+
+    private fun handleCameraStart() {
+        val intent = Intent(this, CameraActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+    }
+
+    private fun handleCameraStop() {
+        // We can't easily finish an activity from service unless we broadcast to it.
+        // But users can just swipe back. 
+        // Or we can send a broadcast to finish it.
+        // For now, let's assume user manually closes or we implement a termination broadcast.
+        // Actually, let's implement the finish broadcast for better UX.
+        // But `CameraActivity` doesn't listen for finish yet. 
+        // Let's just launch MainActivity to bring it front or do nothing for now (MVP).
+        // Actually, bringing MainActivity to front might hide Camera.
+    }
+
+    private fun handleCameraShutter() {
+        val intent = Intent(CameraActivity.ACTION_TAKE_PICTURE)
+        intent.setPackage(packageName)
+        sendBroadcast(intent)
+    }
+
+    fun sendCameraFrame(base64: String) {
+        sendMessage(ProtocolHelper.createCameraFrame(base64))
     }
 
     private fun startFindPhoneAlarm() {

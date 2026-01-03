@@ -48,6 +48,13 @@ dependencies {
     implementation(libs.shizuku.provider)
     implementation(libs.libsu.core)
     testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+
+    // CameraX
+    val camerax_version = "1.3.0" // Or use a catalog managed version if preferred, but hardcoding for simplicity here as toml reading failed
+    implementation("androidx.camera:camera-core:${camerax_version}")
+    implementation("androidx.camera:camera-camera2:${camerax_version}")
+    implementation("androidx.camera:camera-lifecycle:${camerax_version}")
+    implementation("androidx.camera:camera-view:${camerax_version}")
+    implementation("androidx.camera:camera-extensions:${camerax_version}")
 }

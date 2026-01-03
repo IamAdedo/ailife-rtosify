@@ -549,7 +549,7 @@ class BluetoothService : Service() {
                     MessageType.FIND_DEVICE -> handleFindDeviceCommand(message)
                     MessageType.STATUS_UPDATE -> handleStatusUpdateReceived(message)
                     MessageType.SET_DND -> handleSetDndCommand(message)
-                    MessageType.UNINSTALL_APP -> handleUninstallApp(message)
+                    MessageType.CAMERA_FRAME -> handleCameraFrame(message)
                 }
             }
         } catch (_: IOException) {
@@ -744,6 +744,18 @@ class BluetoothService : Service() {
                 val status = collectWatchStatus()
                 sendMessage(ProtocolHelper.createStatusUpdate(status))
             }
+        }
+    }
+
+    private fun handleCameraFrame(message: ProtocolMessage) {
+        try {
+            val data = ProtocolHelper.extractData<CameraFrameData>(message)
+            val intent = Intent(CameraRemoteActivity.ACTION_FRAME_RECEIVED)
+            intent.putExtra(CameraRemoteActivity.EXTRA_FRAME_DATA, data.imageBase64)
+            intent.setPackage(packageName)
+            sendBroadcast(intent)
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error handling camera frame: ${e.message}")
         }
     }
 

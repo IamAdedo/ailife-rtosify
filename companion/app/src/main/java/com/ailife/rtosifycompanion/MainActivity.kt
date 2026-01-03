@@ -257,6 +257,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 { runIfConnected { startActivity(Intent(this, MediaControlActivity::class.java)) } }
             ),
             MenuOption(
+                "Camera",
+                "Remote Shutter",
+                android.R.drawable.ic_menu_camera,
+                { runIfConnected { startActivity(Intent(this, CameraRemoteActivity::class.java)) } }
+            ),
+            MenuOption(
                 getString(R.string.menu_disconnect),
                 getString(R.string.menu_disconnect_desc),
                 android.R.drawable.ic_menu_close_clear_cancel,
