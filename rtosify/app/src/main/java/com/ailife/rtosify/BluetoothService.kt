@@ -16,6 +16,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ComponentName
 import com.ailife.rtosify.R
+import android.view.KeyEvent
 import android.content.IntentFilter
 import android.media.AudioManager
 import android.media.MediaPlayer
@@ -446,6 +447,7 @@ class BluetoothService : Service() {
                     MessageType.STATUS_UPDATE -> handleStatusUpdateReceived(message)
                     MessageType.SET_DND -> handleSetDndCommand(message)
                     MessageType.FIND_PHONE -> handleFindPhoneCommand(message)
+                    MessageType.MEDIA_CONTROL -> handleMediaControl(message)
                 }
             }
         } catch (_: IOException) {
@@ -647,6 +649,50 @@ class BluetoothService : Service() {
             startFindPhoneAlarm()
         } else {
             stopFindPhoneAlarm()
+        }
+    }
+
+    private fun handleMediaControl(message: ProtocolMessage) {
+        try {
+            val controlData = ProtocolHelper.extractData<MediaControlData>(message)
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+            when (controlData.command) {
+                MediaControlData.CMD_PLAY, MediaControlData.CMD_PAUSE, MediaControlData.CMD_PLAY_PAUSE,
+                MediaControlData.CMD_NEXT, MediaControlData.CMD_PREVIOUS -> {
+                    val keyCode = when(controlData.command) {
+                        MediaControlData.CMD_PLAY -> KeyEvent.KEYCODE_MEDIA_PLAY
+                        MediaControlData.CMD_PAUSE -> KeyEvent.KEYCODE_MEDIA_PAUSE
+                        MediaControlData.CMD_PLAY_PAUSE -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+                        MediaControlData.CMD_NEXT -> KeyEvent.KEYCODE_MEDIA_NEXT
+                        MediaControlData.CMD_PREVIOUS -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
+                        else -> 0
+                    }
+                    if (keyCode != 0) {
+                        try {
+                            audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+                            audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
+                        } catch (e: Exception) {
+                            // Fallback to broadcast if dispatchMediaKeyEvent fails
+                            val intent = Intent(Intent.ACTION_MEDIA_BUTTON)
+                            intent.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+                            sendOrderedBroadcast(intent, null)
+
+                            val intentUp = Intent(Intent.ACTION_MEDIA_BUTTON)
+                            intentUp.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(KeyEvent.ACTION_UP, keyCode))
+                            sendOrderedBroadcast(intentUp, null)
+                        }
+                    }
+                }
+                MediaControlData.CMD_VOL_UP -> {
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
+                }
+                MediaControlData.CMD_VOL_DOWN -> {
+                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling media control: ${e.message}")
         }
     }
 

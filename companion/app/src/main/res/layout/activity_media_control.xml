@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="8dp">
+
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Media Control"
+        android:textColor="#FFFFFF"
+        android:textSize="14sp"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Volume Control -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <Button
+            android:id="@+id/btn_vol_down"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:backgroundTint="#333333"
+            android:text="-"
+            android:textSize="24sp"
+            android:textColor="#FFFFFF" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="VOL"
+            android:textColor="#AAAAAA"
+            android:textSize="12sp"
+            android:layout_marginHorizontal="16dp" />
+
+        <Button
+            android:id="@+id/btn_vol_up"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:backgroundTint="#333333"
+            android:text="+"
+            android:textSize="24sp"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+    <!-- Playback Control -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_prev"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:backgroundTint="#222222"
+            android:text="&lt;&lt;"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF" />
+
+        <Button
+            android:id="@+id/btn_play_pause"
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:backgroundTint="#009688"
+            android:text="Play"
+            android:textSize="14sp"
+            android:textColor="#FFFFFF"
+            android:layout_marginHorizontal="12dp" />
+
+        <Button
+            android:id="@+id/btn_next"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:backgroundTint="#222222"
+            android:text="&gt;&gt;"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF" />
+    </LinearLayout>
+
+</LinearLayout>

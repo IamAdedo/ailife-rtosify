@@ -726,6 +726,10 @@ class BluetoothService : Service() {
         sendMessage(ProtocolHelper.createSetDnd(enable))
     }
 
+    fun sendMediaCommand(command: String, volume: Int? = null) {
+        sendMessage(ProtocolHelper.createMediaControl(command, volume))
+    }
+
     private fun handleSetDndCommand(message: ProtocolMessage) {
         val enable = ProtocolHelper.extractBooleanField(message, "enabled")
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager

@@ -60,9 +60,25 @@ object MessageType {
     const val UNINSTALL_APP = "uninstall_app"
     const val EXECUTE_NOTIFICATION_ACTION = "execute_notification_action"
     const val SEND_NOTIFICATION_REPLY = "send_notification_reply"
+    const val MEDIA_CONTROL = "media_control"
 }
 
 // Data classes for specific message types
+data class MediaControlData(
+    val command: String,
+    val volume: Int? = null
+) {
+    companion object {
+        const val CMD_PLAY = "PLAY"
+        const val CMD_PAUSE = "PAUSE"
+        const val CMD_PLAY_PAUSE = "PLAY_PAUSE"
+        const val CMD_NEXT = "NEXT"
+        const val CMD_PREVIOUS = "PREVIOUS"
+        const val CMD_VOL_UP = "VOL_UP"
+        const val CMD_VOL_DOWN = "VOL_DOWN"
+    }
+}
+
 data class NotificationActionData(
     val title: String,
     val actionKey: String,
@@ -215,6 +231,13 @@ object ProtocolHelper {
         data.addProperty("actionKey", actionKey)
         data.addProperty("replyText", replyText)
         return ProtocolMessage(type = MessageType.SEND_NOTIFICATION_REPLY, data = data)
+    }
+
+    fun createMediaControl(command: String, volume: Int? = null): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("command", command)
+        if (volume != null) data.addProperty("volume", volume)
+        return ProtocolMessage(type = MessageType.MEDIA_CONTROL, data = data)
     }
 
     // Helper to extract data from message

@@ -251,6 +251,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 { startActivity(Intent(this, PermissionActivity::class.java)) }
             ),
             MenuOption(
+                "Media Control", // Hardcoded string for now or add to strings.xml later if requested
+                "Control phone playback",
+                android.R.drawable.ic_media_play, // Using a standard system drawable
+                { runIfConnected { startActivity(Intent(this, MediaControlActivity::class.java)) } }
+            ),
+            MenuOption(
                 getString(R.string.menu_disconnect),
                 getString(R.string.menu_disconnect_desc),
                 android.R.drawable.ic_menu_close_clear_cancel,
