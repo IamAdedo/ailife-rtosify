@@ -136,6 +136,10 @@ class MyNotificationListener : NotificationListenerService() {
             val appIconBase64 = extractAppIcon(sbn.packageName)
             Log.d("Listener", "App icon extracted: ${if (appIconBase64 != null) "YES (${appIconBase64.length} chars)" else "NO"}")
 
+            // Extract app name
+            val appName = extractAppName(sbn.packageName)
+            Log.d("Listener", "App name extracted: $appName")
+
             // Use app icon as fallback for small icon if no small icon extracted
             if (smallIconBase64 == null && appIconBase64 != null) {
                 smallIconBase64 = appIconBase64
@@ -161,6 +165,7 @@ class MyNotificationListener : NotificationListenerService() {
                 title = title,
                 text = text,
                 key = sbn.key,
+                appName = appName,
                 largeIcon = largeIconBase64,
                 smallIcon = smallIconBase64,  // Original small icon or app icon as fallback
                 bigPicture = bigPictureBase64,
@@ -351,6 +356,17 @@ class MyNotificationListener : NotificationListenerService() {
         return null
     }
 
+    private fun extractAppName(packageName: String): String {
+        try {
+            val pm = packageManager
+            val appInfo = pm.getApplicationInfo(packageName, 0)
+            return pm.getApplicationLabel(appInfo).toString()
+        } catch (e: Exception) {
+            Log.e("Listener", "Error extracting app name: ${e.message}")
+            return packageName // Fallback to package name
+        }
+    }
+
     private fun extractActions(notifKey: String, notification: android.app.Notification): List<NotificationActionData> {
         val actionsList = mutableListOf<NotificationActionData>()
         val actionsMap = mutableMapOf<String, android.app.Notification.Action>()
@@ -444,8 +460,8 @@ class MyNotificationListener : NotificationListenerService() {
             bitmap
         }
 
-        // Use JPEG for better compression (quality 85 is good balance)
-        resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
+        // Use PNG to preserve transparency (critical for notification icons)
+        resizedBitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
         val byteArray = outputStream.toByteArray()
 
         if (resizedBitmap != bitmap) {

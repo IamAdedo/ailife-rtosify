@@ -1369,6 +1369,7 @@ class BluetoothService : Service() {
             val title = notif.title
             val text = notif.text
             val pkg = notif.packageName
+            val appName = notif.appName ?: pkg
             val key = notif.key
 
             val notifId = notificationMap.getOrPut(key) { (System.currentTimeMillis() % 10000).toInt() + MIRRORED_NOTIFICATION_ID_START }
@@ -1376,36 +1377,49 @@ class BluetoothService : Service() {
             val deleteIntent = Intent(ACTION_WATCH_DISMISSED_LOCAL).apply { putExtra(EXTRA_NOTIF_KEY, key); setPackage(packageName) }
             val deletePending = PendingIntent.getBroadcast(this, notifId, deleteIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
-            val builder = NotificationCompat.Builder(this, MIRRORED_CHANNEL_ID)
+            // Use platform Notification.Builder (API 26+) to support Icon.createWithBitmap
+            val builder = android.app.Notification.Builder(this, MIRRORED_CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(text)
-                .setSubText(pkg)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setSubText(appName)
                 .setAutoCancel(true)
                 .setDeleteIntent(deletePending)
 
-            // Set large icon if available
+            // Set large icon if available (guaranteed to exist from phone app)
             notif.largeIcon?.let { iconBase64 ->
                 try {
                     val iconBytes = Base64.decode(iconBase64, Base64.NO_WRAP)
                     val bitmap = android.graphics.BitmapFactory.decodeByteArray(iconBytes, 0, iconBytes.size)
-                    builder.setLargeIcon(bitmap)
+                    if (bitmap != null) {
+                        builder.setLargeIcon(bitmap)
+                        Log.d(TAG, "Large icon set: ${bitmap.width}x${bitmap.height}")
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error decoding large icon: ${e.message}")
                 }
             }
 
-            // Set small icon (app icon) if available, otherwise use default
+            // Set small icon using the bitmap sent from the phone (API 26+)
+            // This displays the actual app icon as the notification small icon
             if (notif.smallIcon != null) {
                 try {
                     val iconBytes = Base64.decode(notif.smallIcon, Base64.NO_WRAP)
                     val bitmap = android.graphics.BitmapFactory.decodeByteArray(iconBytes, 0, iconBytes.size)
-                    builder.setSmallIcon(android.R.drawable.ic_popup_reminder)
+                    if (bitmap != null) {
+                        // Use Icon.createWithBitmap to create a dynamic small icon (API 26+)
+                        val icon = android.graphics.drawable.Icon.createWithBitmap(bitmap)
+                        builder.setSmallIcon(icon)
+                    } else {
+                        // Fallback if bitmap is null
+                        builder.setSmallIcon(R.drawable.ic_smartwatch_notification)
+                    }
                 } catch (e: Exception) {
-                    builder.setSmallIcon(android.R.drawable.ic_popup_reminder)
+                    Log.e(TAG, "Error decoding small icon: ${e.message}")
+                    builder.setSmallIcon(R.drawable.ic_smartwatch_notification)
                 }
             } else {
-                builder.setSmallIcon(android.R.drawable.ic_popup_reminder)
+                // No small icon provided, use default
+                builder.setSmallIcon(R.drawable.ic_smartwatch_notification)
             }
 
             // Add action buttons
@@ -1435,12 +1449,12 @@ class BluetoothService : Service() {
 
                 if (action.isReplyAction) {
                     // Create reply action with RemoteInput
-                    val remoteInput = androidx.core.app.RemoteInput.Builder("reply_text")
+                    val remoteInput = android.app.RemoteInput.Builder("reply_text")
                         .setLabel(getString(R.string.reply_label))
                         .build()
 
-                    val replyAction = NotificationCompat.Action.Builder(
-                        android.R.drawable.ic_menu_send,
+                    val replyAction = android.app.Notification.Action.Builder(
+                        android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_menu_send),
                         action.title,
                         actionPendingIntent
                     ).addRemoteInput(remoteInput).build()
@@ -1448,11 +1462,13 @@ class BluetoothService : Service() {
                     builder.addAction(replyAction)
                 } else {
                     // Regular action button
-                    builder.addAction(
-                        android.R.drawable.ic_menu_view,
+                    val regularAction = android.app.Notification.Action.Builder(
+                        android.graphics.drawable.Icon.createWithResource(this, android.R.drawable.ic_menu_view),
                         action.title,
                         actionPendingIntent
-                    )
+                    ).build()
+                    
+                    builder.addAction(regularAction)
                 }
             }
 
@@ -1464,7 +1480,7 @@ class BluetoothService : Service() {
                     val pictureBitmap = android.graphics.BitmapFactory.decodeByteArray(pictureBytes, 0, pictureBytes.size)
                     if (pictureBitmap != null) {
                         Log.d(TAG, "Big picture decoded: ${pictureBitmap.width}x${pictureBitmap.height}")
-                        val bigPictureStyle = NotificationCompat.BigPictureStyle()
+                        val bigPictureStyle = android.app.Notification.BigPictureStyle()
                             .bigPicture(pictureBitmap)
                             .bigLargeIcon(null as Bitmap?) // Hide large icon when expanded
                         builder.setStyle(bigPictureStyle)
