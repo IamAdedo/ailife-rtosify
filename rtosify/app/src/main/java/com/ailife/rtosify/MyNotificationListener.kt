@@ -124,32 +124,38 @@ class MyNotificationListener : NotificationListenerService() {
             val extras = notification.extras
             Log.d("Listener", "Notification extras keys: ${extras.keySet().joinToString()}")
 
-            // Extract large icon from notification
+            // 1. Extract large icon (original large icon if present)
             var largeIconBase64 = extractLargeIcon(notification)
-            Log.d("Listener", "Large icon extracted: ${if (largeIconBase64 != null) "YES (${largeIconBase64.length} chars)" else "NO"}")
+            val hasOriginalLargeIcon = largeIconBase64 != null
+            Log.d("Listener", "Large icon extracted: ${if (hasOriginalLargeIcon) "YES (${largeIconBase64!!.length} chars)" else "NO"}")
 
-            // Extract small icon from notification (original status bar icon)
-            var smallIconBase64 = extractSmallIcon(notification)
-            Log.d("Listener", "Small icon extracted: ${if (smallIconBase64 != null) "YES (${smallIconBase64.length} chars)" else "NO"}")
+            // 2. Extract group icon (API 30+)
+            val groupIconBase64 = extractGroupIcon(notification)
+            Log.d("Listener", "Group icon extracted: ${if (groupIconBase64 != null) "YES (${groupIconBase64.length} chars)" else "NO"}")
 
-            // Extract app icon as fallback
+            // 3. Extract sender icon and name (MessagingStyle)
+            val senderInfo = extractSenderInfo(notification)
+            val senderIconBase64 = senderInfo.first
+            val senderName = senderInfo.second
+            Log.d("Listener", "Sender info: icon=${if (senderIconBase64 != null) "YES" else "NO"}, name=$senderName")
+
+            // 4. Extract app icon (base fallback)
             val appIconBase64 = extractAppIcon(sbn.packageName)
             Log.d("Listener", "App icon extracted: ${if (appIconBase64 != null) "YES (${appIconBase64.length} chars)" else "NO"}")
 
-            // Extract app name
-            val appName = extractAppName(sbn.packageName)
-            Log.d("Listener", "App name extracted: $appName")
+            // --- Fallback logic ---
+            // If original notification had NO large icon, and we have NO group icon AND NO sender icon,
+            // then use app icon as fallback for largeIcon.
+            if (!hasOriginalLargeIcon && groupIconBase64 == null && senderIconBase64 == null && appIconBase64 != null) {
+                largeIconBase64 = appIconBase64
+                Log.d("Listener", "Using app icon as large icon fallback (no other icons found)")
+            }
 
-            // Use app icon as fallback for small icon if no small icon extracted
+            // Extract small icon from notification (original status bar icon)
+            var smallIconBase64 = extractSmallIcon(notification)
             if (smallIconBase64 == null && appIconBase64 != null) {
                 smallIconBase64 = appIconBase64
                 Log.d("Listener", "Using app icon as small icon fallback")
-            }
-
-            // Use app icon as fallback for large icon if no large icon exists
-            if (largeIconBase64 == null && appIconBase64 != null) {
-                largeIconBase64 = appIconBase64
-                Log.d("Listener", "Using app icon as large icon fallback")
             }
 
             // Extract big picture (for BigPictureStyle notifications)
@@ -165,9 +171,12 @@ class MyNotificationListener : NotificationListenerService() {
                 title = title,
                 text = text,
                 key = sbn.key,
-                appName = appName,
+                appName = extractAppName(sbn.packageName),
                 largeIcon = largeIconBase64,
-                smallIcon = smallIconBase64,  // Original small icon or app icon as fallback
+                smallIcon = smallIconBase64,
+                groupIcon = groupIconBase64,
+                senderIcon = senderIconBase64,
+                senderName = senderName,
                 bigPicture = bigPictureBase64,
                 actions = actions
             )
@@ -208,7 +217,11 @@ class MyNotificationListener : NotificationListenerService() {
     private fun extractLargeIcon(notification: android.app.Notification): String? {
         try {
             // Try getting large icon from notification
-            var largeIcon = notification.getLargeIcon()
+            var largeIcon = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                notification.getLargeIcon()
+            } else {
+                null
+            }
             Log.d("Listener", "getLargeIcon() returned: ${largeIcon != null}")
 
             // If getLargeIcon is null, try getting from extras
@@ -295,33 +308,92 @@ class MyNotificationListener : NotificationListenerService() {
             val extras = notification.extras
 
             // Try to get big picture from extras
-            // 1. Try as Bitmap first
-            var bigPictureBitmap = extras.getParcelable<Bitmap>("android.picture")
+            val bigPictureBitmap = extras.getParcelable<Bitmap>("android.picture")
             if (bigPictureBitmap != null) {
                 Log.d("Listener", "Found big picture as Bitmap")
                 return bitmapToBase64(bigPictureBitmap)
             }
 
-            // 2. Try as Icon (if android.pictureIcon exists)
+            // Try as Icon (if android.pictureIcon exists)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                try {
-                    val pictureIcon = extras.getParcelable<android.graphics.drawable.Icon>("android.pictureIcon")
-                    if (pictureIcon != null) {
-                        val drawable = pictureIcon.loadDrawable(this)
-                        if (drawable != null) {
-                            Log.d("Listener", "Found big picture as Icon")
-                            val bitmap = drawableToBitmap(drawable)
-                            return bitmapToBase64(bitmap)
-                        }
+                val pictureIcon = extras.getParcelable<android.graphics.drawable.Icon>("android.pictureIcon")
+                if (pictureIcon != null) {
+                    val drawable = pictureIcon.loadDrawable(this)
+                    if (drawable != null) {
+                        Log.d("Listener", "Found big picture as Icon")
+                        return bitmapToBase64(drawableToBitmap(drawable))
                     }
-                } catch (e: ClassCastException) {
-                    Log.d("Listener", "android.pictureIcon is not an Icon")
                 }
             }
         } catch (e: Exception) {
-            Log.e("Listener", "Error extracting big picture: ${e.message}", e)
+            Log.e("Listener", "Error extracting big picture: ${e.message}")
         }
         return null
+    }
+
+    private fun extractGroupIcon(notification: android.app.Notification): String? {
+        try {
+            val extras = notification.extras
+
+            // 1. Try EXTRA_CONVERSATION_ICON (API 30+)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val icon = extras.getParcelable<android.graphics.drawable.Icon>("android.conversationIcon")
+                if (icon != null) {
+                    val drawable = icon.loadDrawable(this)
+                    if (drawable != null) {
+                        Log.d("Listener", "Found group icon as conversationIcon")
+                        return bitmapToBase64(drawableToBitmap(drawable))
+                    }
+                }
+            }
+
+            // 2. Try EXTRA_LARGE_ICON_BIG (standard for messaging)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val icon = extras.getParcelable<android.graphics.drawable.Icon>("android.largeIcon.big")
+                if (icon != null) {
+                    val drawable = icon.loadDrawable(this)
+                    if (drawable != null) {
+                        Log.d("Listener", "Found group icon as largeIcon.big")
+                        return bitmapToBase64(drawableToBitmap(drawable))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("Listener", "Error extracting group icon: ${e.message}")
+        }
+        return null
+    }
+
+    private fun extractSenderInfo(notification: android.app.Notification): Pair<String?, String?> {
+        try {
+            val extras = notification.extras
+
+            // Try to extract from MessagingStyle
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                // Try to get messages
+                val messages = extras.getParcelableArray("android.messages")
+                if (messages != null && messages.isNotEmpty()) {
+                    // Get the last message
+                    val lastMessage = messages.last() as? android.os.Bundle
+                    if (lastMessage != null) {
+                        val person = lastMessage.getParcelable<android.app.Person>("sender_person")
+                        if (person != null) {
+                            var iconBase64: String? = null
+                            if (person.icon != null) {
+                                val drawable = person.icon!!.loadDrawable(this)
+                                if (drawable != null) {
+                                    iconBase64 = bitmapToBase64(drawableToBitmap(drawable))
+                                }
+                            }
+                            return Pair(iconBase64, person.name?.toString())
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("Listener", "Error extracting sender info: ${e.message}")
+        }
+        return Pair(null, null)
     }
 
     private fun extractSmallIcon(notification: android.app.Notification): String? {
