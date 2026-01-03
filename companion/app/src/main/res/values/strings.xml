@@ -97,4 +97,31 @@
     <string name="notif_grant_access">Grant Access</string>
     <string name="notif_apps_title">Applications</string>
     <string name="notif_apps_loading">Loading applications…</string>
+
+    <!-- Permissions Activity -->
+    <string name="perm_title">Permissions</string>
+    <string name="perm_granted">Granted</string>
+    <string name="perm_not_granted">Not Granted</string>
+    
+    <string name="perm_bluetooth">Bluetooth</string>
+    <string name="perm_bluetooth_desc">Required to scan and connect.</string>
+    
+    <string name="perm_install">Install Unknown Apps</string>
+    <string name="perm_install_desc">Required to install received APKs.</string>
+    
+    <string name="perm_shizuku">Shizuku</string>
+    <string name="perm_shizuku_desc">Provides advanced management.</string>
+    
+    <string name="perm_root">Root Access</string>
+    <string name="perm_root_desc">Provides full system access.</string>
+
+    <string name="perm_location">Location Services</string>
+    <string name="perm_location_desc">Required for scanning.</string>
+    <string name="perm_location_bg">Background Location</string>
+    <string name="perm_location_bg_desc">Allows scanning while screen is off.</string>
+
+    <!-- Find Watch Alarm -->
+    <string name="find_watch_alarm_title">Finding Watch…</string>
+    <string name="find_watch_alarm_message">Loud sound playing. Press stop when found.</string>
+    <string name="find_watch_alarm_stop">Stop</string>
 </resources>

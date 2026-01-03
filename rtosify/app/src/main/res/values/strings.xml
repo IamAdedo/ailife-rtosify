@@ -45,8 +45,16 @@
     <string name="menu_notifications_desc">Choose which apps send alerts</string>
     <string name="menu_install_apk">Install APK</string>
     <string name="menu_install_apk_desc">Send .apk file to Watch</string>
-    <string name="menu_shutdown_watch">Shutdown Smartwatch</string>
+    <string name="menu_device_mgmt">Device Management</string>
+    <string name="menu_device_mgmt_desc">Power, lock and find device</string>
+    <string name="menu_shutdown_watch">Shutdown</string>
     <string name="menu_shutdown_watch_desc">Completely power off the smartwatch</string>
+    <string name="menu_reboot_watch">Restart</string>
+    <string name="menu_reboot_watch_desc">Reboot the smartwatch</string>
+    <string name="menu_lock_watch">Lock Device</string>
+    <string name="menu_lock_watch_desc">Lock the watch screen</string>
+    <string name="menu_find_watch">Find Device</string>
+    <string name="menu_find_watch_desc">Play loud sound on watch</string>
     <string name="menu_disconnect">Disconnect</string>
     <string name="menu_disconnect_desc">Stop Bluetooth service</string>
     <string name="menu_reset_all">Reset All</string>
@@ -58,11 +66,19 @@
     <string name="dialog_upload_apk_send">Send</string>
     <string name="dialog_upload_apk_cancel">Cancel</string>
 
-    <!-- Dialog: Shutdown Watch -->
+    <!-- Dialog: Device Management -->
+    <string name="dialog_device_mgmt_title">Device Management</string>
     <string name="dialog_shutdown_title">Shutdown Smartwatch?</string>
-    <string name="dialog_shutdown_message">The smartwatch will be completely powered off.\n\nDo you want to continue?</string>
+    <string name="dialog_shutdown_message">The smartwatch will be completely powered off.</string>
     <string name="dialog_shutdown_confirm">Shutdown</string>
     <string name="dialog_shutdown_cancel">Cancel</string>
+    <string name="dialog_reboot_title">Restart Smartwatch?</string>
+    <string name="dialog_reboot_message">The smartwatch will restart.</string>
+    <string name="dialog_reboot_confirm">Restart</string>
+    <string name="dialog_find_watch_title">Find Watch</string>
+    <string name="dialog_find_watch_message">The watch will play a loud sound. Use this to locate it.</string>
+    <string name="dialog_find_watch_start">Start Alarm</string>
+    <string name="dialog_find_watch_stop">Stop Alarm</string>
 
     <!-- Dialog: Select Watch -->
     <string name="dialog_select_watch_title">Select Watch</string>
@@ -139,4 +155,32 @@
     <string name="dialog_install_option_extract">Extract app from Phone</string>
     <string name="apppicker_loading_phone">Loading phone apps…</string>
     <string name="apppicker_extract_error">Error extracting APK</string>
+
+    <!-- Permissions Activity -->
+    <string name="perm_title">App Permissions</string>
+    <string name="perm_granted">Granted</string>
+    <string name="perm_not_granted">Not Granted</string>
+    
+    <string name="perm_bluetooth">Bluetooth</string>
+    <string name="perm_bluetooth_desc">Required to scan and connect to your watch.</string>
+    
+    <string name="perm_notifications">Notification Access</string>
+    <string name="perm_notifications_desc">Required to send phone notifications to your watch.</string>
+    
+    <string name="perm_install">Install Unknown Apps</string>
+    <string name="perm_install_desc">Required to send and install APKs to the watch.</string>
+    
+    <string name="perm_battery">Battery Optimization</string>
+    <string name="perm_battery_desc">Disable optimization to keep the connection stable in background.</string>
+    
+    <string name="perm_shizuku">Shizuku</string>
+    <string name="perm_shizuku_desc">Provides advanced management without root.</string>
+    
+    <string name="perm_root">Root Access</string>
+    <string name="perm_root_desc">Provides full system access for advanced features.</string>
+
+    <string name="perm_location">Location Services</string>
+    <string name="perm_location_desc">Required for Bluetooth scanning (Android limitation).</string>
+    <string name="perm_location_bg">Background Location</string>
+    <string name="perm_location_bg_desc">Allows scanning and connecting while the app is closed or screen is off.</string>
 </resources>

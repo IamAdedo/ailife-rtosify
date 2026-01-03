@@ -213,11 +213,10 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 { runIfConnected { startActivity(Intent(this, NotificationSettingsActivity::class.java)) } }
             ),
             MenuOption(
-                getString(R.string.menu_shutdown_watch),
-                getString(R.string.menu_shutdown_watch_desc),
+                getString(R.string.menu_device_mgmt),
+                getString(R.string.menu_device_mgmt_desc),
                 android.R.drawable.ic_lock_power_off,
-                // BLOQUEADO: Comando remoto
-                { runIfConnected { confirmShutdownWatch() } }
+                { runIfConnected { showDeviceManagementMenu() } }
             ),
             MenuOption(
                 getString(R.string.menu_disconnect),
@@ -230,10 +229,15 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 }
             ),
             MenuOption(
+                getString(R.string.perm_title),
+                getString(R.string.perm_notifications_desc), // Reusing similar desc for space
+                android.R.drawable.ic_menu_manage,
+                { startActivity(Intent(this, PermissionActivity::class.java)) }
+            ),
+            MenuOption(
                 getString(R.string.menu_reset_all),
                 getString(R.string.menu_reset_all_desc),
                 android.R.drawable.ic_menu_delete,
-                // PERMITIDO: Ação local de emergência
                 { resetApp() }
             )
         )
@@ -312,13 +316,33 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             .show()
     }
 
-    private fun confirmShutdownWatch() {
-        // A verificação de segurança já foi feita no menu (runIfConnected),
-        // mas mantemos uma verificação extra por segurança.
+    private fun showDeviceManagementMenu() {
         if (bluetoothService?.isConnected != true) {
             Toast.makeText(this, getString(R.string.toast_watch_not_connected), Toast.LENGTH_SHORT).show()
             return
         }
+
+        val options = arrayOf(
+            getString(R.string.menu_shutdown_watch),
+            getString(R.string.menu_reboot_watch),
+            getString(R.string.menu_lock_watch),
+            getString(R.string.menu_find_watch)
+        )
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_device_mgmt_title))
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> confirmShutdownWatch()
+                    1 -> confirmRebootWatch()
+                    2 -> bluetoothService?.sendLockDeviceCommand()
+                    3 -> showFindWatchDialog()
+                }
+            }
+            .show()
+    }
+
+    private fun confirmShutdownWatch() {
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.dialog_shutdown_title))
             .setMessage(getString(R.string.dialog_shutdown_message))
@@ -326,6 +350,32 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             .setPositiveButton(getString(R.string.dialog_shutdown_confirm)) { _, _ ->
                 bluetoothService?.sendShutdownCommand()
                 Toast.makeText(this, getString(R.string.toast_command_sent), Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(getString(R.string.dialog_shutdown_cancel), null)
+            .show()
+    }
+
+    private fun confirmRebootWatch() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_reboot_title))
+            .setMessage(getString(R.string.dialog_reboot_message))
+            .setPositiveButton(getString(R.string.dialog_reboot_confirm)) { _, _ ->
+                bluetoothService?.sendRebootCommand()
+                Toast.makeText(this, getString(R.string.toast_command_sent), Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(getString(R.string.dialog_shutdown_cancel), null)
+            .show()
+    }
+
+    private fun showFindWatchDialog() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_find_watch_title))
+            .setMessage(getString(R.string.dialog_find_watch_message))
+            .setPositiveButton(getString(R.string.dialog_find_watch_start)) { _, _ ->
+                bluetoothService?.sendFindDeviceCommand(true)
+            }
+            .setNeutralButton(getString(R.string.dialog_find_watch_stop)) { _, _ ->
+                bluetoothService?.sendFindDeviceCommand(false)
             }
             .setNegativeButton(getString(R.string.dialog_shutdown_cancel), null)
             .show()

@@ -213,10 +213,15 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 }
             ),
             MenuOption(
+                getString(R.string.perm_title),
+                getString(R.string.perm_not_granted), // Placeholder description
+                android.R.drawable.ic_menu_manage,
+                { startActivity(Intent(this, PermissionActivity::class.java)) }
+            ),
+            MenuOption(
                 getString(R.string.menu_reset_all),
                 getString(R.string.menu_reset_all_desc),
                 android.R.drawable.ic_menu_delete,
-                // PERMITIDO: Ação local de emergência
                 { resetApp() }
             )
         )

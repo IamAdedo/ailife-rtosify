@@ -38,6 +38,10 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
+    <queries>
+        <package android:name="moe.shizuku.privileged.api" />
+    </queries>
+
     <!-- ============================================================ -->
     <!-- APLICAÇÃO -->
     <!-- ============================================================ -->
@@ -50,6 +54,13 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Smartwatch">
+
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false" />
 
         <!-- Activity Principal -->
         <activity
@@ -65,6 +76,13 @@
         <activity
             android:name=".WelcomeActivity"
             android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Smartwatch" />
+
+        <activity
+            android:name=".PermissionActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Smartwatch" />
 
         <!-- Serviço Bluetooth -->
@@ -87,6 +105,12 @@
             </intent-filter>
         </receiver>
 
+        <activity
+            android:name=".FindDeviceActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Smartwatch" />
+            
         <!-- FileProvider (for APK installation) -->
         <provider
             android:name="androidx.core.content.FileProvider"

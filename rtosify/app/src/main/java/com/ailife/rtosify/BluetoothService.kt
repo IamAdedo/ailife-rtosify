@@ -762,6 +762,18 @@ class BluetoothService : Service() {
         sendMessage(ProtocolHelper.createShutdown())
     }
 
+    fun sendRebootCommand() {
+        sendMessage(ProtocolHelper.createReboot())
+    }
+
+    fun sendLockDeviceCommand() {
+        sendMessage(ProtocolHelper.createLockDevice())
+    }
+
+    fun sendFindDeviceCommand(enabled: Boolean) {
+        sendMessage(ProtocolHelper.createFindDevice(enabled))
+    }
+
     fun sendApkFile(uri: Uri) {
         serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             if (!isConnected) {

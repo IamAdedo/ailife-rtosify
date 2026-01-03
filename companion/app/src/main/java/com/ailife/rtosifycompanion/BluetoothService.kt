@@ -14,6 +14,10 @@ import android.bluetooth.BluetoothSocket
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.ComponentName
+import android.media.AudioManager
+import android.media.MediaPlayer
+import android.media.RingtoneManager
 import com.ailife.rtosifycompanion.R
 import android.content.IntentFilter
 import android.content.SharedPreferences
@@ -59,6 +63,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import com.topjohnwu.superuser.Shell
+import rikka.shizuku.Shizuku
 import org.json.JSONArray
 import org.json.JSONObject
 import androidx.core.graphics.drawable.toBitmap
@@ -246,6 +252,11 @@ class BluetoothService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        
+        if (intent?.action == "STOP_ALARM") {
+            stopFindDeviceAlarm()
+            return START_NOT_STICKY
+        }
 
         // CRÍTICO: Chamar startForeground imediatamente para cumprir a promessa feita no BootReceiver.
         updateForegroundNotification()
@@ -422,6 +433,9 @@ class BluetoothService : Service() {
                     MessageType.FILE_CHUNK -> handleFileChunk(message)
                     MessageType.FILE_TRANSFER_END -> handleFileTransferEnd(message)
                     MessageType.SHUTDOWN -> handleShutdownCommand()
+                    MessageType.REBOOT -> handleRebootCommand()
+                    MessageType.LOCK_DEVICE -> handleLockDeviceCommand()
+                    MessageType.FIND_DEVICE -> handleFindDeviceCommand(message)
                     MessageType.STATUS_UPDATE -> handleStatusUpdateReceived(message)
                     MessageType.SET_DND -> handleSetDndCommand(message)
                     MessageType.UNINSTALL_APP -> handleUninstallApp(message)
@@ -775,20 +789,102 @@ class BluetoothService : Service() {
         showInstallNotification(tempFile)
     }
 
-    private fun handleShutdownCommand() {
-        Log.i(TAG, "Comando de shutdown recebido")
+    private fun executeShellCommand(command: String) {
         serviceScope.launch(Dispatchers.IO) {
+            // Fallback to Shell (Root) - libsu handles this well
             try {
-                val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "reboot -p"))
-                withTimeout(3000) { process.waitFor() }
-            } catch (_: Exception) {
-                try { Runtime.getRuntime().exec(arrayOf("su", "-c", "reboot")) } catch (_: Exception) {}
+                Shell.cmd(command).exec()
+            } catch (e: Exception) {
+                Log.e(TAG, "Root execution failed: ${e.message}")
             }
         }
     }
 
+    private fun handleShutdownCommand() {
+        Log.i(TAG, "Comando de shutdown recebido")
+        executeShellCommand("reboot -p")
+    }
+
+    private fun handleRebootCommand() {
+        Log.i(TAG, "Comando de reboot recebido")
+        executeShellCommand("reboot")
+    }
+
+    private fun handleLockDeviceCommand() {
+        Log.i(TAG, "Comando de lock recebido")
+        try {
+            val intent = Intent().apply {
+                component = ComponentName("com.ailife.ClockSkinCoco", "com.ailife.ClockSkinCoco.UBSLauncherActivity")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error locking device: ${e.message}")
+        }
+    }
+
+    private var findDevicePlayer: MediaPlayer? = null
+
+    private fun handleFindDeviceCommand(message: ProtocolMessage) {
+        val enabled = ProtocolHelper.extractBooleanField(message, "enabled")
+        if (enabled) {
+            startFindDeviceAlarm()
+        } else {
+            stopFindDeviceAlarm()
+        }
+    }
+
+    private fun startFindDeviceAlarm() {
+        stopFindDeviceAlarm()
+        try {
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxVolume, 0)
+
+            val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+
+            findDevicePlayer = MediaPlayer().apply {
+                setDataSource(this@BluetoothService, alarmUri)
+                setAudioStreamType(AudioManager.STREAM_ALARM)
+                isLooping = true
+                prepare()
+                start()
+            }
+            
+            // Start activity to allow stopping locally
+            val intent = Intent(this, FindDeviceActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            
+            Log.i(TAG, "Alarm started at max volume")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting alarm: ${e.message}")
+        }
+    }
+
+    private fun stopFindDeviceAlarm() {
+        findDevicePlayer?.stop()
+        findDevicePlayer?.release()
+        findDevicePlayer = null
+        Log.i(TAG, "Alarm stopped")
+    }
+
     fun sendShutdownCommand() {
         sendMessage(ProtocolHelper.createShutdown())
+    }
+
+    fun sendRebootCommand() {
+        sendMessage(ProtocolHelper.createReboot())
+    }
+
+    fun sendLockDeviceCommand() {
+        sendMessage(ProtocolHelper.createLockDevice())
+    }
+
+    fun sendFindDeviceCommand(enabled: Boolean) {
+        sendMessage(ProtocolHelper.createFindDevice(enabled))
     }
 
     private fun handleUninstallApp(message: ProtocolMessage) {

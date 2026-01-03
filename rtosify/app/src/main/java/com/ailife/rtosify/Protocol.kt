@@ -51,6 +51,9 @@ object MessageType {
     const val FILE_CHUNK = "file_chunk"
     const val FILE_TRANSFER_END = "file_transfer_end"
     const val SHUTDOWN = "shutdown"
+    const val REBOOT = "reboot"
+    const val LOCK_DEVICE = "lock_device"
+    const val FIND_DEVICE = "find_device"
     const val STATUS_UPDATE = "status_update"
     const val SET_DND = "set_dnd"
     const val UNINSTALL_APP = "uninstall_app"
@@ -163,6 +166,20 @@ object ProtocolHelper {
         val data = JsonObject()
         data.addProperty("package", packageName)
         return ProtocolMessage(type = MessageType.UNINSTALL_APP, data = data)
+    }
+
+    fun createReboot(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.REBOOT)
+    }
+
+    fun createLockDevice(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.LOCK_DEVICE)
+    }
+
+    fun createFindDevice(enabled: Boolean): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("enabled", enabled)
+        return ProtocolMessage(type = MessageType.FIND_DEVICE, data = data)
     }
 
     // Helper to extract data from message

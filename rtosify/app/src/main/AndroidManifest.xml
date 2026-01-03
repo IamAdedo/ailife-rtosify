@@ -43,6 +43,10 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
 
+    <queries>
+        <package android:name="moe.shizuku.privileged.api" />
+    </queries>
+
     <!-- ============================================================ -->
     <!-- APLICAÇÃO -->
     <!-- ============================================================ -->
@@ -55,6 +59,13 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Smartwatch">
+
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false" />
 
         <!-- Activity Principal -->
         <activity
@@ -97,6 +108,12 @@
             android:name=".AppPickerActivity"
             android:exported="false"
             android:parentActivityName=".AppListActivity"
+            android:theme="@style/Theme.Smartwatch" />
+            
+        <activity
+            android:name=".PermissionActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Smartwatch" />
 
         <!-- Serviço Bluetooth -->
