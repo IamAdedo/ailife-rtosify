@@ -21,7 +21,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.appcompat.app.AlertDialog
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import android.widget.Button
+import android.widget.ImageButton
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import org.json.JSONArray
+import java.io.File
 
 class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
@@ -30,6 +37,16 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: AppAdapter
     private lateinit var toolbar: Toolbar
+    private lateinit var fabInstall: FloatingActionButton
+
+    // Diálogo Upload (moved from MainActivity)
+    private var uploadDialog: AlertDialog? = null
+    private var uploadProgressBar: ProgressBar? = null
+    private var uploadPercentageText: TextView? = null
+    private var uploadDescriptionText: TextView? = null
+    private var uploadTitleText: TextView? = null
+    private var uploadIconView: ImageView? = null
+    private var uploadOkButton: Button? = null
 
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
@@ -52,6 +69,18 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         }
     }
 
+    private val pickApkLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { confirmApkUpload(it) }
+    }
+
+    // Extraction launcher (will be implemented next)
+    private val extractAppLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val apkPath = result.data?.getStringExtra("apk_path")
+            apkPath?.let { confirmApkUpload(Uri.fromFile(File(it))) }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_app_list)
@@ -67,8 +96,11 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         // Configura RecyclerView
         recyclerView.layoutManager = LinearLayoutManager(this)
-        adapter = AppAdapter()
+        adapter = AppAdapter { app -> showUninstallDialog(app) }
         recyclerView.adapter = adapter
+
+        fabInstall = findViewById(R.id.fabInstallApp)
+        fabInstall.setOnClickListener { showInstallOptionDialog() }
 
         // Binda no serviço existente
         val intent = Intent(this, BluetoothService::class.java)
@@ -140,9 +172,16 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             finish()
         }
     }
-    override fun onError(message: String) {}
+    override fun onError(message: String) {
+        runOnUiThread {
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            if (uploadDialog?.isShowing == true) updateUploadProgress(-1)
+        }
+    }
     override fun onScanResult(devices: List<BluetoothDevice>) {}
-    override fun onUploadProgress(progress: Int) {}
+    override fun onUploadProgress(progress: Int) {
+        runOnUiThread { if (uploadDialog?.isShowing == true) updateUploadProgress(progress) }
+    }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == android.R.id.home) {
@@ -152,11 +191,116 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         return super.onOptionsItemSelected(item)
     }
 
+    // --- Nova Lógica de Instalação/Desinstalação ---
+
+    private fun showInstallOptionDialog() {
+        val options = arrayOf(
+            getString(R.string.dialog_install_option_apk),
+            getString(R.string.dialog_install_option_extract)
+        )
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_install_option_title))
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> pickApkLauncher.launch("application/vnd.android.package-archive")
+                    1 -> {
+                        // Start AppPickerActivity (to be created)
+                        val intent = Intent(this, AppPickerActivity::class.java)
+                        extractAppLauncher.launch(intent)
+                    }
+                }
+            }
+            .show()
+    }
+
+    private fun confirmApkUpload(uri: Uri) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_upload_apk_title))
+            .setMessage(getString(R.string.dialog_upload_apk_message))
+            .setPositiveButton(getString(R.string.dialog_upload_apk_send)) { _, _ ->
+                bluetoothService?.sendApkFile(uri)
+                showUploadDialog()
+            }
+            .setNegativeButton(getString(R.string.dialog_upload_apk_cancel), null)
+            .show()
+    }
+
+    private fun showUploadDialog() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_upload_progress, null)
+        uploadProgressBar = dialogView.findViewById(R.id.progressBarUpload)
+        uploadPercentageText = dialogView.findViewById(R.id.tvUploadPercentage)
+        uploadDescriptionText = dialogView.findViewById(R.id.tvUploadDescription)
+        uploadTitleText = dialogView.findViewById(R.id.tvUploadTitle)
+        uploadIconView = dialogView.findViewById(R.id.imgUploadIcon)
+        uploadOkButton = dialogView.findViewById(R.id.btnUploadOk)
+
+        uploadOkButton?.setOnClickListener { dismissUploadDialog() }
+        uploadDialog = AlertDialog.Builder(this).setView(dialogView).setCancelable(false).create()
+        uploadDialog?.show()
+    }
+
+    private fun updateUploadProgress(progress: Int) {
+        when (progress) {
+            in 0..99 -> {
+                uploadProgressBar?.progress = progress
+                uploadPercentageText?.text = "$progress%"
+                uploadDescriptionText?.text = getString(R.string.upload_transferring)
+            }
+            100 -> {
+                uploadProgressBar?.progress = 100
+                uploadPercentageText?.text = "100%"
+                uploadTitleText?.text = getString(R.string.upload_complete_title)
+                uploadDescriptionText?.text = getString(R.string.upload_complete_message)
+                uploadIconView?.setImageResource(android.R.drawable.stat_sys_upload_done)
+                uploadIconView?.setColorFilter(android.graphics.Color.GREEN)
+                uploadPercentageText?.setTextColor(android.graphics.Color.GREEN)
+                uploadProgressBar?.visibility = View.GONE
+                uploadOkButton?.visibility = View.VISIBLE
+            }
+            -1 -> {
+                uploadProgressBar?.visibility = View.GONE
+                uploadTitleText?.text = getString(R.string.upload_failed_title)
+                uploadDescriptionText?.text = getString(R.string.upload_failed_message)
+                uploadIconView?.setImageResource(android.R.drawable.stat_notify_error)
+                uploadIconView?.setColorFilter(android.graphics.Color.RED)
+                uploadPercentageText?.text = "FAIL"
+                uploadPercentageText?.setTextColor(android.graphics.Color.RED)
+                uploadOkButton?.visibility = View.VISIBLE
+                uploadOkButton?.text = getString(android.R.string.ok)
+            }
+        }
+    }
+
+    private fun dismissUploadDialog() {
+        uploadDialog?.dismiss()
+        uploadDialog = null
+        // Recarregar a lista após upload bem-sucedido (delay para garantir que o watch processou)
+        FetchAppsAfterDelay()
+    }
+
+    private fun FetchAppsAfterDelay() {
+        recyclerView.postDelayed({ fetchApps() }, 2000)
+    }
+
+    private fun showUninstallDialog(app: AppItem) {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_uninstall_title))
+            .setMessage(getString(R.string.dialog_uninstall_message, app.name))
+            .setPositiveButton(getString(R.string.menu_uninstall_app)) { _, _ ->
+                bluetoothService?.sendUninstallCommand(app.packageName)
+                Toast.makeText(this, getString(R.string.toast_command_sent), Toast.LENGTH_SHORT).show()
+                // Recarregar após um tempo
+                FetchAppsAfterDelay()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     // --- Classes de Adapter e Dados ---
 
     data class AppItem(val name: String, val packageName: String, val iconBase64: String)
 
-    class AppAdapter : RecyclerView.Adapter<AppAdapter.AppViewHolder>() {
+    class AppAdapter(private val onUninstallClick: (AppItem) -> Unit) : RecyclerView.Adapter<AppAdapter.AppViewHolder>() {
         private var list = listOf<AppItem>()
 
         fun updateList(newList: List<AppItem>) {
@@ -166,7 +310,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AppViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.item_app, parent, false)
-            return AppViewHolder(view)
+            return AppViewHolder(view, onUninstallClick)
         }
 
         override fun onBindViewHolder(holder: AppViewHolder, position: Int) {
@@ -175,14 +319,16 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         override fun getItemCount() = list.size
 
-        class AppViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        class AppViewHolder(itemView: View, private val onUninstallClick: (AppItem) -> Unit) : RecyclerView.ViewHolder(itemView) {
             private val imgIcon: ImageView = itemView.findViewById(R.id.imgAppIcon)
             private val tvName: TextView = itemView.findViewById(R.id.tvAppName)
             private val tvPkg: TextView = itemView.findViewById(R.id.tvAppPackage)
+            private val btnUninstall: ImageButton = itemView.findViewById(R.id.btnUninstall)
 
             fun bind(item: AppItem) {
                 tvName.text = item.name
                 tvPkg.text = item.packageName
+                btnUninstall.setOnClickListener { onUninstallClick(item) }
 
                 if (item.iconBase64.isNotEmpty()) {
                     try {

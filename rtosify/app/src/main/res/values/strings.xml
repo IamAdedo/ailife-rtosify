@@ -70,10 +70,10 @@
 
     <!-- Upload Progress -->
     <string name="upload_transferring">Transferring file…</string>
-    <string name="upload_complete_title">Upload complete</string>
-    <string name="upload_complete_message">APK sent successfully!</string>
-    <string name="upload_failed_title">Install Failed</string>
-    <string name="upload_failed_message">Could not complete the transfer. Please check connection and try again.</string>
+    <string name="upload_complete_title">Upload Complete</string>
+    <string name="upload_complete_message">The file was successfully sent to the watch.</string>
+    <string name="upload_failed_title">Upload Failed</string>
+    <string name="upload_failed_message">There was an error during the transfer. Please check connection and try again.</string>
 
     <!-- App List Activity -->
     <string name="applist_requesting">Requesting list from Watch…</string>
@@ -130,4 +130,13 @@
     <string name="notif_grant_access">Grant Access</string>
     <string name="notif_apps_title">Applications</string>
     <string name="notif_apps_loading">Loading applications…</string>
+
+    <string name="menu_uninstall_app">Uninstall</string>
+    <string name="dialog_uninstall_title">Uninstall App?</string>
+    <string name="dialog_uninstall_message">Do you want to uninstall %s from your watch?</string>
+    <string name="dialog_install_option_title">Install App</string>
+    <string name="dialog_install_option_apk">Choose APK file</string>
+    <string name="dialog_install_option_extract">Extract app from Phone</string>
+    <string name="apppicker_loading_phone">Loading phone apps…</string>
+    <string name="apppicker_extract_error">Error extracting APK</string>
 </resources>

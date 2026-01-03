@@ -53,6 +53,7 @@ object MessageType {
     const val SHUTDOWN = "shutdown"
     const val STATUS_UPDATE = "status_update"
     const val SET_DND = "set_dnd"
+    const val UNINSTALL_APP = "uninstall_app"
 }
 
 // Data classes for specific message types
@@ -156,6 +157,12 @@ object ProtocolHelper {
         val data = JsonObject()
         data.addProperty("enabled", enabled)
         return ProtocolMessage(type = MessageType.SET_DND, data = data)
+    }
+
+    fun createUninstallApp(packageName: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("package", packageName)
+        return ProtocolMessage(type = MessageType.UNINSTALL_APP, data = data)
     }
 
     // Helper to extract data from message

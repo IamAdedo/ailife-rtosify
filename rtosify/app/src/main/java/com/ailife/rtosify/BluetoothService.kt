@@ -34,6 +34,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
+import android.widget.Toast
 import android.util.Base64
 import android.util.Log
 import androidx.core.app.ActivityCompat
@@ -1036,6 +1037,14 @@ class BluetoothService : Service() {
     }
 
     fun requestRemoteAppList() { sendMessage(ProtocolHelper.createRequestApps()) }
+
+    fun sendUninstallCommand(packageName: String) {
+        android.util.Log.d(TAG, "Sending uninstall command for: $packageName")
+        mainHandler.post {
+            Toast.makeText(this, "Sending uninstall: $packageName", Toast.LENGTH_SHORT).show()
+        }
+        sendMessage(ProtocolHelper.createUninstallApp(packageName))
+    }
 
     fun resetApp() {
         stopConnectionLoopOnly()

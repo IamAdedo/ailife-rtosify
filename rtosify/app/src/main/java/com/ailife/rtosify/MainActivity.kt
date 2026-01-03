@@ -94,9 +94,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         }
     }
 
-    private val pickApkLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { confirmApkUpload(it) }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -214,13 +211,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 android.R.drawable.ic_popup_reminder,
                 // BLOQUEADO: Geralmente só útil se o watch estiver ativo
                 { runIfConnected { startActivity(Intent(this, NotificationSettingsActivity::class.java)) } }
-            ),
-            MenuOption(
-                getString(R.string.menu_install_apk),
-                getString(R.string.menu_install_apk_desc),
-                android.R.drawable.ic_input_add,
-                // BLOQUEADO: Impossível enviar sem conexão
-                { runIfConnected { pickApkLauncher.launch("application/vnd.android.package-archive") } }
             ),
             MenuOption(
                 getString(R.string.menu_shutdown_watch),

@@ -36,6 +36,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.util.Base64
 import android.util.Log
+import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -423,6 +424,7 @@ class BluetoothService : Service() {
                     MessageType.SHUTDOWN -> handleShutdownCommand()
                     MessageType.STATUS_UPDATE -> handleStatusUpdateReceived(message)
                     MessageType.SET_DND -> handleSetDndCommand(message)
+                    MessageType.UNINSTALL_APP -> handleUninstallApp(message)
                 }
             }
         } catch (_: IOException) {
@@ -787,6 +789,33 @@ class BluetoothService : Service() {
 
     fun sendShutdownCommand() {
         sendMessage(ProtocolHelper.createShutdown())
+    }
+
+    private fun handleUninstallApp(message: ProtocolMessage) {
+        val pkg = ProtocolHelper.extractStringField(message, "package") ?: run {
+            android.util.Log.e(TAG, "Uninstall failed: package field missing")
+            return
+        }
+        android.util.Log.d(TAG, "Requesting uninstall for: $pkg")
+        
+        mainHandler.post {
+            Toast.makeText(this, "Uninstalling: $pkg", Toast.LENGTH_SHORT).show()
+        }
+
+        try {
+            // Standard intent to uninstall
+            val intent = Intent(Intent.ACTION_DELETE).apply {
+                data = Uri.parse("package:$pkg")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            android.util.Log.d(TAG, "Uninstall intent started for: $pkg")
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error starting uninstall intent: ${e.message}", e)
+            mainHandler.post {
+                Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     fun sendApkFile(uri: Uri) {
