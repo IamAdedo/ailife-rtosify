@@ -769,10 +769,11 @@ class BluetoothService : Service() {
 
     // File transfer state (receiving)
     private var receivingFile: File? = null
-    private var receivingFileStream: FileOutputStream? = null
+    private var receivingFileStream: java.io.RandomAccessFile? = null
     private var expectedFileSize: Long = 0
     private var receivedFileSize: Long = 0
     private var expectedChecksum: String = ""
+    private var receivingFileType: String = "REGULAR"
     private val receivedChunks = mutableListOf<ByteArray>()
 
     // File transfer state (sending - waiting for ack)
@@ -806,10 +807,13 @@ class BluetoothService : Service() {
             targetFile.parentFile?.mkdirs()
 
             receivingFile = targetFile
-            receivingFileStream = FileOutputStream(receivingFile)
+            // Use RandomAccessFile for random write access (out-of-order chunks)
+            receivingFileStream = java.io.RandomAccessFile(targetFile, "rw")
+            receivingFileStream?.setLength(fileData.size) // Pre-allocate file size
             expectedFileSize = fileData.size
             receivedFileSize = 0
             expectedChecksum = fileData.checksum
+            receivingFileType = fileData.type
             receivedChunks.clear()
 
         } catch (e: Exception) {
@@ -824,11 +828,14 @@ class BluetoothService : Service() {
             // Decode chunk
             val chunkBytes = android.util.Base64.decode(chunkData.data, android.util.Base64.DEFAULT)
 
-            // Write to file
-            receivingFileStream?.write(chunkBytes)
+            // Write to file at the correct offset (handles out-of-order chunks)
+            receivingFileStream?.let { raf ->
+                raf.seek(chunkData.offset)
+                raf.write(chunkBytes)
+            }
             receivedFileSize += chunkBytes.size
 
-            android.util.Log.d(TAG, "Received chunk ${chunkData.chunkNumber}/${chunkData.totalChunks}")
+            android.util.Log.d(TAG, "Received chunk ${chunkData.chunkNumber}/${chunkData.totalChunks} at offset ${chunkData.offset}")
 
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error handling chunk: ${e.message}")
@@ -886,9 +893,9 @@ class BluetoothService : Service() {
             android.util.Log.d(TAG, "Sent file transfer acknowledgment")
 
             android.util.Log.d(TAG, "File received successfully at: ${file.absolutePath}")
-            
-            // Show install dialog ONLY for APKs
-            if (file.name.lowercase().endsWith(".apk")) {
+
+            // Show install dialog ONLY if type is "APK" (sent from app install section, not file manager)
+            if (receivingFileType == "APK") {
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
                     try {
                         showInstallApkDialog(file)
@@ -898,7 +905,7 @@ class BluetoothService : Service() {
                     }
                 }
             } else {
-                android.util.Log.d(TAG, "Regular file received, no install dialog needed.")
+                android.util.Log.d(TAG, "Regular file received (type=$receivingFileType), no install dialog needed.")
             }
 
             cleanupFileTransfer()
@@ -920,6 +927,7 @@ class BluetoothService : Service() {
         expectedFileSize = 0
         receivedFileSize = 0
         expectedChecksum = ""
+        receivingFileType = "REGULAR"
         receivedChunks.clear()
     }
 
