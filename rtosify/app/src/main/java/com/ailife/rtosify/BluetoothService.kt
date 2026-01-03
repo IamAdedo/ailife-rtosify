@@ -40,24 +40,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import androidx.core.content.edit
-import androidx.core.graphics.createBitmap
-import androidx.core.graphics.scale
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.supervisorScope
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.*
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
@@ -138,25 +123,7 @@ class BluetoothService : Service() {
     @Volatile
     var isConnected: Boolean = false
 
-    // Protocolo V2
-    private val TYPE_TEXT_CMD = 1
-    private val TYPE_NOTIFICATION_POSTED = 3
-    private val TYPE_HEARTBEAT = 4
-    private val TYPE_NOTIFICATION_REMOVED = 5
-    private val TYPE_REQUEST_DISMISS = 6
-
-    private val TYPE_FILE_START = 7
-    private val TYPE_FILE_CHUNK = 8
-    private val TYPE_FILE_END = 9
-
-    private val TYPE_SHUTDOWN_COMMAND = 10
-
-    private val TYPE_STATUS_UPDATE = 11
-    private val TYPE_SET_DND = 12
-
-    private val CMD_REQUEST_APPS = "CMD_REQUEST_APPS"
-    private val CMD_RESPONSE_APPS = "CMD_RESPONSE_APPS:"
-    private val CMD_PING = "PING"
+    // JSON Protocol - message types defined in Protocol.kt
 
     companion object {
         const val ACTION_SEND_NOTIF_TO_WATCH = "com.ailife.rtosify.ACTION_SEND_NOTIF"
@@ -194,11 +161,19 @@ class BluetoothService : Service() {
             when (intent?.action) {
                 ACTION_SEND_NOTIF_TO_WATCH -> {
                     val jsonString = intent.getStringExtra(EXTRA_NOTIF_JSON)
-                    if (jsonString != null) sendPacket(TYPE_NOTIFICATION_POSTED, jsonString.toByteArray(Charsets.UTF_8))
+                    if (jsonString != null) {
+                        try {
+                            val gson = com.google.gson.Gson()
+                            val notifData = gson.fromJson(jsonString, NotificationData::class.java)
+                            sendMessage(ProtocolHelper.createNotificationPosted(notifData))
+                        } catch (_: Exception) {}
+                    }
                 }
                 ACTION_SEND_REMOVE_TO_WATCH -> {
                     val key = intent.getStringExtra(EXTRA_NOTIF_KEY)
-                    if (key != null) sendPacket(TYPE_NOTIFICATION_REMOVED, key.toByteArray(Charsets.UTF_8))
+                    if (key != null) {
+                        sendMessage(ProtocolHelper.createNotificationRemoved(key))
+                    }
                 }
             }
         }
@@ -209,7 +184,7 @@ class BluetoothService : Service() {
             if (intent?.action == ACTION_WATCH_DISMISSED_LOCAL) {
                 val key = intent.getStringExtra(EXTRA_NOTIF_KEY)
                 if (key != null && isConnected) {
-                    sendPacket(TYPE_REQUEST_DISMISS, key.toByteArray(Charsets.UTF_8))
+                    sendMessage(ProtocolHelper.createDismissNotification(key))
                     notificationMap.remove(key)
                 }
             }
@@ -416,28 +391,22 @@ class BluetoothService : Service() {
 
         try {
             while (currentCoroutineContext().isActive) {
-                if (isTransferring) { delay(100); continue }
-
-                val type = inputStream.readByte().toInt()
+                val message = readMessage(inputStream)
                 lastMessageTime = System.currentTimeMillis()
 
-                when (type) {
-                    TYPE_TEXT_CMD -> handleTextMessage(readString(inputStream))
-                    TYPE_NOTIFICATION_POSTED -> showMirroredNotification(readString(inputStream))
-                    TYPE_NOTIFICATION_REMOVED -> dismissLocalNotification(readString(inputStream))
-                    TYPE_REQUEST_DISMISS -> requestDismissOnPhone(readString(inputStream))
-                    TYPE_HEARTBEAT -> { /* IGNORE */ }
-                    TYPE_FILE_START -> handleFileStart(inputStream.readLong())
-                    TYPE_FILE_CHUNK -> {
-                        val chunkSize = inputStream.readInt()
-                        val buffer = ByteArray(chunkSize)
-                        inputStream.readFully(buffer)
-                        handleFileChunk(buffer)
-                    }
-                    TYPE_FILE_END -> handleFileEnd()
-                    TYPE_SHUTDOWN_COMMAND -> handleShutdownCommand()
-                    TYPE_STATUS_UPDATE -> handleStatusUpdateReceived(readString(inputStream))
-                    TYPE_SET_DND -> handleSetDndCommand(readString(inputStream))
+                when (message.type) {
+                    MessageType.HEARTBEAT -> { /* IGNORE */ }
+                    MessageType.REQUEST_APPS -> handleRequestApps()
+                    MessageType.RESPONSE_APPS -> handleResponseApps(message)
+                    MessageType.NOTIFICATION_POSTED -> showMirroredNotification(message)
+                    MessageType.NOTIFICATION_REMOVED -> dismissLocalNotification(message)
+                    MessageType.DISMISS_NOTIFICATION -> requestDismissOnPhone(message)
+                    MessageType.FILE_TRANSFER_START -> handleFileTransferStart(message)
+                    MessageType.FILE_CHUNK -> handleFileChunk(message)
+                    MessageType.FILE_TRANSFER_END -> handleFileTransferEnd(message)
+                    MessageType.SHUTDOWN -> handleShutdownCommand()
+                    MessageType.STATUS_UPDATE -> handleStatusUpdateReceived(message)
+                    MessageType.SET_DND -> handleSetDndCommand(message)
                 }
             }
         } catch (_: IOException) {
@@ -460,23 +429,24 @@ class BluetoothService : Service() {
     }
 
     @Throws(IOException::class)
-    private fun readString(inputStream: DataInputStream): String {
+    private fun readMessage(inputStream: DataInputStream): ProtocolMessage {
         val length = inputStream.readInt()
-        if (length !in 0..10_000_000) throw IOException("Tamanho string inválido: $length")
+        if (length !in 0..10_000_000) throw IOException("Invalid message size: $length")
         val buffer = ByteArray(length)
         inputStream.readFully(buffer)
-        return String(buffer, Charsets.UTF_8)
+        val json = String(buffer, Charsets.UTF_8)
+        return ProtocolMessage.fromJson(json)
     }
 
     private suspend fun heartbeatLoop() {
         while (currentCoroutineContext().isActive) {
             delay(HEARTBEAT_INTERVAL)
-            if (isTransferring || !isConnected) continue
+            if (!isConnected) continue
             if (System.currentTimeMillis() - lastMessageTime > CONNECTION_TIMEOUT) {
                 forceDisconnect()
                 break
             }
-            try { sendPacket(TYPE_HEARTBEAT, CMD_PING.toByteArray()) }
+            try { sendMessage(ProtocolHelper.createHeartbeat()) }
             catch (_: Exception) { break }
         }
     }
@@ -489,15 +459,15 @@ class BluetoothService : Service() {
         statusUpdateJob?.cancel()
     }
 
-    private fun sendPacket(type: Int, data: ByteArray) {
+    private fun sendMessage(message: ProtocolMessage) {
         serviceScope.launch(Dispatchers.IO) {
-            if (isTransferring || !isConnected) return@launch
+            if (!isConnected) return@launch
             val out = globalOutputStream ?: return@launch
             try {
+                val jsonBytes = message.toBytes()
                 synchronized(out) {
-                    out.writeByte(type)
-                    out.writeInt(data.size)
-                    out.write(data)
+                    out.writeInt(jsonBytes.size)
+                    out.write(jsonBytes)
                     out.flush()
                 }
             } catch (_: Exception) {
@@ -515,8 +485,8 @@ class BluetoothService : Service() {
         statusUpdateJob = serviceScope.launch(Dispatchers.IO) {
             while (isActive && isConnected) {
                 try {
-                    val statusJson = collectWatchStatus()
-                    sendPacket(TYPE_STATUS_UPDATE, statusJson.toString().toByteArray(Charsets.UTF_8))
+                    val status = collectWatchStatus()
+                    sendMessage(ProtocolHelper.createStatusUpdate(status))
                 } catch (e: Exception) {
                     Log.e(TAG, "Erro ao enviar status: ${e.message}")
                 }
@@ -526,9 +496,7 @@ class BluetoothService : Service() {
     }
 
     @SuppressLint("MissingPermission")
-    private fun collectWatchStatus(): JSONObject {
-        val json = JSONObject()
-
+    private fun collectWatchStatus(): StatusUpdateData {
         val bm = getSystemService(BATTERY_SERVICE) as BatteryManager
         val batteryLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
         val isCharging = bm.isCharging
@@ -577,24 +545,19 @@ class BluetoothService : Service() {
             wifiSsid = "Erro Wifi"
         }
 
-        json.put("battery", batteryLevel)
-        json.put("charging", isCharging)
-        json.put("dnd", dndEnabled)
-        json.put("wifi", wifiSsid)
-
-        return json
+        return StatusUpdateData(
+            battery = batteryLevel,
+            charging = isCharging,
+            dnd = dndEnabled,
+            wifi = wifiSsid
+        )
     }
 
-    private suspend fun handleStatusUpdateReceived(jsonString: String) {
+    private suspend fun handleStatusUpdateReceived(message: ProtocolMessage) {
         try {
-            val json = JSONObject(jsonString)
-            val battery = json.optInt("battery", 0)
-            val charging = json.optBoolean("charging", false)
-            val dnd = json.optBoolean("dnd", false)
-            val wifi = json.optString("wifi", "")
-
+            val status = ProtocolHelper.extractData<StatusUpdateData>(message)
             withContext(Dispatchers.Main) {
-                callback?.onWatchStatusUpdated(battery, charging, wifi, dnd)
+                callback?.onWatchStatusUpdated(status.battery, status.charging, status.wifi, status.dnd)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Erro parser status: ${e.message}")
@@ -602,11 +565,11 @@ class BluetoothService : Service() {
     }
 
     fun sendDndCommand(enable: Boolean) {
-        sendPacket(TYPE_SET_DND, enable.toString().toByteArray(Charsets.UTF_8))
+        sendMessage(ProtocolHelper.createSetDnd(enable))
     }
 
-    private fun handleSetDndCommand(command: String) {
-        val enable = command.toBoolean()
+    private fun handleSetDndCommand(message: ProtocolMessage) {
+        val enable = ProtocolHelper.extractBooleanField(message, "enabled")
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         if (nm.isNotificationPolicyAccessGranted) {
             if (enable) {
@@ -616,59 +579,155 @@ class BluetoothService : Service() {
             }
             serviceScope.launch {
                 delay(500)
-                val statusJson = collectWatchStatus()
-                sendPacket(TYPE_STATUS_UPDATE, statusJson.toString().toByteArray(Charsets.UTF_8))
+                val status = collectWatchStatus()
+                sendMessage(ProtocolHelper.createStatusUpdate(status))
             }
         }
     }
 
-    private fun handleFileStart(expectedSize: Long) {
+    // File transfer state (receiving)
+    private var receivingFile: File? = null
+    private var receivingFileStream: FileOutputStream? = null
+    private var expectedFileSize: Long = 0
+    private var receivedFileSize: Long = 0
+    private var expectedChecksum: String = ""
+    private val receivedChunks = mutableListOf<ByteArray>()
+
+    // File transfer state (sending - waiting for ack)
+    private var waitingForFileAck = false
+    private var fileAckDeferred: kotlinx.coroutines.CompletableDeferred<Boolean>? = null
+
+    private suspend fun handleFileTransferStart(message: ProtocolMessage) {
         try {
-            val dir = getExternalFilesDir(null) ?: filesDir
-            receiveFile = File(dir, "temp_install.apk")
-            if (receiveFile?.exists() == true) {
-                receiveFile?.delete()
-            }
-            receiveFile?.createNewFile()
-            receiveFileOutputStream = FileOutputStream(receiveFile)
-            receiveTotalSize = expectedSize
-            receiveBytesRead = 0
-        } catch (_: Exception) {
-            receiveFileOutputStream = null
+            val fileData = ProtocolHelper.extractData<FileTransferData>(message)
+            android.util.Log.d(TAG, "File transfer starting: ${fileData.name}, ${fileData.size} bytes")
+
+            // Prepare to receive file
+            receivingFile = File(cacheDir, fileData.name)
+            receivingFileStream = FileOutputStream(receivingFile)
+            expectedFileSize = fileData.size
+            receivedFileSize = 0
+            expectedChecksum = fileData.checksum
+            receivedChunks.clear()
+
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error starting file transfer: ${e.message}")
         }
     }
 
-    private fun handleFileChunk(data: ByteArray) {
-        if (receiveFileOutputStream != null) {
-            try {
-                receiveFileOutputStream!!.write(data)
-                receiveBytesRead += data.size
-                lastMessageTime = System.currentTimeMillis()
-            } catch (_: Exception) {
-            }
-        }
-    }
-
-    private fun handleFileEnd() {
+    private suspend fun handleFileChunk(message: ProtocolMessage) {
         try {
-            receiveFileOutputStream?.flush()
-            receiveFileOutputStream?.close()
-            receiveFileOutputStream = null
-            if (receiveFile != null && receiveFile!!.exists()) {
-                CoroutineScope(Dispatchers.Main).launch {
-                    try {
-                        if (!packageManager.canRequestPackageInstalls()) {
-                            showPermissionNotification()
-                            return@launch
-                        }
-                        showInstallNotification(receiveFile!!)
-                    } catch (e: Exception) {
-                        showErrorNotification("Erro: ${e.message}")
-                    }
+            val chunkData = ProtocolHelper.extractData<FileChunkData>(message)
+
+            // Decode chunk
+            val chunkBytes = android.util.Base64.decode(chunkData.data, android.util.Base64.DEFAULT)
+
+            // Write to file
+            receivingFileStream?.write(chunkBytes)
+            receivedFileSize += chunkBytes.size
+
+            android.util.Log.d(TAG, "Received chunk ${chunkData.chunkNumber}/${chunkData.totalChunks}")
+
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error handling chunk: ${e.message}")
+        }
+    }
+
+    private suspend fun handleFileTransferEnd(message: ProtocolMessage) {
+        try {
+            val success = ProtocolHelper.extractBooleanField(message, "success")
+
+            // Check if this is an acknowledgment for a file we sent
+            if (waitingForFileAck) {
+                android.util.Log.d(TAG, "Received file transfer acknowledgment: success=$success")
+                waitingForFileAck = false
+                fileAckDeferred?.complete(success)
+                fileAckDeferred = null
+                return
+            }
+
+            // Otherwise, this is the end of a file we're receiving
+            if (!success) {
+                val error = ProtocolHelper.extractStringField(message, "error")
+                android.util.Log.e(TAG, "File transfer failed: $error")
+                cleanupFileTransfer()
+                return
+            }
+
+            // Close file stream
+            receivingFileStream?.close()
+            receivingFileStream = null
+
+            val file = receivingFile
+            if (file == null) {
+                android.util.Log.e(TAG, "No file to finalize")
+                return
+            }
+
+            android.util.Log.d(TAG, "File transfer complete: ${file.name}, ${file.length()} bytes")
+
+            // Verify checksum if provided
+            if (expectedChecksum.isNotEmpty()) {
+                val actualChecksum = calculateMd5(file)
+                if (actualChecksum != expectedChecksum) {
+                    android.util.Log.e(TAG, "Checksum mismatch! Expected: $expectedChecksum, Got: $actualChecksum")
+                    file.delete()
+                    cleanupFileTransfer()
+                    // Send failure acknowledgment
+                    sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = "Checksum mismatch"))
+                    return
                 }
             }
-        } catch (_: Exception) {
+
+            // Send success acknowledgment to sender
+            sendMessage(ProtocolHelper.createFileTransferEnd(success = true))
+            android.util.Log.d(TAG, "Sent file transfer acknowledgment")
+
+            // Show install dialog
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                showInstallApkDialog(file)
+            }
+
+            cleanupFileTransfer()
+
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error finalizing file transfer: ${e.message}")
+            cleanupFileTransfer()
+            // Send failure acknowledgment
+            sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = e.message ?: "Unknown error"))
         }
+    }
+
+    private fun cleanupFileTransfer() {
+        try {
+            receivingFileStream?.close()
+        } catch (_: Exception) {}
+        receivingFileStream = null
+        receivingFile = null
+        expectedFileSize = 0
+        receivedFileSize = 0
+        expectedChecksum = ""
+        receivedChunks.clear()
+    }
+
+    private fun calculateMd5(file: File): String {
+        val md = java.security.MessageDigest.getInstance("MD5")
+        file.inputStream().use { fis ->
+            val buffer = ByteArray(8192)
+            var read: Int
+            while (fis.read(buffer).also { read = it } != -1) {
+                md.update(buffer, 0, read)
+            }
+        }
+        return md.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private fun showInstallApkDialog(tempFile: File) {
+        if (!packageManager.canRequestPackageInstalls()) {
+            showPermissionNotification()
+            return
+        }
+        showInstallNotification(tempFile)
     }
 
     private fun handleShutdownCommand() {
@@ -684,62 +743,126 @@ class BluetoothService : Service() {
     }
 
     fun sendShutdownCommand() {
-        sendPacket(TYPE_SHUTDOWN_COMMAND, ByteArray(0))
+        sendMessage(ProtocolHelper.createShutdown())
     }
 
     fun sendApkFile(uri: Uri) {
-        serviceScope.launch(Dispatchers.IO) {
+        serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             if (!isConnected) {
                 withContext(Dispatchers.Main) { callback?.onError("Não conectado.") }
                 return@launch
             }
-            val out = globalOutputStream ?: return@launch
             isTransferring = true
+
             try {
-                val contentResolver = contentResolver
-                val fileSize = contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize } ?: -1L
-                contentResolver.openInputStream(uri)?.use { fileIS ->
-                    withContext(Dispatchers.Main) { callback?.onUploadProgress(0) }
-                    synchronized(out) {
-                        out.writeByte(TYPE_FILE_START)
-                        out.writeLong(fileSize)
-                        out.flush()
-                    }
-                    val buffer = ByteArray(8192)
-                    var totalSent = 0L
-                    var bytesRead: Int
-                    var lastUpdate = 0L
-                    while (fileIS.read(buffer).also { bytesRead = it } != -1) {
-                        synchronized(out) {
-                            out.writeByte(TYPE_FILE_CHUNK)
-                            out.writeInt(bytesRead)
-                            out.write(buffer, 0, bytesRead)
+                contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val fileBytes = inputStream.readBytes()
+
+                    // Calculate MD5 checksum
+                    val md5 = java.security.MessageDigest.getInstance("MD5")
+                    md5.update(fileBytes)
+                    val checksum = md5.digest().joinToString("") { "%02x".format(it) }
+
+                    val fileName = getFileNameFromUri(uri) ?: "app.apk"
+
+                    // Send start message
+                    val fileData = FileTransferData(
+                        name = fileName,
+                        size = fileBytes.size.toLong(),
+                        checksum = checksum
+                    )
+                    sendMessage(ProtocolHelper.createFileTransferStart(fileData))
+                    delay(100) // Give receiver time to prepare
+
+                    // Send file in chunks (32KB each)
+                    val chunkSize = 32 * 1024
+                    val totalChunks = (fileBytes.size + chunkSize - 1) / chunkSize
+                    var offset = 0
+                    var chunkNumber = 0
+
+                    while (offset < fileBytes.size) {
+                        val end = minOf(offset + chunkSize, fileBytes.size)
+                        val chunk = fileBytes.copyOfRange(offset, end)
+                        val base64Chunk = android.util.Base64.encodeToString(chunk, android.util.Base64.NO_WRAP)
+
+                        val chunkData = FileChunkData(
+                            offset = offset.toLong(),
+                            data = base64Chunk,
+                            chunkNumber = chunkNumber,
+                            totalChunks = totalChunks
+                        )
+
+                        sendMessage(ProtocolHelper.createFileChunk(chunkData))
+
+                        // Report progress up to 95% while sending chunks
+                        val progress = ((chunkNumber + 1) * 95 / totalChunks)
+                        withContext(Dispatchers.Main) {
+                            callback?.onUploadProgress(progress)
                         }
-                        lastMessageTime = System.currentTimeMillis()
-                        totalSent += bytesRead
-                        val now = System.currentTimeMillis()
-                        if (now - lastUpdate > 300) {
-                            val progress = if (fileSize > 0) ((totalSent * 100) / fileSize).toInt() else 0
-                            withContext(Dispatchers.Main) { callback?.onUploadProgress(progress) }
-                            lastUpdate = now
+
+                        offset = end
+                        chunkNumber++
+                        delay(10) // Small delay between chunks
+                    }
+
+                    // Setup acknowledgment waiting BEFORE sending message
+                    fileAckDeferred = kotlinx.coroutines.CompletableDeferred()
+                    waitingForFileAck = true
+
+                    // Send end message and wait for acknowledgment
+                    sendMessage(ProtocolHelper.createFileTransferEnd(success = true))
+
+                    // Give time for message to actually be sent (sendMessage is async)
+                    delay(200)
+
+                    // Wait for acknowledgment with 10 second timeout
+                    val ackReceived = try {
+                        kotlinx.coroutines.withTimeout(10000) {
+                            fileAckDeferred?.await() ?: false
+                        }
+                    } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
+                        android.util.Log.e(TAG, "File transfer acknowledgment timeout")
+                        waitingForFileAck = false
+                        fileAckDeferred = null
+                        false
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        if (ackReceived) {
+                            callback?.onUploadProgress(100)
+                        } else {
+                            callback?.onUploadProgress(-1)
+                            callback?.onError("Dispositivo não confirmou recebimento")
                         }
                     }
-                    synchronized(out) {
-                        out.writeByte(TYPE_FILE_END)
-                        out.flush()
-                    }
-                    withContext(Dispatchers.Main) { callback?.onUploadProgress(100) }
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
+                android.util.Log.e(TAG, "Error sending file: ${e.message}")
+                sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = e.message ?: "Unknown error"))
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
                     callback?.onUploadProgress(-1)
                     callback?.onError("Falha no envio: ${e.message}")
                 }
             } finally {
                 isTransferring = false
+                waitingForFileAck = false
+                fileAckDeferred = null
                 lastMessageTime = System.currentTimeMillis()
             }
         }
+    }
+
+    private fun getFileNameFromUri(uri: Uri): String? {
+        var fileName: String? = null
+        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (nameIndex != -1) {
+                    fileName = cursor.getString(nameIndex)
+                }
+            }
+        }
+        return fileName
     }
 
     private fun showInstallNotification(tempFile: File) {
@@ -793,60 +916,75 @@ class BluetoothService : Service() {
         notificationManager.notify(999, builder.build())
     }
 
-    private fun handleTextMessage(message: String) {
-        if (message == CMD_REQUEST_APPS) {
-            val appListJson = getInstalledAppsJsonWithIcons()
-            sendPacket(TYPE_TEXT_CMD, (CMD_RESPONSE_APPS + appListJson).toByteArray())
-        }
-        else if (message.startsWith(CMD_RESPONSE_APPS)) {
-            val jsonPart = message.substring(CMD_RESPONSE_APPS.length)
-            CoroutineScope(Dispatchers.Main).launch { callback?.onAppListReceived(jsonPart) }
+    private fun handleRequestApps() {
+        val apps = getInstalledAppsWithIcons()
+        sendMessage(ProtocolHelper.createResponseApps(apps))
+    }
+
+    private fun handleResponseApps(message: ProtocolMessage) {
+        try {
+            val appsJsonArray = message.data.getAsJsonArray("apps")
+            val gson = com.google.gson.Gson()
+            val apps = gson.fromJson(appsJsonArray, Array<AppInfo>::class.java).toList()
+
+            // Convert back to JSON string for callback (temporary until callback is updated)
+            val jsonArray = org.json.JSONArray()
+            for (app in apps) {
+                val obj = org.json.JSONObject()
+                obj.put("name", app.name)
+                obj.put("package", app.packageName)
+                obj.put("icon", app.icon)
+                jsonArray.put(obj)
+            }
+
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                callback?.onAppListReceived(jsonArray.toString())
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error parsing app list: ${e.message}")
         }
     }
 
     @SuppressLint("QueryPermissionsNeeded")
-    private fun getInstalledAppsJsonWithIcons(): String {
+    private fun getInstalledAppsWithIcons(): List<AppInfo> {
+        val apps = mutableListOf<AppInfo>()
         val pm = packageManager
-        val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-        val appsList = JSONArray()
-        for (appInfo in packages) {
-            if ((appInfo.flags and ApplicationInfo.FLAG_SYSTEM) == 0 && pm.getLaunchIntentForPackage(appInfo.packageName) != null) {
-                try {
-                    val appJson = JSONObject()
-                    appJson.put("name", pm.getApplicationLabel(appInfo).toString())
-                    appJson.put("package", appInfo.packageName)
-                    appJson.put("icon", drawableToBase64(pm.getApplicationIcon(appInfo)))
-                    appsList.put(appJson)
-                } catch (_: Exception) {}
-            }
+        val packages = pm.getInstalledPackages(0)
+
+        for (packageInfo in packages) {
+            try {
+                val appInfo = packageInfo.applicationInfo ?: continue
+                // Skip system apps without launch intent to keep list clean
+                if ((appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0 && pm.getLaunchIntentForPackage(packageInfo.packageName) == null) continue
+
+                val appName = appInfo.loadLabel(pm).toString()
+                val packageName = packageInfo.packageName
+
+                // Get icon and convert to base64
+                val icon = appInfo.loadIcon(pm)
+                val bitmap = icon.toBitmap(48, 48)
+                val stream = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                val iconBase64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+
+                apps.add(AppInfo(
+                    name = appName,
+                    packageName = packageName,
+                    icon = iconBase64
+                ))
+            } catch (_: Exception) {}
         }
-        return appsList.toString()
+        return apps
     }
 
-    private fun drawableToBase64(drawable: Drawable): String {
-        val bitmap: Bitmap = if (drawable is BitmapDrawable) drawable.bitmap else {
-            val bmp = createBitmap(
-                drawable.intrinsicWidth.coerceAtLeast(1),
-                drawable.intrinsicHeight.coerceAtLeast(1)
-            )
-            val canvas = Canvas(bmp)
-            drawable.setBounds(0, 0, canvas.width, canvas.height)
-            drawable.draw(canvas)
-            bmp
-        }
-        val resized = bitmap.scale(48, 48, false)
-        val outputStream = ByteArrayOutputStream()
-        resized.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-        return Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
-    }
 
-    private fun showMirroredNotification(jsonStr: String) {
+    private fun showMirroredNotification(message: ProtocolMessage) {
         try {
-            val obj = JSONObject(jsonStr)
-            val title = obj.optString("title", "Notificação")
-            val text = obj.optString("text", "")
-            val pkg = obj.optString("package", "")
-            val key = obj.optString("key", "")
+            val notif = ProtocolHelper.extractData<NotificationData>(message)
+            val title = notif.title
+            val text = notif.text
+            val pkg = notif.packageName
+            val key = notif.key
 
             val notifId = notificationMap.getOrPut(key) { (System.currentTimeMillis() % 10000).toInt() + MIRRORED_NOTIFICATION_ID_START }
 
@@ -867,23 +1005,25 @@ class BluetoothService : Service() {
         } catch (_: Exception) {}
     }
 
-    private fun dismissLocalNotification(key: String) {
+    private fun dismissLocalNotification(message: ProtocolMessage) {
+        val key = ProtocolHelper.extractStringField(message, "key") ?: return
         notificationMap[key]?.let { id ->
             notificationManager.cancel(id)
             notificationMap.remove(key)
         }
     }
 
-    private fun requestDismissOnPhone(key: String) {
+    private fun requestDismissOnPhone(message: ProtocolMessage) {
+        val key = ProtocolHelper.extractStringField(message, "key") ?: return
         val intent = Intent(ACTION_CMD_DISMISS_ON_PHONE).apply { putExtra(EXTRA_NOTIF_KEY, key); setPackage(packageName) }
         sendBroadcast(intent)
     }
 
-    fun requestRemoteAppList() { sendPacket(TYPE_TEXT_CMD, CMD_REQUEST_APPS.toByteArray()) }
+    fun requestRemoteAppList() { sendMessage(ProtocolHelper.createRequestApps()) }
 
     fun resetApp() {
         stopConnectionLoopOnly()
-        prefs.edit { clear() }
+        prefs.edit().clear().apply()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -1021,7 +1161,7 @@ class BluetoothService : Service() {
     }
 
     private fun savePreference(key: String, value: String) {
-        prefs.edit { putString(key, value) }
+        prefs.edit().putString(key, value).apply()
     }
 
     override fun onDestroy() {
