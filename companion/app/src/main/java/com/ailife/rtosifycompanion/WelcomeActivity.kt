@@ -105,7 +105,7 @@ class WelcomeActivity : AppCompatActivity() {
 
         if (adapter == null) {
             // Device doesn't support Bluetooth
-            android.widget.Toast.makeText(this, "This device doesn't support Bluetooth", android.widget.Toast.LENGTH_LONG).show()
+            android.widget.Toast.makeText(this, R.string.welcome_bt_not_supported, android.widget.Toast.LENGTH_LONG).show()
             return
         }
 
@@ -124,14 +124,14 @@ class WelcomeActivity : AppCompatActivity() {
             val progressBar = findViewById<android.view.View>(R.id.progressBarSetup)
             val statusText = findViewById<android.widget.TextView>(R.id.tvWelcomeStatus)
 
-            statusText.text = "Scan this QR code on your phone"
+            statusText.text = getString(R.string.welcome_qr_scan_instruction)
             progressBar.visibility = android.view.View.GONE
 
             val btManager = getSystemService(android.content.Context.BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
             val adapter = btManager.adapter
 
             if (adapter == null || !adapter.isEnabled) {
-                statusText.text = "Bluetooth is disabled. Please enable it."
+                statusText.text = getString(R.string.welcome_bt_disabled)
                 return@launch
             }
 
@@ -185,9 +185,9 @@ class WelcomeActivity : AppCompatActivity() {
                 val btnFinished = findViewById<android.widget.Button>(R.id.btnFinishedSetup)
                 btnFinished.visibility = android.view.View.GONE
 
-                statusText.text = "Scan QR Code on your phone\nWaiting for pairing..."
+                statusText.text = getString(R.string.welcome_pairing_waiting)
             } else {
-                statusText.text = "Failed to generate QR code"
+                statusText.text = getString(R.string.welcome_qr_gen_error)
             }
         }
     }

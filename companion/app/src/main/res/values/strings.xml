@@ -66,4 +66,23 @@
 
     <string name="welcome_configuring">Configuring…</string>
     <string name="welcome_preparing">Please wait while we prepare your watch.</string>
+
+    <string name="welcome_bt_not_supported">This device doesn\'t support Bluetooth</string>
+    <string name="welcome_qr_scan_instruction">Scan this QR code on your phone</string>
+    <string name="welcome_bt_disabled">Bluetooth is disabled. Please enable it.</string>
+    <string name="welcome_pairing_waiting">Scan QR Code on your phone\nWaiting for pairing...</string>
+    <string name="welcome_qr_gen_error">Failed to generate QR code</string>
+
+    <string name="notification_apk_received_title">APK Received</string>
+    <string name="notification_apk_received_text">Tap to install</string>
+    <string name="notification_config_required_title">Configuration Required</string>
+    <string name="notification_config_required_text">Tap to allow installation</string>
+    <string name="notification_error_title">Error</string>
+    <string name="notification_service_title">Smartwatch</string>
+
+    <string name="status_no_phone_found">No Phone found.</string>
+    <string name="status_connecting_to">Connecting to %s…</string>
+    <string name="status_connected_to">Connected to %s</string>
+    <string name="status_open_app_phone">Open the app on your Phone and try again.</string>
+    <string name="applist_error_processing">Error processing data.</string>
 </resources>

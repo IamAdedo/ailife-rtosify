@@ -12,6 +12,10 @@
     <string name="status_stopped">Stopped</string>
     <string name="status_starting">Starting…</string>
     <string name="status_verifying">Verifying…</string>
+    <string name="status_no_watch_found">No Watch found.</string>
+    <string name="status_open_app_watch">Open the app on your Watch and try again.</string>
+    <string name="status_connecting_to">Connecting to %s…</string>
+    <string name="status_connected_to">Connected to %s</string>
     <string name="device_name_default">Device</string>
 
     <!-- Toast Messages -->
@@ -68,6 +72,8 @@
     <string name="upload_transferring">Transferring file…</string>
     <string name="upload_complete_title">Upload complete</string>
     <string name="upload_complete_message">APK sent successfully!</string>
+    <string name="upload_failed_title">Install Failed</string>
+    <string name="upload_failed_message">Could not complete the transfer. Please check connection and try again.</string>
 
     <!-- App List Activity -->
     <string name="applist_requesting">Requesting list from Watch…</string>
@@ -87,4 +93,29 @@
     <string name="welcome_bt_disabled">Bluetooth is disabled. Enable it to continue.</string>
     <string name="welcome_watch_found">Watch found: %s\nFinalizing setup…</string>
     <string name="welcome_no_paired_found">No paired watch found.\nPlease pair your watch in Bluetooth settings and restart the app.</string>
+
+    <string name="welcome_invalid_mac">Invalid MAC address. Please use updated watch app.</string>
+    <string name="welcome_invalid_qr_format">Invalid QR Code format</string>
+    <string name="welcome_invalid_qr_data">Invalid QR Code format: %s</string>
+    <string name="welcome_bt_not_enabled">Bluetooth is not enabled. Please enable it and try again.</string>
+    <string name="welcome_bt_not_supported">This device doesn\'t support Bluetooth</string>
+    <string name="welcome_pairing_failed">Pairing failed. Please try again.</string>
+    <string name="welcome_watch_not_found">Watch not found. Make sure it\'s nearby and showing the QR code.</string>
+    <string name="welcome_selection_cancelled">Selection cancelled. Please try again.</string>
+    <string name="welcome_watch_ready">Watch paired and ready!\nFinalizing setup...</string>
+    <string name="welcome_discovery_error">Could not start Bluetooth discovery</string>
+    <string name="welcome_bt_permission_denied">Bluetooth permission denied</string>
+    <string name="welcome_pairing_info">Pairing with your watch...\nPlease confirm the request on both devices.</string>
+    <string name="welcome_pairing_start_error">Could not start pairing. Is the watch nearby?</string>
+    <string name="welcome_pairing_choice">How would you like to pair your watch?</string>
+    <string name="welcome_manual_selection">Manual Selection</string>
+    <string name="welcome_qr_scan_instruction">Scan the QR Code on your Watch</string>
+    <string name="welcome_searching_qr">Searching for your watch...\nMake sure it\'s showing the QR code.</string>
+
+    <string name="notification_apk_received_title">APK Received</string>
+    <string name="notification_apk_received_text">Tap to install</string>
+    <string name="notification_config_required_title">Configuration Required</string>
+    <string name="notification_config_required_text">Tap to allow installation</string>
+    <string name="notification_error_title">Error</string>
+    <string name="notification_service_title">Smartwatch</string>
 </resources>

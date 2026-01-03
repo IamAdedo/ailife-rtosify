@@ -374,8 +374,14 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 uploadOkButton?.visibility = View.VISIBLE
             }
             -1 -> {
-                dismissUploadDialog()
-                Toast.makeText(this, getString(R.string.toast_upload_failed), Toast.LENGTH_LONG).show()
+                uploadProgressBar?.visibility = View.GONE
+                uploadPercentageText?.visibility = View.GONE
+                uploadTitleText?.text = getString(R.string.upload_failed_title)
+                uploadTitleText?.setTextColor(Color.RED)
+                uploadDescriptionText?.text = getString(R.string.upload_failed_message)
+                uploadIconView?.setImageResource(android.R.drawable.stat_notify_error)
+                uploadIconView?.setColorFilter(Color.RED)
+                uploadOkButton?.visibility = View.VISIBLE
             }
         }
     }
@@ -404,8 +410,11 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
     override fun onError(message: String) {
         runOnUiThread {
-            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-            if (uploadDialog?.isShowing == true) updateUploadProgress(-1)
+            if (uploadDialog?.isShowing == true) {
+                updateUploadProgress(-1)
+            } else {
+                Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            }
         }
     }
     override fun onScanResult(devices: List<BluetoothDevice>) {

@@ -72,7 +72,7 @@ class WelcomeActivity : AppCompatActivity() {
             if (macRegex.matches(qrData)) {
                 // Old format: direct MAC address
                 if (qrData == "02:00:00:00:00:00") {
-                    Toast.makeText(this, "Invalid MAC address. Please use updated watch app.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, R.string.welcome_invalid_mac, Toast.LENGTH_LONG).show()
                 } else {
                     startPairingWithDevice(qrData)
                 }
@@ -85,10 +85,10 @@ class WelcomeActivity : AppCompatActivity() {
                     android.util.Log.d("Welcome", "Pairing code: $pairingCode, Android ID: $androidId")
                     startDiscoveryForPairingCode(pairingCode, androidId)
                 } else {
-                    Toast.makeText(this, "Invalid QR Code format", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, R.string.welcome_invalid_qr_format, Toast.LENGTH_SHORT).show()
                 }
             } else {
-                Toast.makeText(this, "Invalid QR Code format: $qrData", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.welcome_invalid_qr_data, qrData), Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -110,7 +110,7 @@ class WelcomeActivity : AppCompatActivity() {
                         }
                         BluetoothDevice.BOND_NONE -> {
                             android.util.Log.w("Welcome", "Pairing failed or cancelled")
-                            findViewById<TextView>(R.id.tvWelcomeStatus).text = "Pairing failed. Please try again."
+                            findViewById<TextView>(R.id.tvWelcomeStatus).text = getString(R.string.welcome_pairing_failed)
                             findViewById<android.view.View>(R.id.progressBarSetup).visibility = android.view.View.GONE
                             findViewById<android.view.View>(R.id.btnRetry).visibility = android.view.View.VISIBLE
                         }
@@ -147,7 +147,7 @@ class WelcomeActivity : AppCompatActivity() {
                     val targetCode = getSharedPreferences("AppPrefs", MODE_PRIVATE).getString("temp_pairing_code", null)
                     if (targetCode != null) {
                         // Device not found
-                        findViewById<TextView>(R.id.tvWelcomeStatus).text = "Watch not found. Make sure it's nearby and showing the QR code."
+                        findViewById<TextView>(R.id.tvWelcomeStatus).text = getString(R.string.welcome_watch_not_found)
                         findViewById<android.view.View>(R.id.progressBarSetup).visibility = android.view.View.GONE
                         findViewById<android.view.View>(R.id.btnRetry).visibility = android.view.View.VISIBLE
                         getSharedPreferences("AppPrefs", MODE_PRIVATE).edit { remove("temp_pairing_code") }
@@ -178,7 +178,7 @@ class WelcomeActivity : AppCompatActivity() {
         findViewById<android.widget.Button>(R.id.btnScanQr).setOnClickListener {
             val options = ScanOptions()
             options.setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-            options.setPrompt("Scan the QR Code on your Watch")
+            options.setPrompt(getString(R.string.welcome_qr_scan_instruction))
             options.setBeepEnabled(true)
             options.setOrientationLocked(false)
             qrScannerLauncher.launch(options)
@@ -249,12 +249,12 @@ class WelcomeActivity : AppCompatActivity() {
                     val names = devicesToShow.map { "${it.name ?: "Unknown"} (${it.address})" }.toTypedArray()
                     
                     AlertDialog.Builder(this@WelcomeActivity)
-                        .setTitle("Select your Watch")
+                        .setTitle(R.string.dialog_select_watch_title)
                         .setItems(names) { _, which ->
                             completeSetupWithDevice(devicesToShow[which])
                         }
-                        .setNegativeButton("Cancel") { _, _ ->
-                            statusText.text = "Selection cancelled. Please try again."
+                        .setNegativeButton(R.string.dialog_upload_apk_cancel) { _, _ ->
+                            statusText.text = getString(R.string.welcome_selection_cancelled)
                         }
                         .show()
                 }
@@ -281,7 +281,7 @@ class WelcomeActivity : AppCompatActivity() {
             remove("temp_mac")
         }
         
-        statusText.text = "Watch paired and ready!\nFinalizing setup..."
+        statusText.text = getString(R.string.welcome_watch_ready)
         progressBar.visibility = android.view.View.VISIBLE
         
         lifecycleScope.launch {
@@ -322,7 +322,7 @@ class WelcomeActivity : AppCompatActivity() {
         val bondFilter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
         registerReceiver(bondStateReceiver, bondFilter)
 
-        statusText.text = "Searching for your watch...\nMake sure it's showing the QR code."
+        statusText.text = getString(R.string.welcome_searching_qr)
         progressBar.visibility = android.view.View.VISIBLE
         btnRetry.visibility = android.view.View.GONE
 
@@ -334,13 +334,13 @@ class WelcomeActivity : AppCompatActivity() {
             val started = adapter.startDiscovery()
             if (!started) {
                 android.util.Log.e("Welcome", "Failed to start discovery")
-                statusText.text = "Could not start Bluetooth discovery"
+                statusText.text = getString(R.string.welcome_discovery_error)
                 progressBar.visibility = android.view.View.GONE
                 btnRetry.visibility = android.view.View.VISIBLE
             }
         } catch (e: SecurityException) {
             android.util.Log.e("Welcome", "SecurityException starting discovery", e)
-            statusText.text = "Bluetooth permission denied"
+            statusText.text = getString(R.string.welcome_bt_permission_denied)
             progressBar.visibility = android.view.View.GONE
             btnRetry.visibility = android.view.View.VISIBLE
         }
@@ -380,14 +380,14 @@ class WelcomeActivity : AppCompatActivity() {
             android.util.Log.d("Welcome", "Device already bonded")
             completeSetupWithDeviceAddress(mac)
         } else {
-            statusText.text = "Pairing with your watch...\nPlease confirm the request on both devices."
+            statusText.text = getString(R.string.welcome_pairing_info)
             progressBar.visibility = android.view.View.VISIBLE
             btnRetry.visibility = android.view.View.GONE
 
             val initiated = device.createBond()
             if (!initiated) {
                 android.util.Log.e("Welcome", "Failed to initiate pairing")
-                statusText.text = "Could not start pairing. Is the watch nearby?"
+                statusText.text = getString(R.string.welcome_pairing_start_error)
                 progressBar.visibility = android.view.View.GONE
                 btnRetry.visibility = android.view.View.VISIBLE
             }
@@ -432,7 +432,7 @@ class WelcomeActivity : AppCompatActivity() {
         val adapter = btManager.adapter
 
         if (adapter == null) {
-            Toast.makeText(this, "This device doesn't support Bluetooth", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.welcome_bt_not_supported, Toast.LENGTH_LONG).show()
             return
         }
 
@@ -450,10 +450,10 @@ class WelcomeActivity : AppCompatActivity() {
         val btnRetry = findViewById<android.widget.Button>(R.id.btnRetry)
         val btnScanQr = findViewById<android.widget.Button>(R.id.btnScanQr)
 
-        statusText.text = "How would you like to pair your watch?"
+        statusText.text = getString(R.string.welcome_pairing_choice)
         progressBar.visibility = android.view.View.GONE
         btnRetry.visibility = android.view.View.VISIBLE
-        btnRetry.text = "Manual Selection"
+        btnRetry.text = getString(R.string.welcome_manual_selection)
         btnScanQr.visibility = android.view.View.VISIBLE
     }
 

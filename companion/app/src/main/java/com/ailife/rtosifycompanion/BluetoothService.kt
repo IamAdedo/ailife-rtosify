@@ -133,7 +133,7 @@ class BluetoothService : Service() {
     var callback: ServiceCallback? = null
 
     @Volatile
-    var currentStatus: String = "Serviço Iniciado"
+    var currentStatus: String = "" // Will be initialized in onCreate
     @Volatile
     var currentDeviceName: String? = null
     @Volatile
@@ -280,7 +280,7 @@ class BluetoothService : Service() {
 
     @SuppressLint("MissingPermission")
     fun startScanForDevices() {
-        updateStatus("Escaneando...")
+        updateStatus(getString(R.string.status_searching))
         connectionJob?.cancel()
         connectionJob = serviceScope.launch {
             val pairedDevices = bluetoothAdapter?.bondedDevices ?: emptySet()
@@ -299,8 +299,8 @@ class BluetoothService : Service() {
             }
             withContext(Dispatchers.Main) {
                 if (successfulConnections.isEmpty()) {
-                    updateStatus("Nenhum Watch encontrado.")
-                    callback?.onError("Abra o app no Watch e tente novamente.")
+                    updateStatus(getString(R.string.status_no_phone_found))
+                    callback?.onError(getString(R.string.status_open_app_phone))
                 } else if (successfulConnections.size == 1) {
                     val (device, socket) = successfulConnections[0]
                     savePreference("last_mac", device.address)
@@ -327,16 +327,16 @@ class BluetoothService : Service() {
             while (isActive) {
                 try {
                     if (socketToUse == null) {
-                        updateStatus("Conectando a ${device.name}...")
+                        updateStatus(getString(R.string.status_connecting_to, device.name))
                         socketToUse = device.createRfcommSocketToServiceRecord(APP_UUID)
                         socketToUse!!.connect()
                     }
                     handleConnectedSocket(socketToUse, device.name)
                     socketToUse = null
-                    if (isActive) { updateStatus("Reconectando..."); delay(3000) }
+                    if (isActive) { updateStatus(getString(R.string.status_starting)); delay(3000) }
                 } catch (_: IOException) {
                     socketToUse = null
-                    if (isActive) { updateStatus("Tentando conectar..."); delay(5000) }
+                    if (isActive) { updateStatus(getString(R.string.status_starting)); delay(5000) }
                 }
             }
         }
@@ -347,7 +347,7 @@ class BluetoothService : Service() {
         if (serverJob?.isActive == true) return
         serverJob?.cancel()
         serverJob = serviceScope.launch {
-            updateStatus("Aguardando conexão...")
+            updateStatus(getString(R.string.status_waiting))
             while (isActive) {
                 var serverSocket: BluetoothServerSocket?
                 try {
@@ -370,9 +370,9 @@ class BluetoothService : Service() {
                         serverSocket?.close()
                     } catch (_: Exception) {
                     }
-                    handleConnectedSocket(socket, socket.remoteDevice?.name ?: "Dispositivo")
+                    handleConnectedSocket(socket, socket.remoteDevice?.name ?: getString(R.string.device_name_default))
                     if (isActive) {
-                        updateStatus("Aguardando conexão...")
+                        updateStatus(getString(R.string.status_waiting))
                     }
                 }
             }
@@ -391,7 +391,7 @@ class BluetoothService : Service() {
         currentDeviceName = deviceName
 
         // Atualiza status E notificação simultaneamente
-        updateStatus("Conectado a $deviceName")
+        updateStatus(getString(R.string.status_connected_to, deviceName))
 
         // Notifica callback
         withContext(Dispatchers.Main) {
@@ -435,7 +435,7 @@ class BluetoothService : Service() {
             currentDeviceName = null
 
             if (wasConnected) {
-                updateStatus("Desconectado")
+                updateStatus(getString(R.string.status_disconnected))
             }
 
             withContext(Dispatchers.Main) {
@@ -872,7 +872,7 @@ class BluetoothService : Service() {
                             callback?.onUploadProgress(100)
                         } else {
                             callback?.onUploadProgress(-1)
-                            callback?.onError("Watch não confirmou recebimento")
+                            callback?.onError(getString(R.string.applist_error_processing))
                         }
                     }
                 }
@@ -881,7 +881,7 @@ class BluetoothService : Service() {
                 sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = e.message ?: "Unknown error"))
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
                     callback?.onUploadProgress(-1)
-                    callback?.onError("Falha no envio: ${e.message}")
+                    callback?.onError(getString(R.string.toast_upload_failed) + ": ${e.message}")
                 }
             } finally {
                 isTransferring = false
@@ -922,8 +922,8 @@ class BluetoothService : Service() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             val builder = NotificationCompat.Builder(this, INSTALL_CHANNEL_ID)
-                .setContentTitle("APK Recebido")
-                .setContentText("Toque para instalar")
+                .setContentTitle(getString(R.string.notification_apk_received_title))
+                .setContentText(getString(R.string.notification_apk_received_text))
                 .setSmallIcon(android.R.drawable.stat_sys_download_done)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
@@ -945,8 +945,8 @@ class BluetoothService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val builder = NotificationCompat.Builder(this, INSTALL_CHANNEL_ID)
-            .setContentTitle("Configuração Necessária")
-            .setContentText("Toque para permitir instalação")
+            .setContentTitle(getString(R.string.notification_config_required_title))
+            .setContentText(getString(R.string.notification_config_required_text))
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
@@ -956,7 +956,7 @@ class BluetoothService : Service() {
 
     private fun showErrorNotification(msg: String) {
         val builder = NotificationCompat.Builder(this, CHANNEL_ID_DISCONNECTED)
-            .setContentTitle("Erro")
+            .setContentTitle(getString(R.string.notification_error_title))
             .setContentText(msg)
             .setSmallIcon(android.R.drawable.stat_notify_error)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -1090,8 +1090,8 @@ class BluetoothService : Service() {
         currentDeviceName = null
         bluetoothSocket = null
 
-        if (wasConnected || currentNotificationStatus != "Parado.") {
-            updateStatus("Parado.")
+        if (wasConnected || currentNotificationStatus != getString(R.string.status_stopped)) {
+            updateStatus(getString(R.string.status_stopped))
         }
     }
     private fun updateStatus(text: String) {
@@ -1126,7 +1126,7 @@ class BluetoothService : Service() {
             val pending = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
 
             val notification = NotificationCompat.Builder(this, targetChannel)
-                .setContentTitle("Relógio Inteligente")
+                .setContentTitle(getString(R.string.notification_service_title))
                 .setContentText(targetText)
                 .setSmallIcon(R.drawable.ic_smartwatch_notification)
                 .setContentIntent(pending)
@@ -1171,10 +1171,13 @@ class BluetoothService : Service() {
                 Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, "Conectado")
 
             currentNotificationStatus.contains("Aguardando", ignoreCase = true) ||
+                    currentNotificationStatus.contains("Waiting", ignoreCase = true) ||
                     currentNotificationStatus.contains("Escaneando", ignoreCase = true) ||
+                    currentNotificationStatus.contains("Searching", ignoreCase = true) ||
                     currentNotificationStatus.contains("Iniciado", ignoreCase = true) ||
+                    currentNotificationStatus.contains("Started", ignoreCase = true) ||
                     currentNotificationStatus.isEmpty() ->
-                Triple(NOTIFICATION_ID_WAITING, CHANNEL_ID_WAITING, currentNotificationStatus.ifEmpty { "Aguardando conexão..." })
+                Triple(NOTIFICATION_ID_WAITING, CHANNEL_ID_WAITING, currentNotificationStatus.ifEmpty { getString(R.string.status_waiting) })
 
             else ->
                 Triple(NOTIFICATION_ID_DISCONNECTED, CHANNEL_ID_DISCONNECTED, currentNotificationStatus)
@@ -1201,7 +1204,7 @@ class BluetoothService : Service() {
         notificationManager.createNotificationChannel(
             NotificationChannel(
                 CHANNEL_ID_DISCONNECTED,
-                "Notificação persistente - desconectado",
+                getString(R.string.status_disconnected),
                 NotificationManager.IMPORTANCE_LOW
             )
         )
