@@ -136,9 +136,13 @@ class BluetoothService : Service() {
         const val ACTION_SEND_REMOVE_TO_WATCH = "com.ailife.rtosify.ACTION_SEND_REMOVE"
         const val ACTION_WATCH_DISMISSED_LOCAL = "com.ailife.rtosify.DISMISSED_LOCAL"
         const val ACTION_CMD_DISMISS_ON_PHONE = "com.ailife.rtosify.CMD_DISMISS_PHONE"
+        const val ACTION_CMD_EXECUTE_ACTION = "com.ailife.rtosify.CMD_EXECUTE_ACTION"
+        const val ACTION_CMD_SEND_REPLY = "com.ailife.rtosify.CMD_SEND_REPLY"
 
         const val EXTRA_NOTIF_JSON = "extra_notif_json"
         const val EXTRA_NOTIF_KEY = "extra_notif_key"
+        const val EXTRA_ACTION_KEY = "extra_action_key"
+        const val EXTRA_REPLY_TEXT = "extra_reply_text"
 
         // IDs DISTINTOS para garantir limpeza correta ao trocar de estado
         const val NOTIFICATION_ID_WAITING = 10
@@ -241,6 +245,27 @@ class BluetoothService : Service() {
 
         if (intent?.action == "STOP_ALARM") {
             stopFindPhoneAlarm()
+            return START_NOT_STICKY
+        }
+
+        // Handle notification action execution
+        if (intent?.action == "EXECUTE_ACTION_ON_PHONE") {
+            val notifKey = intent.getStringExtra(EXTRA_NOTIF_KEY)
+            val actionKey = intent.getStringExtra(EXTRA_ACTION_KEY)
+            if (notifKey != null && actionKey != null) {
+                sendMessage(ProtocolHelper.createExecuteNotificationAction(notifKey, actionKey))
+            }
+            return START_NOT_STICKY
+        }
+
+        // Handle notification reply
+        if (intent?.action == "SEND_REPLY_TO_PHONE") {
+            val notifKey = intent.getStringExtra(EXTRA_NOTIF_KEY)
+            val actionKey = intent.getStringExtra(EXTRA_ACTION_KEY)
+            val replyText = intent.getStringExtra(EXTRA_REPLY_TEXT)
+            if (notifKey != null && actionKey != null && replyText != null) {
+                sendMessage(ProtocolHelper.createSendNotificationReply(notifKey, actionKey, replyText))
+            }
             return START_NOT_STICKY
         }
 
@@ -412,6 +437,8 @@ class BluetoothService : Service() {
                     MessageType.NOTIFICATION_POSTED -> showMirroredNotification(message)
                     MessageType.NOTIFICATION_REMOVED -> dismissLocalNotification(message)
                     MessageType.DISMISS_NOTIFICATION -> requestDismissOnPhone(message)
+                    MessageType.EXECUTE_NOTIFICATION_ACTION -> handleExecuteNotificationAction(message)
+                    MessageType.SEND_NOTIFICATION_REPLY -> handleSendNotificationReply(message)
                     MessageType.FILE_TRANSFER_START -> handleFileTransferStart(message)
                     MessageType.FILE_CHUNK -> handleFileChunk(message)
                     MessageType.FILE_TRANSFER_END -> handleFileTransferEnd(message)
@@ -1080,18 +1107,94 @@ class BluetoothService : Service() {
             val deleteIntent = Intent(ACTION_WATCH_DISMISSED_LOCAL).apply { putExtra(EXTRA_NOTIF_KEY, key); setPackage(packageName) }
             val deletePending = PendingIntent.getBroadcast(this, notifId, deleteIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
-            val notification = NotificationCompat.Builder(this, MIRRORED_CHANNEL_ID)
+            val builder = NotificationCompat.Builder(this, MIRRORED_CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(text)
                 .setSubText(pkg)
-                .setSmallIcon(android.R.drawable.ic_popup_reminder)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
                 .setDeleteIntent(deletePending)
-                .build()
 
+            // Set large icon if available
+            notif.largeIcon?.let { iconBase64 ->
+                try {
+                    val iconBytes = Base64.decode(iconBase64, Base64.NO_WRAP)
+                    val bitmap = android.graphics.BitmapFactory.decodeByteArray(iconBytes, 0, iconBytes.size)
+                    builder.setLargeIcon(bitmap)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error decoding large icon: ${e.message}")
+                }
+            }
+
+            // Set small icon (app icon) if available, otherwise use default
+            if (notif.smallIcon != null) {
+                try {
+                    val iconBytes = Base64.decode(notif.smallIcon, Base64.NO_WRAP)
+                    val bitmap = android.graphics.BitmapFactory.decodeByteArray(iconBytes, 0, iconBytes.size)
+                    // Create a custom notification icon from the bitmap
+                    // Note: Android requires small icons to be monochrome, so we use the bitmap as large icon instead
+                    // and keep the default small icon
+                    builder.setSmallIcon(android.R.drawable.ic_popup_reminder)
+                } catch (e: Exception) {
+                    builder.setSmallIcon(android.R.drawable.ic_popup_reminder)
+                }
+            } else {
+                builder.setSmallIcon(android.R.drawable.ic_popup_reminder)
+            }
+
+            // Add action buttons
+            notif.actions.forEachIndexed { index, action ->
+                val actionIntent = if (action.isReplyAction) {
+                    Intent(this, NotificationActionReceiver::class.java).apply {
+                        setAction("${key}_${action.actionKey}_$index")
+                        putExtra(EXTRA_NOTIF_KEY, key)
+                        putExtra(EXTRA_ACTION_KEY, action.actionKey)
+                        putExtra("is_reply", true)
+                    }
+                } else {
+                    Intent(this, NotificationActionReceiver::class.java).apply {
+                        setAction("${key}_${action.actionKey}_$index")
+                        putExtra(EXTRA_NOTIF_KEY, key)
+                        putExtra(EXTRA_ACTION_KEY, action.actionKey)
+                        putExtra("is_reply", false)
+                    }
+                }
+
+                val actionPendingIntent = PendingIntent.getBroadcast(
+                    this,
+                    (notifId + index + 1),
+                    actionIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                )
+
+                if (action.isReplyAction) {
+                    // Create reply action with RemoteInput
+                    val remoteInput = androidx.core.app.RemoteInput.Builder("reply_text")
+                        .setLabel(getString(R.string.reply_label))
+                        .build()
+
+                    val replyAction = NotificationCompat.Action.Builder(
+                        android.R.drawable.ic_menu_send,
+                        action.title,
+                        actionPendingIntent
+                    ).addRemoteInput(remoteInput).build()
+
+                    builder.addAction(replyAction)
+                } else {
+                    // Regular action button
+                    builder.addAction(
+                        android.R.drawable.ic_menu_view,
+                        action.title,
+                        actionPendingIntent
+                    )
+                }
+            }
+
+            val notification = builder.build()
             notificationManager.notify(notifId, notification)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing mirrored notification: ${e.message}", e)
+        }
     }
 
     private fun dismissLocalNotification(message: ProtocolMessage) {
@@ -1105,6 +1208,36 @@ class BluetoothService : Service() {
     private fun requestDismissOnPhone(message: ProtocolMessage) {
         val key = ProtocolHelper.extractStringField(message, "key") ?: return
         val intent = Intent(ACTION_CMD_DISMISS_ON_PHONE).apply { putExtra(EXTRA_NOTIF_KEY, key); setPackage(packageName) }
+        sendBroadcast(intent)
+    }
+
+    private fun handleExecuteNotificationAction(message: ProtocolMessage) {
+        val notifKey = ProtocolHelper.extractStringField(message, "notifKey") ?: return
+        val actionKey = ProtocolHelper.extractStringField(message, "actionKey") ?: return
+
+        Log.d(TAG, "Executing notification action: $actionKey for notification: $notifKey")
+
+        val intent = Intent(ACTION_CMD_EXECUTE_ACTION).apply {
+            putExtra(EXTRA_NOTIF_KEY, notifKey)
+            putExtra(EXTRA_ACTION_KEY, actionKey)
+            setPackage(packageName)
+        }
+        sendBroadcast(intent)
+    }
+
+    private fun handleSendNotificationReply(message: ProtocolMessage) {
+        val notifKey = ProtocolHelper.extractStringField(message, "notifKey") ?: return
+        val actionKey = ProtocolHelper.extractStringField(message, "actionKey") ?: return
+        val replyText = ProtocolHelper.extractStringField(message, "replyText") ?: return
+
+        Log.d(TAG, "Sending notification reply: '$replyText' for notification: $notifKey")
+
+        val intent = Intent(ACTION_CMD_SEND_REPLY).apply {
+            putExtra(EXTRA_NOTIF_KEY, notifKey)
+            putExtra(EXTRA_ACTION_KEY, actionKey)
+            putExtra(EXTRA_REPLY_TEXT, replyText)
+            setPackage(packageName)
+        }
         sendBroadcast(intent)
     }
 

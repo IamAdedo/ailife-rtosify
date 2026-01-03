@@ -58,14 +58,25 @@ object MessageType {
     const val STATUS_UPDATE = "status_update"
     const val SET_DND = "set_dnd"
     const val UNINSTALL_APP = "uninstall_app"
+    const val EXECUTE_NOTIFICATION_ACTION = "execute_notification_action"
+    const val SEND_NOTIFICATION_REPLY = "send_notification_reply"
 }
 
 // Data classes for specific message types
+data class NotificationActionData(
+    val title: String,
+    val actionKey: String,
+    val isReplyAction: Boolean = false
+)
+
 data class NotificationData(
     val packageName: String,
     val title: String,
     val text: String,
-    val key: String
+    val key: String,
+    val largeIcon: String? = null,  // Base64 encoded
+    val smallIcon: String? = null,  // Base64 encoded app icon
+    val actions: List<NotificationActionData> = emptyList()
 )
 
 data class StatusUpdateData(
@@ -187,6 +198,21 @@ object ProtocolHelper {
         val data = JsonObject()
         data.addProperty("enabled", enabled)
         return ProtocolMessage(type = MessageType.FIND_PHONE, data = data)
+    }
+
+    fun createExecuteNotificationAction(notifKey: String, actionKey: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("notifKey", notifKey)
+        data.addProperty("actionKey", actionKey)
+        return ProtocolMessage(type = MessageType.EXECUTE_NOTIFICATION_ACTION, data = data)
+    }
+
+    fun createSendNotificationReply(notifKey: String, actionKey: String, replyText: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("notifKey", notifKey)
+        data.addProperty("actionKey", actionKey)
+        data.addProperty("replyText", replyText)
+        return ProtocolMessage(type = MessageType.SEND_NOTIFICATION_REPLY, data = data)
     }
 
     // Helper to extract data from message

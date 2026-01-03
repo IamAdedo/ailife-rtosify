@@ -130,4 +130,7 @@
     <string name="dialog_find_watch_message">This will play a loud alarm on the phone.</string>
     <string name="dialog_find_watch_start">Start</string>
     <string name="dialog_find_watch_stop">Stop</string>
+
+    <!-- Notification Actions -->
+    <string name="reply_label">Reply</string>
 </resources>

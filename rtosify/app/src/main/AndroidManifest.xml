@@ -153,6 +153,12 @@
             </intent-filter>
         </receiver>
 
+        <!-- Notification Action Receiver -->
+        <receiver
+            android:name=".NotificationActionReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
         <!-- FileProvider (OBRIGATÓRIO PARA INSTALAÇÃO) -->
         <provider
             android:name="androidx.core.content.FileProvider"

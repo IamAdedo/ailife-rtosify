@@ -105,6 +105,12 @@
             </intent-filter>
         </receiver>
 
+        <!-- Notification Action Receiver -->
+        <receiver
+            android:name=".NotificationActionReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
         <activity
             android:name=".FindDeviceActivity"
             android:exported="false"

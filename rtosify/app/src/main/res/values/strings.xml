@@ -186,4 +186,7 @@
     <string name="find_watch_alarm_stop">Stop</string>
     <string name="find_phone_alarm_title">Finding Phone</string>
     <string name="find_phone_alarm_message">The watch is looking for this phone!</string>
+
+    <!-- Notification Actions -->
+    <string name="reply_label">Reply</string>
 </resources>
