@@ -65,6 +65,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
     private var isPhoneMode = true
+    private var menuAdapter: MenuAdapter? = null
 
     // Estado local do DND
     private var currentDndState = false
@@ -233,14 +234,15 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 { resetApp() }
             )
         )
-        recyclerViewMenu.adapter = MenuAdapter(options)
+        menuAdapter = MenuAdapter(options.toMutableList())
+        recyclerViewMenu.adapter = menuAdapter
     }
 
     private fun setupWatchMenu() {
         recyclerViewMenu.layoutManager = LinearLayoutManager(this)
         recyclerViewMenu.isNestedScrollingEnabled = false
 
-        val options = listOf(
+        val options = mutableListOf(
             MenuOption(
                 getString(R.string.menu_find_phone),
                 getString(R.string.menu_find_phone_desc),
@@ -264,16 +266,39 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 "Remote Shutter",
                 android.R.drawable.ic_menu_camera,
                 { runIfConnected { startActivity(Intent(this, CameraRemoteActivity::class.java)) } }
-            ),
-            MenuOption(
-                getString(R.string.menu_disconnect),
-                getString(R.string.menu_disconnect_desc),
-                android.R.drawable.ic_menu_close_clear_cancel,
-                {
-                    bluetoothService?.stopConnectionLoopOnly()
-                    updateStatusUI(getString(R.string.status_stopped), false)
-                }
-            ),
+            )
+        )
+
+        val isConnected = bluetoothService?.isConnected == true
+        val isActive = bluetoothService?.isActive() == true
+
+        if (isActive || isConnected) {
+            options.add(
+                MenuOption(
+                    getString(R.string.menu_disconnect),
+                    getString(R.string.menu_disconnect_desc),
+                    android.R.drawable.ic_menu_close_clear_cancel,
+                    {
+                        bluetoothService?.stopConnectionLoopOnly()
+                        updateStatusUI(getString(R.string.status_stopped), false)
+                    }
+                )
+            )
+        } else {
+            options.add(
+                MenuOption(
+                    getString(R.string.menu_connect),
+                    getString(R.string.menu_connect_desc),
+                    android.R.drawable.ic_menu_view,
+                    {
+                        bluetoothService?.startWatchLogic()
+                        updateStatusUI(getString(R.string.status_starting), false)
+                    }
+                )
+            )
+        }
+
+        options.add(
             MenuOption(
                 getString(R.string.menu_reset_all),
                 getString(R.string.menu_reset_all_desc),
@@ -281,7 +306,97 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 { resetApp() }
             )
         )
-        recyclerViewMenu.adapter = MenuAdapter(options)
+        
+        menuAdapter = MenuAdapter(options)
+        recyclerViewMenu.adapter = menuAdapter
+    }
+
+    private fun refreshMenu() {
+        val isConnected = bluetoothService?.isConnected == true
+        val isActive = bluetoothService?.isActive() == true
+
+        val options = mutableListOf<MenuOption>()
+
+        if (isPhoneMode) {
+            options.add(
+                MenuOption(
+                    getString(R.string.perm_title),
+                    getString(R.string.perm_not_granted), 
+                    android.R.drawable.ic_menu_manage,
+                    { startActivity(Intent(this, PermissionActivity::class.java)) }
+                )
+            )
+        } else {
+            options.add(
+                MenuOption(
+                    getString(R.string.menu_find_phone),
+                    getString(R.string.menu_find_phone_desc),
+                    android.R.drawable.ic_menu_search,
+                    { runIfConnected { confirmFindPhone() } }
+                )
+            )
+            options.add(
+                MenuOption(
+                    getString(R.string.perm_title),
+                    getString(R.string.perm_shizuku_desc),
+                    android.R.drawable.ic_menu_manage,
+                    { startActivity(Intent(this, PermissionActivity::class.java)) }
+                )
+            )
+            options.add(
+                MenuOption(
+                    "Media Control",
+                    "Control phone playback",
+                    android.R.drawable.ic_media_play,
+                    { runIfConnected { startActivity(Intent(this, MediaControlActivity::class.java)) } }
+                )
+            )
+            options.add(
+                MenuOption(
+                    "Camera",
+                    "Remote Shutter",
+                    android.R.drawable.ic_menu_camera,
+                    { runIfConnected { startActivity(Intent(this, CameraRemoteActivity::class.java)) } }
+                )
+            )
+        }
+
+        if (isActive || isConnected) {
+            options.add(
+                MenuOption(
+                    getString(R.string.menu_disconnect),
+                    getString(R.string.menu_disconnect_desc),
+                    android.R.drawable.ic_menu_close_clear_cancel,
+                    {
+                        bluetoothService?.stopConnectionLoopOnly()
+                        updateStatusUI(getString(R.string.status_stopped), false)
+                    }
+                )
+            )
+        } else {
+            options.add(
+                MenuOption(
+                    getString(R.string.menu_connect),
+                    getString(R.string.menu_connect_desc),
+                    android.R.drawable.ic_menu_view,
+                    {
+                        if (isPhoneMode) bluetoothService?.startSmartphoneLogic() else bluetoothService?.startWatchLogic()
+                        updateStatusUI(getString(R.string.status_starting), false)
+                    }
+                )
+            )
+        }
+
+        options.add(
+            MenuOption(
+                getString(R.string.menu_reset_all),
+                getString(R.string.menu_reset_all_desc),
+                android.R.drawable.ic_menu_delete,
+                { resetApp() }
+            )
+        )
+
+        menuAdapter?.updateOptions(options)
     }
 
     private fun confirmFindPhone() {
@@ -328,6 +443,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 imgWatchStatus.setImageTintList(ColorStateList.valueOf(Color.RED))
             }
         }
+
+        refreshMenu()
     }
 
     private fun updateWatchStatusCard(battery: Int, isCharging: Boolean, wifi: String, dnd: Boolean) {

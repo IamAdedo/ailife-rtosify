@@ -1,6 +1,7 @@
 package com.ailife.rtosifycompanion
 
 import android.Manifest
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -75,7 +76,8 @@ class PermissionActivity : AppCompatActivity() {
         perms.add(PermissionItem("SHIZUKU", getString(R.string.perm_shizuku), getString(R.string.perm_shizuku_desc), hasShizuku))
 
         // 4. Root
-        perms.add(PermissionItem("ROOT", getString(R.string.perm_root), getString(R.string.perm_root_desc), Shell.isAppGrantedRoot() == true))
+        val isRoot = Shell.isAppGrantedRoot() == true || (Shell.getCachedShell()?.isRoot == true)
+        perms.add(PermissionItem("ROOT", getString(R.string.perm_root), getString(R.string.perm_root_desc), isRoot))
 
         // 5. Location
         perms.add(PermissionItem("LOCATION", getString(R.string.perm_location), getString(R.string.perm_location_desc), checkPerm(Manifest.permission.ACCESS_FINE_LOCATION)))
@@ -93,6 +95,19 @@ class PermissionActivity : AppCompatActivity() {
             checkPerm(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         }
         perms.add(PermissionItem("STORAGE", getString(R.string.perm_storage), getString(R.string.perm_storage_desc), hasStorage))
+
+        // 8. Post Notifications (Android 13+)
+        val hasPostNotif = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            checkPerm(Manifest.permission.POST_NOTIFICATIONS)
+        } else true
+        perms.add(PermissionItem("POST_NOTIF", getString(R.string.perm_post_notif), getString(R.string.perm_post_notif_desc), hasPostNotif))
+
+        // 9. DND Access
+        val notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val hasDnd = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            notifManager.isNotificationPolicyAccessGranted
+        } else true
+        perms.add(PermissionItem("DND", getString(R.string.perm_dnd), getString(R.string.perm_dnd_desc), hasDnd))
 
         adapter.updateList(perms)
     }
@@ -146,6 +161,16 @@ class PermissionActivity : AppCompatActivity() {
                     }
                 } else {
                     requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 1001)
+                }
+            }
+            "POST_NOTIF" -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 105)
+                }
+            }
+            "DND" -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
                 }
             }
         }

@@ -1,6 +1,7 @@
 package com.ailife.rtosify
 
 import android.Manifest
+import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -92,7 +93,8 @@ class PermissionActivity : AppCompatActivity() {
         perms.add(PermissionItem("SHIZUKU", getString(R.string.perm_shizuku), getString(R.string.perm_shizuku_desc), hasShizuku))
 
         // 6. Root
-        perms.add(PermissionItem("ROOT", getString(R.string.perm_root), getString(R.string.perm_root_desc), Shell.isAppGrantedRoot() == true))
+        val isRoot = Shell.isAppGrantedRoot() == true || (Shell.getCachedShell()?.isRoot == true)
+        perms.add(PermissionItem("ROOT", getString(R.string.perm_root), getString(R.string.perm_root_desc), isRoot))
 
         // 7. Location (for BT scan)
         perms.add(PermissionItem("LOCATION", getString(R.string.perm_location), getString(R.string.perm_location_desc), checkPerm(Manifest.permission.ACCESS_FINE_LOCATION)))
@@ -102,6 +104,30 @@ class PermissionActivity : AppCompatActivity() {
             checkPerm(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         } else true
         perms.add(PermissionItem("LOCATION_BG", getString(R.string.perm_location_bg), getString(R.string.perm_location_bg_desc), hasBG))
+
+        // 9. Post Notifications (Android 13+)
+        val hasPostNotif = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            checkPerm(Manifest.permission.POST_NOTIFICATIONS)
+        } else true
+        perms.add(PermissionItem("POST_NOTIF", getString(R.string.perm_post_notif), getString(R.string.perm_post_notif_desc), hasPostNotif))
+
+        // 10. Camera
+        perms.add(PermissionItem("CAMERA", getString(R.string.perm_camera), getString(R.string.perm_camera_desc), checkPerm(Manifest.permission.CAMERA)))
+
+        // 11. DND Access
+        val notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val hasDnd = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            notifManager.isNotificationPolicyAccessGranted
+        } else true
+        perms.add(PermissionItem("DND", getString(R.string.perm_dnd), getString(R.string.perm_dnd_desc), hasDnd))
+
+        // 12. Storage
+        val hasStorage = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            checkPerm(Manifest.permission.READ_MEDIA_IMAGES)
+        } else {
+            checkPerm(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+        perms.add(PermissionItem("STORAGE", getString(R.string.perm_storage), getString(R.string.perm_storage_desc), hasStorage))
 
         adapter.updateList(perms)
     }
@@ -162,6 +188,24 @@ class PermissionActivity : AppCompatActivity() {
             "LOCATION_BG" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     requestPermissions(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), 104)
+                }
+            }
+            "POST_NOTIF" -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 105)
+                }
+            }
+            "CAMERA" -> requestPermissions(arrayOf(Manifest.permission.CAMERA), 106)
+            "DND" -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+                }
+            }
+            "STORAGE" -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    requestPermissions(arrayOf(Manifest.permission.READ_MEDIA_IMAGES), 107)
+                } else {
+                    requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 107)
                 }
             }
         }

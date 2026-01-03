@@ -57,6 +57,8 @@
     <string name="menu_find_watch_desc">Play loud sound on watch</string>
     <string name="menu_disconnect">Disconnect</string>
     <string name="menu_disconnect_desc">Stop Bluetooth service</string>
+    <string name="menu_connect">Connect</string>
+    <string name="menu_connect_desc">Start service and connect</string>
     <string name="menu_reset_all">Reset All</string>
     <string name="menu_reset_all_desc">Clear settings and return to start</string>
 
@@ -187,6 +189,19 @@
     <string name="perm_location_desc">Required for Bluetooth scanning (Android limitation).</string>
     <string name="perm_location_bg">Background Location</string>
     <string name="perm_location_bg_desc">Allows scanning and connecting while the app is closed or screen is off.</string>
+    
+    <string name="perm_post_notif">Post Notifications</string>
+    <string name="perm_post_notif_desc">Required to show status and alerts on your phone.</string>
+    
+    <string name="perm_camera">Camera Access</string>
+    <string name="perm_camera_desc">Required to scan the watch\'s QR code.</string>
+    
+    <string name="perm_dnd">Do Not Disturb Access</string>
+    <string name="perm_dnd_desc">Required to sync DND status between devices.</string>
+
+    <string name="perm_storage">Storage Access</string>
+    <string name="perm_storage_desc">Required to browse and manage files.</string>
+
     <string name="find_watch_alarm_stop">Stop</string>
     <string name="find_phone_alarm_title">Finding Phone</string>
     <string name="find_phone_alarm_message">The watch is looking for this phone!</string>

@@ -1416,6 +1416,10 @@ class BluetoothService : Service() {
         stopSelf()
     }
 
+    fun isActive(): Boolean {
+        return connectionJob?.isActive == true || serverJob?.isActive == true
+    }
+
     fun stopConnectionLoopOnly() {
         connectionJob?.cancel()
         serverJob?.cancel()

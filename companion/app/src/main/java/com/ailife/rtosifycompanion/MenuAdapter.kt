@@ -15,7 +15,7 @@ data class MenuOption(
     val extraInfo: String? = null
 )
 
-class MenuAdapter(private val options: List<MenuOption>) : RecyclerView.Adapter<MenuAdapter.MenuViewHolder>() {
+class MenuAdapter(private val options: MutableList<MenuOption>) : RecyclerView.Adapter<MenuAdapter.MenuViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MenuViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_menu_option, parent, false)
@@ -27,6 +27,12 @@ class MenuAdapter(private val options: List<MenuOption>) : RecyclerView.Adapter<
     }
 
     override fun getItemCount() = options.size
+
+    fun updateOptions(newOptions: List<MenuOption>) {
+        (options as MutableList).clear()
+        options.addAll(newOptions)
+        notifyDataSetChanged()
+    }
 
     class MenuViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val tvTitle: TextView = itemView.findViewById(R.id.tvTitle)

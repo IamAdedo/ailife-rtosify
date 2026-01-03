@@ -61,6 +61,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
     private var isPhoneMode = true
+    private var menuAdapter: MenuAdapter? = null
 
     // Estado local do DND
     private var currentDndState = false
@@ -247,7 +248,89 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 { resetApp() }
             )
         )
-        recyclerViewMenu.adapter = MenuAdapter(options)
+        menuAdapter = MenuAdapter(options.toMutableList())
+        recyclerViewMenu.adapter = menuAdapter
+    }
+
+    private fun refreshMenu() {
+        if (!isPhoneMode) {
+            return
+        }
+
+        val isConnected = bluetoothService?.isConnected == true
+        val isActive = bluetoothService?.isActive() == true
+
+        val options = mutableListOf(
+            MenuOption(
+                getString(R.string.menu_manage_apps),
+                getString(R.string.menu_manage_apps_desc),
+                android.R.drawable.ic_menu_sort_by_size,
+                { runIfConnected { startActivity(Intent(this, AppListActivity::class.java)) } }
+            ),
+            MenuOption(
+                getString(R.string.menu_notifications),
+                getString(R.string.menu_notifications_desc),
+                android.R.drawable.ic_popup_reminder,
+                { runIfConnected { startActivity(Intent(this, NotificationSettingsActivity::class.java)) } }
+            ),
+            MenuOption(
+                "File Manager",
+                "Browse and manage watch files",
+                android.R.drawable.ic_menu_save,
+                { runIfConnected { startActivity(Intent(this, FileManagerActivity::class.java)) } }
+            ),
+            MenuOption(
+                getString(R.string.menu_device_mgmt),
+                getString(R.string.menu_device_mgmt_desc),
+                android.R.drawable.ic_lock_power_off,
+                { runIfConnected { showDeviceManagementMenu() } }
+            )
+        )
+
+        if (isActive || isConnected) {
+            options.add(
+                MenuOption(
+                    getString(R.string.menu_disconnect),
+                    getString(R.string.menu_disconnect_desc),
+                    android.R.drawable.ic_menu_close_clear_cancel,
+                    {
+                        bluetoothService?.stopConnectionLoopOnly()
+                        updateStatusUI(getString(R.string.status_stopped), false)
+                    }
+                )
+            )
+        } else {
+            options.add(
+                MenuOption(
+                    getString(R.string.menu_connect),
+                    getString(R.string.menu_connect_desc),
+                    android.R.drawable.ic_menu_view,
+                    {
+                        bluetoothService?.startSmartphoneLogic()
+                        updateStatusUI(getString(R.string.status_starting), false)
+                    }
+                )
+            )
+        }
+
+        options.add(
+            MenuOption(
+                getString(R.string.perm_title),
+                getString(R.string.perm_notifications_desc),
+                android.R.drawable.ic_menu_manage,
+                { startActivity(Intent(this, PermissionActivity::class.java)) }
+            )
+        )
+        options.add(
+            MenuOption(
+                getString(R.string.menu_reset_all),
+                getString(R.string.menu_reset_all_desc),
+                android.R.drawable.ic_menu_delete,
+                { resetApp() }
+            )
+        )
+
+        menuAdapter?.updateOptions(options)
     }
 
     private fun bindToService() {
@@ -280,6 +363,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 imgWatchStatus.setImageTintList(ColorStateList.valueOf(Color.RED))
             }
         }
+        
+        refreshMenu()
     }
 
     private fun updateWatchStatusCard(battery: Int, isCharging: Boolean, wifi: String, dnd: Boolean) {
