@@ -1388,6 +1388,7 @@ class BluetoothService : Service() {
             val appName = notif.appName ?: pkg
             val key = notif.key
 
+            val isUpdate = notificationMap.containsKey(key)
             val notifId = notificationMap.getOrPut(key) { (System.currentTimeMillis() % 10000).toInt() + MIRRORED_NOTIFICATION_ID_START }
 
             val deleteIntent = Intent(ACTION_WATCH_DISMISSED_LOCAL).apply { putExtra(EXTRA_NOTIF_KEY, key); setPackage(packageName) }
@@ -1398,6 +1399,7 @@ class BluetoothService : Service() {
                 .setContentTitle(title)
                 .setContentText(text)
                 .setSubText(appName)
+                .setOnlyAlertOnce(isUpdate)
                 .setAutoCancel(true)
                 .setDeleteIntent(deletePending)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -1417,28 +1419,33 @@ class BluetoothService : Service() {
                 Log.d(TAG, "Main icon set for notification")
             }
 
-            // 4. Use MessagingStyle if we have sender info or it's a group
-            if (notif.senderName != null || notif.senderIcon != null || notif.groupIcon != null) {
+            // 4. Use MessagingStyle if we have messages or it's a group
+            if (notif.messages.isNotEmpty() || notif.groupIcon != null) {
                 val user = androidx.core.app.Person.Builder().setName("Me").build()
                 val style = NotificationCompat.MessagingStyle(user)
                 
-                if (notif.groupIcon != null) {
+                if (notif.groupIcon != null || notif.messages.any { it.senderName != null }) {
                     style.conversationTitle = title
-                    style.isGroupConversation = true
+                    style.isGroupConversation = notif.groupIcon != null
                 }
                 
-                val sender = androidx.core.app.Person.Builder()
-                    .setName(notif.senderName ?: "Sender")
-                    .apply {
-                        senderIconBitmap?.let { 
-                            setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(it))
+                // Add all messages from the history
+                for (msg in notif.messages) {
+                    val sender = androidx.core.app.Person.Builder()
+                        .setName(msg.senderName ?: "Sender")
+                        .apply {
+                            msg.senderIcon?.let { 
+                                decodeBase64ToBitmap(it)?.let { bitmap ->
+                                    setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(bitmap))
+                                }
+                            }
                         }
-                    }
-                    .build()
-                
-                style.addMessage(text, System.currentTimeMillis(), sender)
+                        .build()
+                    style.addMessage(msg.text, msg.timestamp, sender)
+                }
+
                 builder.setStyle(style)
-                Log.d(TAG, "MessagingStyle applied with sender: ${notif.senderName}")
+                Log.d(TAG, "MessagingStyle applied with ${notif.messages.size} messages")
             }
 
             // Set small icon using the bitmap sent from the phone (API 26+)

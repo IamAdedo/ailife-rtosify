@@ -20,7 +20,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
         if (isReply) {
             // Extract reply text from RemoteInput
             val remoteInput = RemoteInput.getResultsFromIntent(intent)
-            val replyText = remoteInput?.getCharSequence("reply_text")?.toString()
+            val replyText = remoteInput?.getCharSequence(BluetoothService.EXTRA_REPLY_TEXT)?.toString()
 
             if (replyText != null && replyText.isNotEmpty()) {
                 // Send reply to the phone

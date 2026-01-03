@@ -139,6 +139,10 @@ class MyNotificationListener : NotificationListenerService() {
             val senderName = senderInfo.second
             Log.d("Listener", "Sender info: icon=${if (senderIconBase64 != null) "YES" else "NO"}, name=$senderName")
 
+            // Extract message history
+            val messagesList = extractMessages(notification)
+            Log.d("Listener", "Extracted ${messagesList.size} messages")
+
             // 4. Extract app icon (base fallback)
             val appIconBase64 = extractAppIcon(sbn.packageName)
             Log.d("Listener", "App icon extracted: ${if (appIconBase64 != null) "YES (${appIconBase64.length} chars)" else "NO"}")
@@ -177,6 +181,7 @@ class MyNotificationListener : NotificationListenerService() {
                 groupIcon = groupIconBase64,
                 senderIcon = senderIconBase64,
                 senderName = senderName,
+                messages = messagesList,
                 bigPicture = bigPictureBase64,
                 actions = actions
             )
@@ -362,6 +367,42 @@ class MyNotificationListener : NotificationListenerService() {
             Log.e("Listener", "Error extracting group icon: ${e.message}")
         }
         return null
+    }
+
+    private fun extractMessages(notification: android.app.Notification): List<NotificationMessageData> {
+        val messagesList = mutableListOf<NotificationMessageData>()
+        try {
+            val extras = notification.extras
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val messages = extras.getParcelableArray("android.messages")
+                if (messages != null) {
+                    for (msg in messages) {
+                        val m = msg as? android.os.Bundle ?: continue
+                        val text = m.getCharSequence("text")?.toString() ?: ""
+                        val timestamp = m.getLong("time")
+                        val person = m.getParcelable<android.app.Person>("sender_person")
+                        
+                        var iconBase64: String? = null
+                        if (person?.icon != null) {
+                            val drawable = person.icon!!.loadDrawable(this)
+                            if (drawable != null) {
+                                iconBase64 = bitmapToBase64(drawableToBitmap(drawable))
+                            }
+                        }
+                        
+                        messagesList.add(NotificationMessageData(
+                            text = text,
+                            timestamp = timestamp,
+                            senderName = person?.name?.toString(),
+                            senderIcon = iconBase64
+                        ))
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("Listener", "Error extracting messages: ${e.message}")
+        }
+        return messagesList
     }
 
     private fun extractSenderInfo(notification: android.app.Notification): Pair<String?, String?> {

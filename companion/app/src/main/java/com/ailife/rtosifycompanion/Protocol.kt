@@ -105,7 +105,15 @@ data class NotificationData(
     val senderIcon: String? = null, // Base64 encoded sender icon (from MessagingStyle)
     val senderName: String? = null, // Name of the sender
     val bigPicture: String? = null,  // Base64 encoded - for BigPictureStyle
+    val messages: List<NotificationMessageData> = emptyList(), // History of messages
     val actions: List<NotificationActionData> = emptyList()
+)
+
+data class NotificationMessageData(
+    val text: String,
+    val timestamp: Long,
+    val senderName: String?,
+    val senderIcon: String? = null // Base64 encoded sender avatar helper
 )
 
 data class StatusUpdateData(
