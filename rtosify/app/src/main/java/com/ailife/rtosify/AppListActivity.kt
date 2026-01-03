@@ -29,6 +29,10 @@ import android.widget.ImageButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import org.json.JSONArray
 import java.io.File
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
@@ -330,16 +334,22 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 tvPkg.text = item.packageName
                 btnUninstall.setOnClickListener { onUninstallClick(item) }
 
+                imgIcon.setImageResource(android.R.drawable.sym_def_app_icon)
+
                 if (item.iconBase64.isNotEmpty()) {
-                    try {
-                        val decodedString = Base64.decode(item.iconBase64, Base64.DEFAULT)
-                        val decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.size)
-                        imgIcon.setImageBitmap(decodedByte)
-                    } catch (e: Exception) {
-                        imgIcon.setImageResource(android.R.drawable.sym_def_app_icon)
+                    (itemView.context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
+                        try {
+                            val decodedString = Base64.decode(item.iconBase64, Base64.DEFAULT)
+                            val decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.size)
+                            withContext(Dispatchers.Main) {
+                                imgIcon.setImageBitmap(decodedByte)
+                            }
+                        } catch (e: Exception) {
+                            withContext(Dispatchers.Main) {
+                                imgIcon.setImageResource(android.R.drawable.sym_def_app_icon)
+                            }
+                        }
                     }
-                } else {
-                    imgIcon.setImageResource(android.R.drawable.sym_def_app_icon)
                 }
             }
         }

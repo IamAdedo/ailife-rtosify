@@ -20,8 +20,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.util.LruCache
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -54,21 +56,24 @@ class AppPickerActivity : AppCompatActivity() {
 
     private fun loadApps() {
         progressBar.visibility = View.VISIBLE
-        // Set loading message if there was a textview, but activity_app_picker only has progressbar
         lifecycleScope.launch(Dispatchers.IO) {
             val pm = packageManager
-            val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-            val filteredApps = apps.filter { app ->
-                // Filter user apps or apps with launch intent
-                (app.flags and ApplicationInfo.FLAG_SYSTEM) == 0 || pm.getLaunchIntentForPackage(app.packageName) != null
-            }.map { app ->
+            
+            // MÉTODO OTIMIZADO: Busca apps com launcher em UMA chamada IPC
+            val intent = Intent(Intent.ACTION_MAIN, null)
+            intent.addCategory(Intent.CATEGORY_LAUNCHER)
+            val launchableActivities = pm.queryIntentActivities(intent, 0)
+            
+            val filteredApps = launchableActivities.mapNotNull { resolveInfo ->
+                val pkgName = resolveInfo.activityInfo.packageName
+                if (pkgName == packageName) return@mapNotNull null
+                
+                val appInfo = resolveInfo.activityInfo.applicationInfo
                 PhoneAppItem(
-                    name = app.loadLabel(pm).toString(),
-                    packageName = app.packageName,
-                    icon = app.loadIcon(pm),
-                    sourceDir = app.sourceDir
+                    packageName = pkgName,
+                    sourceDir = appInfo.sourceDir
                 )
-            }.sortedBy { it.name.lowercase() }
+            }.distinctBy { it.packageName }
 
             withContext(Dispatchers.Main) {
                 progressBar.visibility = View.GONE
@@ -115,10 +120,14 @@ class AppPickerActivity : AppCompatActivity() {
         return super.onOptionsItemSelected(item)
     }
 
-    data class PhoneAppItem(val name: String, val packageName: String, val icon: Drawable, val sourceDir: String)
+    data class PhoneAppItem(val packageName: String, val sourceDir: String)
 
     class AppPickerAdapter(private val onClick: (PhoneAppItem) -> Unit) : RecyclerView.Adapter<AppPickerAdapter.ViewHolder>() {
         private var list = listOf<PhoneAppItem>()
+        
+        // Caches para evitar IPC repetitivo
+        private val labelCache = LruCache<String, String>(200)
+        private val iconCache = LruCache<String, Drawable>(100)
 
         @SuppressLint("NotifyDataSetChanged")
         fun updateList(newList: List<PhoneAppItem>) {
@@ -128,7 +137,7 @@ class AppPickerActivity : AppCompatActivity() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.item_app_picker, parent, false)
-            return ViewHolder(view, onClick)
+            return ViewHolder(view, onClick, labelCache, iconCache)
         }
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
@@ -137,16 +146,61 @@ class AppPickerActivity : AppCompatActivity() {
 
         override fun getItemCount() = list.size
 
-        class ViewHolder(itemView: View, private val onClick: (PhoneAppItem) -> Unit) : RecyclerView.ViewHolder(itemView) {
+        class ViewHolder(
+            itemView: View, 
+            private val onClick: (PhoneAppItem) -> Unit,
+            private val labelCache: LruCache<String, String>,
+            private val iconCache: LruCache<String, Drawable>
+        ) : RecyclerView.ViewHolder(itemView) {
             private val imgIcon: ImageView = itemView.findViewById(R.id.imgAppIcon)
             private val tvName: TextView = itemView.findViewById(R.id.tvAppName)
             private val tvPkg: TextView = itemView.findViewById(R.id.tvAppPackage)
+            
+            private var loadJob: Job? = null
 
             fun bind(item: PhoneAppItem) {
-                tvName.text = item.name
                 tvPkg.text = item.packageName
-                imgIcon.setImageDrawable(item.icon)
+                
                 itemView.setOnClickListener { onClick(item) }
+
+                // Cancela anterior
+                loadJob?.cancel()
+
+                // Tenta cache
+                val cachedLabel = labelCache.get(item.packageName)
+                val cachedIcon = iconCache.get(item.packageName)
+                
+                if (cachedLabel != null && cachedIcon != null) {
+                    tvName.text = cachedLabel
+                    imgIcon.setImageDrawable(cachedIcon)
+                    return
+                }
+
+                imgIcon.setImageResource(android.R.drawable.sym_def_app_icon)
+                tvName.text = "..."
+
+                // Carrega nome e ícone de forma assíncrona
+                loadJob = (itemView.context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
+                    val pm = itemView.context.packageManager
+                    try {
+                        val appInfo = pm.getApplicationInfo(item.packageName, 0)
+                        val name = appInfo.loadLabel(pm).toString()
+                        val icon = appInfo.loadIcon(pm)
+
+                        labelCache.put(item.packageName, name)
+                        iconCache.put(item.packageName, icon)
+
+                        withContext(Dispatchers.Main) {
+                            tvName.text = name
+                            imgIcon.setImageDrawable(icon)
+                        }
+                    } catch (e: Exception) {
+                        // Keep package name as fallback
+                        withContext(Dispatchers.Main) {
+                            tvName.text = item.packageName
+                        }
+                    }
+                }
             }
         }
     }

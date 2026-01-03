@@ -24,8 +24,10 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.switchmaterial.SwitchMaterial
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.util.LruCache
 
 class NotificationSettingsActivity : AppCompatActivity() {
 
@@ -40,6 +42,9 @@ class NotificationSettingsActivity : AppCompatActivity() {
 
     private lateinit var prefs: SharedPreferences
     private lateinit var appAdapter: AppNotificationAdapter
+    
+    private var loadingJob: Job? = null
+    private var isLoadingVisible = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -132,7 +137,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
             }
 
             // Se a lista estiver vazia e não estiver carregando, tenta carregar
-            if (appAdapter.itemCount == 0 && layoutLoadingApps.visibility == View.GONE) {
+            if (appAdapter.itemCount == 0 && !isLoadingVisible) {
                 loadInstalledApps()
             }
         }
@@ -145,44 +150,41 @@ class NotificationSettingsActivity : AppCompatActivity() {
     }
 
     private fun loadInstalledApps() {
+        if (isLoadingVisible) return
+        
         // Mostra o container de loading (Texto + Spinner)
         layoutLoadingApps.visibility = View.VISIBLE
         recyclerView.visibility = View.GONE
+        isLoadingVisible = true
 
-        lifecycleScope.launch(Dispatchers.IO) {
+        loadingJob?.cancel()
+        loadingJob = lifecycleScope.launch(Dispatchers.IO) {
             val pm = packageManager
-            val appsList = mutableListOf<AppNotificationItem>()
-
-            val allPackages = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                pm.getInstalledApplications(PackageManager.ApplicationInfoFlags.of(PackageManager.GET_META_DATA.toLong()))
-            } else {
-                pm.getInstalledApplications(PackageManager.GET_META_DATA)
-            }
-
             val packageNamesFound = mutableSetOf<String>()
-
-            for (appInfo in allPackages) {
-                // Ignora o próprio app
-                if (appInfo.packageName == packageName) continue
-
-                try {
-                    val label = pm.getApplicationLabel(appInfo).toString()
-                    val icon = pm.getApplicationIcon(appInfo)
-                    appsList.add(AppNotificationItem(label, appInfo.packageName, icon))
-                    packageNamesFound.add(appInfo.packageName)
-                } catch (e: Exception) {
-                    continue
-                }
-            }
-            appsList.sortBy { it.appName.lowercase() }
+            
+            // MÉTODO OTIMIZADO: Busca todos os apps com launcher em UMA única chamada IPC
+            val intent = Intent(Intent.ACTION_MAIN, null)
+            intent.addCategory(Intent.CATEGORY_LAUNCHER)
+            val launchableActivities = pm.queryIntentActivities(intent, 0)
+            
+            val appsList = launchableActivities.mapNotNull { resolveInfo ->
+                val pkgName = resolveInfo.activityInfo.packageName
+                if (pkgName == packageName) return@mapNotNull null
+                
+                packageNamesFound.add(pkgName)
+                AppNotificationItem("", pkgName, null)
+            }.distinctBy { it.packageName }
+            .sortedBy { it.packageName } // Ordena primeiro por pacote, o nome será carregado depois
 
             if (!prefs.contains("allowed_notif_packages")) {
                 prefs.edit().putStringSet("allowed_notif_packages", packageNamesFound).apply()
-                appAdapter.reloadAllowedPackages()
+                withContext(Dispatchers.Main) {
+                    appAdapter.reloadAllowedPackages()
+                }
             }
 
             withContext(Dispatchers.Main) {
-                // Esconde o container de loading
+                isLoadingVisible = false
                 layoutLoadingApps.visibility = View.GONE
                 recyclerView.visibility = View.VISIBLE
                 appAdapter.setData(appsList)
@@ -215,15 +217,19 @@ class NotificationSettingsActivity : AppCompatActivity() {
 
 // --- Classes do Adapter ---
 data class AppNotificationItem(
-    val appName: String,
+    val appName: String, // Deixamos como fallback ou vazio inicialmente
     val packageName: String,
-    val icon: Drawable
+    val icon: Drawable?
 )
 
 class AppNotificationAdapter(private val prefs: SharedPreferences) : RecyclerView.Adapter<AppNotificationAdapter.ViewHolder>() {
 
     private var items = listOf<AppNotificationItem>()
     private val allowedPackages = mutableSetOf<String>()
+    
+    // Cache para evitar IPC repetitivo para metadados
+    private val labelCache = LruCache<String, String>(200)
+    private val iconCache = LruCache<String, Drawable>(100)
 
     init {
         reloadAllowedPackages()
@@ -259,11 +265,10 @@ class AppNotificationAdapter(private val prefs: SharedPreferences) : RecyclerVie
         private val tvAppPackage: TextView = itemView.findViewById(R.id.tvAppPackage)
         private val switchApp: SwitchMaterial = itemView.findViewById(R.id.switchAppNotification)
 
-        fun bind(item: AppNotificationItem) {
-            tvName.text = item.appName
-            tvAppPackage.text = item.packageName
-            imgIcon.setImageDrawable(item.icon)
+        private var loadJob: Job? = null
 
+        fun bind(item: AppNotificationItem) {
+            tvAppPackage.text = item.packageName
             switchApp.setOnCheckedChangeListener(null)
             switchApp.isChecked = allowedPackages.contains(item.packageName)
 
@@ -274,6 +279,44 @@ class AppNotificationAdapter(private val prefs: SharedPreferences) : RecyclerVie
                     allowedPackages.remove(item.packageName)
                 }
                 prefs.edit().putStringSet("allowed_notif_packages", allowedPackages.toSet()).apply()
+            }
+
+            // Cancela job anterior se a view for reciclada
+            loadJob?.cancel()
+            
+            // Tenta cache primeiro
+            val cachedLabel = labelCache.get(item.packageName)
+            val cachedIcon = iconCache.get(item.packageName)
+            
+            if (cachedLabel != null && cachedIcon != null) {
+                tvName.text = cachedLabel
+                imgIcon.setImageDrawable(cachedIcon)
+                return
+            }
+
+            tvName.text = "..."
+            imgIcon.setImageResource(android.R.drawable.sym_def_app_icon)
+
+            // Carregamento Preguiçoso de metadados
+            loadJob = (itemView.context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
+                val pm = itemView.context.packageManager
+                try {
+                    val appInfo = pm.getApplicationInfo(item.packageName, 0)
+                    val label = pm.getApplicationLabel(appInfo).toString()
+                    val icon = pm.getApplicationIcon(appInfo)
+
+                    labelCache.put(item.packageName, label)
+                    iconCache.put(item.packageName, icon)
+
+                    withContext(Dispatchers.Main) {
+                        tvName.text = label
+                        imgIcon.setImageDrawable(icon)
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        tvName.text = item.packageName
+                    }
+                }
             }
         }
     }
