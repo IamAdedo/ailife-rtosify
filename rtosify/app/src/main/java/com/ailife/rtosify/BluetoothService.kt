@@ -476,6 +476,21 @@ class BluetoothService : Service() {
         }
     }
 
+    private suspend fun sendMessageSync(message: ProtocolMessage) {
+        if (!isConnected) return
+        val out = globalOutputStream ?: return
+        try {
+            val jsonBytes = message.toBytes()
+            synchronized(out) {
+                out.writeInt(jsonBytes.size)
+                out.write(jsonBytes)
+                out.flush()
+            }
+        } catch (_: Exception) {
+            forceDisconnect()
+        }
+    }
+
     // ========================================================================
     // STATUS DO WATCH (BATERIA, WIFI, DND)
     // ========================================================================
@@ -809,11 +824,8 @@ class BluetoothService : Service() {
                     fileAckDeferred = kotlinx.coroutines.CompletableDeferred()
                     waitingForFileAck = true
 
-                    // Send end message and wait for acknowledgment
-                    sendMessage(ProtocolHelper.createFileTransferEnd(success = true))
-
-                    // Give time for message to actually be sent (sendMessage is async)
-                    delay(200)
+                    // Send end message synchronously (ensures it's sent before we start waiting)
+                    sendMessageSync(ProtocolHelper.createFileTransferEnd(success = true))
 
                     // Wait for acknowledgment with 10 second timeout
                     val ackReceived = try {
