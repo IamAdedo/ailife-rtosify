@@ -74,8 +74,9 @@ data class NotificationData(
     val title: String,
     val text: String,
     val key: String,
-    val largeIcon: String? = null,  // Base64 encoded
+    val largeIcon: String? = null,  // Base64 encoded - large icon or app icon as fallback
     val smallIcon: String? = null,  // Base64 encoded app icon
+    val bigPicture: String? = null,  // Base64 encoded - for BigPictureStyle
     val actions: List<NotificationActionData> = emptyList()
 )
 

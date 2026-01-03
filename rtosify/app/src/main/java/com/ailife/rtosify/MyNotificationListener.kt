@@ -120,11 +120,37 @@ class MyNotificationListener : NotificationListenerService() {
         if (title.isEmpty() && text.isEmpty()) return
 
         try {
-            // Extract large icon from notification
-            val largeIconBase64 = extractLargeIcon(notification)
+            // Debug: Log all extras keys to see what's available
+            val extras = notification.extras
+            Log.d("Listener", "Notification extras keys: ${extras.keySet().joinToString()}")
 
-            // Extract app icon
+            // Extract large icon from notification
+            var largeIconBase64 = extractLargeIcon(notification)
+            Log.d("Listener", "Large icon extracted: ${if (largeIconBase64 != null) "YES (${largeIconBase64.length} chars)" else "NO"}")
+
+            // Extract small icon from notification (original status bar icon)
+            var smallIconBase64 = extractSmallIcon(notification)
+            Log.d("Listener", "Small icon extracted: ${if (smallIconBase64 != null) "YES (${smallIconBase64.length} chars)" else "NO"}")
+
+            // Extract app icon as fallback
             val appIconBase64 = extractAppIcon(sbn.packageName)
+            Log.d("Listener", "App icon extracted: ${if (appIconBase64 != null) "YES (${appIconBase64.length} chars)" else "NO"}")
+
+            // Use app icon as fallback for small icon if no small icon extracted
+            if (smallIconBase64 == null && appIconBase64 != null) {
+                smallIconBase64 = appIconBase64
+                Log.d("Listener", "Using app icon as small icon fallback")
+            }
+
+            // Use app icon as fallback for large icon if no large icon exists
+            if (largeIconBase64 == null && appIconBase64 != null) {
+                largeIconBase64 = appIconBase64
+                Log.d("Listener", "Using app icon as large icon fallback")
+            }
+
+            // Extract big picture (for BigPictureStyle notifications)
+            val bigPictureBase64 = extractBigPicture(notification)
+            Log.d("Listener", "Big picture extracted: ${if (bigPictureBase64 != null) "YES (${bigPictureBase64.length} chars)" else "NO"}")
 
             // Extract actions
             val actions = extractActions(sbn.key, notification)
@@ -136,7 +162,8 @@ class MyNotificationListener : NotificationListenerService() {
                 text = text,
                 key = sbn.key,
                 largeIcon = largeIconBase64,
-                smallIcon = appIconBase64,
+                smallIcon = smallIconBase64,  // Original small icon or app icon as fallback
+                bigPicture = bigPictureBase64,
                 actions = actions
             )
 
@@ -175,15 +202,139 @@ class MyNotificationListener : NotificationListenerService() {
 
     private fun extractLargeIcon(notification: android.app.Notification): String? {
         try {
-            val largeIcon = notification.getLargeIcon() ?: return null
+            // Try getting large icon from notification
+            var largeIcon = notification.getLargeIcon()
+            Log.d("Listener", "getLargeIcon() returned: ${largeIcon != null}")
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val drawable = largeIcon.loadDrawable(this) ?: return null
-                val bitmap = drawableToBitmap(drawable)
-                return bitmapToBase64(bitmap)
+            // If getLargeIcon is null, try getting from extras
+            if (largeIcon == null) {
+                val extras = notification.extras
+
+                // Try different keys for large icon
+                // Check Icon types FIRST (M+) before trying Bitmap to avoid ClassCastException
+
+                // 1. Try android.largeIcon.big as Icon (for BigPictureStyle) - MOST COMMON
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    try {
+                        largeIcon = extras.getParcelable<android.graphics.drawable.Icon>("android.largeIcon.big")
+                        if (largeIcon != null) {
+                            Log.d("Listener", "Found large icon in extras as Icon (android.largeIcon.big)")
+                        }
+                    } catch (e: ClassCastException) {
+                        // Not an Icon, will try as Bitmap below
+                        Log.d("Listener", "android.largeIcon.big is not an Icon, trying Bitmap")
+                    }
+                }
+
+                // 2. Try android.largeIcon as Icon
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && largeIcon == null) {
+                    try {
+                        largeIcon = extras.getParcelable<android.graphics.drawable.Icon>("android.largeIcon")
+                        if (largeIcon != null) {
+                            Log.d("Listener", "Found large icon in extras as Icon (android.largeIcon)")
+                        }
+                    } catch (e: ClassCastException) {
+                        Log.d("Listener", "android.largeIcon is not an Icon, trying Bitmap")
+                    }
+                }
+
+                // 3. Now try Bitmap types if Icon checks didn't work
+                if (largeIcon == null) {
+                    var largeIconBitmap = extras.getParcelable<Bitmap>("android.largeIcon")
+                    if (largeIconBitmap != null) {
+                        Log.d("Listener", "Found large icon in extras as Bitmap (android.largeIcon)")
+                        return bitmapToBase64(largeIconBitmap)
+                    }
+
+                    // 4. Try android.largeIcon.big as Bitmap
+                    largeIconBitmap = extras.getParcelable<Bitmap>("android.largeIcon.big")
+                    if (largeIconBitmap != null) {
+                        Log.d("Listener", "Found large icon in extras as Bitmap (android.largeIcon.big)")
+                        return bitmapToBase64(largeIconBitmap)
+                    }
+                }
+
+                // 4. Try android.pictureIcon
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && largeIcon == null) {
+                    largeIcon = extras.getParcelable("android.pictureIcon")
+                    if (largeIcon != null) {
+                        Log.d("Listener", "Found large icon as pictureIcon")
+                    }
+                }
+
+                // 5. Try as Icon object with standard key
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && largeIcon == null) {
+                    largeIcon = extras.getParcelable("android.largeIcon")
+                    if (largeIcon != null) {
+                        Log.d("Listener", "Found large icon in extras as Icon (android.largeIcon)")
+                    }
+                }
+            }
+
+            if (largeIcon != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val drawable = largeIcon.loadDrawable(this)
+                Log.d("Listener", "Loaded drawable from icon: ${drawable != null}")
+                if (drawable != null) {
+                    val bitmap = drawableToBitmap(drawable)
+                    return bitmapToBase64(bitmap)
+                }
             }
         } catch (e: Exception) {
-            Log.e("Listener", "Error extracting large icon: ${e.message}")
+            Log.e("Listener", "Error extracting large icon: ${e.message}", e)
+        }
+        return null
+    }
+
+    private fun extractBigPicture(notification: android.app.Notification): String? {
+        try {
+            val extras = notification.extras
+
+            // Try to get big picture from extras
+            // 1. Try as Bitmap first
+            var bigPictureBitmap = extras.getParcelable<Bitmap>("android.picture")
+            if (bigPictureBitmap != null) {
+                Log.d("Listener", "Found big picture as Bitmap")
+                return bitmapToBase64(bigPictureBitmap)
+            }
+
+            // 2. Try as Icon (if android.pictureIcon exists)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                try {
+                    val pictureIcon = extras.getParcelable<android.graphics.drawable.Icon>("android.pictureIcon")
+                    if (pictureIcon != null) {
+                        val drawable = pictureIcon.loadDrawable(this)
+                        if (drawable != null) {
+                            Log.d("Listener", "Found big picture as Icon")
+                            val bitmap = drawableToBitmap(drawable)
+                            return bitmapToBase64(bitmap)
+                        }
+                    }
+                } catch (e: ClassCastException) {
+                    Log.d("Listener", "android.pictureIcon is not an Icon")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("Listener", "Error extracting big picture: ${e.message}", e)
+        }
+        return null
+    }
+
+    private fun extractSmallIcon(notification: android.app.Notification): String? {
+        try {
+            // Try to get the small icon from notification (API 23+)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val smallIcon = notification.smallIcon
+                if (smallIcon != null) {
+                    val drawable = smallIcon.loadDrawable(this)
+                    if (drawable != null) {
+                        Log.d("Listener", "Extracted original small icon from notification")
+                        val bitmap = drawableToBitmap(drawable)
+                        return bitmapToBase64(bitmap)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("Listener", "Error extracting small icon: ${e.message}")
         }
         return null
     }
@@ -283,9 +434,25 @@ class MyNotificationListener : NotificationListenerService() {
 
     private fun bitmapToBase64(bitmap: Bitmap): String {
         val outputStream = ByteArrayOutputStream()
-        // Compress to reduce size (quality 50 to balance quality vs size)
-        bitmap.compress(Bitmap.CompressFormat.PNG, 50, outputStream)
+        // Resize if too large to avoid protocol size issues
+        val resizedBitmap = if (bitmap.width > 512 || bitmap.height > 512) {
+            val scale = 512f / maxOf(bitmap.width, bitmap.height)
+            val newWidth = (bitmap.width * scale).toInt()
+            val newHeight = (bitmap.height * scale).toInt()
+            Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+        } else {
+            bitmap
+        }
+
+        // Use JPEG for better compression (quality 85 is good balance)
+        resizedBitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
         val byteArray = outputStream.toByteArray()
+
+        if (resizedBitmap != bitmap) {
+            resizedBitmap.recycle()
+        }
+
+        Log.d("Listener", "Compressed icon to ${byteArray.size} bytes")
         return Base64.encodeToString(byteArray, Base64.NO_WRAP)
     }
 }

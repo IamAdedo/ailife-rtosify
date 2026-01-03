@@ -1456,6 +1456,24 @@ class BluetoothService : Service() {
                 }
             }
 
+            // Set big picture style if available
+            notif.bigPicture?.let { pictureBase64 ->
+                try {
+                    Log.d(TAG, "Decoding big picture: ${pictureBase64.length} chars")
+                    val pictureBytes = Base64.decode(pictureBase64, Base64.NO_WRAP)
+                    val pictureBitmap = android.graphics.BitmapFactory.decodeByteArray(pictureBytes, 0, pictureBytes.size)
+                    if (pictureBitmap != null) {
+                        Log.d(TAG, "Big picture decoded: ${pictureBitmap.width}x${pictureBitmap.height}")
+                        val bigPictureStyle = NotificationCompat.BigPictureStyle()
+                            .bigPicture(pictureBitmap)
+                            .bigLargeIcon(null as Bitmap?) // Hide large icon when expanded
+                        builder.setStyle(bigPictureStyle)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error decoding big picture: ${e.message}", e)
+                }
+            }
+
             val notification = builder.build()
             notificationManager.notify(notifId, notification)
         } catch (e: Exception) {

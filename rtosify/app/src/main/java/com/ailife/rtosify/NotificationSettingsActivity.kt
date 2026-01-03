@@ -36,15 +36,18 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var layoutAppsSection: LinearLayout
     private lateinit var btnOpenSettings: Button
     private lateinit var recyclerView: RecyclerView
+    private lateinit var editTextSearch: com.google.android.material.textfield.TextInputEditText
+    private lateinit var switchShowSystemApps: SwitchMaterial
 
     // Agora referenciamos o container de loading inteiro
     private lateinit var layoutLoadingApps: View
 
     private lateinit var prefs: SharedPreferences
     private lateinit var appAdapter: AppNotificationAdapter
-    
+
     private var loadingJob: Job? = null
     private var isLoadingVisible = false
+    private var allAppsList = listOf<AppNotificationItem>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,6 +63,8 @@ class NotificationSettingsActivity : AppCompatActivity() {
         initViews()
         setupMasterSwitch()
         setupRecyclerView()
+        setupSearch()
+        setupSystemAppsToggle()
 
         // Carrega apps se tiver permissão, senão a UI já trata no updateUiState
         if (isNotificationServiceEnabled()) {
@@ -73,9 +78,51 @@ class NotificationSettingsActivity : AppCompatActivity() {
         layoutAppsSection = findViewById(R.id.layoutAppsSection)
         btnOpenSettings = findViewById(R.id.btnOpenSettings)
         recyclerView = findViewById(R.id.recyclerViewApps)
+        editTextSearch = findViewById(R.id.editTextSearch)
+        switchShowSystemApps = findViewById(R.id.switchShowSystemApps)
 
         // Novo ID do container
         layoutLoadingApps = findViewById(R.id.layoutLoadingApps)
+    }
+
+    private fun setupSearch() {
+        editTextSearch.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                filterApps(s?.toString() ?: "")
+            }
+        })
+    }
+
+    private fun setupSystemAppsToggle() {
+        switchShowSystemApps.isChecked = prefs.getBoolean("show_system_apps", false)
+        switchShowSystemApps.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("show_system_apps", isChecked).apply()
+            filterApps(editTextSearch.text?.toString() ?: "")
+        }
+    }
+
+    private fun filterApps(query: String) {
+        val showSystemApps = switchShowSystemApps.isChecked
+        val filtered = allAppsList.filter { app ->
+            val matchesSearch = if (query.isEmpty()) {
+                true
+            } else {
+                app.packageName.contains(query, ignoreCase = true) ||
+                app.appName.contains(query, ignoreCase = true)
+            }
+
+            val matchesSystemFilter = if (showSystemApps) {
+                true
+            } else {
+                // Only show non-system apps
+                !app.isSystemApp
+            }
+
+            matchesSearch && matchesSystemFilter
+        }
+        appAdapter.setData(filtered)
     }
 
     override fun onResume() {
@@ -161,18 +208,24 @@ class NotificationSettingsActivity : AppCompatActivity() {
         loadingJob = lifecycleScope.launch(Dispatchers.IO) {
             val pm = packageManager
             val packageNamesFound = mutableSetOf<String>()
-            
-            // MÉTODO OTIMIZADO: Busca todos os apps com launcher em UMA única chamada IPC
-            val intent = Intent(Intent.ACTION_MAIN, null)
-            intent.addCategory(Intent.CATEGORY_LAUNCHER)
-            val launchableActivities = pm.queryIntentActivities(intent, 0)
-            
-            val appsList = launchableActivities.mapNotNull { resolveInfo ->
-                val pkgName = resolveInfo.activityInfo.packageName
+
+            // Get all installed packages (including system apps)
+            val installedPackages = pm.getInstalledPackages(0)
+
+            val appsList = installedPackages.mapNotNull { packageInfo ->
+                val pkgName = packageInfo.packageName
+                // Skip our own app
                 if (pkgName == packageName) return@mapNotNull null
-                
-                packageNamesFound.add(pkgName)
-                AppNotificationItem("", pkgName, null)
+
+                try {
+                    val appInfo = pm.getApplicationInfo(pkgName, 0)
+                    val isSystemApp = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+
+                    packageNamesFound.add(pkgName)
+                    AppNotificationItem("", pkgName, null, isSystemApp)
+                } catch (e: Exception) {
+                    null
+                }
             }.distinctBy { it.packageName }
             .sortedBy { it.packageName } // Ordena primeiro por pacote, o nome será carregado depois
 
@@ -187,7 +240,9 @@ class NotificationSettingsActivity : AppCompatActivity() {
                 isLoadingVisible = false
                 layoutLoadingApps.visibility = View.GONE
                 recyclerView.visibility = View.VISIBLE
-                appAdapter.setData(appsList)
+                allAppsList = appsList
+                // Apply initial filter (only user apps by default)
+                filterApps(editTextSearch.text?.toString() ?: "")
             }
         }
     }
@@ -219,7 +274,8 @@ class NotificationSettingsActivity : AppCompatActivity() {
 data class AppNotificationItem(
     val appName: String, // Deixamos como fallback ou vazio inicialmente
     val packageName: String,
-    val icon: Drawable?
+    val icon: Drawable?,
+    val isSystemApp: Boolean = false
 )
 
 class AppNotificationAdapter(private val prefs: SharedPreferences) : RecyclerView.Adapter<AppNotificationAdapter.ViewHolder>() {

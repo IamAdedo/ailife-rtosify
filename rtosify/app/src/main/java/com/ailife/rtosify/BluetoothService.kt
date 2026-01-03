@@ -1118,29 +1118,26 @@ class BluetoothService : Service() {
             // Set large icon if available
             notif.largeIcon?.let { iconBase64 ->
                 try {
+                    Log.d(TAG, "Decoding large icon: ${iconBase64.length} chars")
                     val iconBytes = Base64.decode(iconBase64, Base64.NO_WRAP)
+                    Log.d(TAG, "Icon bytes decoded: ${iconBytes.size} bytes")
                     val bitmap = android.graphics.BitmapFactory.decodeByteArray(iconBytes, 0, iconBytes.size)
-                    builder.setLargeIcon(bitmap)
+                    if (bitmap != null) {
+                        Log.d(TAG, "Bitmap decoded: ${bitmap.width}x${bitmap.height}")
+                        builder.setLargeIcon(bitmap)
+                    } else {
+                        Log.e(TAG, "Failed to decode bitmap - bitmap is null")
+                    }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error decoding large icon: ${e.message}")
+                    Log.e(TAG, "Error decoding large icon: ${e.message}", e)
                 }
-            }
+            } ?: Log.d(TAG, "No large icon in notification data")
 
-            // Set small icon (app icon) if available, otherwise use default
-            if (notif.smallIcon != null) {
-                try {
-                    val iconBytes = Base64.decode(notif.smallIcon, Base64.NO_WRAP)
-                    val bitmap = android.graphics.BitmapFactory.decodeByteArray(iconBytes, 0, iconBytes.size)
-                    // Create a custom notification icon from the bitmap
-                    // Note: Android requires small icons to be monochrome, so we use the bitmap as large icon instead
-                    // and keep the default small icon
-                    builder.setSmallIcon(android.R.drawable.ic_popup_reminder)
-                } catch (e: Exception) {
-                    builder.setSmallIcon(android.R.drawable.ic_popup_reminder)
-                }
-            } else {
-                builder.setSmallIcon(android.R.drawable.ic_popup_reminder)
-            }
+            // Set small icon - always use default for now (Android requires resource ID)
+            // The original small icon is extracted but can't be used directly in NotificationCompat
+            // TODO: Could save as temp resource or use as large icon for better visibility
+            builder.setSmallIcon(android.R.drawable.ic_popup_reminder)
+            Log.d(TAG, "Small icon extraction: ${if (notif.smallIcon != null) "available but using default (API limitation)" else "not available"}")
 
             // Add action buttons
             notif.actions.forEachIndexed { index, action ->
@@ -1187,6 +1184,24 @@ class BluetoothService : Service() {
                         action.title,
                         actionPendingIntent
                     )
+                }
+            }
+
+            // Set big picture style if available
+            notif.bigPicture?.let { pictureBase64 ->
+                try {
+                    Log.d(TAG, "Decoding big picture: ${pictureBase64.length} chars")
+                    val pictureBytes = Base64.decode(pictureBase64, Base64.NO_WRAP)
+                    val pictureBitmap = android.graphics.BitmapFactory.decodeByteArray(pictureBytes, 0, pictureBytes.size)
+                    if (pictureBitmap != null) {
+                        Log.d(TAG, "Big picture decoded: ${pictureBitmap.width}x${pictureBitmap.height}")
+                        val bigPictureStyle = NotificationCompat.BigPictureStyle()
+                            .bigPicture(pictureBitmap)
+                            .bigLargeIcon(null as Bitmap?) // Hide large icon when expanded
+                        builder.setStyle(bigPictureStyle)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error decoding big picture: ${e.message}", e)
                 }
             }
 
