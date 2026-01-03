@@ -65,6 +65,10 @@ object MessageType {
     const val CAMERA_STOP = "camera_stop"
     const val CAMERA_FRAME = "camera_frame"
     const val CAMERA_SHUTTER = "camera_shutter"
+    const val REQUEST_FILE_LIST = "request_file_list"
+    const val RESPONSE_FILE_LIST = "response_file_list"
+    const val REQUEST_FILE_DOWNLOAD = "request_file_download"
+    const val DELETE_FILE = "delete_file"
 }
 
 // Data classes for specific message types
@@ -126,7 +130,21 @@ data class StatusUpdateData(
 data class FileTransferData(
     val name: String,
     val size: Long,
-    val checksum: String = ""
+    val checksum: String = "",
+    val type: String = "REGULAR", // "APK", "REGULAR"
+    val path: String? = null      // Destination path on watch or source path on watch for download
+)
+
+data class FileListData(
+    val path: String,
+    val files: List<FileInfo>
+)
+
+data class FileInfo(
+    val name: String,
+    val size: Long,
+    val isDirectory: Boolean,
+    val lastModified: Long
 )
 
 data class FileChunkData(
@@ -250,6 +268,31 @@ object ProtocolHelper {
         data.addProperty("actionKey", actionKey)
         data.addProperty("replyText", replyText)
         return ProtocolMessage(type = MessageType.SEND_NOTIFICATION_REPLY, data = data)
+    }
+
+    fun createRequestFileList(path: String = "/"): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("path", path)
+        return ProtocolMessage(type = MessageType.REQUEST_FILE_LIST, data = data)
+    }
+
+    fun createResponseFileList(path: String, files: List<FileInfo>): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("path", path)
+        data.add("files", gson.toJsonTree(files))
+        return ProtocolMessage(type = MessageType.RESPONSE_FILE_LIST, data = data)
+    }
+
+    fun createRequestFileDownload(path: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("path", path)
+        return ProtocolMessage(type = MessageType.REQUEST_FILE_DOWNLOAD, data = data)
+    }
+
+    fun createDeleteFile(path: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("path", path)
+        return ProtocolMessage(type = MessageType.DELETE_FILE, data = data)
     }
 
     fun createMediaControl(command: String, volume: Int? = null): ProtocolMessage {

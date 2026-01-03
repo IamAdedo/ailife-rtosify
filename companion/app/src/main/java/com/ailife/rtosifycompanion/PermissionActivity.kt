@@ -85,6 +85,14 @@ class PermissionActivity : AppCompatActivity() {
             checkPerm(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         } else true
         perms.add(PermissionItem("LOCATION_BG", getString(R.string.perm_location_bg), getString(R.string.perm_location_bg_desc), hasBG))
+        
+        // 7. Storage
+        val hasStorage = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            android.os.Environment.isExternalStorageManager()
+        } else {
+            checkPerm(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+        perms.add(PermissionItem("STORAGE", getString(R.string.perm_storage), getString(R.string.perm_storage_desc), hasStorage))
 
         adapter.updateList(perms)
     }
@@ -126,6 +134,18 @@ class PermissionActivity : AppCompatActivity() {
             "LOCATION_BG" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     requestPermissions(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), 104)
+                }
+            }
+            "STORAGE" -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    if (!android.os.Environment.isExternalStorageManager()) {
+                        val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                            data = Uri.parse("package:$packageName")
+                        }
+                        startActivity(intent)
+                    }
+                } else {
+                    requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 1001)
                 }
             }
         }

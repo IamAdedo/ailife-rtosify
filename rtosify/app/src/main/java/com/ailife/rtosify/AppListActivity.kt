@@ -186,6 +186,12 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     override fun onUploadProgress(progress: Int) {
         runOnUiThread { if (uploadDialog?.isShowing == true) updateUploadProgress(progress) }
     }
+    
+    override fun onFileListReceived(path: String, filesJson: String) {}
+    
+    override fun onDownloadProgress(progress: Int) {
+        runOnUiThread { if (uploadDialog?.isShowing == true) updateUploadProgress(progress) }
+    }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == android.R.id.home) {

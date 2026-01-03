@@ -118,6 +118,8 @@ class BluetoothService : Service() {
         fun onScanResult(devices: List<BluetoothDevice>)
         fun onAppListReceived(appsJson: String)
         fun onUploadProgress(progress: Int)
+        fun onDownloadProgress(progress: Int)
+        fun onFileListReceived(path: String, filesJson: String)
         fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, dndEnabled: Boolean) {}
     }
 
@@ -451,6 +453,7 @@ class BluetoothService : Service() {
                     MessageType.CAMERA_START -> handleCameraStart()
                     MessageType.CAMERA_STOP -> handleCameraStop()
                     MessageType.CAMERA_SHUTTER -> handleCameraShutter()
+                    MessageType.RESPONSE_FILE_LIST -> handleResponseFileList(message)
                 }
             }
         } catch (_: IOException) {
@@ -782,7 +785,14 @@ class BluetoothService : Service() {
             android.util.Log.d(TAG, "File transfer starting: ${fileData.name}, ${fileData.size} bytes")
 
             // Prepare to receive file
-            receivingFile = File(cacheDir, fileData.name)
+            // If it's a regular file (not APK), save to Downloads
+            receivingFile = if (fileData.type == "REGULAR") {
+                val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                File(downloadsDir, fileData.name)
+            } else {
+                File(cacheDir, fileData.name)
+            }
+            
             receivingFileStream = FileOutputStream(receivingFile)
             expectedFileSize = fileData.size
             receivedFileSize = 0
@@ -806,6 +816,14 @@ class BluetoothService : Service() {
             receivedFileSize += chunkBytes.size
 
             android.util.Log.d(TAG, "Received chunk ${chunkData.chunkNumber}/${chunkData.totalChunks}")
+            
+            // Report progress
+            if (expectedFileSize > 0) {
+                val progress = (receivedFileSize * 100 / expectedFileSize).toInt().coerceIn(0, 99)
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    callback?.onDownloadProgress(progress)
+                }
+            }
 
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error handling chunk: ${e.message}")
@@ -862,9 +880,16 @@ class BluetoothService : Service() {
             sendMessage(ProtocolHelper.createFileTransferEnd(success = true))
             android.util.Log.d(TAG, "Sent file transfer acknowledgment")
 
-            // Show install dialog
-            withContext(kotlinx.coroutines.Dispatchers.Main) {
-                showInstallApkDialog(file)
+            // Show install dialog ONLY IF it was an APK
+            if (file.name.endsWith(".apk", ignoreCase = true)) {
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    showInstallApkDialog(file)
+                }
+            } else {
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    callback?.onDownloadProgress(100)
+                    Toast.makeText(this@BluetoothService, getString(R.string.upload_complete_title) + ": ${file.name}", Toast.LENGTH_LONG).show()
+                }
             }
 
             cleanupFileTransfer()
@@ -938,6 +963,16 @@ class BluetoothService : Service() {
     }
 
     fun sendApkFile(uri: Uri) {
+        contentResolver.openInputStream(uri)?.use { inputStream ->
+            val tempFile = File(cacheDir, "temp_upload.apk")
+            tempFile.outputStream().use { outputStream ->
+                inputStream.copyTo(outputStream)
+            }
+            sendFile(tempFile, "APK")
+        }
+    }
+
+    fun sendFile(file: File, type: String = "REGULAR", remotePath: String? = null) {
         serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             if (!isConnected) {
                 withContext(Dispatchers.Main) { callback?.onError("Não conectado.") }
@@ -946,88 +981,73 @@ class BluetoothService : Service() {
             isTransferring = true
 
             try {
-                contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val fileBytes = inputStream.readBytes()
+                val fileBytes = file.readBytes()
+                val md5 = java.security.MessageDigest.getInstance("MD5")
+                md5.update(fileBytes)
+                val checksum = md5.digest().joinToString("") { "%02x".format(it) }
 
-                    // Calculate MD5 checksum
-                    val md5 = java.security.MessageDigest.getInstance("MD5")
-                    md5.update(fileBytes)
-                    val checksum = md5.digest().joinToString("") { "%02x".format(it) }
+                val fileData = FileTransferData(
+                    name = file.name,
+                    size = fileBytes.size.toLong(),
+                    checksum = checksum,
+                    type = type,
+                    path = remotePath
+                )
+                sendMessage(ProtocolHelper.createFileTransferStart(fileData))
+                delay(100)
 
-                    val fileName = getFileNameFromUri(uri) ?: "app.apk"
+                val chunkSize = 32 * 1024
+                val totalChunks = (fileBytes.size + chunkSize - 1) / chunkSize
+                var offset = 0
+                var chunkNumber = 0
 
-                    // Send start message
-                    val fileData = FileTransferData(
-                        name = fileName,
-                        size = fileBytes.size.toLong(),
-                        checksum = checksum
+                while (offset < fileBytes.size) {
+                    val end = minOf(offset + chunkSize, fileBytes.size)
+                    val chunk = fileBytes.copyOfRange(offset, end)
+                    val base64Chunk = android.util.Base64.encodeToString(chunk, android.util.Base64.NO_WRAP)
+
+                    val chunkData = FileChunkData(
+                        offset = offset.toLong(),
+                        data = base64Chunk,
+                        chunkNumber = chunkNumber,
+                        totalChunks = totalChunks
                     )
-                    sendMessage(ProtocolHelper.createFileTransferStart(fileData))
-                    delay(100) // Give receiver time to prepare
+                    sendMessage(ProtocolHelper.createFileChunk(chunkData))
 
-                    // Send file in chunks (32KB each)
-                    val chunkSize = 32 * 1024
-                    val totalChunks = (fileBytes.size + chunkSize - 1) / chunkSize
-                    var offset = 0
-                    var chunkNumber = 0
-
-                    while (offset < fileBytes.size) {
-                        val end = minOf(offset + chunkSize, fileBytes.size)
-                        val chunk = fileBytes.copyOfRange(offset, end)
-                        val base64Chunk = android.util.Base64.encodeToString(chunk, android.util.Base64.NO_WRAP)
-
-                        val chunkData = FileChunkData(
-                            offset = offset.toLong(),
-                            data = base64Chunk,
-                            chunkNumber = chunkNumber,
-                            totalChunks = totalChunks
-                        )
-
-                        sendMessage(ProtocolHelper.createFileChunk(chunkData))
-
-                        // Report progress up to 95% while sending chunks
-                        val progress = ((chunkNumber + 1) * 95 / totalChunks)
-                        withContext(Dispatchers.Main) {
-                            callback?.onUploadProgress(progress)
-                        }
-
-                        offset = end
-                        chunkNumber++
-                        delay(10) // Small delay between chunks
-                    }
-
-                    // Setup acknowledgment waiting BEFORE sending message
-                    fileAckDeferred = kotlinx.coroutines.CompletableDeferred()
-                    waitingForFileAck = true
-
-                    // Send end message synchronously (ensures it's sent before we start waiting)
-                    sendMessageSync(ProtocolHelper.createFileTransferEnd(success = true))
-
-                    // Wait for acknowledgment with 10 second timeout
-                    val ackReceived = try {
-                        kotlinx.coroutines.withTimeout(10000) {
-                            fileAckDeferred?.await() ?: false
-                        }
-                    } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
-                        android.util.Log.e(TAG, "File transfer acknowledgment timeout")
-                        waitingForFileAck = false
-                        fileAckDeferred = null
-                        false
-                    }
-
+                    val progress = ((chunkNumber + 1) * 95 / totalChunks)
                     withContext(Dispatchers.Main) {
-                        if (ackReceived) {
-                            callback?.onUploadProgress(100)
-                        } else {
-                            callback?.onUploadProgress(-1)
-                            callback?.onError(getString(R.string.applist_error_processing))
-                        }
+                        callback?.onUploadProgress(progress)
+                    }
+
+                    offset = end
+                    chunkNumber++
+                    delay(10)
+                }
+
+                fileAckDeferred = kotlinx.coroutines.CompletableDeferred()
+                waitingForFileAck = true
+                sendMessageSync(ProtocolHelper.createFileTransferEnd(success = true))
+
+                val ackReceived = try {
+                    kotlinx.coroutines.withTimeout(15000) {
+                        fileAckDeferred?.await() ?: false
+                    }
+                } catch (_: Exception) {
+                    false
+                }
+
+                withContext(Dispatchers.Main) {
+                    if (ackReceived) {
+                        callback?.onUploadProgress(100)
+                    } else {
+                        callback?.onUploadProgress(-1)
+                        callback?.onError(getString(R.string.applist_error_processing))
                     }
                 }
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "Error sending file: ${e.message}")
                 sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = e.message ?: "Unknown error"))
-                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                withContext(Dispatchers.Main) {
                     callback?.onUploadProgress(-1)
                     callback?.onError(getString(R.string.toast_upload_failed) + ": ${e.message}")
                 }
@@ -1035,8 +1055,27 @@ class BluetoothService : Service() {
                 isTransferring = false
                 waitingForFileAck = false
                 fileAckDeferred = null
-                lastMessageTime = System.currentTimeMillis()
             }
+        }
+    }
+
+    fun requestFileList(path: String = "/") {
+        sendMessage(ProtocolHelper.createRequestFileList(path))
+    }
+
+    fun requestFileDownload(path: String) {
+        sendMessage(ProtocolHelper.createRequestFileDownload(path))
+    }
+
+    fun deleteRemoteFile(path: String) {
+        sendMessage(ProtocolHelper.createDeleteFile(path))
+    }
+
+    private suspend fun handleResponseFileList(message: ProtocolMessage) {
+        val path = ProtocolHelper.extractStringField(message, "path") ?: "/"
+        val filesJson = message.data.get("files").toString()
+        withContext(Dispatchers.Main) {
+            callback?.onFileListReceived(path, filesJson)
         }
     }
 

@@ -213,6 +213,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 { runIfConnected { startActivity(Intent(this, NotificationSettingsActivity::class.java)) } }
             ),
             MenuOption(
+                "File Manager",
+                "Browse and manage watch files",
+                android.R.drawable.ic_menu_save,
+                { runIfConnected { startActivity(Intent(this, FileManagerActivity::class.java)) } }
+            ),
+            MenuOption(
                 getString(R.string.menu_device_mgmt),
                 getString(R.string.menu_device_mgmt_desc),
                 android.R.drawable.ic_lock_power_off,
@@ -473,6 +479,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         runOnUiThread { if (uploadDialog?.isShowing == true) updateUploadProgress(progress) }
     }
     override fun onAppListReceived(appsJson: String) {}
+    
+    override fun onFileListReceived(path: String, filesJson: String) {}
+    
+    override fun onDownloadProgress(progress: Int) {
+        runOnUiThread { if (uploadDialog?.isShowing == true) updateUploadProgress(progress) }
+    }
 
     override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, dndEnabled: Boolean) {
         runOnUiThread {
