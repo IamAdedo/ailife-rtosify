@@ -19,7 +19,7 @@
             android:layout_width="match_parent"
             android:layout_height="120dp"
             app:layout_scrollFlags="scroll|exitUntilCollapsed"
-            app:title="Notificações"
+            app:title="@string/notif_settings_title"
             app:collapsedTitleTextAppearance="@style/TextAppearance.AppCompat.Title"
             app:expandedTitleTextAppearance="@style/TextAppearance.AppCompat.Display1"
             app:expandedTitleMarginStart="20dp"
@@ -77,7 +77,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Espelhamento"
+                            android:text="@string/notif_mirroring_title"
                             android:textSize="20sp"
                             android:textStyle="bold"
                             android:textColor="?android:attr/textColorPrimary"/>
@@ -85,7 +85,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Enviar notificações para o relógio"
+                            android:text="@string/notif_mirroring_desc"
                             android:textSize="14sp"
                             android:textColor="?android:attr/textColorSecondary"/>
                     </LinearLayout>
@@ -113,7 +113,7 @@
                     android:id="@+id/tvStatusPermission"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Permissão de leitura necessária"
+                    android:text="@string/notif_permission_required"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="?android:attr/colorError"/>
@@ -121,7 +121,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="O app precisa ler as notificações do sistema para enviá-las ao relógio. Toque abaixo para resolver."
+                    android:text="@string/notif_permission_desc"
                     android:textSize="14sp"
                     android:textColor="?android:attr/textColorPrimary"
                     android:layout_marginTop="8dp"/>
@@ -130,7 +130,7 @@
                     android:id="@+id/btnOpenSettings"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Conceder Acesso"
+                    android:text="@string/notif_grant_access"
                     android:textColor="?android:attr/colorError"
                     android:layout_marginTop="12dp"
                     android:layout_gravity="end"
@@ -151,7 +151,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Aplicativos"
+                    android:text="@string/notif_apps_title"
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:textColor="?android:attr/textColorPrimary"
@@ -180,7 +180,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Carregando aplicativos..."
+                        android:text="@string/notif_apps_loading"
                         android:layout_marginTop="16dp"
                         android:textColor="?android:attr/textColorSecondary"/>
                 </LinearLayout>

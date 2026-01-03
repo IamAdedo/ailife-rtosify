@@ -118,4 +118,16 @@
     <string name="notification_config_required_text">Tap to allow installation</string>
     <string name="notification_error_title">Error</string>
     <string name="notification_service_title">Smartwatch</string>
+
+    <!-- App Management and Notifications -->
+    <string name="applist_title">Installed Apps</string>
+    <string name="applist_loading_layout">Loading list…</string>
+    <string name="notif_settings_title">Notifications</string>
+    <string name="notif_mirroring_title">Mirroring</string>
+    <string name="notif_mirroring_desc">Send notifications to the watch</string>
+    <string name="notif_permission_required">Read permission required</string>
+    <string name="notif_permission_desc">The app needs to read system notifications to send them to the watch. Tap below to resolve.</string>
+    <string name="notif_grant_access">Grant Access</string>
+    <string name="notif_apps_title">Applications</string>
+    <string name="notif_apps_loading">Loading applications…</string>
 </resources>
