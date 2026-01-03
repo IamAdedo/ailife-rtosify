@@ -54,6 +54,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     // Watch Mode UI
     private lateinit var layoutWatchMode: LinearLayout
+    private lateinit var layoutConnectionHeader: LinearLayout
     private lateinit var imgWatchStatus: ImageView
     private lateinit var tvWatchStatusBig: TextView
 
@@ -158,6 +159,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         imgDndIcon = findViewById(R.id.imgDndIcon)
 
         layoutWatchMode = findViewById(R.id.layoutWatchMode)
+        layoutConnectionHeader = findViewById(R.id.layoutConnectionHeader)
         imgWatchStatus = findViewById(R.id.imgWatchStatus)
         tvWatchStatusBig = findViewById(R.id.tvWatchStatusBig)
     }
@@ -165,13 +167,16 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private fun setupLayoutMode() {
         if (isPhoneMode) {
             layoutWatchMode.visibility = View.GONE
+            layoutConnectionHeader.visibility = View.VISIBLE
             appBarLayout.visibility = View.VISIBLE
             mainContentScrollView.visibility = View.VISIBLE
             setupPhoneMenu()
         } else {
             layoutWatchMode.visibility = View.VISIBLE
+            layoutConnectionHeader.visibility = View.GONE
             appBarLayout.visibility = View.GONE
-            mainContentScrollView.visibility = View.GONE
+            mainContentScrollView.visibility = View.VISIBLE
+            setupWatchMenu()
         }
     }
 
@@ -226,6 +231,56 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             )
         )
         recyclerViewMenu.adapter = MenuAdapter(options)
+    }
+
+    private fun setupWatchMenu() {
+        recyclerViewMenu.layoutManager = LinearLayoutManager(this)
+        recyclerViewMenu.isNestedScrollingEnabled = false
+
+        val options = listOf(
+            MenuOption(
+                getString(R.string.menu_find_phone),
+                getString(R.string.menu_find_phone_desc),
+                android.R.drawable.ic_menu_search,
+                { runIfConnected { confirmFindPhone() } }
+            ),
+            MenuOption(
+                getString(R.string.perm_title),
+                getString(R.string.perm_shizuku_desc),
+                android.R.drawable.ic_menu_manage,
+                { startActivity(Intent(this, PermissionActivity::class.java)) }
+            ),
+            MenuOption(
+                getString(R.string.menu_disconnect),
+                getString(R.string.menu_disconnect_desc),
+                android.R.drawable.ic_menu_close_clear_cancel,
+                {
+                    bluetoothService?.stopConnectionLoopOnly()
+                    updateStatusUI(getString(R.string.status_stopped), false)
+                }
+            ),
+            MenuOption(
+                getString(R.string.menu_reset_all),
+                getString(R.string.menu_reset_all_desc),
+                android.R.drawable.ic_menu_delete,
+                { resetApp() }
+            )
+        )
+        recyclerViewMenu.adapter = MenuAdapter(options)
+    }
+
+    private fun confirmFindPhone() {
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.menu_find_phone))
+            .setMessage(getString(R.string.dialog_find_watch_message)) // Reuse message or add new one
+            .setPositiveButton(getString(R.string.dialog_find_watch_start)) { _, _ ->
+                bluetoothService?.sendMessage(ProtocolHelper.createFindPhone(true))
+            }
+            .setNeutralButton(getString(R.string.dialog_find_watch_stop)) { _, _ ->
+                bluetoothService?.sendMessage(ProtocolHelper.createFindPhone(false))
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun bindToService() {

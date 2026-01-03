@@ -183,4 +183,7 @@
     <string name="perm_location_desc">Required for Bluetooth scanning (Android limitation).</string>
     <string name="perm_location_bg">Background Location</string>
     <string name="perm_location_bg_desc">Allows scanning and connecting while the app is closed or screen is off.</string>
+    <string name="find_watch_alarm_stop">Stop</string>
+    <string name="find_phone_alarm_title">Finding Phone</string>
+    <string name="find_phone_alarm_message">The watch is looking for this phone!</string>
 </resources>

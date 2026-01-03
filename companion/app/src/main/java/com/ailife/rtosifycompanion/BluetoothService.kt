@@ -15,8 +15,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.ComponentName
+import android.content.ServiceConnection
 import android.media.AudioManager
 import android.media.MediaPlayer
+import android.media.Ringtone
 import android.media.RingtoneManager
 import com.ailife.rtosifycompanion.R
 import android.content.IntentFilter
@@ -214,6 +216,31 @@ class BluetoothService : Service() {
         }
     }
 
+    private var userServiceConnection: Shizuku.UserServiceArgs? = null
+    private var userService: IUserService? = null
+    
+    private val userServiceArgs by lazy {
+        Shizuku.UserServiceArgs(ComponentName(BuildConfig.APPLICATION_ID, UserService::class.java.name))
+            .daemon(false)
+            .processNameSuffix("user_service")
+            .debuggable(BuildConfig.DEBUG)
+            .version(1)
+    }
+
+    private val userServiceConn = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+            if (binder != null && binder.pingBinder()) {
+                userService = IUserService.Stub.asInterface(binder)
+                Log.i(TAG, "UserService connected successfully")
+            }
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            userService = null
+            Log.w(TAG, "UserService disconnected")
+        }
+    }
+
     inner class LocalBinder : Binder() {
         fun getService(): BluetoothService = this@BluetoothService
     }
@@ -243,8 +270,63 @@ class BluetoothService : Service() {
             registerReceiver(internalReceiver, filterInternal)
             registerReceiver(watchDismissReceiver, filterWatch)
         }
+        
+        // Bind to Shizuku UserService if available
+        bindUserServiceIfNeeded()
+    }
+    
+    private fun bindUserServiceIfNeeded() {
+        try {
+            if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+                Log.i(TAG, "✅ Binding to Shizuku UserService")
+                Shizuku.bindUserService(userServiceArgs, userServiceConn)
+                userServiceConnection = userServiceArgs
+            } else {
+                Log.w(TAG, "❌ Shizuku not available or permission not granted")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to bind UserService: ${e.message}")
+            e.printStackTrace()
+        }
 
         if (DEBUG_NOTIFICATIONS) Log.d(TAG, "onCreate: Service created")
+    }
+    
+    private fun ensureUserServiceBound() {
+        if (userService == null) {
+            Log.d(TAG, "UserService is null, attempting to bind...")
+            
+            // Check if Shizuku is even available
+            try {
+                if (!Shizuku.pingBinder()) {
+                    Log.w(TAG, "Shizuku binder not available")
+                    return
+                }
+                if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+                    Log.w(TAG, "Shizuku permission not granted")
+                    return
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking Shizuku availability: ${e.message}")
+                return
+            }
+            
+            // Try to bind
+            bindUserServiceIfNeeded()
+            
+            // Wait for binding to complete (up to 3 seconds)
+            val maxWaitTime = 3000L
+            val startTime = System.currentTimeMillis()
+            while (userService == null && (System.currentTimeMillis() - startTime) < maxWaitTime) {
+                Thread.sleep(100)
+            }
+            
+            if (userService != null) {
+                Log.i(TAG, "✅ UserService bound successfully after ${System.currentTimeMillis() - startTime}ms")
+            } else {
+                Log.w(TAG, "❌ UserService binding timed out after ${maxWaitTime}ms")
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -421,6 +503,8 @@ class BluetoothService : Service() {
             while (currentCoroutineContext().isActive) {
                 val message = readMessage(inputStream)
                 lastMessageTime = System.currentTimeMillis()
+                
+                Log.d(TAG, "📩 Received message type: ${message.type}")
 
                 when (message.type) {
                     MessageType.HEARTBEAT -> { /* IGNORE */ }
@@ -491,7 +575,7 @@ class BluetoothService : Service() {
         statusUpdateJob?.cancel()
     }
 
-    private fun sendMessage(message: ProtocolMessage) {
+    fun sendMessage(message: ProtocolMessage) {
         serviceScope.launch(Dispatchers.IO) {
             if (!isConnected) return@launch
             val out = globalOutputStream ?: return@launch
@@ -791,27 +875,124 @@ class BluetoothService : Service() {
 
     private fun executeShellCommand(command: String) {
         serviceScope.launch(Dispatchers.IO) {
-            // Fallback to Shell (Root) - libsu handles this well
+            Log.d(TAG, "⚡ Attempting to execute: $command")
+            
+            // Try Shizuku first (if available)
             try {
-                Shell.cmd(command).exec()
+                if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+                    Log.d(TAG, "Using Shizuku for execution")
+                    executeWithShizuku(command)
+                    return@launch
+                } else {
+                    Log.d(TAG, "Shizuku not available, falling back to libsu")
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Root execution failed: ${e.message}")
+                Log.w(TAG, "Shizuku execution failed: ${e.message}, trying libsu")
+            }
+            
+            // Fallback to libsu (Root)
+            try {
+                val result = Shell.cmd(command).exec()
+                Log.i(TAG, "✅ Shell command executed via libsu. Success: ${result.isSuccess}, Code: ${result.code}")
+                result.out.forEach { Log.d(TAG, "OUT: $it") }
+                result.err.forEach { Log.e(TAG, "ERR: $it") }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Root execution failed: ${e.message}")
             }
         }
     }
 
+    private fun executeWithShizuku(command: String) {
+        try {
+            // Parse command to determine action
+            val powerctlValue = when {
+                command.contains("shutdown") -> "shutdown"
+                command.contains("reboot") -> "reboot"
+                else -> {
+                    Log.e(TAG, "Unknown command: $command")
+                    return
+                }
+            }
+            
+            // Use Shizuku to set system property via shell
+            // We need to create a process that runs as shell/root via Shizuku
+            val processBuilder = ProcessBuilder("sh")
+            val process = processBuilder.start()
+            
+            // Write command to stdin
+            process.outputStream.bufferedWriter().use { writer ->
+                writer.write("setprop sys.powerctl $powerctlValue\n")
+                writer.write("exit\n")
+                writer.flush()
+            }
+            
+            val exitCode = process.waitFor()
+            Log.i(TAG, "✅ Shizuku command executed. Exit code: $exitCode")
+            
+            // Read any output
+            process.inputStream.bufferedReader().use { reader ->
+                reader.lineSequence().forEach { Log.d(TAG, "OUT: $it") }
+            }
+            process.errorStream.bufferedReader().use { reader ->
+                reader.lineSequence().forEach { Log.e(TAG, "ERR: $it") }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Shizuku execution error: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
     private fun handleShutdownCommand() {
-        Log.i(TAG, "Comando de shutdown recebido")
-        executeShellCommand("reboot -p")
+        Log.i(TAG, "🔴 Comando de shutdown recebido")
+        mainHandler.post {
+            Toast.makeText(this, "Shutdown command received", Toast.LENGTH_SHORT).show()
+        }
+        
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                ensureUserServiceBound()
+                val service = userService
+                if (service != null) {
+                    Log.i(TAG, "🚀 Calling UserService.shutdown()")
+                    service.shutdown()
+                } else {
+                    Log.w(TAG, "UserService not available, falling back to shell command")
+                    executeShellCommand("svc power shutdown")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error calling shutdown: ${e.message}")
+            }
+        }
     }
 
     private fun handleRebootCommand() {
-        Log.i(TAG, "Comando de reboot recebido")
-        executeShellCommand("reboot")
+        Log.i(TAG, "🔄 Comando de reboot recebido")
+        mainHandler.post {
+            Toast.makeText(this, "Reboot command received", Toast.LENGTH_SHORT).show()
+        }
+        
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                ensureUserServiceBound()
+                val service = userService
+                if (service != null) {
+                    Log.i(TAG, "🚀 Calling UserService.reboot()")
+                    service.reboot()
+                } else {
+                    Log.w(TAG, "UserService not available, falling back to shell command")
+                    executeShellCommand("svc power reboot")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error calling reboot: ${e.message}")
+            }
+        }
     }
 
     private fun handleLockDeviceCommand() {
-        Log.i(TAG, "Comando de lock recebido")
+        Log.i(TAG, "🔒 Comando de lock recebido")
+        mainHandler.post {
+            Toast.makeText(this, "Lock command received", Toast.LENGTH_SHORT).show()
+        }
         try {
             val intent = Intent().apply {
                 component = ComponentName("com.ailife.ClockSkinCoco", "com.ailife.ClockSkinCoco.UBSLauncherActivity")
@@ -823,10 +1004,14 @@ class BluetoothService : Service() {
         }
     }
 
-    private var findDevicePlayer: MediaPlayer? = null
+    private var findDeviceRingtone: Ringtone? = null
 
     private fun handleFindDeviceCommand(message: ProtocolMessage) {
         val enabled = ProtocolHelper.extractBooleanField(message, "enabled")
+        Log.i(TAG, "🔍 Find Device command: enabled=$enabled")
+        mainHandler.post {
+            Toast.makeText(this, "Find Device: $enabled", Toast.LENGTH_SHORT).show()
+        }
         if (enabled) {
             startFindDeviceAlarm()
         } else {
@@ -844,20 +1029,21 @@ class BluetoothService : Service() {
             val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
 
-            findDevicePlayer = MediaPlayer().apply {
-                setDataSource(this@BluetoothService, alarmUri)
-                setAudioStreamType(AudioManager.STREAM_ALARM)
-                isLooping = true
-                prepare()
-                start()
+            findDeviceRingtone = RingtoneManager.getRingtone(this, alarmUri).apply {
+                @Suppress("DEPRECATION")
+                streamType = AudioManager.STREAM_ALARM
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    isLooping = true
+                }
+                play()
             }
-            
+
             // Start activity to allow stopping locally
             val intent = Intent(this, FindDeviceActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             startActivity(intent)
-            
+
             Log.i(TAG, "Alarm started at max volume")
         } catch (e: Exception) {
             Log.e(TAG, "Error starting alarm: ${e.message}")
@@ -865,9 +1051,8 @@ class BluetoothService : Service() {
     }
 
     private fun stopFindDeviceAlarm() {
-        findDevicePlayer?.stop()
-        findDevicePlayer?.release()
-        findDevicePlayer = null
+        findDeviceRingtone?.stop()
+        findDeviceRingtone = null
         Log.i(TAG, "Alarm stopped")
     }
 
@@ -1343,6 +1528,15 @@ class BluetoothService : Service() {
     }
 
     override fun onDestroy() {
+        // Unbind UserService
+        try {
+            Shizuku.unbindUserService(userServiceArgs, userServiceConn as ServiceConnection, true)
+            userServiceConnection = null
+            userService = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unbinding UserService: ${e.message}")
+        }
+        
         super.onDestroy()
         try { unregisterReceiver(internalReceiver) } catch(_:Exception){}
         try { unregisterReceiver(watchDismissReceiver) } catch(_:Exception){}

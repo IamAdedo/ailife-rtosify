@@ -8,6 +8,7 @@ android {
     compileSdk = 36
     buildFeatures {
         buildConfig = true
+        aidl = true
     }
     defaultConfig {
         applicationId = "com.ailife.rtosifycompanion"

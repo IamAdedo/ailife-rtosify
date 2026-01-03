@@ -109,6 +109,12 @@
             android:exported="false"
             android:parentActivityName=".AppListActivity"
             android:theme="@style/Theme.Smartwatch" />
+
+        <activity
+            android:name=".FindPhoneActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Smartwatch" />
             
         <activity
             android:name=".PermissionActivity"

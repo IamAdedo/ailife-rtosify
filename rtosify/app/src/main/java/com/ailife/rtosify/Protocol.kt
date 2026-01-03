@@ -54,6 +54,7 @@ object MessageType {
     const val REBOOT = "reboot"
     const val LOCK_DEVICE = "lock_device"
     const val FIND_DEVICE = "find_device"
+    const val FIND_PHONE = "find_phone"
     const val STATUS_UPDATE = "status_update"
     const val SET_DND = "set_dnd"
     const val UNINSTALL_APP = "uninstall_app"
@@ -180,6 +181,12 @@ object ProtocolHelper {
         val data = JsonObject()
         data.addProperty("enabled", enabled)
         return ProtocolMessage(type = MessageType.FIND_DEVICE, data = data)
+    }
+
+    fun createFindPhone(enabled: Boolean): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("enabled", enabled)
+        return ProtocolMessage(type = MessageType.FIND_PHONE, data = data)
     }
 
     // Helper to extract data from message

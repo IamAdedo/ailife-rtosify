@@ -124,4 +124,10 @@
     <string name="find_watch_alarm_title">Finding Watch…</string>
     <string name="find_watch_alarm_message">Loud sound playing. Press stop when found.</string>
     <string name="find_watch_alarm_stop">Stop</string>
+    <string name="menu_find_phone">Find Phone</string>
+    <string name="menu_find_phone_desc">Play loud sound on phone</string>
+    <string name="menu_phone_not_found">Phone not connected</string>
+    <string name="dialog_find_watch_message">This will play a loud alarm on the phone.</string>
+    <string name="dialog_find_watch_start">Start</string>
+    <string name="dialog_find_watch_stop">Stop</string>
 </resources>

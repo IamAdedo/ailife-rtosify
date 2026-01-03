@@ -6,15 +6,15 @@
     android:orientation="horizontal"
     android:gravity="center_vertical"
     android:paddingHorizontal="24dp"
-    android:paddingVertical="16dp"
-    android:minHeight="72dp"
+    android:paddingVertical="20dp"
+    android:minHeight="88dp"
     android:background="?android:attr/selectableItemBackground">
 
     <!-- Ícone (ID: imgIcon para coincidir com seu Adapter) -->
     <ImageView
         android:id="@+id/imgIcon"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
         app:tint="?android:attr/textColorSecondary"/>
 
     <LinearLayout
@@ -29,7 +29,7 @@
             android:id="@+id/tvTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+            android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
             android:textColor="?android:attr/textColorPrimary"/>
 
         <!-- Subtítulo (ID: tvSubtitle para coincidir com seu Adapter) -->
@@ -37,7 +37,7 @@
             android:id="@+id/tvSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
             android:textColor="?android:attr/textColorSecondary"
             android:visibility="gone"/>
     </LinearLayout>

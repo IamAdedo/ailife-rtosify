@@ -14,8 +14,13 @@ import android.bluetooth.BluetoothSocket
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.ComponentName
 import com.ailife.rtosify.R
 import android.content.IntentFilter
+import android.media.AudioManager
+import android.media.MediaPlayer
+import android.media.Ringtone
+import android.media.RingtoneManager
 import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -234,6 +239,11 @@ class BluetoothService : Service() {
         // CRÍTICO: Chamar startForeground imediatamente para cumprir a promessa feita no BootReceiver.
         updateForegroundNotification()
 
+        if (intent?.action == "STOP_ALARM") {
+            stopFindPhoneAlarm()
+            return START_NOT_STICKY
+        }
+
         // Inicializa lógica se não estiver conectado
         if (!isConnected) {
             initializeLogicFromPrefs()
@@ -408,6 +418,7 @@ class BluetoothService : Service() {
                     MessageType.SHUTDOWN -> handleShutdownCommand()
                     MessageType.STATUS_UPDATE -> handleStatusUpdateReceived(message)
                     MessageType.SET_DND -> handleSetDndCommand(message)
+                    MessageType.FIND_PHONE -> handleFindPhoneCommand(message)
                 }
             }
         } catch (_: IOException) {
@@ -601,6 +612,55 @@ class BluetoothService : Service() {
         }
     }
 
+    private var findPhoneRingtone: Ringtone? = null
+
+    private fun handleFindPhoneCommand(message: ProtocolMessage) {
+        val enabled = ProtocolHelper.extractBooleanField(message, "enabled")
+        if (enabled) {
+            startFindPhoneAlarm()
+        } else {
+            stopFindPhoneAlarm()
+        }
+    }
+
+    private fun startFindPhoneAlarm() {
+        stopFindPhoneAlarm()
+        try {
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxVolume, 0)
+
+            val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+
+            findPhoneRingtone = RingtoneManager.getRingtone(this, alarmUri).apply {
+                @Suppress("DEPRECATION")
+                streamType = AudioManager.STREAM_ALARM
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    isLooping = true
+                }
+                play()
+            }
+
+            // Start activity to allow stopping locally
+            val intent = Intent().apply {
+                component = ComponentName("com.ailife.rtosify", "com.ailife.rtosify.FindPhoneActivity")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+
+            Log.i(TAG, "Phone alarm started at max volume")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting phone alarm: ${e.message}")
+        }
+    }
+
+    private fun stopFindPhoneAlarm() {
+        findPhoneRingtone?.stop()
+        findPhoneRingtone = null
+        Log.i(TAG, "Phone alarm stopped")
+    }
+    
     // File transfer state (receiving)
     private var receivingFile: File? = null
     private var receivingFileStream: FileOutputStream? = null
