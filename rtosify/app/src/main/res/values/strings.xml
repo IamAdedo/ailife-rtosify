@@ -146,6 +146,8 @@
     <string name="notif_grant_access">Grant Access</string>
     <string name="notif_apps_title">Applications</string>
     <string name="notif_apps_loading">Loading applications…</string>
+    <string name="notif_skip_screen_on_title">Skip when screen on</string>
+    <string name="notif_skip_screen_on_desc">Do not send alerts if you\'re using the phone</string>
 
     <string name="menu_uninstall_app">Uninstall</string>
     <string name="dialog_uninstall_title">Uninstall App?</string>

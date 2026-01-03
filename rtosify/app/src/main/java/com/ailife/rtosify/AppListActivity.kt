@@ -133,23 +133,30 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     // --- Callbacks do Serviço ---
     override fun onAppListReceived(appsJson: String) {
-        runOnUiThread {
-            progressBar.visibility = View.GONE
-            try {
-                val jsonArray = JSONArray(appsJson)
-                val apps = mutableListOf<AppItem>()
+        lifecycleScope.launch {
+            val apps = withContext(Dispatchers.Default) {
+                try {
+                    val jsonArray = JSONArray(appsJson)
+                    val result = mutableListOf<AppItem>()
 
-                for (i in 0 until jsonArray.length()) {
-                    val obj = jsonArray.getJSONObject(i)
-                    val name = obj.getString("name")
-                    val pkg = obj.getString("package")
-                    val iconBase64 = obj.optString("icon", "")
+                    for (i in 0 until jsonArray.length()) {
+                        val obj = jsonArray.getJSONObject(i)
+                        val name = obj.getString("name")
+                        val pkg = obj.getString("package")
+                        val iconBase64 = obj.optString("icon", "")
 
-                    apps.add(AppItem(name, pkg, iconBase64))
+                        result.add(AppItem(name, pkg, iconBase64))
+                    }
+
+                    result.sortBy { it.name.lowercase() }
+                    result
+                } catch (e: Exception) {
+                    null
                 }
+            }
 
-                apps.sortBy { it.name.lowercase() }
-
+            progressBar.visibility = View.GONE
+            if (apps != null) {
                 if (apps.isEmpty()) {
                     tvEmptyList.text = getString(R.string.applist_empty)
                     tvEmptyList.visibility = View.VISIBLE
@@ -159,10 +166,9 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     recyclerView.visibility = View.VISIBLE
                     adapter.updateList(apps)
                 }
-
-            } catch (e: Exception) {
+            } else {
                 tvEmptyList.text = getString(R.string.applist_error_processing)
-                Toast.makeText(this, getString(R.string.applist_error_processing_list, e.message), Toast.LENGTH_LONG).show()
+                Toast.makeText(this@AppListActivity, getString(R.string.applist_error_processing_list, "Invalid JSON"), Toast.LENGTH_LONG).show()
             }
         }
     }

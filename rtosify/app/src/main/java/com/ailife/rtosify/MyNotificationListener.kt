@@ -20,6 +20,7 @@ import androidx.core.graphics.drawable.toBitmap
 import com.google.gson.Gson
 import org.json.JSONArray
 import org.json.JSONObject
+import android.os.PowerManager
 import java.io.ByteArrayOutputStream
 
 class MyNotificationListener : NotificationListenerService() {
@@ -105,6 +106,16 @@ class MyNotificationListener : NotificationListenerService() {
 
         val isMirroringEnabled = prefs.getBoolean("notification_mirroring_enabled", false)
         if (!isMirroringEnabled) return
+
+        // Check for "Skip when screen on" option
+        val skipIfScreenOn = prefs.getBoolean("skip_screen_on_enabled", false)
+        if (skipIfScreenOn) {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (pm.isInteractive) {
+                Log.d("Listener", "Skipping notification: Screen is ON and interactive")
+                return
+            }
+        }
 
         // Whitelist check
         if (prefs.contains("allowed_notif_packages")) {

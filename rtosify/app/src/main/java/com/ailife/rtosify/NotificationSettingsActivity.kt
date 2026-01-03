@@ -32,6 +32,7 @@ import android.util.LruCache
 class NotificationSettingsActivity : AppCompatActivity() {
 
     private lateinit var switchEnable: SwitchMaterial
+    private lateinit var switchSkipScreenOn: SwitchMaterial
     private lateinit var layoutPermissionWarning: LinearLayout
     private lateinit var layoutAppsSection: LinearLayout
     private lateinit var btnOpenSettings: Button
@@ -62,6 +63,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
 
         initViews()
         setupMasterSwitch()
+        setupSkipScreenOnSwitch()
         setupRecyclerView()
         setupSearch()
         setupSystemAppsToggle()
@@ -74,6 +76,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
 
     private fun initViews() {
         switchEnable = findViewById(R.id.switchEnableMirroring)
+        switchSkipScreenOn = findViewById(R.id.switchSkipScreenOn)
         layoutPermissionWarning = findViewById(R.id.layoutPermissionWarning)
         layoutAppsSection = findViewById(R.id.layoutAppsSection)
         btnOpenSettings = findViewById(R.id.btnOpenSettings)
@@ -103,26 +106,41 @@ class NotificationSettingsActivity : AppCompatActivity() {
         }
     }
 
+    private var filterJob: Job? = null
+    
     private fun filterApps(query: String) {
-        val showSystemApps = switchShowSystemApps.isChecked
-        val filtered = allAppsList.filter { app ->
-            val matchesSearch = if (query.isEmpty()) {
-                true
-            } else {
-                app.packageName.contains(query, ignoreCase = true) ||
-                app.appName.contains(query, ignoreCase = true)
-            }
+        filterJob?.cancel()
+        filterJob = lifecycleScope.launch {
+            val showSystemApps = switchShowSystemApps.isChecked
+            val filtered = withContext(Dispatchers.Default) {
+                allAppsList.filter { app ->
+                    val matchesSearch = if (query.isEmpty()) {
+                        true
+                    } else {
+                        app.packageName.contains(query, ignoreCase = true) ||
+                                app.appName.contains(query, ignoreCase = true)
+                    }
 
-            val matchesSystemFilter = if (showSystemApps) {
-                true
-            } else {
-                // Only show non-system apps
-                !app.isSystemApp
-            }
+                    val matchesSystemFilter = if (showSystemApps) {
+                        true
+                    } else {
+                        // Only show non-system apps
+                        !app.isSystemApp
+                    }
 
-            matchesSearch && matchesSystemFilter
+                    matchesSearch && matchesSystemFilter
+                }
+            }
+            appAdapter.setData(filtered)
         }
-        appAdapter.setData(filtered)
+    }
+
+    private fun setupSkipScreenOnSwitch() {
+        val isSkipEnabled = prefs.getBoolean("skip_screen_on_enabled", false)
+        switchSkipScreenOn.isChecked = isSkipEnabled
+        switchSkipScreenOn.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("skip_screen_on_enabled", isChecked).apply()
+        }
     }
 
     override fun onResume() {
@@ -194,11 +212,15 @@ class NotificationSettingsActivity : AppCompatActivity() {
         recyclerView.layoutManager = LinearLayoutManager(this)
         appAdapter = AppNotificationAdapter(prefs)
         recyclerView.adapter = appAdapter
+
+        // Optimize RecyclerView performance for large lists
+        recyclerView.setHasFixedSize(true)
+        recyclerView.setItemViewCacheSize(20)  // Cache more views to reduce rebinding during scroll
     }
 
     private fun loadInstalledApps() {
         if (isLoadingVisible) return
-        
+
         // Mostra o container de loading (Texto + Spinner)
         layoutLoadingApps.visibility = View.VISIBLE
         recyclerView.visibility = View.GONE
@@ -209,25 +231,29 @@ class NotificationSettingsActivity : AppCompatActivity() {
             val pm = packageManager
             val packageNamesFound = mutableSetOf<String>()
 
-            // Get all installed packages (including system apps)
-            val installedPackages = pm.getInstalledPackages(0)
+            // Use getInstalledApplications instead of getInstalledPackages - more efficient
+            // since we only need ApplicationInfo, not full PackageInfo
+            val installedApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
 
-            val appsList = installedPackages.mapNotNull { packageInfo ->
-                val pkgName = packageInfo.packageName
+            val appsList = installedApps.mapNotNull { appInfo ->
+                val pkgName = appInfo.packageName
                 // Skip our own app
                 if (pkgName == packageName) return@mapNotNull null
 
-                try {
-                    val appInfo = pm.getApplicationInfo(pkgName, 0)
-                    val isSystemApp = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                val isSystemApp = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
 
-                    packageNamesFound.add(pkgName)
-                    AppNotificationItem("", pkgName, null, isSystemApp)
+                // Load app name during initial load instead of lazily
+                // This prevents UI jank when scrolling through the list
+                val appName = try {
+                    pm.getApplicationLabel(appInfo).toString()
                 } catch (e: Exception) {
-                    null
+                    pkgName
                 }
+
+                packageNamesFound.add(pkgName)
+                AppNotificationItem(appName, pkgName, null, isSystemApp)
             }.distinctBy { it.packageName }
-            .sortedBy { it.packageName } // Ordena primeiro por pacote, o nome será carregado depois
+            .sortedBy { it.appName.lowercase() }  // Sort by app name instead of package name for better UX
 
             if (!prefs.contains("allowed_notif_packages")) {
                 prefs.edit().putStringSet("allowed_notif_packages", packageNamesFound).apply()
@@ -339,39 +365,44 @@ class AppNotificationAdapter(private val prefs: SharedPreferences) : RecyclerVie
 
             // Cancela job anterior se a view for reciclada
             loadJob?.cancel()
-            
-            // Tenta cache primeiro
-            val cachedLabel = labelCache.get(item.packageName)
+
+            // Use pre-loaded app name if available (loaded during initial app list fetch)
+            if (item.appName.isNotEmpty()) {
+                tvName.text = item.appName
+            } else {
+                // Fallback: use cached label or load lazily (for edge cases)
+                val cachedLabel = labelCache.get(item.packageName)
+                if (cachedLabel != null) {
+                    tvName.text = cachedLabel
+                } else {
+                    tvName.text = item.packageName
+                }
+            }
+
+            // Check cache for icon first
             val cachedIcon = iconCache.get(item.packageName)
-            
-            if (cachedLabel != null && cachedIcon != null) {
-                tvName.text = cachedLabel
+            if (cachedIcon != null) {
                 imgIcon.setImageDrawable(cachedIcon)
                 return
             }
 
-            tvName.text = "..."
+            // Set default icon while loading
             imgIcon.setImageResource(android.R.drawable.sym_def_app_icon)
 
-            // Carregamento Preguiçoso de metadados
+            // Load icon in background only (app name is already loaded during initial fetch)
             loadJob = (itemView.context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
                 val pm = itemView.context.packageManager
                 try {
                     val appInfo = pm.getApplicationInfo(item.packageName, 0)
-                    val label = pm.getApplicationLabel(appInfo).toString()
                     val icon = pm.getApplicationIcon(appInfo)
 
-                    labelCache.put(item.packageName, label)
                     iconCache.put(item.packageName, icon)
 
                     withContext(Dispatchers.Main) {
-                        tvName.text = label
                         imgIcon.setImageDrawable(icon)
                     }
                 } catch (e: Exception) {
-                    withContext(Dispatchers.Main) {
-                        tvName.text = item.packageName
-                    }
+                    // Icon loading failed, keep default icon
                 }
             }
         }
