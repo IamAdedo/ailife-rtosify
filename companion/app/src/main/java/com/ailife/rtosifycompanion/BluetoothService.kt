@@ -116,6 +116,7 @@ class BluetoothService : Service() {
     private val CONNECTION_TIMEOUT = 60000L
 
     private val notificationMap = ConcurrentHashMap<String, Int>()
+    private val notificationDataMap = ConcurrentHashMap<String, NotificationData>()
 
     // REFATORAÇÃO: Controle mais robusto de notificações
     @Volatile
@@ -361,6 +362,10 @@ class BluetoothService : Service() {
             val replyText = intent.getStringExtra(EXTRA_REPLY_TEXT)
             if (notifKey != null && actionKey != null && replyText != null) {
                 sendMessage(ProtocolHelper.createSendNotificationReply(notifKey, actionKey, replyText))
+                
+                // CRITICAL: Refresh the notification locally to stop the "spinning" indicator
+                // and show the reply in history immediately
+                refreshNotification(notifKey, replyText)
             }
             return START_NOT_STICKY
         }
@@ -1390,6 +1395,9 @@ class BluetoothService : Service() {
 
             val isUpdate = notificationMap.containsKey(key)
             val notifId = notificationMap.getOrPut(key) { (System.currentTimeMillis() % 10000).toInt() + MIRRORED_NOTIFICATION_ID_START }
+            
+            // Store data for local refresh (stops spinning after reply)
+            notificationDataMap[key] = notif
 
             val deleteIntent = Intent(ACTION_WATCH_DISMISSED_LOCAL).apply { putExtra(EXTRA_NOTIF_KEY, key); setPackage(packageName) }
             val deletePending = PendingIntent.getBroadcast(this, notifId, deleteIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -1421,7 +1429,16 @@ class BluetoothService : Service() {
 
             // 4. Use MessagingStyle if we have messages or it's a group
             if (notif.messages.isNotEmpty() || notif.groupIcon != null) {
-                val user = androidx.core.app.Person.Builder().setName("Me").build()
+                val userName = getString(R.string.reply_sender_me)
+                
+                // Use app small icon as a "default" for the user to avoid wrong fallbacks
+                val userIcon = notif.smallIcon?.let { decodeBase64ToBitmap(it) }
+                val userBuilder = androidx.core.app.Person.Builder().setName(userName)
+                userIcon?.let {
+                    userBuilder.setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(it))
+                }
+                val user = userBuilder.build()
+                
                 val style = NotificationCompat.MessagingStyle(user)
                 
                 if (notif.groupIcon != null || notif.messages.any { it.senderName != null }) {
@@ -1431,17 +1448,30 @@ class BluetoothService : Service() {
                 
                 // Add all messages from the history
                 for (msg in notif.messages) {
-                    val sender = androidx.core.app.Person.Builder()
-                        .setName(msg.senderName ?: "Sender")
-                        .apply {
-                            msg.senderIcon?.let { 
-                                decodeBase64ToBitmap(it)?.let { bitmap ->
-                                    setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(bitmap))
+                    val msgSenderName = msg.senderName
+                    
+                    // Robust "Me" detection: 
+                    // 1. Exact name match ("Me")
+                    // 2. OR null name (commonly used for 'self' in MessagingStyle history)
+                    val isMe = msgSenderName == null || msgSenderName == userName
+                    
+                    if (isMe) {
+                        // For outgoing/echoed replies, pass null or the user person 
+                        // to let the system use the default user icon
+                        style.addMessage(msg.text, msg.timestamp, user)
+                    } else {
+                        val sender = androidx.core.app.Person.Builder()
+                            .setName(msgSenderName ?: "Sender")
+                            .apply {
+                                msg.senderIcon?.let { 
+                                    decodeBase64ToBitmap(it)?.let { bitmap ->
+                                        setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(bitmap))
+                                    }
                                 }
                             }
-                        }
-                        .build()
-                    style.addMessage(msg.text, msg.timestamp, sender)
+                            .build()
+                        style.addMessage(msg.text, msg.timestamp, sender)
+                    }
                 }
 
                 builder.setStyle(style)
@@ -1544,11 +1574,35 @@ class BluetoothService : Service() {
         }
     }
 
+    private fun refreshNotification(key: String, replyText: String? = null) {
+        val data = notificationDataMap[key] ?: return
+        
+        val updatedData = if (replyText != null) {
+            // Append local reply to history for immediate feedback
+            val newMessage = NotificationMessageData(
+                text = replyText,
+                timestamp = System.currentTimeMillis(),
+                senderName = getString(R.string.reply_sender_me)
+            )
+            data.copy(messages = data.messages + newMessage)
+        } else {
+            data
+        }
+        
+        // Update stored data so subsequent refreshes find the new history
+        notificationDataMap[key] = updatedData
+        
+        val message = ProtocolHelper.createNotificationPosted(updatedData)
+        showMirroredNotification(message)
+        Log.d(TAG, "Notification refreshed locally for key: $key")
+    }
+
     private fun dismissLocalNotification(message: ProtocolMessage) {
         val key = ProtocolHelper.extractStringField(message, "key") ?: return
         notificationMap[key]?.let { id ->
             notificationManager.cancel(id)
             notificationMap.remove(key)
+            notificationDataMap.remove(key)
         }
     }
 

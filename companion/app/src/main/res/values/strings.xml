@@ -133,4 +133,5 @@
 
     <!-- Notification Actions -->
     <string name="reply_label">Reply</string>
+    <string name="reply_sender_me">Me</string>
 </resources>

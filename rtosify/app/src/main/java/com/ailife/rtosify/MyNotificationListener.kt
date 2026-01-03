@@ -29,6 +29,9 @@ class MyNotificationListener : NotificationListenerService() {
 
     // Map to store notification actions for later execution
     private val notificationActionsMap = mutableMapOf<String, MutableMap<String, android.app.Notification.Action>>()
+    
+    // Map to track the last time a reply was sent for a notification (to prevent premature dismissal)
+    private val lastReplyTimes = mutableMapOf<String, Long>()
 
     // Receiver para ouvir comandos do BluetoothService (Ex: Watch pediu pra apagar)
     private val commandReceiver = object : BroadcastReceiver() {
@@ -208,8 +211,16 @@ class MyNotificationListener : NotificationListenerService() {
         val isMirroringEnabled = prefs.getBoolean("notification_mirroring_enabled", false)
         if (!isMirroringEnabled) return
 
+        // 如果这通知刚才回复过，暂时忽略移除指令，给用户留时间连发
+        val lastReplyTime = lastReplyTimes[sbn.key] ?: 0L
+        if (System.currentTimeMillis() - lastReplyTime < 5000) {
+            Log.d("Listener", "Ignorando remoção de notificação após resposta recente: ${sbn.key}")
+            return
+        }
+
         // Clean up actions map
         notificationActionsMap.remove(sbn.key)
+        lastReplyTimes.remove(sbn.key)
 
         val intent = Intent(BluetoothService.ACTION_SEND_REMOVE_TO_WATCH)
         intent.putExtra(BluetoothService.EXTRA_NOTIF_KEY, sbn.key)
@@ -530,8 +541,17 @@ class MyNotificationListener : NotificationListenerService() {
                     val bundle = android.os.Bundle()
                     bundle.putCharSequence(remoteInput.resultKey, replyText)
                     RemoteInput.addResultsToIntent(arrayOf(remoteInput), intent, bundle)
+                    
+                    // Set result source to convince the target app that this is a real user reply (API 28+)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        RemoteInput.setResultsSource(intent, RemoteInput.SOURCE_FREE_FORM_INPUT)
+                    }
 
                     action.actionIntent?.send(this, 0, intent)
+                    
+                    // Track reply time to ignore the immediate dismissal event
+                    lastReplyTimes[notifKey] = System.currentTimeMillis()
+                    
                     Log.d("Listener", "Reply sent: $replyText")
                 }
             } else {
