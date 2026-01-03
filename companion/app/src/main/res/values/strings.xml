@@ -79,6 +79,8 @@
     <string name="notification_config_required_text">Tap to allow installation</string>
     <string name="notification_error_title">Error</string>
     <string name="notification_service_title">Smartwatch</string>
+    <string name="notification_phone_disconnected_title">Phone Disconnected</string>
+    <string name="notification_phone_disconnected_text">The connection to your phone has been lost.</string>
 
     <string name="status_no_phone_found">No Phone found.</string>
     <string name="status_connecting_to">Connecting to %s…</string>

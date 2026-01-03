@@ -69,6 +69,7 @@ object MessageType {
     const val RESPONSE_FILE_LIST = "response_file_list"
     const val REQUEST_FILE_DOWNLOAD = "request_file_download"
     const val DELETE_FILE = "delete_file"
+    const val UPDATE_SETTINGS = "update_settings"
 }
 
 // Data classes for specific message types
@@ -145,6 +146,10 @@ data class FileInfo(
     val size: Long,
     val isDirectory: Boolean,
     val lastModified: Long
+)
+
+data class SettingsUpdateData(
+    val notifyOnDisconnect: Boolean? = null
 )
 
 data class FileChunkData(
@@ -306,6 +311,11 @@ object ProtocolHelper {
         val data = JsonObject()
         data.addProperty("imageBase64", imageBase64)
         return ProtocolMessage(type = MessageType.CAMERA_FRAME, data = data)
+    }
+
+    fun createUpdateSettings(settings: SettingsUpdateData): ProtocolMessage {
+        val data = gson.toJsonTree(settings).asJsonObject
+        return ProtocolMessage(type = MessageType.UPDATE_SETTINGS, data = data)
     }
 
     // Helper to extract data from message

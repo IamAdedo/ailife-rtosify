@@ -33,6 +33,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
 
     private lateinit var switchEnable: SwitchMaterial
     private lateinit var switchSkipScreenOn: SwitchMaterial
+    private lateinit var switchNotifyDisconnect: SwitchMaterial
     private lateinit var layoutPermissionWarning: LinearLayout
     private lateinit var layoutAppsSection: LinearLayout
     private lateinit var btnOpenSettings: Button
@@ -64,6 +65,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         initViews()
         setupMasterSwitch()
         setupSkipScreenOnSwitch()
+        setupNotifyDisconnectSwitch()
         setupRecyclerView()
         setupSearch()
         setupSystemAppsToggle()
@@ -77,6 +79,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private fun initViews() {
         switchEnable = findViewById(R.id.switchEnableMirroring)
         switchSkipScreenOn = findViewById(R.id.switchSkipScreenOn)
+        switchNotifyDisconnect = findViewById(R.id.switchNotifyDisconnect)
         layoutPermissionWarning = findViewById(R.id.layoutPermissionWarning)
         layoutAppsSection = findViewById(R.id.layoutAppsSection)
         btnOpenSettings = findViewById(R.id.btnOpenSettings)
@@ -140,6 +143,18 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchSkipScreenOn.isChecked = isSkipEnabled
         switchSkipScreenOn.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("skip_screen_on_enabled", isChecked).apply()
+        }
+    }
+
+    private fun setupNotifyDisconnectSwitch() {
+        val isEnabled = prefs.getBoolean("notify_on_disconnect", false)
+        switchNotifyDisconnect.isChecked = isEnabled
+        switchNotifyDisconnect.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("notify_on_disconnect", isChecked).apply()
+            
+            // Sync with service if connected
+            val intent = Intent("com.ailife.rtosify.ACTION_UPDATE_SETTINGS")
+            sendBroadcast(intent)
         }
     }
 

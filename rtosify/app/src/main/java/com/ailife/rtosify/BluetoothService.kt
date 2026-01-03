@@ -147,6 +147,8 @@ class BluetoothService : Service() {
         const val EXTRA_ACTION_KEY = "extra_action_key"
         const val EXTRA_REPLY_TEXT = "extra_reply_text"
 
+        const val ACTION_UPDATE_SETTINGS = "com.ailife.rtosify.ACTION_UPDATE_SETTINGS"
+
         // IDs DISTINTOS para garantir limpeza correta ao trocar de estado
         const val NOTIFICATION_ID_WAITING = 10
         const val NOTIFICATION_ID_CONNECTED = 11
@@ -188,6 +190,10 @@ class BluetoothService : Service() {
                         sendMessage(ProtocolHelper.createNotificationRemoved(key))
                     }
                 }
+                ACTION_UPDATE_SETTINGS -> {
+                    Log.d(TAG, "Received ACTION_UPDATE_SETTINGS broadcast")
+                    syncSettingsToWatch()
+                }
             }
         }
     }
@@ -223,6 +229,7 @@ class BluetoothService : Service() {
         val filterInternal = IntentFilter().apply {
             addAction(ACTION_SEND_NOTIF_TO_WATCH)
             addAction(ACTION_SEND_REMOVE_TO_WATCH)
+            addAction(ACTION_UPDATE_SETTINGS)
         }
         val filterWatch = IntentFilter(ACTION_WATCH_DISMISSED_LOCAL)
 
@@ -423,6 +430,9 @@ class BluetoothService : Service() {
 
         serviceScope.launch { heartbeatLoop() }
 
+        // Sync settings on connection
+        syncSettingsToWatch()
+
         val deviceType = prefs.getString("device_type", "PHONE")
         if (deviceType == "WATCH") {
             startWatchStatusSender()
@@ -504,6 +514,16 @@ class BluetoothService : Service() {
         } catch (_: Exception) {}
 
         statusUpdateJob?.cancel()
+    }
+
+    private fun syncSettingsToWatch() {
+        if (!isConnected) {
+            Log.d(TAG, "Not syncing settings: Not connected")
+            return
+        }
+        val notifyOnDisconnect = prefs.getBoolean("notify_on_disconnect", false)
+        Log.d(TAG, "Syncing settings to watch: notifyOnDisconnect=$notifyOnDisconnect")
+        sendMessage(ProtocolHelper.createUpdateSettings(SettingsUpdateData(notifyOnDisconnect = notifyOnDisconnect)))
     }
 
     private fun sendMessage(message: ProtocolMessage) {

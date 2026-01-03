@@ -168,6 +168,7 @@ class BluetoothService : Service() {
         const val NOTIFICATION_ID_WAITING = 10
         const val NOTIFICATION_ID_CONNECTED = 11
         const val NOTIFICATION_ID_DISCONNECTED = 12
+        const val NOTIFICATION_ID_DISCONNECTION_ALERT = 13  // Alert shown when phone disconnects
 
         const val INSTALL_NOTIFICATION_ID = 2
         const val MIRRORED_NOTIFICATION_ID_START = 1000
@@ -175,6 +176,7 @@ class BluetoothService : Service() {
         const val CHANNEL_ID_WAITING = "channel_status_waiting"
         const val CHANNEL_ID_CONNECTED = "channel_status_connected"
         const val CHANNEL_ID_DISCONNECTED = "channel_status_disconnected"
+        const val CHANNEL_ID_DISCONNECTION_ALERT = "channel_disconnection_alert"
 
         const val INSTALL_CHANNEL_ID = "install_channel"
         const val MIRRORED_CHANNEL_ID = "mirrored_notifications"
@@ -558,6 +560,7 @@ class BluetoothService : Service() {
                     MessageType.REQUEST_FILE_LIST -> handleRequestFileList(message)
                     MessageType.REQUEST_FILE_DOWNLOAD -> handleRequestFileDownload(message)
                     MessageType.DELETE_FILE -> handleDeleteFile(message)
+                    MessageType.UPDATE_SETTINGS -> handleUpdateSettings(message)
                 }
             }
         } catch (_: IOException) {
@@ -571,12 +574,50 @@ class BluetoothService : Service() {
 
             if (wasConnected) {
                 updateStatus(getString(R.string.status_disconnected))
+                
+                val shouldNotify = prefs.getBoolean("notify_on_disconnect", false)
+                Log.d(TAG, "Device disconnected. shouldNotify on disconnect: $shouldNotify")
+                
+                // Show disconnection alert if enabled
+                if (shouldNotify) {
+                    showDisconnectionNotification()
+                }
             }
 
             withContext(Dispatchers.Main) {
                 callback?.onDeviceDisconnected()
             }
         }
+    }
+
+    private fun handleUpdateSettings(message: ProtocolMessage) {
+        try {
+            val settings = ProtocolHelper.extractData<SettingsUpdateData>(message)
+            Log.d(TAG, "Received settings update: notifyOnDisconnect=${settings.notifyOnDisconnect}")
+            if (settings.notifyOnDisconnect != null) {
+                prefs.edit().putBoolean("notify_on_disconnect", settings.notifyOnDisconnect).apply()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling settings update: ${e.message}")
+        }
+    }
+
+    private fun showDisconnectionNotification() {
+        Log.d(TAG, "Showing disconnection notification")
+        val title = getString(R.string.notification_phone_disconnected_title)
+        val text = getString(R.string.notification_phone_disconnected_text)
+
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID_DISCONNECTION_ALERT)
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setAutoCancel(true)
+            .setVibrate(longArrayOf(0, 500, 200, 500))
+            .build()
+
+        notificationManager.notify(NOTIFICATION_ID_DISCONNECTION_ALERT, notification)
     }
 
     @Throws(IOException::class)
@@ -1879,6 +1920,17 @@ class BluetoothService : Service() {
                 getString(R.string.status_disconnected),
                 NotificationManager.IMPORTANCE_LOW
             )
+        )
+
+        notificationManager.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_ID_DISCONNECTION_ALERT,
+                "Alerta de Desconexão",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 500, 200, 500)
+            }
         )
 
         notificationManager.createNotificationChannel(NotificationChannel(INSTALL_CHANNEL_ID, "APKs", NotificationManager.IMPORTANCE_HIGH))
