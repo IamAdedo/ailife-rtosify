@@ -78,9 +78,16 @@ class WatchFaceManagerFragment : Fragment() {
         }
         recyclerView.layoutManager = layoutManager
         
-        adapter = WatchFaceManagerAdapter(emptyList()) { action, item ->
-            handleAction(action, item)
-        }
+        adapter = WatchFaceManagerAdapter(emptyList(), isLocal, 
+            onRequestPreview = { path ->
+                if (!isLocal) {
+                    (activity as? WatchFaceActivity)?.requestPreview(path)
+                }
+            },
+            onAction = { action, item ->
+                handleAction(action, item)
+            }
+        )
         recyclerView.adapter = adapter
         
         if (!isLocal) {
@@ -142,6 +149,14 @@ class WatchFaceManagerFragment : Fragment() {
             rootFiles.clear()
             folders.clear()
             (activity as? WatchFaceActivity)?.requestWatchFileList(watchPath)
+        }
+    }
+    
+    fun updatePreview(path: String, imageBase64: String) {
+        val bytes = android.util.Base64.decode(imageBase64, android.util.Base64.NO_WRAP)
+        val bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        activity?.runOnUiThread {
+            adapter.setPreview(path, bitmap)
         }
     }
 
@@ -295,7 +310,7 @@ class WatchFaceManagerFragment : Fragment() {
                 }
             }
             WatchFaceManagerAdapter.Action.RENAME -> {
-                if (!isLocal && item is ManagerItem.Face) {
+                if (item is ManagerItem.Face) {
                     showRenameDialog(item.fileInfo)
                 }
             }
@@ -310,23 +325,6 @@ class WatchFaceManagerFragment : Fragment() {
                 }
             }
             WatchFaceManagerAdapter.Action.TOGGLE_FOLDER -> {
-                // rebuildList() will reuse the expanded state from the adapter which is updated by the viewholder click? 
-                // Actually the adapter updates the item state.
-                // But we need to refresh the view. 
-                // In my rebuildList implementation, I am checking existing headers in adapter.
-                // But adapter.setData() replaces the list.
-                // The Adapter logic handles toggling by calling notifyDataSetChanged via updateDisplayedItems?
-                // Wait, WatchFaceManagerAdapter handles expansion locally via 'displayedItems'.
-                // Calls back TOGGLE_FOLDER.
-                // But my rebuildList logic re-constructs the list based on expanded state.
-                // So I definitely need to rebuild list if content is dynamic.
-                // The adapter implementation provided in step 12 handles expansion inside itself.
-                // "item.isExpanded = !item.isExpanded; updateDisplayedItems()"
-                // So I might NOT need to rebuild the list just for toggling if I trust the adapter.
-                // BUT, if I rebuild, I must persist the expanded state.
-                // In rebuildList, I am looking up existing headers:
-                // val existingHeader = adapter.getAllItems().find ...
-                // This seems correct.
                 if (!isLocal) rebuildList()
             }
         }
@@ -364,8 +362,22 @@ class WatchFaceManagerFragment : Fragment() {
             .setPositiveButton("OK") { _, _ ->
                 val newName = input.text.toString()
                 if (newName.isNotBlank() && newName != fileInfo.name) {
-                    // Send rename command via protocol
-                    (activity as? WatchFaceActivity)?.renameWatchFile(fileInfo.path, newName)
+                    if (isLocal) {
+                        try {
+                            val oldFile = File(fileInfo.path)
+                            val newFile = File(oldFile.parent, newName)
+                            if (oldFile.renameTo(newFile)) {
+                                refresh()
+                            } else {
+                                Toast.makeText(context, "Rename failed", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Rename failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    } else {
+                        // Send rename command via protocol
+                        (activity as? WatchFaceActivity)?.renameWatchFile(fileInfo.path, newName)
+                    }
                 }
             }
             .setNegativeButton("Cancel", null)

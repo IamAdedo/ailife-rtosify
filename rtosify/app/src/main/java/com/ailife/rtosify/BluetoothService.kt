@@ -126,6 +126,7 @@ class BluetoothService : Service() {
         fun onHealthDataUpdated(healthData: HealthDataUpdate) {}
         fun onHealthHistoryReceived(historyData: HealthHistoryResponse) {}
         fun onHealthSettingsReceived(settings: HealthSettingsUpdate) {}
+        fun onPreviewReceived(path: String, imageBase64: String?) {}
     }
 
     var callback: ServiceCallback? = null
@@ -472,6 +473,7 @@ class BluetoothService : Service() {
                     MessageType.HEALTH_DATA_UPDATE -> handleHealthDataReceived(message)
                     MessageType.RESPONSE_HEALTH_HISTORY -> handleHealthHistoryReceived(message)
                     MessageType.RESPONSE_HEALTH_SETTINGS -> handleHealthSettingsReceived(message)
+                    MessageType.RESPONSE_PREVIEW -> handlePreviewReceived(message)
                     MessageType.MAKE_CALL -> handleMakeCallCommand(message)
                 }
             }
@@ -1773,4 +1775,16 @@ class BluetoothService : Service() {
         serviceScope.cancel()
         forceDisconnect()
     }
+
+    private suspend fun handlePreviewReceived(message: ProtocolMessage) {
+        val path = ProtocolHelper.extractStringField(message, "path")
+        val imageBase64 = ProtocolHelper.extractStringField(message, "imageBase64")
+        if (path != null) {
+            withContext(Dispatchers.Main) {
+                callback?.onPreviewReceived(path, imageBase64)
+            }
+        }
+    }
+
+
 }

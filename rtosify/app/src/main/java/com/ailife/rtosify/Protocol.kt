@@ -86,6 +86,8 @@ object MessageType {
     const val SYNC_CONTACTS = "sync_contacts"
     const val SET_WATCH_FACE = "set_watch_face"
     const val CREATE_FOLDER = "create_folder"
+    const val REQUEST_PREVIEW = "request_preview"
+    const val RESPONSE_PREVIEW = "response_preview"
 }
 
 // Data classes for specific message types
@@ -484,6 +486,21 @@ object ProtocolHelper {
         val data = JsonObject()
         data.addProperty("path", path)
         return ProtocolMessage(type = MessageType.CREATE_FOLDER, data = data)
+    }
+
+    fun createRequestPreview(path: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("path", path)
+        return ProtocolMessage(type = MessageType.REQUEST_PREVIEW, data = data)
+    }
+
+    fun createResponsePreview(path: String, imageBase64: String?): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("path", path)
+        if (imageBase64 != null) {
+            data.addProperty("imageBase64", imageBase64)
+        }
+        return ProtocolMessage(type = MessageType.RESPONSE_PREVIEW, data = data)
     }
 
     // Helper to extract data from message

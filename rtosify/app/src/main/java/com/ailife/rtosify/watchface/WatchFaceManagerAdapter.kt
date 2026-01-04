@@ -16,12 +16,15 @@ sealed class ManagerItem {
 
 class WatchFaceManagerAdapter(
     private var allItems: List<ManagerItem>,
+    private val isLocal: Boolean,
+    private val onRequestPreview: (String) -> Unit,
     private val onAction: (Action, ManagerItem) -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     enum class Action { SET, RENAME, DELETE, TOGGLE_FOLDER, RENAME_FOLDER, DELETE_FOLDER }
 
     private var displayedItems = mutableListOf<ManagerItem>()
+    private val previewCache = mutableMapOf<String, android.graphics.Bitmap>()
 
     init {
         updateDisplayedItems()
@@ -45,6 +48,13 @@ class WatchFaceManagerAdapter(
     fun setData(newData: List<ManagerItem>) {
         allItems = newData
         updateDisplayedItems()
+    }
+
+    fun setPreview(path: String, bitmap: android.graphics.Bitmap?) {
+        if (bitmap != null) {
+            previewCache[path] = bitmap
+            notifyDataSetChanged() // Ideally, notify specific item changed
+        }
     }
 
     fun getAllItems(): List<ManagerItem> = allItems
@@ -82,6 +92,10 @@ class WatchFaceManagerAdapter(
             tvName.text = item.name
             imgExpand.rotation = if (item.isExpanded) 0f else -90f
             
+            // Allow checking if rename/delete allowed for folders (remote only)
+            btnRename.visibility = if (!isLocal && item.name != "<root>") View.VISIBLE else View.GONE
+            btnDelete.visibility = if (!isLocal && item.name != "<root>") View.VISIBLE else View.GONE
+
             itemView.setOnClickListener {
                 item.isExpanded = !item.isExpanded
                 updateDisplayedItems()
@@ -102,12 +116,55 @@ class WatchFaceManagerAdapter(
         fun bind(item: ManagerItem.Face) {
             tvName.text = item.fileInfo.name
             
-            // Set placeholder - preview would need to be fetched from watch
-            imgPreview.setImageResource(android.R.color.darker_gray)
+            val cached = previewCache[item.fileInfo.path]
+            if (cached != null) {
+                imgPreview.setImageBitmap(cached)
+            } else {
+                imgPreview.setImageResource(android.R.color.darker_gray)
+                if (isLocal) {
+                    loadLocalPreview(item.fileInfo.path)
+                } else {
+                    onRequestPreview(item.fileInfo.path)
+                }
+            }
 
             btnSet.setOnClickListener { onAction(Action.SET, item) }
             btnRename.setOnClickListener { onAction(Action.RENAME, item) }
             btnDelete.setOnClickListener { onAction(Action.DELETE, item) }
+        }
+        
+        private fun loadLocalPreview(path: String) {
+            // Simple async loading (not robust for large lists but sufficient for demo)
+            Thread {
+                try {
+                    val file = java.io.File(path)
+                    var bitmap: android.graphics.Bitmap? = null
+                    if (file.name.endsWith(".zip", true) || file.name.endsWith(".watch", true)) {
+                        java.util.zip.ZipFile(file).use { zip ->
+                            val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
+                            for (c in candidates) {
+                                val entry = zip.entries().asSequence().find { it.name.endsWith(c, true) && !it.isDirectory }
+                                if (entry != null) {
+                                    zip.getInputStream(entry).use { input ->
+                                        bitmap = android.graphics.BitmapFactory.decodeStream(input)
+                                    }
+                                    break
+                                }
+                            }
+                        }
+                    }
+                    if (bitmap != null) {
+                        imgPreview.post {
+                            if (adapterPosition != RecyclerView.NO_POSITION) { // Check validity
+                                previewCache[path] = bitmap!!
+                                notifyItemChanged(adapterPosition)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }.start()
         }
     }
 }

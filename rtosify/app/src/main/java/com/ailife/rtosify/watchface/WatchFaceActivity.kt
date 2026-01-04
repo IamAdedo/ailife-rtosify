@@ -213,6 +213,10 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
         tabLayout.postDelayed({ managerFragment.refresh() }, 1000)
     }
 
+    fun requestPreview(path: String) {
+        bluetoothService?.sendMessage(com.ailife.rtosify.ProtocolHelper.createRequestPreview(path))
+    }
+
     fun pickWatchFaceFromDevice() {
         pickFileLauncher.launch("*/*")
     }
@@ -297,6 +301,12 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
     override fun onDeviceDisconnected() {}
     override fun onScanResult(devices: List<android.bluetooth.BluetoothDevice>) {}
     override fun onWatchStatusUpdated(battery: Int, charging: Boolean, wifi: String, dnd: Boolean) {}
+    override fun onPreviewReceived(path: String, imageBase64: String?) {
+        if (imageBase64 != null) {
+            managerFragment.updatePreview(path, imageBase64)
+        }
+    }
+
     override fun onError(message: String) {
         dismissProgressDialog()
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()

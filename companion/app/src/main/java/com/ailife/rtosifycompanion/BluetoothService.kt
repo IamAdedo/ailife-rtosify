@@ -583,6 +583,7 @@ class BluetoothService : Service() {
                     MessageType.MOVE_FILE -> handleMoveFile(message)
                     MessageType.SET_WATCH_FACE -> handleSetWatchFace(message)
                     MessageType.CREATE_FOLDER -> handleCreateFolder(message)
+                    MessageType.REQUEST_PREVIEW -> handleRequestPreview(message)
                 }
             }
         } catch (_: IOException) {
@@ -2356,6 +2357,64 @@ class BluetoothService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error decoding base64 bitmap: ${e.message}")
             null
+        }
+    }
+
+    private fun handleRequestPreview(message: ProtocolMessage) {
+        val path = ProtocolHelper.extractStringField(message, "path") ?: return
+        
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val file = if (path.startsWith("/")) File(path) else File(android.os.Environment.getExternalStorageDirectory(), path)
+                
+                var bitmap: Bitmap? = null
+                
+                if (file.exists()) {
+                    if (file.isDirectory) {
+                        val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
+                        for (c in candidates) {
+                            val img = File(file, c)
+                            if (img.exists()) {
+                                bitmap = android.graphics.BitmapFactory.decodeFile(img.absolutePath)
+                                break
+                            }
+                        }
+                    } else if (file.name.endsWith(".zip", true) || file.name.endsWith(".watch", true)) {
+                        try {
+                            java.util.zip.ZipFile(file).use { zip ->
+                                val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
+                                for (c in candidates) {
+                                    val entry = zip.entries().asSequence().find { 
+                                        it.name.endsWith(c, true) && !it.isDirectory 
+                                    }
+                                    if (entry != null) {
+                                        zip.getInputStream(entry).use { input ->
+                                            bitmap = android.graphics.BitmapFactory.decodeStream(input)
+                                        }
+                                        break
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
+                
+                val imageBase64 = if (bitmap != null) {
+                    val thumb = Bitmap.createScaledBitmap(bitmap!!, 200, 200, true)
+                    val output = ByteArrayOutputStream()
+                    thumb.compress(Bitmap.CompressFormat.JPEG, 70, output)
+                    Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
+                } else {
+                    null
+                }
+                
+                sendMessage(ProtocolHelper.createResponsePreview(path, imageBase64))
+                
+            } catch (e: Exception) {
+                sendMessage(ProtocolHelper.createResponsePreview(path, null))
+            }
         }
     }
 }
