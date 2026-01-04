@@ -31,8 +31,9 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
     private var isBound = false
     
     private val storeFragment = WatchFaceStoreFragment()
-    private val managerFragment = WatchFaceManagerFragment()
-    private val watchFilesFragment = WatchFilesFragment()
+
+    private val managerFragment = WatchFaceManagerFragment.newInstance(false)
+    private val localFragment = WatchFaceManagerFragment.newInstance(true)
 
     private var progressDialog: AlertDialog? = null
     private val downloadMap = mutableMapOf<Long, String>() // downloadId to fileName
@@ -66,8 +67,8 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
 
         tabLayout = findViewById(R.id.tabLayout)
         tabLayout.addTab(tabLayout.newTab().setText(R.string.wf_tab_store))
-        tabLayout.addTab(tabLayout.newTab().setText("Manage"))
         tabLayout.addTab(tabLayout.newTab().setText(R.string.wf_tab_watch))
+        tabLayout.addTab(tabLayout.newTab().setText("Local"))
         
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
@@ -94,7 +95,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
         val fragment = when (position) {
             0 -> storeFragment
             1 -> managerFragment
-            else -> watchFilesFragment
+            else -> localFragment
         }
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragmentContainer, fragment)
@@ -184,19 +185,31 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
         bluetoothService?.sendMessage(com.ailife.rtosify.ProtocolHelper.createRequestFileList(path))
     }
 
+    fun sendBluetoothMessage(msg: com.ailife.rtosify.ProtocolMessage) {
+        bluetoothService?.sendMessage(msg)
+    }
+
     fun deleteWatchFaceOnWatch(path: String) {
         val msg = com.ailife.rtosify.ProtocolHelper.createDeleteFile(path)
         bluetoothService?.sendMessage(msg)
         tabLayout.postDelayed({ 
-            watchFilesFragment.refreshList()
             managerFragment.refresh()
         }, 1000)
     }
 
     fun renameWatchFile(oldPath: String, newName: String) {
-        // TODO: Implement RENAME_FILE protocol command
-        Toast.makeText(this, "Rename via protocol not yet implemented", Toast.LENGTH_SHORT).show()
-        // For now, just refresh after a delay
+        // Calculate new path
+        val parentPath = oldPath.substringBeforeLast("/")
+        val newPath = "$parentPath/$newName"
+        
+        val msg = com.ailife.rtosify.ProtocolHelper.createRenameFile(oldPath, newPath)
+        bluetoothService?.sendMessage(msg)
+        tabLayout.postDelayed({ managerFragment.refresh() }, 1000)
+    }
+
+    fun createFolder(path: String) {
+        val msg = com.ailife.rtosify.ProtocolHelper.createCreateFolder(path)
+        bluetoothService?.sendMessage(msg)
         tabLayout.postDelayed({ managerFragment.refresh() }, 1000)
     }
 
@@ -215,6 +228,8 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
                 inputStream.copyTo(output)
             }
             // File saved, will auto-transfer after download complete
+            localFragment.refresh()
+            Toast.makeText(this, "Imported ${fileName}", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(this, "Import failed: ${e.message}", Toast.LENGTH_SHORT).show()
         }
@@ -222,8 +237,8 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
 
     fun applyWatchFace(relPath: String, fileUri: Uri?) {
         // Send command to watch to set watch face via Bluetooth
-        // TODO: Implement createSetWatchFace in ProtocolHelper
-        // bluetoothService?.sendMessage(com.ailife.rtosify.ProtocolHelper.createSetWatchFace(relPath))
+        val msg = com.ailife.rtosify.ProtocolHelper.createSetWatchFace(relPath)
+        bluetoothService?.sendMessage(msg)
         Toast.makeText(this, "Setting watch face: $relPath", Toast.LENGTH_SHORT).show()
     }
 
@@ -271,7 +286,6 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
             val clockSkinPath = "Android/data/com.ailife.ClockSkinCoco/files/ClockSkin"
             if (path == clockSkinPath) {
                 // Root folder
-                watchFilesFragment.updateList(filesJson)
                 managerFragment.updateList(filesJson)
             } else {
                 // Subfolder

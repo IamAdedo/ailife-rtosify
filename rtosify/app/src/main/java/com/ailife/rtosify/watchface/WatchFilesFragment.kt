@@ -95,12 +95,12 @@ class WatchFilesAdapter(private val onDelete: (String) -> Unit) : RecyclerView.A
     class ViewHolder(itemView: View, private val onDelete: (String) -> Unit) : RecyclerView.ViewHolder(itemView) {
         private val tvName: TextView = itemView.findViewById(R.id.tvFileName)
         private val btnApply: Button = itemView.findViewById(R.id.btnApply)
-        private val btnDelete: Button = itemView.findViewById(R.id.btnDelete)
+        private val btnDelete: Button? = itemView.findViewById(R.id.btnDelete)
 
         fun bind(fileName: String) {
             tvName.text = fileName
             btnApply.visibility = View.GONE // Already on watch
-            btnDelete.setOnClickListener { onDelete(fileName) }
+            btnDelete?.setOnClickListener { onDelete(fileName) }
         }
     }
 }

@@ -84,6 +84,8 @@ object MessageType {
     const val MAKE_CALL = "make_call"
     const val SYNC_CALENDAR = "sync_calendar"
     const val SYNC_CONTACTS = "sync_contacts"
+    const val SET_WATCH_FACE = "set_watch_face"
+    const val CREATE_FOLDER = "create_folder"
 }
 
 // Data classes for specific message types
@@ -470,6 +472,18 @@ object ProtocolHelper {
         val data = JsonObject()
         data.add("contacts", gson.toJsonTree(contacts))
         return ProtocolMessage(type = MessageType.SYNC_CONTACTS, data = data)
+    }
+
+    fun createSetWatchFace(facePath: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("facePath", facePath)
+        return ProtocolMessage(type = MessageType.SET_WATCH_FACE, data = data)
+    }
+
+    fun createCreateFolder(path: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("path", path)
+        return ProtocolMessage(type = MessageType.CREATE_FOLDER, data = data)
     }
 
     // Helper to extract data from message

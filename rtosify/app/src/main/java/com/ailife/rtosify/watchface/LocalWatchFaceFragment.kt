@@ -29,19 +29,19 @@ class LocalWatchFaceFragment : Fragment() {
         recyclerView = view.findViewById(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(context)
         
-        adapter = LocalWatchFaceAdapter(mutableListOf(), { file ->
-            // Action on click: Apply to watch
+        adapter = LocalWatchFaceAdapter(mutableListOf()) { file ->
+            // Send to watch
             (activity as? WatchFaceActivity)?.transferWatchFace(file)
-        }, { file ->
-            // Action on delete
-            if (file.exists()) {
-                file.delete()
-                refreshList()
-            }
-        })
+        }
         recyclerView.adapter = adapter
         
-        view.findViewById<Button>(R.id.btnImport).setOnClickListener {
+        // Hide the import button, use FAB instead
+        view.findViewById<Button>(R.id.btnImport).visibility = View.GONE
+        
+        // Setup FAB for importing files
+        val fab = view.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabCreateFolder)
+        fab.setImageResource(android.R.drawable.ic_input_add)
+        fab.setOnClickListener {
             (activity as? WatchFaceActivity)?.pickWatchFaceFromDevice()
         }
 

@@ -11,14 +11,12 @@ import java.io.File
 
 class LocalWatchFaceAdapter(
     private var list: List<File>,
-    private val onApply: (File) -> Unit,
-    private val onDelete: (File) -> Unit
+    private val onSendToWatch: (File) -> Unit
 ) : RecyclerView.Adapter<LocalWatchFaceAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvFileName: TextView = view.findViewById(R.id.tvFileName)
-        val btnApply: Button = view.findViewById(R.id.btnApply)
-        val btnDelete: Button = view.findViewById(R.id.btnDelete)
+        val btnSend: Button = view.findViewById(R.id.btnApply)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -29,8 +27,8 @@ class LocalWatchFaceAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val file = list[position]
         holder.tvFileName.text = file.name
-        holder.btnApply.setOnClickListener { onApply(file) }
-        holder.btnDelete.setOnClickListener { onDelete(file) }
+        holder.btnSend.text = "Send to Watch"
+        holder.btnSend.setOnClickListener { onSendToWatch(file) }
     }
 
     override fun getItemCount() = list.size

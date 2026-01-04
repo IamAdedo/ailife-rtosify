@@ -49,6 +49,8 @@ class WatchFaceManagerAdapter(
 
     fun getAllItems(): List<ManagerItem> = allItems
 
+    fun getItemAt(position: Int): ManagerItem? = displayedItems.getOrNull(position)
+
     override fun getItemViewType(position: Int): Int = if (displayedItems[position] is ManagerItem.Header) 0 else 1
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {

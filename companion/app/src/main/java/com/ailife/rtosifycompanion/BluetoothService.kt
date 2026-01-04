@@ -581,6 +581,8 @@ class BluetoothService : Service() {
                     MessageType.SYNC_CONTACTS -> handleSyncContacts(message)
                     MessageType.RENAME_FILE -> handleRenameFile(message)
                     MessageType.MOVE_FILE -> handleMoveFile(message)
+                    MessageType.SET_WATCH_FACE -> handleSetWatchFace(message)
+                    MessageType.CREATE_FOLDER -> handleCreateFolder(message)
                 }
             }
         } catch (_: IOException) {
@@ -1212,6 +1214,37 @@ class BluetoothService : Service() {
 
         if (success) {
             val parentPath = "/" + (dstFile.parentFile?.let {
+                it.absolutePath.removePrefix(root.absolutePath).removePrefix("/")
+            } ?: "")
+            handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
+        }
+    }
+
+    private suspend fun handleSetWatchFace(message: ProtocolMessage) {
+        val facePath = message.data.get("facePath")?.asString ?: return
+        android.util.Log.d(TAG, "Set watch face requested: $facePath")
+
+        // Send broadcast to change watch face
+        val intent = Intent("com.android.watchengine.changeface")
+        intent.putExtra("faceName", facePath)
+        sendBroadcast(intent)
+        
+        withContext(Dispatchers.Main) {
+            Toast.makeText(this@BluetoothService, "Watch face set: $facePath", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private suspend fun handleCreateFolder(message: ProtocolMessage) {
+        val path = message.data.get("path")?.asString ?: return
+        android.util.Log.d(TAG, "Create folder requested: $path")
+
+        val root = android.os.Environment.getExternalStorageDirectory()
+        val folder = File(root, path.removePrefix("/"))
+
+        val success = folder.mkdirs()
+
+        if (success) {
+            val parentPath = "/" + (folder.parentFile?.let {
                 it.absolutePath.removePrefix(root.absolutePath).removePrefix("/")
             } ?: "")
             handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
