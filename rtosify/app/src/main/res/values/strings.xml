@@ -202,6 +202,9 @@
     <string name="perm_storage">Storage Access</string>
     <string name="perm_storage_desc">Required to browse and manage files.</string>
 
+    <string name="perm_call">Make Phone Calls</string>
+    <string name="perm_call_desc">Required to initiate calls from the watch.</string>
+
     <string name="find_watch_alarm_stop">Stop</string>
     <string name="find_phone_alarm_title">Finding Phone</string>
     <string name="find_phone_alarm_message">The watch is looking for this phone!</string>

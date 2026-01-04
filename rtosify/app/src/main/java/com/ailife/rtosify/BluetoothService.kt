@@ -470,6 +470,7 @@ class BluetoothService : Service() {
                     MessageType.HEALTH_DATA_UPDATE -> handleHealthDataReceived(message)
                     MessageType.RESPONSE_HEALTH_HISTORY -> handleHealthHistoryReceived(message)
                     MessageType.RESPONSE_HEALTH_SETTINGS -> handleHealthSettingsReceived(message)
+                    MessageType.MAKE_CALL -> handleMakeCallCommand(message)
                 }
             }
         } catch (_: IOException) {
@@ -798,10 +799,27 @@ class BluetoothService : Service() {
         // But users can just swipe back. 
         // Or we can send a broadcast to finish it.
         // For now, let's assume user manually closes or we implement a termination broadcast.
-        // Actually, let's implement the finish broadcast for better UX.
-        // But `CameraActivity` doesn't listen for finish yet. 
-        // Let's just launch MainActivity to bring it front or do nothing for now (MVP).
-        // Actually, bringing MainActivity to front might hide Camera.
+    }
+
+    private fun handleMakeCallCommand(message: ProtocolMessage) {
+        val phoneNumber = ProtocolHelper.extractStringField(message, "phoneNumber")
+        if (phoneNumber != null) {
+            initiateCall(phoneNumber)
+        }
+    }
+
+    private fun initiateCall(phoneNumber: String) {
+        val intent = if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+            Intent(Intent.ACTION_CALL).apply {
+                data = Uri.parse("tel:$phoneNumber")
+            }
+        } else {
+            Intent(Intent.ACTION_DIAL).apply {
+                data = Uri.parse("tel:$phoneNumber")
+            }
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
     }
 
     private fun handleCameraShutter() {

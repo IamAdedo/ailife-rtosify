@@ -79,6 +79,7 @@ object MessageType {
     const val UPDATE_HEALTH_SETTINGS = "update_health_settings"
     const val REQUEST_HEALTH_SETTINGS = "request_health_settings"
     const val RESPONSE_HEALTH_SETTINGS = "response_health_settings"
+    const val MAKE_CALL = "make_call"
 }
 
 // Data classes for specific message types
@@ -413,6 +414,12 @@ object ProtocolHelper {
     fun createResponseHealthSettings(settings: HealthSettingsUpdate): ProtocolMessage {
         val data = gson.toJsonTree(settings).asJsonObject
         return ProtocolMessage(type = MessageType.RESPONSE_HEALTH_SETTINGS, data = data)
+    }
+
+    fun createMakeCall(phoneNumber: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("phoneNumber", phoneNumber)
+        return ProtocolMessage(type = MessageType.MAKE_CALL, data = data)
     }
 
     // Helper to extract data from message

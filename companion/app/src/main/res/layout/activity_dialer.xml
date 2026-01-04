@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:background="@android:color/black">
+
+    <TextView
+        android:id="@+id/tv_number"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="24sp"
+        android:textColor="@android:color/white"
+        android:gravity="center"
+        android:maxLines="1"
+        android:ellipsize="start"
+        android:text=""
+        android:layout_marginBottom="4dp"/>
+
+    <GridLayout
+        android:id="@+id/gridLayoutDialer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:columnCount="3"
+        android:rowCount="4">
+
+        <Button android:text="1" style="@style/DialerButton"/>
+        <Button android:text="2" style="@style/DialerButton"/>
+        <Button android:text="3" style="@style/DialerButton"/>
+
+        <Button android:text="4" style="@style/DialerButton"/>
+        <Button android:text="5" style="@style/DialerButton"/>
+        <Button android:text="6" style="@style/DialerButton"/>
+
+        <Button android:text="7" style="@style/DialerButton"/>
+        <Button android:text="8" style="@style/DialerButton"/>
+        <Button android:text="9" style="@style/DialerButton"/>
+
+        <Button android:id="@+id/btn_delete" android:text="DEL" style="@style/DialerButton"/>
+        <Button android:text="0" style="@style/DialerButton"/>
+        <Button android:id="@+id/btn_call" android:text="CALL" style="@style/DialerButton" android:textColor="@android:color/holo_green_light"/>
+
+    </GridLayout>
+
+</LinearLayout>

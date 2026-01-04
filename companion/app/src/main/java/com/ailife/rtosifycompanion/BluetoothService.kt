@@ -885,6 +885,10 @@ class BluetoothService : Service() {
         sendMessage(ProtocolHelper.createSetDnd(enable))
     }
 
+    fun sendMakeCall(phoneNumber: String) {
+        sendMessage(ProtocolHelper.createMakeCall(phoneNumber))
+    }
+
     fun sendMediaCommand(command: String, volume: Int? = null) {
         sendMessage(ProtocolHelper.createMediaControl(command, volume))
     }

@@ -127,7 +127,11 @@ class PermissionActivity : AppCompatActivity() {
         } else {
             checkPerm(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
+
         perms.add(PermissionItem("STORAGE", getString(R.string.perm_storage), getString(R.string.perm_storage_desc), hasStorage))
+        
+        // 13. Call Phone
+        perms.add(PermissionItem("CALL", getString(R.string.perm_call), getString(R.string.perm_call_desc), checkPerm(Manifest.permission.CALL_PHONE)))
 
         adapter.updateList(perms)
     }
@@ -208,6 +212,7 @@ class PermissionActivity : AppCompatActivity() {
                     requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 107)
                 }
             }
+            "CALL" -> requestPermissions(arrayOf(Manifest.permission.CALL_PHONE), 108)
         }
     }
 

@@ -147,4 +147,11 @@
     
     <string name="perm_dnd">Do Not Disturb Access</string>
     <string name="perm_dnd_desc">Required to sync DND status between devices.</string>
+
+    <!-- Dialer -->
+    <string name="menu_dialer">Dialer</string>
+    <string name="menu_dialer_desc">Make phone calls</string>
+    <string name="dialer_call">Call</string>
+    <string name="dialer_delete">Delete</string>
+    <string name="dialer_calling">Calling %s...</string>
 </resources>

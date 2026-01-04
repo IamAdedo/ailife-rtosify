@@ -266,6 +266,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 "Remote Shutter",
                 android.R.drawable.ic_menu_camera,
                 { runIfConnected { startActivity(Intent(this, CameraRemoteActivity::class.java)) } }
+            ),
+            MenuOption(
+                getString(R.string.menu_dialer),
+                getString(R.string.menu_dialer_desc),
+                android.R.drawable.ic_menu_call,
+                { runIfConnected { startActivity(Intent(this, DialerActivity::class.java)) } }
             )
         )
 
@@ -357,6 +363,14 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     "Remote Shutter",
                     android.R.drawable.ic_menu_camera,
                     { runIfConnected { startActivity(Intent(this, CameraRemoteActivity::class.java)) } }
+                )
+            )
+            options.add(
+                MenuOption(
+                    getString(R.string.menu_dialer),
+                    getString(R.string.menu_dialer_desc),
+                    android.R.drawable.ic_menu_call,
+                    { runIfConnected { startActivity(Intent(this, DialerActivity::class.java)) } }
                 )
             )
         }
