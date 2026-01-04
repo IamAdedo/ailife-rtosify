@@ -3,6 +3,8 @@ package com.ailife.rtosify.watchface
 import org.jsoup.Jsoup
 import java.util.concurrent.TimeUnit
 
+import android.util.Log
+
 data class WatchFace(
     val title: String,
     val downloadUrl: String,
@@ -10,73 +12,141 @@ data class WatchFace(
     val category: String = "ClockSkin"
 )
 
+data class ScrapeResult(
+    val faces: List<WatchFace>,
+    val threadId: Int
+)
+
 object WatchFaceScraper {
     private const val BASE_URL = "https://chujalt.com/"
-    
-    // Predefined forum IDs to scrape
-    private val FORUMS = listOf(35, 36, 37, 38) // Cuadradas/Redondas for ClockSkin/Watch
+    private const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 
-    fun scrapeWatchFaces(page: Int = 1): List<WatchFace> {
-        val result = mutableListOf<WatchFace>()
-        
-        for (fid in FORUMS) {
-            try {
-                // MyBB forum list URL: forum-X.html or forumdisplay.php?fid=X&page=Y
-                val url = "${BASE_URL}forum-$fid.html?page=$page"
-                val doc = Jsoup.connect(url)
-                    .timeout(10000)
-                    .userAgent("RTOSify/Android")
-                    .get()
-                
-                // On MyBB, threads are usually in links with class "subject_new" or "subject_old"
-                // Inside <td class="trow1" or trow2>
-                val threads = doc.select("span.subject_new a, span.subject_old a")
-                for (thread in threads) {
-                    val threadUrl = thread.absUrl("href")
-                    val threadTitle = thread.text()
-                    
-                    if (threadUrl.isEmpty()) continue
-                    
-                    // Now we need to visit the thread to get the zip files
-                    // For performance, we might want to do this lazily, but let's do it now for simplicity
-                    val faceDetails = scrapeThreadDetails(threadUrl)
-                    result.addAll(faceDetails)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-        
-        return result
-    }
-
-    private fun scrapeThreadDetails(threadUrl: String): List<WatchFace> {
+    /**
+     * Scrapes watch faces from a specific thread or jb.html.
+     * threadId == -1 -> jb.html
+     * threadId > 0 -> jb/thread-threadId.html
+     */
+    fun scrapeWatchFaces(id: Int): ScrapeResult {
+        Log.d("WatchFaceScraper", "Scraping threadId $id")
         val faces = mutableListOf<WatchFace>()
+        var detectedId = id
+
         try {
-            val doc = Jsoup.connect(threadUrl)
-                .timeout(5000)
-                .userAgent("RTOSify/Android")
+            var url = if (id == -1) {
+                "${BASE_URL}jb.html"
+            } else {
+                "${BASE_URL}jb/thread-$id.html"
+            }
+            Log.d("WatchFaceScraper", "Fetching URL: $url")
+
+            var doc = Jsoup.connect(url)
+                .timeout(10000)
+                .userAgent(USER_AGENT)
+                .followRedirects(true)
                 .get()
             
-            // Look for zip/watch links
-            val links = doc.select("a[href$=.zip], a[href$=.watch]")
-            
-            // Look for any image in the post that might be a preview
-            val previewImg = doc.select("div.post_body img").firstOrNull()?.absUrl("src")
+            Log.d("WatchFaceScraper", "Fetched doc size: ${doc.html().length}")
 
-            for (link in links) {
-                val downloadUrl = link.absUrl("href")
-                val name = link.text().ifEmpty { downloadUrl.substringAfterLast("/") }
+            // Handle META refresh redirect if present
+            val metaRefresh = doc.select("meta[http-equiv=refresh]").firstOrNull()
+            val refreshContent = metaRefresh?.attr("content")
+            if (refreshContent != null) {
+                val urlIndex = refreshContent.indexOf("url=", ignoreCase = true)
+                if (urlIndex != -1) {
+                    val redirectUrl = refreshContent.substring(urlIndex + 4).trim()
+                    if (redirectUrl.isNotEmpty()) {
+                        val finalUrl = if (redirectUrl.startsWith("http")) redirectUrl else {
+                            if (redirectUrl.startsWith("/")) BASE_URL + redirectUrl.removePrefix("/")
+                            else url.substringBeforeLast("/") + "/" + redirectUrl
+                        }
+                        Log.d("WatchFaceScraper", "Following META refresh to: $finalUrl")
+                        
+                        // Detect thread ID from redirect URL
+                        val threadMatch = Regex("thread-(\\d+)").find(finalUrl)
+                        threadMatch?.groupValues?.get(1)?.toIntOrNull()?.let { 
+                            detectedId = it 
+                            Log.d("WatchFaceScraper", "Detected Thread ID from redirect: $detectedId")
+                        }
+
+                        doc = Jsoup.connect(finalUrl)
+                            .timeout(10000)
+                            .userAgent(USER_AGENT)
+                            .followRedirects(true)
+                            .get()
+                        Log.d("WatchFaceScraper", "Fetched redirect doc size: ${doc.html().length}")
+                    }
+                }
+            } else {
+                // Try to detect ID from current URL if no redirect
+                val threadMatch = Regex("thread-(\\d+)").find(doc.baseUri())
+                threadMatch?.groupValues?.get(1)?.toIntOrNull()?.let { detectedId = it }
+            }
+
+            // Improved parsing logic based on parse_watchfaces_improved.py
+            val images = doc.select("img")
+            Log.d("WatchFaceScraper", "Found ${images.size} total images")
+            for (img in images) {
+                val src = img.attr("data-src").ifEmpty { img.attr("src") }
+                if (src.isBlank()) continue
                 
+                if (!src.contains("/watchfaces/")) continue
+
+                // Use absolute URL from Jsoup if possible, or build manually
+                val absoluteImgUrl = img.absUrl("src").ifEmpty {
+                    img.absUrl("data-src").ifEmpty {
+                        if (src.startsWith("http")) src else {
+                            if (src.startsWith("/")) BASE_URL + src.removePrefix("/")
+                            else doc.baseUri().substringBeforeLast("/") + "/" + src
+                        }
+                    }
+                }
+                Log.d("WatchFaceScraper", "Found watchface image: $absoluteImgUrl")
+                
+                // Title cleanup
+                var title = img.attr("alt")
+                    .replace("[Imagen: ", "")
+                    .replace("]", "")
+                    .trim()
+                
+                val filename = absoluteImgUrl.substringAfterLast("/")
+                val nameWithoutExt = filename.substringBeforeLast(".")
+                
+                if (title.isBlank() || title == filename) {
+                    title = nameWithoutExt
+                }
+
+                // Download URL is same as image URL but with .watch extension
+                val downloadUrl = absoluteImgUrl.substringBeforeLast(".") + ".watch"
+
                 faces.add(WatchFace(
-                    title = name,
+                    title = title,
                     downloadUrl = downloadUrl,
-                    previewUrl = previewImg // Use the first found image as preview for all zips in this thread
+                    previewUrl = absoluteImgUrl
                 ))
             }
+
+            // Also look for explicit .watch links as a backup
+            val watchLinks = doc.select("a[href$=.watch]")
+            for (link in watchLinks) {
+                val downloadUrl = link.absUrl("href")
+                val title = link.text().ifEmpty { downloadUrl.substringAfterLast("/").substringBeforeLast(".") }
+                
+                // Avoid duplicates
+                if (faces.none { it.downloadUrl == downloadUrl }) {
+                    faces.add(WatchFace(
+                        title = title,
+                        downloadUrl = downloadUrl,
+                        previewUrl = null
+                    ))
+                }
+            }
+
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("WatchFaceScraper", "Error scraping ID $id", e)
         }
-        return faces
+        
+        val finalFaces = faces.distinctBy { it.downloadUrl }
+        Log.d("WatchFaceScraper", "Scraped ${finalFaces.size} faces from ID $id, detected ID: $detectedId")
+        return ScrapeResult(finalFaces, detectedId)
     }
 }

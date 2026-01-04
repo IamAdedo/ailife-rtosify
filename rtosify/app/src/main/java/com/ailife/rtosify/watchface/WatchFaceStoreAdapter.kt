@@ -36,14 +36,18 @@ class WatchFaceStoreAdapter(
         holder.tvTitle.text = item.title
         holder.btnDownload.setOnClickListener { onDownload(item) }
         
-        // Simple async image loading
+        // Simple async image loading with tag check to avoid mismatches during recycling
         holder.imgPreview.setImageResource(android.R.color.darker_gray)
+        holder.imgPreview.tag = item.previewUrl
+        
         item.previewUrl?.let { url ->
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     val bitmap = BitmapFactory.decodeStream(URL(url).openStream())
                     withContext(Dispatchers.Main) {
-                        holder.imgPreview.setImageBitmap(bitmap)
+                        if (holder.imgPreview.tag == url) {
+                            holder.imgPreview.setImageBitmap(bitmap)
+                        }
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()

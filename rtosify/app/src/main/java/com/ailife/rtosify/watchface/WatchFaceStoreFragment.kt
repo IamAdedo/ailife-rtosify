@@ -20,42 +20,85 @@ class WatchFaceStoreFragment : Fragment() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var adapter: WatchFaceStoreAdapter
-    private var currentPage = 1
+    private var lastThreadId = -1
+    private var isLoading = false
+    private var isEndReached = false
+    private var consecutiveFailures = 0
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater.inflate(R.layout.fragment_watch_face_store, container, false)
         
         swipeRefresh = view.findViewById(R.id.swipeRefresh)
         recyclerView = view.findViewById(R.id.recyclerView)
-        recyclerView.layoutManager = GridLayoutManager(context, 2)
+        val layoutManager = GridLayoutManager(context, 2)
+        recyclerView.layoutManager = layoutManager
         
         adapter = WatchFaceStoreAdapter(mutableListOf()) { watchFace ->
-            // Download watch face
             (activity as? WatchFaceActivity)?.downloadWatchFace(watchFace)
         }
         recyclerView.adapter = adapter
         
+        recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                if (dy > 0 && !isLoading && !isEndReached) {
+                    val visibleItemCount = layoutManager.childCount
+                    val totalItemCount = layoutManager.itemCount
+                    val pastVisibleItems = layoutManager.findFirstVisibleItemPosition()
+
+                    if (visibleItemCount + pastVisibleItems >= totalItemCount - 2) {
+                        loadStore(lastThreadId + 1)
+                    }
+                }
+            }
+        })
+
         swipeRefresh.setOnRefreshListener {
-            loadStore(1)
+            lastThreadId = -1
+            isEndReached = false
+            consecutiveFailures = 0
+            loadStore(-1)
         }
 
-        loadStore(1)
+        loadStore(-1)
         
         return view
     }
 
-    private fun loadStore(page: Int) {
-        swipeRefresh.isRefreshing = true
+    private fun loadStore(threadId: Int) {
+        if (isLoading || isEndReached) return
+        
+        isLoading = true
+        if (threadId == -1) swipeRefresh.isRefreshing = true
+        
         lifecycleScope.launch(Dispatchers.IO) {
-            val faces = WatchFaceScraper.scrapeWatchFaces(page)
+            val result = WatchFaceScraper.scrapeWatchFaces(threadId)
             withContext(Dispatchers.Main) {
+                isLoading = false
                 swipeRefresh.isRefreshing = false
-                if (faces.isEmpty()) {
-                    Toast.makeText(context, R.string.wf_error_load, Toast.LENGTH_SHORT).show()
+                
+                if (result.faces.isEmpty()) {
+                    consecutiveFailures++
+                    android.util.Log.d("WatchFaceStore", "Thread $threadId empty. Failures: $consecutiveFailures")
+                    if (consecutiveFailures >= 3) {
+                        isEndReached = true
+                        android.util.Log.d("WatchFaceStore", "End reached after 3 failures")
+                    }
+                    // Try next thread automatically if we haven't reached the end
+                    if (!isEndReached) {
+                        loadStore(threadId + 1)
+                    }
                 } else {
-                    if (page == 1) adapter.setList(faces)
-                    else adapter.appendList(faces)
-                    currentPage = page
+                    consecutiveFailures = 0 // Reset failures on success
+                    android.util.Log.d("WatchFaceStore", "Adding ${result.faces.size} faces from thread ${result.threadId}")
+                    
+                    if (threadId == -1) {
+                        android.util.Log.d("WatchFaceStore", "Initial load, calling setList")
+                        adapter.setList(result.faces)
+                    } else {
+                        android.util.Log.d("WatchFaceStore", "Incremental load, calling appendList")
+                        adapter.appendList(result.faces)
+                    }
+                    lastThreadId = result.threadId
                 }
             }
         }
