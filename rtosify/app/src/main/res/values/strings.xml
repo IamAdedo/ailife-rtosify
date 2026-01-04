@@ -232,6 +232,7 @@
     <string name="wf_title">Watch Face Manager</string>
     <string name="wf_tab_store">Store</string>
     <string name="wf_tab_local">Local</string>
+    <string name="wf_tab_watch">Watch</string>
     <string name="wf_download">Download</string>
     <string name="wf_apply">Apply to Watch</string>
     <string name="wf_delete">Delete</string>

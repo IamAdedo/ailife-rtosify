@@ -1223,7 +1223,7 @@ class BluetoothService : Service() {
             try {
                 // Define target dir
                 val root = android.os.Environment.getExternalStorageDirectory()
-                val clockSkinDir = File(root, "ClockSkin")
+                val clockSkinDir = File(root, "Android/data/com.ailife.ClockSkinCoco/files/ClockSkin")
                 if (!clockSkinDir.exists()) clockSkinDir.mkdirs()
 
                 // Keep extension, do not extract

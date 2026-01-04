@@ -1,74 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="24dp">
+    android:padding="20dp">
 
-    <!-- Ícone de Upload/Sucesso -->
+    <TextView
+        android:id="@+id/tvUploadTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Transfer Status"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
     <ImageView
         android:id="@+id/imgUploadIcon"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:src="@android:drawable/stat_sys_upload"
-        app:tint="@color/upload"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="16dp"/>
+        android:layout_gravity="center"
+        android:src="@android:drawable/ic_menu_upload"
+        android:layout_marginBottom="16dp" />
 
-    <!-- Título -->
-    <TextView
-        android:id="@+id/tvUploadTitle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Uploading APK"
-        android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
-        android:textColor="?android:attr/textColorPrimary"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="8dp"/>
-
-    <!-- Descrição -->
     <TextView
         android:id="@+id/tvUploadDescription"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Transferindo arquivo para o Watch..."
-        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-        android:textColor="?android:attr/textColorSecondary"
-        android:layout_gravity="center_horizontal"
-        android:textAlignment="center"
-        android:layout_marginBottom="24dp"/>
+        android:text="Transferring file..."
+        android:textSize="16sp"
+        android:layout_marginBottom="16dp" />
 
-    <!-- Barra de Progresso -->
     <ProgressBar
         android:id="@+id/progressBarUpload"
         style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:max="100"
-        android:progress="0"
-        android:layout_marginBottom="8dp"/>
+        android:max="100" />
 
-    <!-- Porcentagem -->
-    <TextView
-        android:id="@+id/tvUploadPercentage"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="0%"
-        android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-        android:textColor="?android:attr/textColorPrimary"
-        android:textStyle="bold"
-        android:layout_gravity="center_horizontal"/>
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp">
 
-    <!-- Botão OK (invisível inicialmente) -->
-    <Button
-        android:id="@+id/btnUploadOk"
-        style="@style/Widget.Material3.Button.TextButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="OK"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginTop="16dp"
-        android:visibility="gone"/>
+        <TextView
+            android:id="@+id/tvUploadPercentage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="0%" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+
+        <Button
+            android:id="@+id/btnUploadOk"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="OK"
+            android:visibility="gone" />
+    </LinearLayout>
 
 </LinearLayout>

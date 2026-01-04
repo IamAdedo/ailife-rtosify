@@ -535,7 +535,7 @@ class BluetoothService : Service() {
         sendMessage(ProtocolHelper.createUpdateSettings(SettingsUpdateData(notifyOnDisconnect = notifyOnDisconnect)))
     }
 
-    private fun sendMessage(message: ProtocolMessage) {
+    fun sendMessage(message: ProtocolMessage) {
         serviceScope.launch(Dispatchers.IO) {
             if (!isConnected) return@launch
             val out = globalOutputStream ?: return@launch

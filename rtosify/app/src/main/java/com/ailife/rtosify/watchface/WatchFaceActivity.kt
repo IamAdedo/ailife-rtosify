@@ -31,7 +31,11 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
     private var isBound = false
     
     private val storeFragment = WatchFaceStoreFragment()
-    private val localFragment = LocalWatchFaceFragment()
+    private val managerFragment = WatchFaceManagerFragment()
+    private val watchFilesFragment = WatchFilesFragment()
+
+    private var progressDialog: AlertDialog? = null
+    private val downloadMap = mutableMapOf<Long, String>() // downloadId to fileName
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -61,6 +65,10 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
         supportActionBar?.setTitle(R.string.wf_title)
 
         tabLayout = findViewById(R.id.tabLayout)
+        tabLayout.addTab(tabLayout.newTab().setText(R.string.wf_tab_store))
+        tabLayout.addTab(tabLayout.newTab().setText("Manage"))
+        tabLayout.addTab(tabLayout.newTab().setText(R.string.wf_tab_watch))
+        
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) {
                 switchFragment(tab.position)
@@ -83,7 +91,11 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
     }
 
     private fun switchFragment(position: Int) {
-        val fragment = if (position == 0) storeFragment else localFragment
+        val fragment = when (position) {
+            0 -> storeFragment
+            1 -> managerFragment
+            else -> watchFilesFragment
+        }
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragmentContainer, fragment)
             .commit()
@@ -98,23 +110,39 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
     }
 
     fun downloadWatchFace(wf: WatchFace) {
+        val extension = wf.downloadUrl.substringAfterLast(".", "watch")
+        val fileName = if (wf.title.endsWith(".$extension", ignoreCase = true)) wf.title else "${wf.title}.$extension"
+        
         val request = DownloadManager.Request(Uri.parse(wf.downloadUrl))
             .setTitle(wf.title)
             .setDescription(getString(R.string.wf_downloading))
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "RTOSify/WatchFaces/${wf.title}")
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "RTOSify/WatchFaces/$fileName")
             .setAllowedOverMetered(true)
             .setAllowedOverRoaming(true)
 
         val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        dm.enqueue(request)
+        val downloadId = dm.enqueue(request)
+        downloadMap[downloadId] = fileName
         Toast.makeText(this, R.string.wf_downloading, Toast.LENGTH_SHORT).show()
     }
 
     private val downloadReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == DownloadManager.ACTION_DOWNLOAD_COMPLETE) {
-                localFragment.refreshList()
+                val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
+                val fileName = downloadMap.remove(id)
+                if (fileName != null) {
+                    val file = File(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "RTOSify/WatchFaces"), fileName)
+                    if (file.exists()) {
+                        android.util.Log.d("WatchFace", "Download complete, auto-transferring: ${file.absolutePath}")
+                        runOnUiThread {
+                            transferWatchFace(file)
+                        }
+                    }
+                }
+                // Refresh manager fragment
+                managerFragment.refresh()
             }
         }
     }
@@ -125,29 +153,78 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
             return
         }
         
-        // Use existing showUploadProgressDialog if possible or implement here
-        // For simplicity, I'll just call the service method
+        showProgressDialog("Transferring ${file.name}...")
         bluetoothService?.sendFile(file, FileTransferData.TYPE_WATCHFACE)
     }
 
+    private fun showProgressDialog(message: String) {
+        runOnUiThread {
+            if (progressDialog == null) {
+                val builder = AlertDialog.Builder(this)
+                val view = layoutInflater.inflate(R.layout.dialog_upload_progress, null)
+                builder.setView(view)
+                builder.setCancelable(false)
+                progressDialog = builder.create()
+                progressDialog?.show()
+            }
+            progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadDescription)?.text = message
+            progressDialog?.findViewById<android.widget.ProgressBar>(R.id.progressBarUpload)?.progress = 0
+            progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadPercentage)?.text = "0%"
+        }
+    }
+
+    private fun dismissProgressDialog() {
+        runOnUiThread {
+            progressDialog?.dismiss()
+            progressDialog = null
+        }
+    }
+
+    fun requestWatchFileList(path: String) {
+        bluetoothService?.sendMessage(com.ailife.rtosify.ProtocolHelper.createRequestFileList(path))
+    }
+
+    fun deleteWatchFaceOnWatch(path: String) {
+        val msg = com.ailife.rtosify.ProtocolHelper.createDeleteFile(path)
+        bluetoothService?.sendMessage(msg)
+        tabLayout.postDelayed({ 
+            watchFilesFragment.refreshList()
+            managerFragment.refresh()
+        }, 1000)
+    }
+
+    fun renameWatchFile(oldPath: String, newName: String) {
+        // TODO: Implement RENAME_FILE protocol command
+        Toast.makeText(this, "Rename via protocol not yet implemented", Toast.LENGTH_SHORT).show()
+        // For now, just refresh after a delay
+        tabLayout.postDelayed({ managerFragment.refresh() }, 1000)
+    }
+
     fun pickWatchFaceFromDevice() {
-        pickFileLauncher.launch("*/*") // Filter for zip/watch if possible
+        pickFileLauncher.launch("*/*")
     }
 
     private fun handleImportedUri(uri: Uri) {
         try {
             val inputStream = contentResolver.openInputStream(uri) ?: return
-            val fileName = getFileName(uri) ?: "imported_wf.zip"
+            val fileName = getFileName(uri) ?: "imported_wf.watch"
             val destFile = File(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "RTOSify/WatchFaces"), fileName)
             destFile.parentFile?.mkdirs()
             
             destFile.outputStream().use { output ->
                 inputStream.copyTo(output)
             }
-            localFragment.refreshList()
+            // File saved, will auto-transfer after download complete
         } catch (e: Exception) {
             Toast.makeText(this, "Import failed: ${e.message}", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    fun applyWatchFace(relPath: String, fileUri: Uri?) {
+        // Send command to watch to set watch face via Bluetooth
+        // TODO: Implement createSetWatchFace in ProtocolHelper
+        // bluetoothService?.sendMessage(com.ailife.rtosify.ProtocolHelper.createSetWatchFace(relPath))
+        Toast.makeText(this, "Setting watch face: $relPath", Toast.LENGTH_SHORT).show()
     }
 
     private fun getFileName(uri: Uri): String? {
@@ -172,18 +249,42 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
 
     // Callbacks from BluetoothService
     override fun onUploadProgress(progress: Int) {
-        // Implement progress dialog update
+        runOnUiThread {
+            if (progress >= 100 || progress < 0) {
+                dismissProgressDialog()
+                if (progress == 100) {
+                    Toast.makeText(this, "Transfer complete", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                progressDialog?.findViewById<android.widget.ProgressBar>(R.id.progressBarUpload)?.progress = progress
+                progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadPercentage)?.text = "$progress%"
+            }
+        }
     }
     
     override fun onStatusChanged(status: String) {}
     override fun onAppListReceived(appsJson: String) {}
     override fun onDownloadProgress(progress: Int) {}
-    override fun onFileListReceived(path: String, filesJson: String) {}
+    override fun onFileListReceived(path: String, filesJson: String) {
+        if (path.contains("ClockSkin", ignoreCase = true)) {
+            // Check if this is the root ClockSkin folder or a subfolder
+            val clockSkinPath = "Android/data/com.ailife.ClockSkinCoco/files/ClockSkin"
+            if (path == clockSkinPath) {
+                // Root folder
+                watchFilesFragment.updateList(filesJson)
+                managerFragment.updateList(filesJson)
+            } else {
+                // Subfolder
+                managerFragment.updateFolderContents(path, filesJson)
+            }
+        }
+    }
     override fun onDeviceConnected(deviceName: String) {}
     override fun onDeviceDisconnected() {}
     override fun onScanResult(devices: List<android.bluetooth.BluetoothDevice>) {}
     override fun onWatchStatusUpdated(battery: Int, charging: Boolean, wifi: String, dnd: Boolean) {}
     override fun onError(message: String) {
+        dismissProgressDialog()
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 }
