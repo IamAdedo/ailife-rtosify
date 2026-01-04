@@ -26,11 +26,15 @@ import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.github.mikephil.charting.charts.LineChart
+import com.github.mikephil.charting.charts.BarChart
 import com.github.mikephil.charting.components.LimitLine
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.Entry
+import com.github.mikephil.charting.data.BarEntry
 import com.github.mikephil.charting.data.LineData
+import com.github.mikephil.charting.data.BarData
 import com.github.mikephil.charting.data.LineDataSet
+import com.github.mikephil.charting.data.BarDataSet
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButtonToggleGroup
@@ -69,6 +73,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
 
     // Chart and Stats
     private lateinit var chart: LineChart
+    private lateinit var barChart: BarChart
     private lateinit var tvEmptyData: TextView
     private lateinit var layoutStats: LinearLayout
     private lateinit var tvMinValue: TextView
@@ -164,6 +169,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         tvGoalProgress = findViewById(R.id.tvGoalProgress)
 
         chart = findViewById(R.id.chart)
+        barChart = findViewById(R.id.barChart)
         tvEmptyData = findViewById(R.id.tvEmptyData)
         layoutStats = findViewById(R.id.layoutStats)
         tvMinValue = findViewById(R.id.tvMinValue)
@@ -189,6 +195,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     }
 
     private fun setupChart() {
+        // Line Chart Configuration
         chart.apply {
             description.isEnabled = false
             setTouchEnabled(true)
@@ -197,7 +204,6 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             setPinchZoom(true)
             setDrawGridBackground(false)
 
-            // X-axis configuration
             xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
                 setDrawGridLines(true)
@@ -205,7 +211,6 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
                 textColor = ContextCompat.getColor(this@HealthDetailActivity, android.R.color.white)
             }
 
-            // Y-axis configuration
             axisLeft.apply {
                 setDrawGridLines(true)
                 axisMinimum = 0f
@@ -213,7 +218,35 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             }
             axisRight.isEnabled = false
 
-            // Legend
+            legend.apply {
+                isEnabled = true
+                textColor = ContextCompat.getColor(this@HealthDetailActivity, android.R.color.white)
+            }
+        }
+
+        // Bar Chart Configuration
+        barChart.apply {
+            description.isEnabled = false
+            setTouchEnabled(true)
+            isDragEnabled = true
+            setScaleEnabled(true)
+            setPinchZoom(true)
+            setDrawGridBackground(false)
+
+            xAxis.apply {
+                position = XAxis.XAxisPosition.BOTTOM
+                setDrawGridLines(false)
+                granularity = 1f
+                textColor = ContextCompat.getColor(this@HealthDetailActivity, android.R.color.white)
+            }
+
+            axisLeft.apply {
+                setDrawGridLines(true)
+                axisMinimum = 0f
+                textColor = ContextCompat.getColor(this@HealthDetailActivity, android.R.color.white)
+            }
+            axisRight.isEnabled = false
+
             legend.apply {
                 isEnabled = true
                 textColor = ContextCompat.getColor(this@HealthDetailActivity, android.R.color.white)
@@ -222,7 +255,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     }
 
     private fun updateChartXAxisFormatter() {
-        chart.xAxis.valueFormatter = object : ValueFormatter() {
+        val formatter = object : ValueFormatter() {
             private val dateFormat = when (currentPeriod) {
                 Period.DAY -> SimpleDateFormat("HH:mm", Locale.getDefault())
                 Period.WEEK, Period.MONTH -> SimpleDateFormat("MM/dd", Locale.getDefault())
@@ -232,7 +265,8 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
                 return dateFormat.format(Date(value.toLong() * 1000))
             }
         }
-        chart.invalidate()
+        chart.xAxis.valueFormatter = formatter
+        barChart.xAxis.valueFormatter = formatter
     }
 
     private fun setupPeriodToggle() {
@@ -386,62 +420,27 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
 
         if (historyData.dataPoints.isEmpty()) {
             chart.visibility = View.GONE
+            barChart.visibility = View.GONE
             tvEmptyData.visibility = View.VISIBLE
             layoutStats.visibility = View.GONE
             tvEmptyData.text = getString(R.string.health_no_data)
             return
         }
 
-        chart.visibility = View.VISIBLE
         tvEmptyData.visibility = View.GONE
         layoutStats.visibility = View.VISIBLE
 
-        // FIX: Add start and end points to ensure proper graph range
-        val (startTime, endTime) = getTimeRange()
-        val dataPoints = historyData.dataPoints.toMutableList()
-
-        // Add start point if no data at the beginning
-        if (dataPoints.isEmpty() || dataPoints.first().timestamp > startTime) {
-            dataPoints.add(0, HealthDataPoint(startTime, 0f))
+        if (healthType == "STEPS") {
+            chart.visibility = View.GONE
+            barChart.visibility = View.VISIBLE
+            updateBarChart(historyData)
+        } else {
+            chart.visibility = View.VISIBLE
+            barChart.visibility = View.GONE
+            updateLineChart(historyData)
         }
 
-        // Add end point if no data at the end
-        if (dataPoints.isEmpty() || dataPoints.last().timestamp < endTime) {
-            dataPoints.add(HealthDataPoint(endTime, 0f))
-        }
-
-        // Convert data points to chart entries
-        val entries = dataPoints.map { point ->
-            Entry(point.timestamp.toFloat(), point.value)
-        }
-
-        val dataSet = LineDataSet(entries, getChartLabel()).apply {
-            color = getChartColor()
-            setCircleColor(getChartColor())
-            lineWidth = 2f
-            circleRadius = 3f
-            setDrawCircleHole(false)
-            valueTextSize = 0f // Hide values on points
-            mode = LineDataSet.Mode.LINEAR
-        }
-
-        chart.data = LineData(dataSet)
-
-        // Add goal line for steps
-        if (healthType == "STEPS" && currentGoal != null) {
-            val limitLine = LimitLine(currentGoal!!.toFloat(), getString(R.string.health_daily_goal))
-            limitLine.lineWidth = 2f
-            limitLine.lineColor = Color.GREEN
-            limitLine.enableDashedLine(10f, 10f, 0f)
-            limitLine.labelPosition = LimitLine.LimitLabelPosition.RIGHT_TOP
-            limitLine.textColor = Color.WHITE
-            chart.axisLeft.removeAllLimitLines()
-            chart.axisLeft.addLimitLine(limitLine)
-        }
-
-        chart.invalidate()
-
-        // Update stats (exclude the added start/end points)
+        // Update stats (using raw data points)
         updateStats(historyData.dataPoints)
 
         // Update type-specific cards
@@ -449,6 +448,92 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             "STEPS" -> updateStepCards(historyData.dataPoints)
             "HEART_RATE", "OXYGEN" -> updateCurrentValueCard()
         }
+    }
+
+    private fun updateLineChart(historyData: HealthHistoryResponse) {
+        val (startTime, endTime) = getTimeRange()
+        val dataPoints = historyData.dataPoints.toMutableList()
+
+        val minLevel = when (healthType) {
+            "HEART_RATE" -> 40f
+            "OXYGEN" -> 80f
+            else -> 0f
+        }
+
+        chart.axisLeft.axisMinimum = minLevel
+
+        if (dataPoints.isEmpty() || dataPoints.first().timestamp > startTime) {
+            dataPoints.add(0, HealthDataPoint(startTime, minLevel))
+        }
+        if (dataPoints.isEmpty() || dataPoints.last().timestamp < endTime) {
+            dataPoints.add(HealthDataPoint(endTime, minLevel))
+        }
+
+        val entries = dataPoints.map { point ->
+            Entry(point.timestamp.toFloat(), point.value)
+        }
+
+        val dataSet = LineDataSet(entries, getChartLabel()).apply {
+            color = getChartColor()
+            setDrawCircles(false)
+            lineWidth = 2f
+            valueTextSize = 0f
+            mode = LineDataSet.Mode.CUBIC_BEZIER
+        }
+
+        chart.data = LineData(dataSet)
+        chart.invalidate()
+    }
+
+    private fun updateBarChart(historyData: HealthHistoryResponse) {
+        val (startTime, _) = getTimeRange()
+        
+        val (bucketCount, bucketSizeSeconds) = when (currentPeriod) {
+            Period.DAY -> Pair(24, 3600L)
+            Period.WEEK -> Pair(7, 86400L)
+            Period.MONTH -> Pair(30, 86400L)
+        }
+
+        val buckets = FloatArray(bucketCount) { 0f }
+        
+        for (point in historyData.dataPoints) {
+            val offset = point.timestamp - startTime
+            if (offset >= 0) {
+                val index = (offset / bucketSizeSeconds).toInt()
+                if (index in 0 until bucketCount) {
+                    buckets[index] += point.value
+                }
+            }
+        }
+
+        val entries = ArrayList<BarEntry>()
+        for (i in 0 until bucketCount) {
+            val timestamp = startTime + (i * bucketSizeSeconds)
+            entries.add(BarEntry(timestamp.toFloat(), buckets[i]))
+        }
+
+        val dataSet = BarDataSet(entries, getChartLabel()).apply {
+            color = getChartColor()
+            valueTextSize = 0f
+        }
+
+        // Add goal line for steps
+        barChart.axisLeft.removeAllLimitLines()
+        if (currentGoal != null) {
+            val limitLine = LimitLine(currentGoal!!.toFloat(), getString(R.string.health_daily_goal))
+            limitLine.lineWidth = 2f
+            limitLine.lineColor = Color.GREEN
+            limitLine.enableDashedLine(10f, 10f, 0f)
+            limitLine.labelPosition = LimitLine.LimitLabelPosition.RIGHT_TOP
+            limitLine.textColor = Color.WHITE
+            barChart.axisLeft.addLimitLine(limitLine)
+        }
+
+        barChart.data = BarData(dataSet).apply {
+            barWidth = bucketSizeSeconds.toFloat() * 0.8f
+        }
+        
+        barChart.invalidate()
     }
 
     private fun updateStats(dataPoints: List<HealthDataPoint>) {
