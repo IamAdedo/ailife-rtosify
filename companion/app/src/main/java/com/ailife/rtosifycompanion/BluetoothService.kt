@@ -572,6 +572,7 @@ class BluetoothService : Service() {
                     MessageType.START_LIVE_MEASUREMENT -> handleStartLiveMeasurement(message)
                     MessageType.STOP_LIVE_MEASUREMENT -> handleStopLiveMeasurement()
                     MessageType.UPDATE_HEALTH_SETTINGS -> handleUpdateHealthSettings(message)
+                    MessageType.REQUEST_HEALTH_SETTINGS -> handleRequestHealthSettings()
                 }
             }
         } catch (_: IOException) {
@@ -792,14 +793,14 @@ class BluetoothService : Service() {
     private fun startLiveMeasurementMode(type: String) {
         liveMeasurementJob?.cancel()
         liveMeasurementJob = serviceScope.launch(Dispatchers.IO) {
-            while (isActive && isConnected) {
-                try {
-                    val healthData = healthDataCollector.measureNow(type)
-                    sendMessage(ProtocolHelper.createHealthDataUpdate(healthData))
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error in live measurement: ${e.message}")
-                }
-                delay(1000) // 1 second for live updates
+            try {
+                // Perform one high-priority measurement (can take up to 60s)
+                val healthData = healthDataCollector.measureNow(type)
+                sendMessage(ProtocolHelper.createHealthDataUpdate(healthData))
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in live measurement: ${e.message}")
+            } finally {
+                liveMeasurementJob = null
             }
         }
     }
@@ -841,6 +842,17 @@ class BluetoothService : Service() {
             healthDataCollector.updateHealthSettings(settings)
         } catch (e: Exception) {
             Log.e(TAG, "Error updating health settings: ${e.message}")
+        }
+    }
+
+    private suspend fun handleRequestHealthSettings() {
+        try {
+            Log.d(TAG, "Reading current health settings")
+            val settings = healthDataCollector.readHealthSettings()
+            val response = ProtocolHelper.createResponseHealthSettings(settings)
+            sendMessage(response)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading health settings: ${e.message}")
         }
     }
 

@@ -123,6 +123,7 @@ class BluetoothService : Service() {
         fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, dndEnabled: Boolean) {}
         fun onHealthDataUpdated(healthData: HealthDataUpdate) {}
         fun onHealthHistoryReceived(historyData: HealthHistoryResponse) {}
+        fun onHealthSettingsReceived(settings: HealthSettingsUpdate) {}
     }
 
     var callback: ServiceCallback? = null
@@ -468,6 +469,7 @@ class BluetoothService : Service() {
                     MessageType.RESPONSE_FILE_LIST -> handleResponseFileList(message)
                     MessageType.HEALTH_DATA_UPDATE -> handleHealthDataReceived(message)
                     MessageType.RESPONSE_HEALTH_HISTORY -> handleHealthHistoryReceived(message)
+                    MessageType.RESPONSE_HEALTH_SETTINGS -> handleHealthSettingsReceived(message)
                 }
             }
         } catch (_: IOException) {
@@ -672,6 +674,17 @@ class BluetoothService : Service() {
         }
     }
 
+    private suspend fun handleHealthSettingsReceived(message: ProtocolMessage) {
+        try {
+            val settings = ProtocolHelper.extractData<HealthSettingsUpdate>(message)
+            withContext(Dispatchers.Main) {
+                callback?.onHealthSettingsReceived(settings)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing health settings: ${e.message}")
+        }
+    }
+
     fun requestHealthData() {
         sendMessage(ProtocolHelper.createRequestHealthData())
     }
@@ -692,6 +705,10 @@ class BluetoothService : Service() {
 
     fun updateHealthSettings(settings: HealthSettingsUpdate) {
         sendMessage(ProtocolHelper.createUpdateHealthSettings(settings))
+    }
+
+    fun requestHealthSettings() {
+        sendMessage(ProtocolHelper.createRequestHealthSettings())
     }
 
     fun sendDndCommand(enable: Boolean) {

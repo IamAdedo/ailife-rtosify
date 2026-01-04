@@ -77,6 +77,8 @@ object MessageType {
     const val START_LIVE_MEASUREMENT = "start_live_measurement"
     const val STOP_LIVE_MEASUREMENT = "stop_live_measurement"
     const val UPDATE_HEALTH_SETTINGS = "update_health_settings"
+    const val REQUEST_HEALTH_SETTINGS = "request_health_settings"
+    const val RESPONSE_HEALTH_SETTINGS = "response_health_settings"
 }
 
 // Data classes for specific message types
@@ -200,7 +202,8 @@ data class HealthSettingsUpdate(
     val age: Int? = null,
     val gender: String? = null,
     val height: Int? = null,               // cm
-    val weight: Float? = null              // kg
+    val weight: Float? = null,             // kg
+    val errorState: String? = null
 )
 
 data class FileChunkData(
@@ -408,6 +411,15 @@ object ProtocolHelper {
     fun createUpdateHealthSettings(settings: HealthSettingsUpdate): ProtocolMessage {
         val data = gson.toJsonTree(settings).asJsonObject
         return ProtocolMessage(type = MessageType.UPDATE_HEALTH_SETTINGS, data = data)
+    }
+
+    fun createRequestHealthSettings(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.REQUEST_HEALTH_SETTINGS)
+    }
+
+    fun createResponseHealthSettings(settings: HealthSettingsUpdate): ProtocolMessage {
+        val data = gson.toJsonTree(settings).asJsonObject
+        return ProtocolMessage(type = MessageType.RESPONSE_HEALTH_SETTINGS, data = data)
     }
 
     // Helper to extract data from message

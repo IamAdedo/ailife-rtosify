@@ -85,6 +85,15 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     private var currentGoal: Int? = null
     private var lastHealthData: HealthDataUpdate? = null
 
+    // Settings Dialog Views (for populating when settings are received)
+    private var settingsDialogAge: EditText? = null
+    private var settingsDialogGender: Spinner? = null
+    private var settingsDialogHeight: EditText? = null
+    private var settingsDialogWeight: EditText? = null
+    private var settingsDialogStepGoal: EditText? = null
+    private var settingsDialogInterval: EditText? = null
+    private var settingsDialogBackground: SwitchCompat? = null
+
     // Service Binding
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
@@ -322,7 +331,11 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             else -> "STEP"
         }
 
+        // Request historical data for the chart
         bluetoothService?.requestHealthHistory(type, startTime, endTime)
+
+        // Also request current health data to populate the current value card (HR/Oxygen)
+        bluetoothService?.requestHealthData()
     }
 
     private fun getTimeRange(): Pair<Long, Long> {
@@ -350,7 +363,9 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         bluetoothService?.startLiveMeasurement(type)
         isLiveMeasuring = true
 
-        // Update button text
+        // Update UI
+        tvCurrentValue.text = "--"
+        tvLastMeasured.text = getString(R.string.health_measuring)
         btnMeasureNow.text = "Stop"
         Toast.makeText(this, getString(R.string.health_measuring), Toast.LENGTH_SHORT).show()
     }
@@ -567,9 +582,17 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         val etInterval = dialogView.findViewById<EditText>(R.id.etMonitoringInterval)
         val switchBackground = dialogView.findViewById<SwitchCompat>(R.id.switchBackgroundMonitoring)
 
-        // TODO: Request current settings from watch and populate fields
-        // For now, pre-populate with current goal if available
-        currentGoal?.let { etStepGoal.setText(it.toString()) }
+        // Store references for population when settings are received
+        settingsDialogAge = etAge
+        settingsDialogGender = spinnerGender
+        settingsDialogHeight = etHeight
+        settingsDialogWeight = etWeight
+        settingsDialogStepGoal = etStepGoal
+        settingsDialogInterval = etInterval
+        settingsDialogBackground = switchBackground
+
+        // Request current settings from watch
+        bluetoothService?.requestHealthSettings()
 
         // Show/hide step goal based on type
         dialogView.findViewById<View>(R.id.layoutStepGoal).visibility =
@@ -592,9 +615,29 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
                 )
                 bluetoothService?.updateHealthSettings(settings)
                 Toast.makeText(this, getString(R.string.toast_command_sent), Toast.LENGTH_SHORT).show()
+
+                // Clear dialog view references
+                clearSettingsDialogReferences()
             }
-            .setNegativeButton(android.R.string.cancel, null)
+            .setNegativeButton(android.R.string.cancel) { _, _ ->
+                // Clear dialog view references
+                clearSettingsDialogReferences()
+            }
+            .setOnDismissListener {
+                // Clear dialog view references when dismissed
+                clearSettingsDialogReferences()
+            }
             .show()
+    }
+
+    private fun clearSettingsDialogReferences() {
+        settingsDialogAge = null
+        settingsDialogGender = null
+        settingsDialogHeight = null
+        settingsDialogWeight = null
+        settingsDialogStepGoal = null
+        settingsDialogInterval = null
+        settingsDialogBackground = null
     }
 
     // ServiceCallback implementations
@@ -629,6 +672,10 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
                 else -> null
             } ?: return@runOnUiThread
 
+            // Stop measuring state since we received the stable value
+            isLiveMeasuring = false
+            btnMeasureNow.text = "Measure"
+
             // Add live data point to chart
             val timestamp = System.currentTimeMillis() / 1000
             val newEntry = Entry(timestamp.toFloat(), value)
@@ -639,6 +686,33 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
                 data.notifyDataChanged()
                 chart.notifyDataSetChanged()
                 chart.invalidate()
+            }
+        }
+    }
+
+    override fun onHealthSettingsReceived(settings: HealthSettingsUpdate) {
+        runOnUiThread {
+            if (settings.errorState == "PERMISSION_DENIED") {
+                Toast.makeText(this, "Please enable 'Settings API' in the health app settings", Toast.LENGTH_LONG).show()
+                return@runOnUiThread
+            }
+
+            // Populate settings dialog if it's open
+            settingsDialogAge?.setText(settings.age?.toString() ?: "")
+            settingsDialogHeight?.setText(settings.height?.toString() ?: "")
+            settingsDialogWeight?.setText(settings.weight?.toString() ?: "")
+            settingsDialogStepGoal?.setText(settings.stepGoal?.toString() ?: "")
+            settingsDialogInterval?.setText(settings.interval?.toString() ?: "")
+            settingsDialogBackground?.isChecked = settings.backgroundEnabled ?: false
+
+            // Set gender spinner selection
+            settings.gender?.let { gender ->
+                val genderIndex = when (gender) {
+                    "Male" -> 0
+                    "Female" -> 1
+                    else -> 2 // Other
+                }
+                settingsDialogGender?.setSelection(genderIndex)
             }
         }
     }

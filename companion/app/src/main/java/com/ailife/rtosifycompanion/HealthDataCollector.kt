@@ -30,7 +30,7 @@ class HealthDataCollector(private val context: Context) {
         private const val SETTING_REPLY = "com.ailife.betterhealth.SETTING_REPLY"
         private const val CONTENT_AUTHORITY = "com.ailife.betterhealth.healthprovider"
 
-        private const val BROADCAST_TIMEOUT_MS = 3000L
+        private const val BROADCAST_TIMEOUT_MS = 60000L
     }
 
     // Cache for last successful health data to handle API failures gracefully
@@ -103,7 +103,7 @@ class HealthDataCollector(private val context: Context) {
 
     /**
      * Measure now - forces immediate measurement for HR/Oxygen
-     * Used during live measurement mode
+     * Used for user-initiated measurements from "Measure" button
      */
     suspend fun measureNow(type: String): HealthDataUpdate = withContext(Dispatchers.IO) {
         if (!isHealthAppInstalled()) {
@@ -111,8 +111,9 @@ class HealthDataCollector(private val context: Context) {
         }
 
         try {
-            // Use AUTO type for live measurements (measures if no recent data)
-            val measurementType = if (type == "HR" || type == "OXYGEN") "AUTO" else "TODAY"
+            // Use IMMEDIATELY for user-initiated measurements (forces new reading)
+            // This will interrupt background measurements if needed
+            val measurementType = if (type == "HR" || type == "OXYGEN") "IMMEDIATELY" else "TODAY"
 
             when (type) {
                 "HR" -> {
@@ -219,12 +220,75 @@ class HealthDataCollector(private val context: Context) {
     }
 
     /**
+     * Read current Better Health settings via broadcast
+     */
+    suspend fun readHealthSettings(): HealthSettingsUpdate = withContext(Dispatchers.IO) {
+        if (!isHealthAppInstalled()) {
+            return@withContext HealthSettingsUpdate()
+        }
+
+        try {
+            // Read background enabled first as a probe for permission
+            val backgroundEnabled = readBooleanSetting("BACKGROUND")
+            
+            // If backgroundEnabled is null, it might be permission denied or timeout
+            // We need a way to distinguish. Let's rely on the improved readBooleanSetting.
+            
+            val monitoringTypes = readStringSetting("TYPE")
+            val interval = readIntSetting("INTERVAL")
+            val height = readIntSetting("HEIGHT")
+            val weight = readIntSetting("WEIGHT")
+            val age = readIntSetting("AGE")
+            val genderInt = readIntSetting("GENDER")
+            val stepGoal = readIntSetting("GOAL_STEP")
+
+            // If we couldn't read any settings, check if it's likely a permission issue
+            if (backgroundEnabled == null && interval == null && age == null) {
+                // Try one last check specifically for the API permission key
+                val apiEnabled = readBooleanSetting("settingSettingApi")
+                if (apiEnabled == false) {
+                    return@withContext HealthSettingsUpdate(errorState = "PERMISSION_DENIED")
+                }
+            }
+
+            // Convert gender integer to string (0=Other, 1=Male, 2=Female)
+            val gender = when (genderInt) {
+                1 -> "Male"
+                2 -> "Female"
+                else -> "Other"
+            }
+
+            return@withContext HealthSettingsUpdate(
+                stepGoal = stepGoal,
+                backgroundEnabled = backgroundEnabled ?: false,
+                monitoringTypes = monitoringTypes,
+                interval = interval,
+                age = age,
+                gender = gender,
+                height = height,
+                weight = weight?.toFloat()
+            )
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading settings: ${e.message}")
+            return@withContext HealthSettingsUpdate()
+        }
+    }
+
+    /**
      * Update Better Health settings via broadcast
      */
     suspend fun updateHealthSettings(settings: HealthSettingsUpdate) = withContext(Dispatchers.IO) {
         if (!isHealthAppInstalled()) return@withContext
 
         try {
+            // Check permission before writing
+            val apiEnabled = readBooleanSetting("settingSettingApi") ?: false
+            if (!apiEnabled) {
+                Log.w(TAG, "Settings API not enabled in health app")
+                return@withContext
+            }
+
             settings.stepGoal?.let { writeSetting("GOAL_STEP", it) }
             settings.backgroundEnabled?.let { writeSetting("BACKGROUND", it) }
             settings.monitoringTypes?.let { writeSetting("TYPE", it) }
@@ -413,6 +477,256 @@ class HealthDataCollector(private val context: Context) {
             }
             context.sendBroadcast(intent)
             continuation.resume(Unit)
+        }
+    }
+
+    /**
+     * Read boolean setting via broadcast API
+     */
+    private suspend fun readBooleanSetting(key: String): Boolean? {
+        return suspendCancellableCoroutine { continuation ->
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (intent == null) return
+
+                    val error = intent.getStringExtra("ERROR")
+                    val returnedKey = intent.getStringExtra("KEY")
+
+                    if (error == "PERMISSION_DENIED") {
+                        Log.w(TAG, "Permission denied for settings API")
+                        if (continuation.isActive) {
+                            continuation.resume(false) // For permission probe, false means disabled
+                        }
+                    } else if (returnedKey == key && error == "NONE") {
+                        val result = try {
+                            if (intent.hasExtra("VALUE")) {
+                                val value = intent.extras?.get("VALUE")
+                                if (value is Boolean) value
+                                else value?.toString()?.toBoolean() ?: false
+                            } else false
+                        } catch (e: Exception) {
+                            false
+                        }
+                        if (continuation.isActive) {
+                            continuation.resume(result)
+                        }
+                    } else if (returnedKey == key) {
+                        Log.w(TAG, "Error reading setting $key: $error")
+                        if (continuation.isActive) {
+                            continuation.resume(null)
+                        }
+                    }
+
+                    try {
+                        context?.unregisterReceiver(this)
+                    } catch (e: Exception) {
+                        // Already unregistered
+                    }
+                }
+            }
+
+            // Register receiver
+            val filter = IntentFilter(SETTING_REPLY)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                context.registerReceiver(receiver, filter)
+            }
+
+            // Send request
+            val intent = Intent(SETTING_API).apply {
+                addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
+                setPackage(BETTER_HEALTH_PACKAGE)
+                putExtra("MODE", "READ")
+                putExtra("KEY", key)
+            }
+            context.sendBroadcast(intent)
+
+            // Setup timeout (shorter for settings)
+            CoroutineScope(Dispatchers.IO).launch {
+                delay(3000) // 3s timeout for settings
+                if (continuation.isActive) {
+                    continuation.resume(null)
+                    try {
+                        context.unregisterReceiver(receiver)
+                    } catch (e: Exception) {
+                    }
+                }
+            }
+
+            continuation.invokeOnCancellation {
+                try {
+                    context.unregisterReceiver(receiver)
+                } catch (e: Exception) {
+                    // Already unregistered
+                }
+            }
+        }
+    }
+
+    /**
+     * Read string setting via broadcast API
+     */
+    private suspend fun readStringSetting(key: String): String? {
+        return suspendCancellableCoroutine { continuation ->
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (intent == null) return
+
+                    val error = intent.getStringExtra("ERROR")
+                    val returnedKey = intent.getStringExtra("KEY")
+
+                    if (error == "PERMISSION_DENIED") {
+                        Log.w(TAG, "Permission denied for settings API")
+                        if (continuation.isActive) {
+                            continuation.resume(null)
+                        }
+                    } else if (returnedKey == key && error == "NONE") {
+                        val result = try {
+                            if (intent.hasExtra("VALUE")) {
+                                intent.extras?.get("VALUE")?.toString()
+                            } else null
+                        } catch (e: Exception) {
+                            null
+                        }
+                        if (continuation.isActive) {
+                            continuation.resume(result)
+                        }
+                    } else if (returnedKey == key) {
+                        Log.w(TAG, "Error reading setting $key: $error")
+                        if (continuation.isActive) {
+                            continuation.resume(null)
+                        }
+                    }
+                    
+                    try {
+                        context?.unregisterReceiver(this)
+                    } catch (e: Exception) {
+                        // Already unregistered
+                    }
+                }
+            }
+
+            // Register receiver
+            val filter = IntentFilter(SETTING_REPLY)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                context.registerReceiver(receiver, filter)
+            }
+
+            // Send request
+            val intent = Intent(SETTING_API).apply {
+                addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
+                setPackage(BETTER_HEALTH_PACKAGE)
+                putExtra("MODE", "READ")
+                putExtra("KEY", key)
+            }
+            context.sendBroadcast(intent)
+
+            // Setup timeout (shorter for settings)
+            CoroutineScope(Dispatchers.IO).launch {
+                delay(3000) // 3s timeout for settings
+                if (continuation.isActive) {
+                    continuation.resume(null)
+                    try {
+                        context.unregisterReceiver(receiver)
+                    } catch (e: Exception) {
+                    }
+                }
+            }
+
+            continuation.invokeOnCancellation {
+                try {
+                    context.unregisterReceiver(receiver)
+                } catch (e: Exception) {
+                    // Already unregistered
+                }
+            }
+        }
+    }
+
+    /**
+     * Read integer setting via broadcast API
+     */
+    private suspend fun readIntSetting(key: String): Int? {
+        return suspendCancellableCoroutine { continuation ->
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (intent == null) return
+
+                    val error = intent.getStringExtra("ERROR")
+                    val returnedKey = intent.getStringExtra("KEY")
+
+                    if (error == "PERMISSION_DENIED") {
+                        Log.w(TAG, "Permission denied for settings API")
+                        if (continuation.isActive) {
+                            continuation.resume(null)
+                        }
+                    } else if (returnedKey == key && error == "NONE") {
+                        val result = try {
+                            if (intent.hasExtra("VALUE")) {
+                                val value = intent.extras?.get("VALUE")
+                                if (value is Int) value
+                                else value?.toString()?.toIntOrNull() ?: 0
+                            } else 0
+                        } catch (e: Exception) {
+                            0
+                        }
+                        if (continuation.isActive) {
+                            continuation.resume(result)
+                        }
+                    } else if (returnedKey == key) {
+                        Log.w(TAG, "Error reading setting $key: $error")
+                        if (continuation.isActive) {
+                            continuation.resume(null)
+                        }
+                    }
+
+                    try {
+                        context?.unregisterReceiver(this)
+                    } catch (e: Exception) {
+                        // Already unregistered
+                    }
+                }
+            }
+
+            // Register receiver
+            val filter = IntentFilter(SETTING_REPLY)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                context.registerReceiver(receiver, filter)
+            }
+
+            // Send request
+            val intent = Intent(SETTING_API).apply {
+                addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES)
+                setPackage(BETTER_HEALTH_PACKAGE)
+                putExtra("MODE", "READ")
+                putExtra("KEY", key)
+            }
+            context.sendBroadcast(intent)
+
+            // Setup timeout (shorter for settings)
+            CoroutineScope(Dispatchers.IO).launch {
+                delay(3000) // 3s timeout for settings
+                if (continuation.isActive) {
+                    continuation.resume(null)
+                    try {
+                        context.unregisterReceiver(receiver)
+                    } catch (e: Exception) {
+                    }
+                }
+            }
+
+            continuation.invokeOnCancellation {
+                try {
+                    context.unregisterReceiver(receiver)
+                } catch (e: Exception) {
+                    // Already unregistered
+                }
+            }
         }
     }
 
