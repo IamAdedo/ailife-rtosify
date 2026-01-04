@@ -307,6 +307,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 { runIfConnected { startActivity(Intent(this, AppListActivity::class.java)) } }
             ),
             MenuOption(
+                getString(R.string.menu_watchface),
+                getString(R.string.wf_title),
+                android.R.drawable.ic_menu_gallery,
+                { startActivity(Intent(this, com.ailife.rtosify.watchface.WatchFaceActivity::class.java)) }
+            ),
+            MenuOption(
                 getString(R.string.menu_notifications),
                 getString(R.string.menu_notifications_desc),
                 android.R.drawable.ic_popup_reminder,
@@ -378,6 +384,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 getString(R.string.menu_manage_apps_desc),
                 android.R.drawable.ic_menu_sort_by_size,
                 { runIfConnected { startActivity(Intent(this, AppListActivity::class.java)) } }
+            ),
+            MenuOption(
+                getString(R.string.menu_watchface),
+                getString(R.string.wf_title),
+                android.R.drawable.ic_menu_gallery,
+                { startActivity(Intent(this, com.ailife.rtosify.watchface.WatchFaceActivity::class.java)) }
             ),
             MenuOption(
                 getString(R.string.menu_notifications),

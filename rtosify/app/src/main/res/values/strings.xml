@@ -224,7 +224,22 @@
     <string name="reply_label">Reply</string>
 
     <!-- Health Data -->
+    <string name="menu_health">Health Data</string>
     <string name="health_title">Health Data</string>
+
+    <!-- Watch Face Management -->
+    <string name="menu_watchface">Watch Faces</string>
+    <string name="wf_title">Watch Face Manager</string>
+    <string name="wf_tab_store">Store</string>
+    <string name="wf_tab_local">Local</string>
+    <string name="wf_download">Download</string>
+    <string name="wf_apply">Apply to Watch</string>
+    <string name="wf_delete">Delete</string>
+    <string name="wf_rename">Rename</string>
+    <string name="wf_import">Import From Device</string>
+    <string name="wf_loading">Loading Watch Faces...</string>
+    <string name="wf_error_load">Error loading store</string>
+    <string name="wf_downloading">Downloading...</string>
     <string name="health_steps">Steps</string>
     <string name="health_no_data">No data</string>
     <string name="health_steps_title">Step History</string>

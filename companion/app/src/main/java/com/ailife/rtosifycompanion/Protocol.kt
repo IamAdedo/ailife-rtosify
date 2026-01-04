@@ -69,6 +69,8 @@ object MessageType {
     const val RESPONSE_FILE_LIST = "response_file_list"
     const val REQUEST_FILE_DOWNLOAD = "request_file_download"
     const val DELETE_FILE = "delete_file"
+    const val RENAME_FILE = "rename_file"
+    const val MOVE_FILE = "move_file"
     const val UPDATE_SETTINGS = "update_settings"
     const val REQUEST_HEALTH_DATA = "request_health_data"
     const val HEALTH_DATA_UPDATE = "health_data_update"
@@ -144,9 +146,15 @@ data class FileTransferData(
     val name: String,
     val size: Long,
     val checksum: String = "",
-    val type: String = "REGULAR", // "APK", "REGULAR"
+    val type: String = TYPE_REGULAR,
     val path: String? = null      // Destination path on watch or source path on watch for download
-)
+) {
+    companion object {
+        const val TYPE_REGULAR = "REGULAR"
+        const val TYPE_APK = "APK"
+        const val TYPE_WATCHFACE = "WATCHFACE"
+    }
+}
 
 data class FileListData(
     val path: String,
@@ -370,6 +378,20 @@ object ProtocolHelper {
         val data = JsonObject()
         data.addProperty("path", path)
         return ProtocolMessage(type = MessageType.DELETE_FILE, data = data)
+    }
+
+    fun createRenameFile(oldPath: String, newPath: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("oldPath", oldPath)
+        data.addProperty("newPath", newPath)
+        return ProtocolMessage(type = MessageType.RENAME_FILE, data = data)
+    }
+
+    fun createMoveFile(srcPath: String, dstPath: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("srcPath", srcPath)
+        data.addProperty("dstPath", dstPath)
+        return ProtocolMessage(type = MessageType.MOVE_FILE, data = data)
     }
 
     fun createMediaControl(command: String, volume: Int? = null): ProtocolMessage {

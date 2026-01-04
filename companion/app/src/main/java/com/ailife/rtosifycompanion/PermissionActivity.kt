@@ -115,6 +115,10 @@ class PermissionActivity : AppCompatActivity() {
         // 11. Contacts
         perms.add(PermissionItem("CONTACTS", getString(R.string.perm_contacts), getString(R.string.perm_contacts_desc), checkPerm(Manifest.permission.WRITE_CONTACTS)))
 
+        // 12. Watch Face Dir
+        val hasWF = isWatchFaceDirAccessible()
+        perms.add(PermissionItem("WATCHFACE", getString(R.string.perm_watchface), getString(R.string.perm_watchface_desc), hasWF))
+
         adapter.updateList(perms)
     }
 
@@ -181,6 +185,60 @@ class PermissionActivity : AppCompatActivity() {
             }
             "CALENDAR" -> requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR), 111)
             "CONTACTS" -> requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS), 112)
+            "WATCHFACE" -> handleWatchFacePermissionClick()
+        }
+    }
+
+    private fun isWatchFaceDirAccessible(): Boolean {
+        // Shizuku or Root is always enough
+        if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) return true
+        if (Shell.isAppGrantedRoot() == true) return true
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11+ checking SAF for specific folder
+            val uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AAndroid%2Fdata%2Fcom.ailife.ClockSkinCoco%2Ffiles%2FClockSkin")
+            contentResolver.persistedUriPermissions.any { it.uri == uri && it.isWritePermission }
+        } else {
+            checkPerm(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+    }
+
+    private fun handleWatchFacePermissionClick() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Check if we can use Shizuku first
+            if (Shizuku.pingBinder()) {
+                if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+                    Shizuku.requestPermission(102)
+                    return
+                }
+            }
+
+            // Fallback to SAF for 11-13 (and 14+ if no Shizuku, though 14+ is harder)
+            val path = "Android/data/com.ailife.ClockSkinCoco/files/ClockSkin"
+            val uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3A" + path.replace("/", "%2F"))
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+                putExtra("android.provider.extra.INITIAL_URI", uri)
+                putExtra("android.content.extra.SHOW_ADVANCED", true)
+            }
+            try {
+                startActivityForResult(intent, 120)
+            } catch (e: Exception) {
+                // If it fails, just open standard tree
+                val intentFallback = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+                startActivityForResult(intentFallback, 120)
+            }
+        } else {
+            requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 1001)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 120 && resultCode == RESULT_OK) {
+            data?.data?.let { uri ->
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                updatePermissionList()
+            }
         }
     }
 

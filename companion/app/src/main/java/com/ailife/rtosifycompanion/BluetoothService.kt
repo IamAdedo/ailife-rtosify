@@ -579,6 +579,8 @@ class BluetoothService : Service() {
                     MessageType.REQUEST_HEALTH_SETTINGS -> handleRequestHealthSettings()
                     MessageType.SYNC_CALENDAR -> handleSyncCalendar(message)
                     MessageType.SYNC_CONTACTS -> handleSyncContacts(message)
+                    MessageType.RENAME_FILE -> handleRenameFile(message)
+                    MessageType.MOVE_FILE -> handleMoveFile(message)
                 }
             }
         } catch (_: IOException) {
@@ -1065,6 +1067,8 @@ class BluetoothService : Service() {
                         android.util.Log.e(TAG, "Error showing install dialog: ${e.message}", e)
                     }
                 }
+            } else if (receivingFileType == FileTransferData.TYPE_WATCHFACE) {
+                handleWatchFaceReceived(file)
             } else {
                 android.util.Log.d(TAG, "Regular file received (type=$receivingFileType), no install dialog needed.")
             }
@@ -1154,6 +1158,98 @@ class BluetoothService : Service() {
                 handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
             }
         }
+    }
+
+    private suspend fun handleRenameFile(message: ProtocolMessage) {
+        val oldPath = message.data.get("oldPath")?.asString ?: return
+        val newPath = message.data.get("newPath")?.asString ?: return
+        android.util.Log.d(TAG, "Rename requested: $oldPath -> $newPath")
+
+        val root = android.os.Environment.getExternalStorageDirectory()
+        val oldFile = File(root, oldPath.removePrefix("/"))
+        val newFile = File(root, newPath.removePrefix("/"))
+
+        val success = if (isUsingShizuku()) {
+            ensureUserServiceBound()
+            userService?.renameFile(oldFile.absolutePath, newFile.absolutePath) ?: false
+        } else {
+            oldFile.renameTo(newFile)
+        }
+        
+        if (success) {
+            val parentPath = "/" + (newFile.parentFile?.let {
+                it.absolutePath.removePrefix(root.absolutePath).removePrefix("/")
+            } ?: "")
+            handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
+        }
+    }
+
+    private suspend fun handleMoveFile(message: ProtocolMessage) {
+        val srcPath = message.data.get("srcPath")?.asString ?: return
+        val dstPath = message.data.get("dstPath")?.asString ?: return
+        android.util.Log.d(TAG, "Move requested: $srcPath -> $dstPath")
+
+        val root = android.os.Environment.getExternalStorageDirectory()
+        val srcFile = File(root, srcPath.removePrefix("/"))
+        val dstFile = File(root, dstPath.removePrefix("/"))
+
+        val success = if (isUsingShizuku()) {
+            ensureUserServiceBound()
+            userService?.moveFile(srcFile.absolutePath, dstFile.absolutePath) ?: false
+        } else {
+            if (srcFile.renameTo(dstFile)) true
+            else {
+                // Try copy + delete if rename fails
+                try {
+                    srcFile.copyRecursively(dstFile, true)
+                    srcFile.deleteRecursively()
+                    true
+                } catch (e: Exception) {
+                    false
+                }
+            }
+        }
+
+        if (success) {
+            val parentPath = "/" + (dstFile.parentFile?.let {
+                it.absolutePath.removePrefix(root.absolutePath).removePrefix("/")
+            } ?: "")
+            handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
+        }
+    }
+
+    private fun handleWatchFaceReceived(file: File) {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                // Define target dir
+                val root = android.os.Environment.getExternalStorageDirectory()
+                val clockSkinDir = File(root, "ClockSkin")
+                if (!clockSkinDir.exists()) clockSkinDir.mkdirs()
+
+                // Keep extension, do not extract
+                val targetFile = File(clockSkinDir, file.name)
+                if (targetFile.exists()) targetFile.delete()
+                
+                file.copyTo(targetFile, true)
+
+                // Broadcast change face
+                val intent = Intent("com.android.watchengine.changeface")
+                intent.putExtra("path", targetFile.absolutePath)
+                sendBroadcast(intent)
+                
+                android.util.Log.d(TAG, "Watch face applied successfully: ${targetFile.absolutePath}")
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Error handling watch face: ${e.message}")
+            } finally {
+                file.delete()
+            }
+        }
+    }
+
+    private fun isUsingShizuku(): Boolean {
+        return try {
+            Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+        } catch (_: Exception) { false }
     }
 
     private fun calculateMd5(file: File): String {
