@@ -212,19 +212,25 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private fun setupHealthClickListeners() {
         layoutStepsAction.setOnClickListener {
             runIfConnected {
-                Toast.makeText(this, "Steps detail view - coming soon!", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, HealthDetailActivity::class.java).apply {
+                    putExtra("HEALTH_TYPE", "STEPS")
+                })
             }
         }
 
         layoutHeartRateAction.setOnClickListener {
             runIfConnected {
-                Toast.makeText(this, "Heart rate detail view - coming soon!", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, HealthDetailActivity::class.java).apply {
+                    putExtra("HEALTH_TYPE", "HEART_RATE")
+                })
             }
         }
 
         layoutOxygenAction.setOnClickListener {
             runIfConnected {
-                Toast.makeText(this, "Blood oxygen detail view - coming soon!", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, HealthDetailActivity::class.java).apply {
+                    putExtra("HEALTH_TYPE", "OXYGEN")
+                })
             }
         }
     }

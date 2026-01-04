@@ -229,6 +229,23 @@ class HealthDataCollector(private val context: Context) {
             settings.backgroundEnabled?.let { writeSetting("BACKGROUND", it) }
             settings.monitoringTypes?.let { writeSetting("TYPE", it) }
             settings.interval?.let { writeSetting("INTERVAL", it) }
+
+            // Body specifications - using correct Better Health API keys
+            settings.age?.let { writeSetting("AGE", it) }
+            settings.height?.let { writeSetting("HEIGHT", it) }
+            settings.weight?.let { writeSetting("WEIGHT", it.toInt()) }
+
+            // Gender: convert string to integer (0=Other, 1=Male, 2=Female)
+            settings.gender?.let { genderStr ->
+                val genderInt = when (genderStr) {
+                    "Male" -> 1
+                    "Female" -> 2
+                    else -> 0 // Other/prefer not to say
+                }
+                writeSetting("GENDER", genderInt)
+            }
+
+            Log.d(TAG, "Health settings updated successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Error updating settings: ${e.message}")
         }

@@ -232,4 +232,11 @@
     <string name="time_minutes_ago">%d min ago</string>
     <string name="time_hours_ago">%d hr ago</string>
     <string name="time_days_ago">%d days ago</string>
+
+    <!-- Gender options -->
+    <string-array name="gender_options">
+        <item>Male</item>
+        <item>Female</item>
+        <item>Other</item>
+    </string-array>
 </resources>

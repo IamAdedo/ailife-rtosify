@@ -196,7 +196,11 @@ data class HealthSettingsUpdate(
     val stepGoal: Int? = null,
     val backgroundEnabled: Boolean? = null,
     val monitoringTypes: String? = null,  // "STEP,HR,OXYGEN"
-    val interval: Int? = null              // minutes
+    val interval: Int? = null,             // minutes
+    val age: Int? = null,
+    val gender: String? = null,
+    val height: Int? = null,               // cm
+    val weight: Float? = null              // kg
 )
 
 data class FileChunkData(

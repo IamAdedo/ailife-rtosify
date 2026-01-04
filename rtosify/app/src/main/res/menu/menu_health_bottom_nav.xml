@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_steps"
+        android:icon="@drawable/ic_steps"
+        android:title="@string/health_steps" />
+
+    <item
+        android:id="@+id/nav_heart_rate"
+        android:icon="@drawable/ic_heart"
+        android:title="Heart Rate" />
+
+    <item
+        android:id="@+id/nav_oxygen"
+        android:icon="@drawable/ic_oxygen"
+        android:title="SpO2" />
+</menu>
