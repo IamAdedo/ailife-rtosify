@@ -8,7 +8,12 @@ import android.database.Cursor
 import android.net.Uri
 import android.os.Build
 import android.util.Log
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
 /**
@@ -105,7 +110,11 @@ class HealthDataCollector(private val context: Context) {
      * Measure now - forces immediate measurement for HR/Oxygen
      * Used for user-initiated measurements from "Measure" button
      */
-    suspend fun measureNow(type: String): HealthDataUpdate = withContext(Dispatchers.IO) {
+    /**
+     * Measure now - forces immediate measurement for HR/Oxygen
+     * Used for user-initiated measurements from "Measure" button
+     */
+    suspend fun measureNow(type: String, onInstantValue: ((Int) -> Unit)? = null): HealthDataUpdate = withContext(Dispatchers.IO) {
         if (!isHealthAppInstalled()) {
             return@withContext createErrorState("APP_NOT_INSTALLED")
         }
@@ -117,7 +126,7 @@ class HealthDataCollector(private val context: Context) {
 
             when (type) {
                 "HR" -> {
-                    val hr = requestData("HR", measurementType)
+                    val hr = requestData("HR", measurementType, onInstantValue)
                     if (hr != null && hr > 0) {
                         val timestamp = System.currentTimeMillis()
                         HealthDataUpdate(
@@ -135,7 +144,7 @@ class HealthDataCollector(private val context: Context) {
                     }
                 }
                 "OXYGEN" -> {
-                    val oxygen = requestData("OXYGEN", measurementType)
+                    val oxygen = requestData("OXYGEN", measurementType, onInstantValue)
                     if (oxygen != null && oxygen > 0) {
                         val timestamp = System.currentTimeMillis()
                         HealthDataUpdate(
@@ -289,24 +298,65 @@ class HealthDataCollector(private val context: Context) {
                 return@withContext
             }
 
-            settings.stepGoal?.let { writeSetting("GOAL_STEP", it) }
-            settings.backgroundEnabled?.let { writeSetting("BACKGROUND", it) }
-            settings.monitoringTypes?.let { writeSetting("TYPE", it) }
-            settings.interval?.let { writeSetting("INTERVAL", it) }
+            // Read current settings first for optimization
+            val current = readHealthSettings()
 
-            // Body specifications - using correct Better Health API keys
-            settings.age?.let { writeSetting("AGE", it) }
-            settings.height?.let { writeSetting("HEIGHT", it) }
-            settings.weight?.let { writeSetting("WEIGHT", it.toInt()) }
+            settings.stepGoal?.let { 
+                // if (it != current.stepGoal) {
+                    writeSetting("GOAL_STEP", it)
+                    delay(250)
+                // }
+            }
+            settings.backgroundEnabled?.let { 
+                // if (it != current.backgroundEnabled) {
+                    writeSetting("BACKGROUND", it)
+                    delay(250)
+                // }
+            }
+            settings.monitoringTypes?.let { 
+                // if (it != current.monitoringTypes) {
+                    writeSetting("TYPE", it)
+                    delay(250)
+                // }
+            }
+            settings.interval?.let { 
+                // if (it != current.interval) {
+                    writeSetting("INTERVAL", it)
+                    delay(250)
+                // }
+            }
 
-            // Gender: convert string to integer (0=Other, 1=Male, 2=Female)
+            // Body specifications
+            settings.age?.let { 
+                // if (it != current.age) {
+                    writeSetting("AGE", it)
+                    delay(250)
+                // }
+            }
+            settings.height?.let { 
+                // if (it != current.height) {
+                    writeSetting("HEIGHT", it)
+                    delay(250)
+                // }
+            }
+            settings.weight?.let { 
+                // if (it != current.weight) {
+                    writeSetting("WEIGHT", it.toInt())
+                    delay(250)
+                // }
+            }
+
+            // Gender
             settings.gender?.let { genderStr ->
-                val genderInt = when (genderStr) {
-                    "Male" -> 1
-                    "Female" -> 2
-                    else -> 0 // Other/prefer not to say
-                }
-                writeSetting("GENDER", genderInt)
+                // if (genderStr != current.gender) {
+                    val genderInt = when (genderStr) {
+                        "Male" -> 1
+                        "Female" -> 2
+                        else -> 0
+                    }
+                    writeSetting("GENDER", genderInt)
+                    delay(250)
+                // }
             }
 
             Log.d(TAG, "Health settings updated successfully")
@@ -318,7 +368,7 @@ class HealthDataCollector(private val context: Context) {
     /**
      * Request data via broadcast API with timeout (for integer values)
      */
-    private suspend fun requestData(dataType: String, type: String?): Int? {
+    private suspend fun requestData(dataType: String, type: String?, onInstantValue: ((Int) -> Unit)? = null): Int? {
         return suspendCancellableCoroutine { continuation ->
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
@@ -327,8 +377,21 @@ class HealthDataCollector(private val context: Context) {
                     val error = intent.getStringExtra("ERROR")
                     val returnedDataType = intent.getStringExtra("DATA")
 
+                    // Handle instant value if provided
+                    val instantVal = intent.getIntExtra("RESULT_INSTANT", -1)
+                    if (instantVal > 0 && returnedDataType == dataType) {
+                        onInstantValue?.invoke(instantVal)
+                        return // Don't unregister or resume yet
+                    }
+
                     if (returnedDataType == dataType && error == "NONE") {
-                        val result = intent.getIntExtra("RESULT", 0)
+                        val result = when (val value = intent.extras?.get("RESULT")) {
+                            is Int -> value
+                            is Double -> value.toInt()
+                            is Float -> value.toInt()
+                            is String -> value.toIntOrNull() ?: 0
+                            else -> 0
+                        }
                         if (continuation.isActive) {
                             continuation.resume(result)
                         }
@@ -400,7 +463,13 @@ class HealthDataCollector(private val context: Context) {
                     val returnedDataType = intent.getStringExtra("DATA")
 
                     if (returnedDataType == dataType && error == "NONE") {
-                        val result = intent.getDoubleExtra("RESULT", 0.0).toFloat()
+                        val result = when (val value = intent.extras?.get("RESULT")) {
+                            is Double -> value.toFloat()
+                            is Float -> value
+                            is Int -> value.toFloat()
+                            is String -> value.toFloatOrNull() ?: 0f
+                            else -> 0f
+                        }
                         if (continuation.isActive) {
                             continuation.resume(result)
                         }

@@ -661,10 +661,34 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             // Update current value card for HR/Oxygen
             if (healthType == "HEART_RATE" || healthType == "OXYGEN") {
                 updateCurrentValueCard()
+                
+                // Show "Measuring..." while session is active
+                if (isLiveMeasuring && healthData.isInstant) {
+                    tvLastMeasured.text = "Measuring..."
+                }
             }
 
-            // Handle live measurement updates
+            // Handle errors during live measurement
+            healthData.errorState?.let { error ->
+                if (isLiveMeasuring) {
+                    val message = when (error) {
+                        "FALL" -> "Checking sensor contact..."
+                        "HARDWARE" -> "Hardware busy or error"
+                        "APP_NOT_INSTALLED" -> "Tracker app not installed"
+                        "NO_DATA" -> "Measurement timed out"
+                        else -> "Error: $error"
+                    }
+                    Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+                    isLiveMeasuring = false
+                    btnMeasureNow.text = "Measure"
+                    updateCurrentValueCard() // Reset display
+                }
+                return@runOnUiThread
+            }
+
+            // Handle live measurement success
             if (!isLiveMeasuring) return@runOnUiThread
+            if (healthData.isInstant) return@runOnUiThread
 
             val value = when (healthType) {
                 "HEART_RATE" -> healthData.heartRate?.toFloat()

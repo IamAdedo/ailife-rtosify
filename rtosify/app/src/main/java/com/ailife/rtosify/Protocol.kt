@@ -169,7 +169,8 @@ data class HealthDataUpdate(
     val heartRateTimestamp: Long?,     // millis
     val bloodOxygen: Int?,             // percentage, null if unavailable
     val oxygenTimestamp: Long?,        // millis
-    val errorState: String? = null     // "APP_NOT_INSTALLED", "API_DISABLED", etc.
+    val errorState: String? = null,    // "APP_NOT_INSTALLED", "API_DISABLED", etc.
+    val isInstant: Boolean = false
 )
 
 data class HealthHistoryRequest(

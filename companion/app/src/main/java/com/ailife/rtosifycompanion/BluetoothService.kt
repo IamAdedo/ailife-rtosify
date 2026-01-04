@@ -795,7 +795,21 @@ class BluetoothService : Service() {
         liveMeasurementJob = serviceScope.launch(Dispatchers.IO) {
             try {
                 // Perform one high-priority measurement (can take up to 60s)
-                val healthData = healthDataCollector.measureNow(type)
+                val healthData = healthDataCollector.measureNow(type) { instantValue ->
+                    // Send instant update to phone
+                    sendMessage(ProtocolHelper.createHealthDataUpdate(
+                        HealthDataUpdate(
+                            steps = 0,
+                            distance = 0f,
+                            calories = 0,
+                            heartRate = if (type == "HR") instantValue else null,
+                            heartRateTimestamp = System.currentTimeMillis(),
+                            bloodOxygen = if (type == "OXYGEN") instantValue else null,
+                            oxygenTimestamp = System.currentTimeMillis(),
+                            isInstant = true
+                        )
+                    ))
+                }
                 sendMessage(ProtocolHelper.createHealthDataUpdate(healthData))
             } catch (e: Exception) {
                 Log.e(TAG, "Error in live measurement: ${e.message}")
