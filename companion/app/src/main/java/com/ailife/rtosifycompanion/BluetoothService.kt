@@ -40,6 +40,10 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
+import android.provider.CalendarContract
+import android.provider.ContactsContract
+import android.content.ContentValues
+import android.content.ContentProviderOperation
 import android.util.Base64
 import android.util.Log
 import android.widget.Toast
@@ -573,6 +577,8 @@ class BluetoothService : Service() {
                     MessageType.STOP_LIVE_MEASUREMENT -> handleStopLiveMeasurement()
                     MessageType.UPDATE_HEALTH_SETTINGS -> handleUpdateHealthSettings(message)
                     MessageType.REQUEST_HEALTH_SETTINGS -> handleRequestHealthSettings()
+                    MessageType.SYNC_CALENDAR -> handleSyncCalendar(message)
+                    MessageType.SYNC_CONTACTS -> handleSyncContacts(message)
                 }
             }
         } catch (_: IOException) {
@@ -2057,6 +2063,143 @@ class BluetoothService : Service() {
 
     private fun savePreference(key: String, value: String) {
         prefs.edit().putString(key, value).apply()
+    }
+
+    private fun handleSyncCalendar(message: ProtocolMessage) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
+            android.util.Log.e(TAG, "WRITE_CALENDAR permission not granted")
+            return
+        }
+
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val eventsJson = message.data.getAsJsonArray("events")
+                val type = object : com.google.gson.reflect.TypeToken<List<CalendarEvent>>() {}.type
+                val events: List<CalendarEvent> = ProtocolHelper.gson.fromJson(eventsJson, type)
+                android.util.Log.d(TAG, "Received ${events.size} calendar events to write")
+
+                // 1. Find a calendar ID to write to
+                var calendarId: Long = -1
+                contentResolver.query(
+                    CalendarContract.Calendars.CONTENT_URI,
+                    arrayOf(CalendarContract.Calendars._ID),
+                    null, null, null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        calendarId = cursor.getLong(0)
+                    }
+                }
+
+                if (calendarId == -1L) {
+                    android.util.Log.e(TAG, "No system calendar found to write to")
+                    return@launch
+                }
+
+                var count = 0
+                for (event in events) {
+                    // Check for duplicates (same title and start time)
+                    val exists = contentResolver.query(
+                        CalendarContract.Events.CONTENT_URI,
+                        arrayOf(CalendarContract.Events._ID),
+                        "${CalendarContract.Events.TITLE} = ? AND ${CalendarContract.Events.DTSTART} = ?",
+                        arrayOf(event.title, event.startTime.toString()),
+                        null
+                    )?.use { it.count > 0 } ?: false
+
+                    if (!exists) {
+                        val values = ContentValues().apply {
+                            put(CalendarContract.Events.DTSTART, event.startTime)
+                            put(CalendarContract.Events.DTEND, event.endTime)
+                            put(CalendarContract.Events.TITLE, event.title)
+                            put(CalendarContract.Events.DESCRIPTION, event.description)
+                            put(CalendarContract.Events.EVENT_LOCATION, event.location)
+                            put(CalendarContract.Events.CALENDAR_ID, calendarId)
+                            put(CalendarContract.Events.EVENT_TIMEZONE, java.util.TimeZone.getDefault().id)
+                        }
+                        contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
+                        count++
+                    }
+                }
+
+                mainHandler.post {
+                    Toast.makeText(this@BluetoothService, "Synced $count new calendar events to system", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Error writing calendar events: ${e.message}")
+            }
+        }
+    }
+
+    private fun handleSyncContacts(message: ProtocolMessage) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            android.util.Log.e(TAG, "WRITE_CONTACTS permission not granted")
+            return
+        }
+
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val contactsJson = message.data.getAsJsonArray("contacts")
+                val type = object : com.google.gson.reflect.TypeToken<List<Contact>>() {}.type
+                val contacts: List<Contact> = ProtocolHelper.gson.fromJson(contactsJson, type)
+                android.util.Log.d(TAG, "Received ${contacts.size} contacts to write")
+
+                var count = 0
+                for (contact in contacts) {
+                    // Check for duplicate (same name)
+                    val exists = contentResolver.query(
+                        ContactsContract.Data.CONTENT_URI,
+                        arrayOf(ContactsContract.Data._ID),
+                        "${ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                        arrayOf(contact.name, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE),
+                        null
+                    )?.use { it.count > 0 } ?: false
+
+                    if (!exists) {
+                        val ops = arrayListOf<ContentProviderOperation>()
+                        ops.add(ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
+                            .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
+                            .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
+                            .build())
+
+                        // Add Name
+                        ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                            .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                            .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                            .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, contact.name)
+                            .build())
+
+                        // Add Phone Numbers
+                        for (number in contact.phoneNumbers) {
+                            ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                                .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, number)
+                                .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)
+                                .build())
+                        }
+
+                        // Add Emails if any
+                        contact.emails?.forEach { email ->
+                             ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE)
+                                .withValue(ContactsContract.CommonDataKinds.Email.ADDRESS, email)
+                                .withValue(ContactsContract.CommonDataKinds.Email.TYPE, ContactsContract.CommonDataKinds.Email.TYPE_WORK)
+                                .build())
+                        }
+
+                        contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
+                        count++
+                    }
+                }
+
+                mainHandler.post {
+                    Toast.makeText(this@BluetoothService, "Synced $count new contacts to system", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Error writing contacts: ${e.message}")
+            }
+        }
     }
 
     override fun onDestroy() {

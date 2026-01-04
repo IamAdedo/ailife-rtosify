@@ -80,6 +80,8 @@ object MessageType {
     const val REQUEST_HEALTH_SETTINGS = "request_health_settings"
     const val RESPONSE_HEALTH_SETTINGS = "response_health_settings"
     const val MAKE_CALL = "make_call"
+    const val SYNC_CALENDAR = "sync_calendar"
+    const val SYNC_CONTACTS = "sync_contacts"
 }
 
 // Data classes for specific message types
@@ -149,6 +151,20 @@ data class FileTransferData(
 data class FileListData(
     val path: String,
     val files: List<FileInfo>
+)
+
+data class CalendarEvent(
+    val title: String,
+    val startTime: Long,
+    val endTime: Long,
+    val location: String? = null,
+    val description: String? = null
+)
+
+data class Contact(
+    val name: String,
+    val phoneNumbers: List<String>,
+    val emails: List<String>? = null
 )
 
 data class FileInfo(
@@ -428,6 +444,18 @@ object ProtocolHelper {
         val data = JsonObject()
         data.addProperty("phoneNumber", phoneNumber)
         return ProtocolMessage(type = MessageType.MAKE_CALL, data = data)
+    }
+
+    fun createSyncCalendar(events: List<CalendarEvent>): ProtocolMessage {
+        val data = JsonObject()
+        data.add("events", gson.toJsonTree(events))
+        return ProtocolMessage(type = MessageType.SYNC_CALENDAR, data = data)
+    }
+
+    fun createSyncContacts(contacts: List<Contact>): ProtocolMessage {
+        val data = JsonObject()
+        data.add("contacts", gson.toJsonTree(contacts))
+        return ProtocolMessage(type = MessageType.SYNC_CONTACTS, data = data)
     }
 
     // Helper to extract data from message

@@ -133,6 +133,12 @@ class PermissionActivity : AppCompatActivity() {
         // 13. Call Phone
         perms.add(PermissionItem("CALL", getString(R.string.perm_call), getString(R.string.perm_call_desc), checkPerm(Manifest.permission.CALL_PHONE)))
 
+        // 14. Calendar
+        perms.add(PermissionItem("CALENDAR", getString(R.string.perm_calendar), getString(R.string.perm_calendar_desc), checkPerm(Manifest.permission.READ_CALENDAR)))
+
+        // 15. Contacts
+        perms.add(PermissionItem("CONTACTS", getString(R.string.perm_contacts), getString(R.string.perm_contacts_desc), checkPerm(Manifest.permission.READ_CONTACTS)))
+
         adapter.updateList(perms)
     }
 
@@ -213,6 +219,8 @@ class PermissionActivity : AppCompatActivity() {
                 }
             }
             "CALL" -> requestPermissions(arrayOf(Manifest.permission.CALL_PHONE), 108)
+            "CALENDAR" -> requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR), 109)
+            "CONTACTS" -> requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS), 110)
         }
     }
 

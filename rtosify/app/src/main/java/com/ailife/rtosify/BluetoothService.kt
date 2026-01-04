@@ -40,6 +40,8 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
+import android.provider.CalendarContract
+import android.provider.ContactsContract
 import android.widget.Toast
 import android.util.Base64
 import android.util.Log
@@ -1071,6 +1073,127 @@ class BluetoothService : Service() {
 
     fun sendFindDeviceCommand(enabled: Boolean) {
         sendMessage(ProtocolHelper.createFindDevice(enabled))
+    }
+
+    fun syncCalendar() {
+        if (!isConnected) {
+            mainHandler.post { Toast.makeText(this, getString(R.string.toast_watch_not_connected), Toast.LENGTH_SHORT).show() }
+            return
+        }
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
+            mainHandler.post { Toast.makeText(this, "Permission READ_CALENDAR not granted", Toast.LENGTH_SHORT).show() }
+            return
+        }
+
+        serviceScope.launch(Dispatchers.IO) {
+            val events = mutableListOf<CalendarEvent>()
+            val projection = arrayOf(
+                CalendarContract.Events.TITLE,
+                CalendarContract.Events.DTSTART,
+                CalendarContract.Events.DTEND,
+                CalendarContract.Events.EVENT_LOCATION,
+                CalendarContract.Events.DESCRIPTION
+            )
+            
+            val now = System.currentTimeMillis()
+            val weekFromNow = now + (7 * 24 * 60 * 60 * 1000L)
+            val selection = "(${CalendarContract.Events.DTSTART} >= ?) AND (${CalendarContract.Events.DTSTART} <= ?)"
+            val selectionArgs = arrayOf(now.toString(), weekFromNow.toString())
+
+            try {
+                contentResolver.query(
+                    CalendarContract.Events.CONTENT_URI,
+                    projection,
+                    selection,
+                    selectionArgs,
+                    "${CalendarContract.Events.DTSTART} ASC"
+                )?.use { cursor ->
+                    val titleIdx = cursor.getColumnIndex(CalendarContract.Events.TITLE)
+                    val startIdx = cursor.getColumnIndex(CalendarContract.Events.DTSTART)
+                    val endIdx = cursor.getColumnIndex(CalendarContract.Events.DTEND)
+                    val locIdx = cursor.getColumnIndex(CalendarContract.Events.EVENT_LOCATION)
+                    val descIdx = cursor.getColumnIndex(CalendarContract.Events.DESCRIPTION)
+
+                    while (cursor.moveToNext()) {
+                        events.add(CalendarEvent(
+                            title = cursor.getString(titleIdx) ?: "No Title",
+                            startTime = cursor.getLong(startIdx),
+                            endTime = cursor.getLong(endIdx),
+                            location = cursor.getString(locIdx),
+                            description = cursor.getString(descIdx)
+                        ))
+                    }
+                }
+
+                if (events.isNotEmpty()) {
+                    sendMessage(ProtocolHelper.createSyncCalendar(events))
+                    mainHandler.post { Toast.makeText(this@BluetoothService, getString(R.string.toast_sync_success, "Calendar"), Toast.LENGTH_SHORT).show() }
+                } else {
+                    mainHandler.post { Toast.makeText(this@BluetoothService, "No upcoming calendar events found", Toast.LENGTH_SHORT).show() }
+                }
+            } catch (e: Exception) {
+                Log.e("BluetoothService", "Error syncing calendar: ${e.message}")
+                mainHandler.post { Toast.makeText(this@BluetoothService, getString(R.string.toast_sync_failed, "Calendar"), Toast.LENGTH_SHORT).show() }
+            }
+        }
+    }
+
+    fun syncContacts() {
+        if (!isConnected) {
+            mainHandler.post { Toast.makeText(this, getString(R.string.toast_watch_not_connected), Toast.LENGTH_SHORT).show() }
+            return
+        }
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            mainHandler.post { Toast.makeText(this, "Permission READ_CONTACTS not granted", Toast.LENGTH_SHORT).show() }
+            return
+        }
+
+        serviceScope.launch(Dispatchers.IO) {
+            val contactsList = mutableListOf<Contact>()
+            
+            val projection = arrayOf(
+                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                ContactsContract.CommonDataKinds.Phone.NUMBER
+            )
+
+            try {
+                contentResolver.query(
+                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                    projection,
+                    null,
+                    null,
+                    "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC"
+                )?.use { cursor ->
+                    val nameIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+                    val numberIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+
+                    val contactMap = mutableMapOf<String, MutableList<String>>()
+
+                    while (cursor.moveToNext()) {
+                        val name = cursor.getString(nameIdx) ?: "Unknown"
+                        val number = cursor.getString(numberIdx) ?: ""
+                        if (number.isNotEmpty()) {
+                            contactMap.getOrPut(name) { mutableListOf() }.add(number)
+                        }
+                    }
+
+                    contactMap.forEach { (name, numbers) ->
+                        contactsList.add(Contact(name = name, phoneNumbers = numbers))
+                    }
+                }
+
+                if (contactsList.isNotEmpty()) {
+                    val limitedList = contactsList.take(100)
+                    sendMessage(ProtocolHelper.createSyncContacts(limitedList))
+                    mainHandler.post { Toast.makeText(this@BluetoothService, getString(R.string.toast_sync_success, "Contacts"), Toast.LENGTH_SHORT).show() }
+                } else {
+                    mainHandler.post { Toast.makeText(this@BluetoothService, "No contacts found", Toast.LENGTH_SHORT).show() }
+                }
+            } catch (e: Exception) {
+                Log.e("BluetoothService", "Error syncing contacts: ${e.message}")
+                mainHandler.post { Toast.makeText(this@BluetoothService, getString(R.string.toast_sync_failed, "Contacts"), Toast.LENGTH_SHORT).show() }
+            }
+        }
     }
 
     fun sendApkFile(uri: Uri) {

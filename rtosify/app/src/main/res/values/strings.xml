@@ -204,6 +204,17 @@
 
     <string name="perm_call">Make Phone Calls</string>
     <string name="perm_call_desc">Required to initiate calls from the watch.</string>
+    <string name="perm_calendar">Read Calendar</string>
+    <string name="perm_calendar_desc">Allows the app to sync calendar events to the watch.</string>
+    <string name="perm_contacts">Read Contacts</string>
+    <string name="perm_contacts_desc">Allows the app to sync contacts to the watch.</string>
+    
+    <string name="menu_sync_calendar">Sync Calendar</string>
+    <string name="menu_sync_calendar_desc">Send your calendar events to the watch</string>
+    <string name="menu_sync_contacts">Sync Contacts</string>
+    <string name="menu_sync_contacts_desc">Send your contacts to the watch</string>
+    <string name="toast_sync_success">%s sync successful</string>
+    <string name="toast_sync_failed">%s sync failed</string>
 
     <string name="find_watch_alarm_stop">Stop</string>
     <string name="find_phone_alarm_title">Finding Phone</string>

@@ -109,6 +109,12 @@ class PermissionActivity : AppCompatActivity() {
         } else true
         perms.add(PermissionItem("DND", getString(R.string.perm_dnd), getString(R.string.perm_dnd_desc), hasDnd))
 
+        // 10. Calendar
+        perms.add(PermissionItem("CALENDAR", getString(R.string.perm_calendar), getString(R.string.perm_calendar_desc), checkPerm(Manifest.permission.WRITE_CALENDAR)))
+
+        // 11. Contacts
+        perms.add(PermissionItem("CONTACTS", getString(R.string.perm_contacts), getString(R.string.perm_contacts_desc), checkPerm(Manifest.permission.WRITE_CONTACTS)))
+
         adapter.updateList(perms)
     }
 
@@ -173,6 +179,8 @@ class PermissionActivity : AppCompatActivity() {
                     startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
                 }
             }
+            "CALENDAR" -> requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR), 111)
+            "CONTACTS" -> requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS), 112)
         }
     }
 

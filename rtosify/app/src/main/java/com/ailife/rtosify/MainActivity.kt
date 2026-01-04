@@ -326,6 +326,18 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 { runIfConnected { showDeviceManagementMenu() } }
             ),
             MenuOption(
+                getString(R.string.menu_sync_calendar),
+                getString(R.string.menu_sync_calendar_desc),
+                android.R.drawable.ic_menu_today,
+                { runIfConnected { bluetoothService?.syncCalendar() } }
+            ),
+            MenuOption(
+                getString(R.string.menu_sync_contacts),
+                getString(R.string.menu_sync_contacts_desc),
+                android.R.drawable.ic_menu_myplaces,
+                { runIfConnected { bluetoothService?.syncContacts() } }
+            ),
+            MenuOption(
                 getString(R.string.menu_disconnect),
                 getString(R.string.menu_disconnect_desc),
                 android.R.drawable.ic_menu_close_clear_cancel,
@@ -384,6 +396,18 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 getString(R.string.menu_device_mgmt_desc),
                 android.R.drawable.ic_lock_power_off,
                 { runIfConnected { showDeviceManagementMenu() } }
+            ),
+            MenuOption(
+                getString(R.string.menu_sync_calendar),
+                getString(R.string.menu_sync_calendar_desc),
+                android.R.drawable.ic_menu_today,
+                { runIfConnected { bluetoothService?.syncCalendar() } }
+            ),
+            MenuOption(
+                getString(R.string.menu_sync_contacts),
+                getString(R.string.menu_sync_contacts_desc),
+                android.R.drawable.ic_menu_myplaces,
+                { runIfConnected { bluetoothService?.syncContacts() } }
             )
         )
 

@@ -148,6 +148,12 @@
     <string name="perm_dnd">Do Not Disturb Access</string>
     <string name="perm_dnd_desc">Required to sync DND status between devices.</string>
 
+    <string name="perm_calendar">Calendar Sync</string>
+    <string name="perm_calendar_desc">Allows writing received events to the system calendar.</string>
+    
+    <string name="perm_contacts">Contacts Sync</string>
+    <string name="perm_contacts_desc">Allows writing received contacts to the system contacts.</string>
+
     <!-- Dialer -->
     <string name="menu_dialer">Dialer</string>
     <string name="menu_dialer_desc">Make phone calls</string>

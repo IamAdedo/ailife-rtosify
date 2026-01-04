@@ -45,6 +45,12 @@
     <uses-permission android:name="com.ailife.betterhealth.READ_HEALTH_DATA" />
     <uses-permission android:name="com.ailife.betterhealth.WRITE_HEALTH_DATA" />
 
+    <!-- Calendar and Contacts Sync -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+
     <queries>
         <package android:name="moe.shizuku.privileged.api" />
     </queries>
