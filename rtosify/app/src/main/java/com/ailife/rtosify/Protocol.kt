@@ -70,6 +70,13 @@ object MessageType {
     const val REQUEST_FILE_DOWNLOAD = "request_file_download"
     const val DELETE_FILE = "delete_file"
     const val UPDATE_SETTINGS = "update_settings"
+    const val REQUEST_HEALTH_DATA = "request_health_data"
+    const val HEALTH_DATA_UPDATE = "health_data_update"
+    const val REQUEST_HEALTH_HISTORY = "request_health_history"
+    const val RESPONSE_HEALTH_HISTORY = "response_health_history"
+    const val START_LIVE_MEASUREMENT = "start_live_measurement"
+    const val STOP_LIVE_MEASUREMENT = "stop_live_measurement"
+    const val UPDATE_HEALTH_SETTINGS = "update_health_settings"
 }
 
 // Data classes for specific message types
@@ -150,6 +157,46 @@ data class FileInfo(
 
 data class SettingsUpdateData(
     val notifyOnDisconnect: Boolean? = null
+)
+
+data class HealthDataUpdate(
+    val steps: Int,
+    val distance: Float,              // km
+    val calories: Int,                 // kcal
+    val heartRate: Int?,               // bpm, null if unavailable
+    val heartRateTimestamp: Long?,     // millis
+    val bloodOxygen: Int?,             // percentage, null if unavailable
+    val oxygenTimestamp: Long?,        // millis
+    val errorState: String? = null     // "APP_NOT_INSTALLED", "API_DISABLED", etc.
+)
+
+data class HealthHistoryRequest(
+    val type: String,              // "STEP", "HR", "OXYGEN"
+    val startTime: Long,           // Unix timestamp in seconds
+    val endTime: Long              // Unix timestamp in seconds
+)
+
+data class HealthHistoryResponse(
+    val type: String,
+    val dataPoints: List<HealthDataPoint>,
+    val goal: Int? = null,
+    val errorState: String? = null
+)
+
+data class HealthDataPoint(
+    val timestamp: Long,           // Unix timestamp in seconds
+    val value: Float
+)
+
+data class LiveMeasurementRequest(
+    val type: String               // "HR" or "OXYGEN"
+)
+
+data class HealthSettingsUpdate(
+    val stepGoal: Int? = null,
+    val backgroundEnabled: Boolean? = null,
+    val monitoringTypes: String? = null,  // "STEP,HR,OXYGEN"
+    val interval: Int? = null              // minutes
 )
 
 data class FileChunkData(
@@ -316,6 +363,39 @@ object ProtocolHelper {
     fun createUpdateSettings(settings: SettingsUpdateData): ProtocolMessage {
         val data = gson.toJsonTree(settings).asJsonObject
         return ProtocolMessage(type = MessageType.UPDATE_SETTINGS, data = data)
+    }
+
+    fun createRequestHealthData(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.REQUEST_HEALTH_DATA)
+    }
+
+    fun createHealthDataUpdate(health: HealthDataUpdate): ProtocolMessage {
+        val data = gson.toJsonTree(health).asJsonObject
+        return ProtocolMessage(type = MessageType.HEALTH_DATA_UPDATE, data = data)
+    }
+
+    fun createRequestHealthHistory(request: HealthHistoryRequest): ProtocolMessage {
+        val data = gson.toJsonTree(request).asJsonObject
+        return ProtocolMessage(type = MessageType.REQUEST_HEALTH_HISTORY, data = data)
+    }
+
+    fun createResponseHealthHistory(response: HealthHistoryResponse): ProtocolMessage {
+        val data = gson.toJsonTree(response).asJsonObject
+        return ProtocolMessage(type = MessageType.RESPONSE_HEALTH_HISTORY, data = data)
+    }
+
+    fun createStartLiveMeasurement(request: LiveMeasurementRequest): ProtocolMessage {
+        val data = gson.toJsonTree(request).asJsonObject
+        return ProtocolMessage(type = MessageType.START_LIVE_MEASUREMENT, data = data)
+    }
+
+    fun createStopLiveMeasurement(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.STOP_LIVE_MEASUREMENT)
+    }
+
+    fun createUpdateHealthSettings(settings: HealthSettingsUpdate): ProtocolMessage {
+        val data = gson.toJsonTree(settings).asJsonObject
+        return ProtocolMessage(type = MessageType.UPDATE_HEALTH_SETTINGS, data = data)
     }
 
     // Helper to extract data from message

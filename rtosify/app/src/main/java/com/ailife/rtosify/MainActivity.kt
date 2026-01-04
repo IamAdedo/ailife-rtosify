@@ -52,6 +52,18 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var tvDndStatus: TextView
     private lateinit var imgDndIcon: ImageView
 
+    // Health Data UI
+    private lateinit var cardHealthData: MaterialCardView
+    private lateinit var tvStepsCount: TextView
+    private lateinit var tvStepsDetails: TextView
+    private lateinit var tvHeartRate: TextView
+    private lateinit var tvHeartRateTime: TextView
+    private lateinit var tvOxygenLevel: TextView
+    private lateinit var tvOxygenTime: TextView
+    private lateinit var layoutStepsAction: LinearLayout
+    private lateinit var layoutHeartRateAction: LinearLayout
+    private lateinit var layoutOxygenAction: LinearLayout
+
     // Watch Mode UI
     private lateinit var layoutWatchMode: LinearLayout
     private lateinit var imgWatchStatus: ImageView
@@ -116,6 +128,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         isPhoneMode = prefs.getString("device_type", "PHONE") == "PHONE"
         setupLayoutMode()
         setupDndClickListener()
+        setupHealthClickListeners()
 
         bindToService()
     }
@@ -155,6 +168,18 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         tvDndStatus = findViewById(R.id.tvDndStatus)
         imgDndIcon = findViewById(R.id.imgDndIcon)
 
+        // Health views
+        cardHealthData = findViewById(R.id.cardHealthData)
+        tvStepsCount = findViewById(R.id.tvStepsCount)
+        tvStepsDetails = findViewById(R.id.tvStepsDetails)
+        tvHeartRate = findViewById(R.id.tvHeartRate)
+        tvHeartRateTime = findViewById(R.id.tvHeartRateTime)
+        tvOxygenLevel = findViewById(R.id.tvOxygenLevel)
+        tvOxygenTime = findViewById(R.id.tvOxygenTime)
+        layoutStepsAction = findViewById(R.id.layoutStepsAction)
+        layoutHeartRateAction = findViewById(R.id.layoutHeartRateAction)
+        layoutOxygenAction = findViewById(R.id.layoutOxygenAction)
+
         layoutWatchMode = findViewById(R.id.layoutWatchMode)
         imgWatchStatus = findViewById(R.id.imgWatchStatus)
         tvWatchStatusBig = findViewById(R.id.tvWatchStatusBig)
@@ -181,6 +206,75 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 bluetoothService?.sendDndCommand(newState)
                 updateDndUI(newState)
             }
+        }
+    }
+
+    private fun setupHealthClickListeners() {
+        layoutStepsAction.setOnClickListener {
+            runIfConnected {
+                Toast.makeText(this, "Steps detail view - coming soon!", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        layoutHeartRateAction.setOnClickListener {
+            runIfConnected {
+                Toast.makeText(this, "Heart rate detail view - coming soon!", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        layoutOxygenAction.setOnClickListener {
+            runIfConnected {
+                Toast.makeText(this, "Blood oxygen detail view - coming soon!", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun updateHealthDataCard(healthData: HealthDataUpdate) {
+        // Steps with distance and calories
+        tvStepsCount.text = healthData.steps.toString()
+        val distance = String.format("%.2f km", healthData.distance)
+        val calories = "${healthData.calories} kcal"
+        tvStepsDetails.text = "$distance • $calories"
+
+        // Heart Rate
+        if (healthData.heartRate != null && healthData.heartRateTimestamp != null) {
+            tvHeartRate.text = "${healthData.heartRate} bpm"
+            tvHeartRateTime.text = formatTimeAgo(healthData.heartRateTimestamp)
+        } else {
+            tvHeartRate.text = "--"
+            tvHeartRateTime.text = getString(R.string.health_no_data)
+        }
+
+        // Blood Oxygen
+        if (healthData.bloodOxygen != null && healthData.oxygenTimestamp != null) {
+            tvOxygenLevel.text = "${healthData.bloodOxygen}%"
+            tvOxygenTime.text = formatTimeAgo(healthData.oxygenTimestamp)
+        } else {
+            tvOxygenLevel.text = "--"
+            tvOxygenTime.text = getString(R.string.health_no_data)
+        }
+
+        // Handle error states
+        healthData.errorState?.let { error ->
+            when (error) {
+                "APP_NOT_INSTALLED" -> {
+                    tvStepsDetails.text = getString(R.string.health_error_app_not_installed)
+                }
+                "API_DISABLED" -> {
+                    tvStepsDetails.text = getString(R.string.health_error_api_disabled)
+                }
+            }
+        }
+    }
+
+    private fun formatTimeAgo(timestamp: Long): String {
+        val now = System.currentTimeMillis()
+        val diff = now - timestamp
+        return when {
+            diff < 60000 -> getString(R.string.time_just_now)
+            diff < 3600000 -> getString(R.string.time_minutes_ago, diff / 60000)
+            diff < 86400000 -> getString(R.string.time_hours_ago, diff / 3600000)
+            else -> getString(R.string.time_days_ago, diff / 86400000)
         }
     }
 
@@ -348,8 +442,10 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         if (isPhoneMode && isConnected) {
             cardWatchStatus.visibility = View.VISIBLE
+            cardHealthData.visibility = View.VISIBLE
         } else {
             cardWatchStatus.visibility = View.GONE
+            cardHealthData.visibility = View.GONE
         }
 
         if (!isPhoneMode) {
@@ -571,9 +667,24 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         runOnUiThread { if (uploadDialog?.isShowing == true) updateUploadProgress(progress) }
     }
 
+    private var hasRequestedHealthData = false
+
     override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, dndEnabled: Boolean) {
         runOnUiThread {
             updateWatchStatusCard(batteryLevel, isCharging, wifiSsid, dndEnabled)
+        }
+        // Request health data only once when watch status first updates
+        if (!hasRequestedHealthData && bluetoothService?.isConnected == true) {
+            hasRequestedHealthData = true
+            bluetoothService?.requestHealthData()
+            android.util.Log.d("MainActivity", "Requesting health data from watch")
+        }
+    }
+
+    override fun onHealthDataUpdated(healthData: HealthDataUpdate) {
+        android.util.Log.d("MainActivity", "Health data received: steps=${healthData.steps}, cal=${healthData.calories}, hr=${healthData.heartRate}")
+        runOnUiThread {
+            updateHealthDataCard(healthData)
         }
     }
 

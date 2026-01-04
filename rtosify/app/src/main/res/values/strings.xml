@@ -208,4 +208,28 @@
 
     <!-- Notification Actions -->
     <string name="reply_label">Reply</string>
+
+    <!-- Health Data -->
+    <string name="health_title">Health Data</string>
+    <string name="health_steps">Steps</string>
+    <string name="health_no_data">No data</string>
+    <string name="health_steps_title">Step History</string>
+    <string name="health_hr_title">Heart Rate History</string>
+    <string name="health_oxygen_title">Blood Oxygen History</string>
+    <string name="health_period_day">Day</string>
+    <string name="health_period_week">Week</string>
+    <string name="health_period_month">Month</string>
+    <string name="health_daily_goal">Daily Goal</string>
+    <string name="health_goal_progress">%d%% complete</string>
+    <string name="health_measure_now">Measure Now</string>
+    <string name="health_measuring">Measuring...</string>
+    <string name="health_settings">Health Settings</string>
+    <string name="health_step_goal">Step Goal</string>
+    <string name="health_monitoring_interval">Monitoring Interval (minutes)</string>
+    <string name="health_error_app_not_installed">Better Health app not installed</string>
+    <string name="health_error_api_disabled">Health API not enabled</string>
+    <string name="time_just_now">Just now</string>
+    <string name="time_minutes_ago">%d min ago</string>
+    <string name="time_hours_ago">%d hr ago</string>
+    <string name="time_days_ago">%d days ago</string>
 </resources>

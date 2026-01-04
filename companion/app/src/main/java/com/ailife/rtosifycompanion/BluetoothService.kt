@@ -87,6 +87,8 @@ class BluetoothService : Service() {
     private var connectionJob: Job? = null
     private var serverJob: Job? = null
     private var statusUpdateJob: Job? = null
+    private lateinit var healthDataCollector: HealthDataCollector
+    private var liveMeasurementJob: Job? = null
 
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothSocket: BluetoothSocket? = null
@@ -277,7 +279,10 @@ class BluetoothService : Service() {
             registerReceiver(internalReceiver, filterInternal)
             registerReceiver(watchDismissReceiver, filterWatch)
         }
-        
+
+        // Initialize health data collector
+        healthDataCollector = HealthDataCollector(this)
+
         // Bind to Shizuku UserService if available
         bindUserServiceIfNeeded()
     }
@@ -529,6 +534,7 @@ class BluetoothService : Service() {
         val deviceType = prefs.getString("device_type", "PHONE")
         if (deviceType == "WATCH") {
             startWatchStatusSender()
+            // Health data is now request-based, not continuous
         }
 
         try {
@@ -561,6 +567,11 @@ class BluetoothService : Service() {
                     MessageType.REQUEST_FILE_DOWNLOAD -> handleRequestFileDownload(message)
                     MessageType.DELETE_FILE -> handleDeleteFile(message)
                     MessageType.UPDATE_SETTINGS -> handleUpdateSettings(message)
+                    MessageType.REQUEST_HEALTH_DATA -> handleRequestHealthData()
+                    MessageType.REQUEST_HEALTH_HISTORY -> handleRequestHealthHistory(message)
+                    MessageType.START_LIVE_MEASUREMENT -> handleStartLiveMeasurement(message)
+                    MessageType.STOP_LIVE_MEASUREMENT -> handleStopLiveMeasurement()
+                    MessageType.UPDATE_HEALTH_SETTINGS -> handleUpdateHealthSettings(message)
                 }
             }
         } catch (_: IOException) {
@@ -649,6 +660,7 @@ class BluetoothService : Service() {
         } catch (_: Exception) {}
 
         statusUpdateJob?.cancel()
+        liveMeasurementJob?.cancel()
     }
 
     fun sendMessage(message: ProtocolMessage) {
@@ -758,6 +770,78 @@ class BluetoothService : Service() {
             dnd = dndEnabled,
             wifi = wifiSsid
         )
+    }
+
+    // ========================================================================
+    // HEALTH DATA (STEPS, HR, OXYGEN)
+    // ========================================================================
+
+    private suspend fun handleRequestHealthData() {
+        try {
+            Log.d(TAG, "Received REQUEST_HEALTH_DATA, collecting data...")
+            // Collect health data once when requested (not continuously)
+            val healthData = healthDataCollector.collectCurrentHealthData()
+            Log.d(TAG, "Collected health data: steps=${healthData.steps}, cal=${healthData.calories}, hr=${healthData.heartRate}")
+            sendMessage(ProtocolHelper.createHealthDataUpdate(healthData))
+            Log.d(TAG, "Sent health data update to phone")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error collecting health data: ${e.message}")
+        }
+    }
+
+    private fun startLiveMeasurementMode(type: String) {
+        liveMeasurementJob?.cancel()
+        liveMeasurementJob = serviceScope.launch(Dispatchers.IO) {
+            while (isActive && isConnected) {
+                try {
+                    val healthData = healthDataCollector.measureNow(type)
+                    sendMessage(ProtocolHelper.createHealthDataUpdate(healthData))
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in live measurement: ${e.message}")
+                }
+                delay(1000) // 1 second for live updates
+            }
+        }
+    }
+
+    private suspend fun handleRequestHealthHistory(message: ProtocolMessage) {
+        try {
+            val request = ProtocolHelper.extractData<HealthHistoryRequest>(message)
+            Log.d(TAG, "Health history request: ${request.type}, ${request.startTime}-${request.endTime}")
+
+            val response = healthDataCollector.queryHistoricalData(
+                request.type, request.startTime, request.endTime
+            )
+            sendMessage(ProtocolHelper.createResponseHealthHistory(response))
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling health history request: ${e.message}")
+        }
+    }
+
+    private fun handleStartLiveMeasurement(message: ProtocolMessage) {
+        try {
+            val request = ProtocolHelper.extractData<LiveMeasurementRequest>(message)
+            Log.d(TAG, "Starting live measurement: ${request.type}")
+            startLiveMeasurementMode(request.type)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting live measurement: ${e.message}")
+        }
+    }
+
+    private fun handleStopLiveMeasurement() {
+        Log.d(TAG, "Stopping live measurement")
+        liveMeasurementJob?.cancel()
+        liveMeasurementJob = null
+    }
+
+    private suspend fun handleUpdateHealthSettings(message: ProtocolMessage) {
+        try {
+            val settings = ProtocolHelper.extractData<HealthSettingsUpdate>(message)
+            Log.d(TAG, "Updating health settings")
+            healthDataCollector.updateHealthSettings(settings)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating health settings: ${e.message}")
+        }
     }
 
     private suspend fun handleStatusUpdateReceived(message: ProtocolMessage) {

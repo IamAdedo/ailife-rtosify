@@ -121,6 +121,8 @@ class BluetoothService : Service() {
         fun onDownloadProgress(progress: Int)
         fun onFileListReceived(path: String, filesJson: String)
         fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, dndEnabled: Boolean) {}
+        fun onHealthDataUpdated(healthData: HealthDataUpdate) {}
+        fun onHealthHistoryReceived(historyData: HealthHistoryResponse) {}
     }
 
     var callback: ServiceCallback? = null
@@ -464,6 +466,8 @@ class BluetoothService : Service() {
                     MessageType.CAMERA_STOP -> handleCameraStop()
                     MessageType.CAMERA_SHUTTER -> handleCameraShutter()
                     MessageType.RESPONSE_FILE_LIST -> handleResponseFileList(message)
+                    MessageType.HEALTH_DATA_UPDATE -> handleHealthDataReceived(message)
+                    MessageType.RESPONSE_HEALTH_HISTORY -> handleHealthHistoryReceived(message)
                 }
             }
         } catch (_: IOException) {
@@ -644,6 +648,50 @@ class BluetoothService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Erro parser status: ${e.message}")
         }
+    }
+
+    private suspend fun handleHealthDataReceived(message: ProtocolMessage) {
+        try {
+            val healthData = ProtocolHelper.extractData<HealthDataUpdate>(message)
+            withContext(Dispatchers.Main) {
+                callback?.onHealthDataUpdated(healthData)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing health data: ${e.message}")
+        }
+    }
+
+    private suspend fun handleHealthHistoryReceived(message: ProtocolMessage) {
+        try {
+            val historyData = ProtocolHelper.extractData<HealthHistoryResponse>(message)
+            withContext(Dispatchers.Main) {
+                callback?.onHealthHistoryReceived(historyData)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing health history: ${e.message}")
+        }
+    }
+
+    fun requestHealthData() {
+        sendMessage(ProtocolHelper.createRequestHealthData())
+    }
+
+    fun requestHealthHistory(type: String, startTime: Long, endTime: Long) {
+        val request = HealthHistoryRequest(type, startTime, endTime)
+        sendMessage(ProtocolHelper.createRequestHealthHistory(request))
+    }
+
+    fun startLiveMeasurement(type: String) {
+        val request = LiveMeasurementRequest(type)
+        sendMessage(ProtocolHelper.createStartLiveMeasurement(request))
+    }
+
+    fun stopLiveMeasurement() {
+        sendMessage(ProtocolHelper.createStopLiveMeasurement())
+    }
+
+    fun updateHealthSettings(settings: HealthSettingsUpdate) {
+        sendMessage(ProtocolHelper.createUpdateHealthSettings(settings))
     }
 
     fun sendDndCommand(enable: Boolean) {

@@ -41,6 +41,10 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
 
+    <!-- Better Health Tracker API -->
+    <uses-permission android:name="com.ailife.betterhealth.READ_HEALTH_DATA" />
+    <uses-permission android:name="com.ailife.betterhealth.WRITE_HEALTH_DATA" />
+
     <queries>
         <package android:name="moe.shizuku.privileged.api" />
     </queries>
