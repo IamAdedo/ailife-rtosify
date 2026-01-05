@@ -1604,20 +1604,31 @@ class BluetoothService : Service() {
         serviceScope.launch(Dispatchers.IO) {
             try {
                 // Define target dir
-                val root = android.os.Environment.getExternalStorageDirectory()
-                val clockSkinDir = File(root, "Android/data/com.ailife.ClockSkinCoco/files/ClockSkin")
-                if (!clockSkinDir.exists()) clockSkinDir.mkdirs()
-
-                // Keep extension, do not extract
-                val targetFile = File(clockSkinDir, file.name)
-                if (targetFile.exists()) targetFile.delete()
+                val root = android.os.Environment.getExternalStorageDirectory().absolutePath
+                val clockSkinPath = "$root/Android/data/com.ailife.ClockSkinCoco/files/ClockSkin"
                 
-                file.copyTo(targetFile, true)
+                val targetFile = File(clockSkinPath, file.name)
+                
+                // If the file is NOT already in the target directory, move it
+                if (file.absolutePath != targetFile.absolutePath) {
+                    android.util.Log.d(TAG, "Moving watch face to restricted dir: ${targetFile.absolutePath}")
+                    val success = moveFileDispatcher(file.absolutePath, targetFile.absolutePath)
+                    if (!success) {
+                        android.util.Log.e(TAG, "Failed to move watch face to restricted dir")
+                        return@launch
+                    }
+                } else {
+                    android.util.Log.d(TAG, "Watch face already in target directory: ${file.absolutePath}")
+                }
 
                 // Broadcast change face
                 val intent = Intent("com.android.watchengine.changeface")
+                // handleSetWatchFace uses "faceName" with relative path, so let's try to match that
+                intent.putExtra("faceName", file.name)
+                // Keep "path" with absolute path just in case some engines use it
                 intent.putExtra("path", targetFile.absolutePath)
                 sendBroadcast(intent)
+                android.util.Log.d(TAG, "Broadcasted changeface for: ${file.name} / ${targetFile.absolutePath}")
                 
                 android.util.Log.d(TAG, "Watch face applied successfully: ${targetFile.absolutePath}")
             } catch (e: Exception) {

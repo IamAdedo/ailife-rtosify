@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.IBinder
@@ -81,8 +82,13 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
         switchFragment(0)
         
         bindService(Intent(this, BluetoothService::class.java), connection, Context.BIND_AUTO_CREATE)
-
-        registerReceiver(downloadReceiver, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_NOT_EXPORTED)
+        
+        android.util.Log.d("WatchFace", "Registering download receiver (EXPORTED)")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(downloadReceiver, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(downloadReceiver, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
+        }
     }
 
     override fun onDestroy() {
@@ -124,6 +130,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
 
         val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         val downloadId = dm.enqueue(request)
+        android.util.Log.d("WatchFace", "Enqueued download id: $downloadId, file: $fileName")
         downloadMap[downloadId] = fileName
         Toast.makeText(this, R.string.wf_downloading, Toast.LENGTH_SHORT).show()
     }
@@ -132,15 +139,21 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == DownloadManager.ACTION_DOWNLOAD_COMPLETE) {
                 val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
+                android.util.Log.d("WatchFace", "Download complete received for id: $id")
                 val fileName = downloadMap.remove(id)
                 if (fileName != null) {
                     val file = File(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "RTOSify/WatchFaces"), fileName)
+                    android.util.Log.d("WatchFace", "Resolved file: ${file.absolutePath}, exists: ${file.exists()}")
                     if (file.exists()) {
-                        android.util.Log.d("WatchFace", "Download complete, auto-transferring: ${file.absolutePath}")
+                        android.util.Log.d("WatchFace", "Triggering auto-transfer for: ${file.name}")
                         runOnUiThread {
                             transferWatchFace(file)
                         }
+                    } else {
+                        android.util.Log.e("WatchFace", "File does not exist: ${file.absolutePath}")
                     }
+                } else {
+                    android.util.Log.w("WatchFace", "No filename found in map for download id: $id. map keys: ${downloadMap.keys}")
                 }
                 // Refresh manager fragment
                 managerFragment.refresh()
@@ -155,7 +168,9 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
         }
         
         showProgressDialog("Transferring ${file.name}...")
-        bluetoothService?.sendFile(file, FileTransferData.TYPE_WATCHFACE)
+        // Specify remote restricted path
+        val remotePath = "Android/data/com.ailife.ClockSkinCoco/files/ClockSkin/${file.name}"
+        bluetoothService?.sendFile(file, FileTransferData.TYPE_WATCHFACE, remotePath)
     }
 
     private fun showProgressDialog(message: String) {
