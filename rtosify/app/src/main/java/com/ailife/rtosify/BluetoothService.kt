@@ -297,9 +297,41 @@ class BluetoothService : Service() {
 
     private fun initializeLogicFromPrefs() {
         val deviceType = prefs.getString("device_type", null)
-        if (deviceType != null && bluetoothAdapter?.isEnabled == true) {
+        if (deviceType != null) {
             if (deviceType == "PHONE") startSmartphoneLogic() else startWatchLogic()
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun checkAndEnableBluetooth(): Boolean {
+        if (bluetoothAdapter?.isEnabled == true) return true
+
+        Log.w(TAG, "Bluetooth is disabled.")
+        updateStatus("Bluetooth Disabled")
+
+        // Tenta habilitar automaticamente
+        try {
+            if (bluetoothAdapter?.enable() == true) {
+                updateStatus("Enabling Bluetooth...")
+                return false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to auto-enable Bluetooth: ${e.message}")
+        }
+
+        // Se falhar, solicita ao usuário
+        mainHandler.post {
+            Toast.makeText(this, "Bluetooth required. Please enable it.", Toast.LENGTH_SHORT).show()
+            try {
+                val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+            } catch (e: Exception) {
+                Log.e(TAG, "Could not start enable bluetooth intent: ${e.message}")
+            }
+        }
+        
+        return false
     }
 
     @SuppressLint("MissingPermission")
@@ -319,6 +351,19 @@ class BluetoothService : Service() {
         updateStatus(getString(R.string.status_searching))
         connectionJob?.cancel()
         connectionJob = serviceScope.launch {
+            // Loop while Bluetooth is disabled
+            while (isActive && !checkAndEnableBluetooth()) {
+                delay(3000)
+            }
+            if (!isActive) return@launch
+
+            updateStatus(getString(R.string.status_searching))
+
+            // Wait a bit if we just enabled extensions
+            if (bluetoothAdapter?.state == BluetoothAdapter.STATE_TURNING_ON) {
+                 delay(2000)
+            }
+
             val pairedDevices = bluetoothAdapter?.bondedDevices ?: emptySet()
             val successfulConnections = mutableListOf<Pair<BluetoothDevice, BluetoothSocket>>()
             supervisorScope {
@@ -361,6 +406,11 @@ class BluetoothService : Service() {
         connectionJob = serviceScope.launch {
             var socketToUse = initialSocket
             while (isActive) {
+                if (!checkAndEnableBluetooth()) {
+                    delay(3000)
+                    continue
+                }
+
                 try {
                     if (socketToUse == null) {
                         updateStatus(getString(R.string.status_connecting_to, device.name))
@@ -385,6 +435,13 @@ class BluetoothService : Service() {
         serverJob = serviceScope.launch {
             updateStatus(getString(R.string.status_waiting))
             while (isActive) {
+                if (!checkAndEnableBluetooth()) {
+                    delay(3000)
+                    continue
+                }
+
+                updateStatus(getString(R.string.status_waiting))
+
                 var serverSocket: BluetoothServerSocket?
                 try {
                     serverSocket = bluetoothAdapter?.listenUsingRfcommWithServiceRecord(APP_NAME, APP_UUID)
@@ -395,11 +452,20 @@ class BluetoothService : Service() {
 
                 var socket: BluetoothSocket? = null
                 while (socket == null && isActive) {
+                    // Check BT again inside the waiting loop
+                    if (bluetoothAdapter?.isEnabled != true) {
+                        try { serverSocket?.close() } catch(e:Exception){}
+                        serverSocket = null
+                        break 
+                    }
+
                     try {
                         socket = serverSocket?.accept(5000)
                     } catch (_: IOException) {
                     }
                 }
+
+                if (serverSocket == null && socket == null) continue
 
                 if (socket != null) {
                     try {
