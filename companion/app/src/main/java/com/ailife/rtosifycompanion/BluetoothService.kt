@@ -1101,24 +1101,124 @@ class BluetoothService : Service() {
 
     private suspend fun handleRequestFileList(message: ProtocolMessage) {
         val path = ProtocolHelper.extractStringField(message, "path") ?: "/"
+        
+        val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
+        val normalizedPath = path.removePrefix("/")
+        
+        // 1. If inside the protected directory, ensure we use SAF
+        if (normalizedPath.startsWith(watchFacePath)) {
+            val safFiles = listUsingSaf(normalizedPath)
+            if (safFiles != null) {
+                sendMessage(ProtocolHelper.createResponseFileList(path, safFiles))
+                return
+            }
+        }
+
+        // 2. Standard File API listing
         val root = android.os.Environment.getExternalStorageDirectory()
-        val targetDir = if (path == "/" || path.isEmpty()) root else File(root, path.removePrefix("/"))
+        val targetDir = if (path == "/" || path.isEmpty()) root else File(root, normalizedPath)
 
         if (!targetDir.exists() || !targetDir.isDirectory) {
             sendMessage(ProtocolHelper.createResponseFileList(path, emptyList()))
             return
         }
 
-        val files = targetDir.listFiles()?.map {
+        var files = targetDir.listFiles()?.map {
             FileInfo(
                 name = it.name,
                 size = it.length(),
                 isDirectory = it.isDirectory,
                 lastModified = it.lastModified()
             )
-        } ?: emptyList()
+        }?.toMutableList() ?: mutableListOf()
+
+        // 3. Inject "com.ailife.ClockSkinCoco" if we are in Android/data and it's missing (hidden by Android 11+)
+        if (normalizedPath == "Android/data") {
+            if (files.none { it.name == "com.ailife.ClockSkinCoco" }) {
+                // Determine if we should show it (e.g. only if we have permission, or always to let user try)
+                // Always showing it allows the user to click it and trigger the SAF logic in step 1.
+                files.add(FileInfo("com.ailife.ClockSkinCoco", 0, true, System.currentTimeMillis()))
+            }
+        }
 
         sendMessage(ProtocolHelper.createResponseFileList(path, files))
+    }
+
+    private fun listUsingSaf(path: String): List<FileInfo>? {
+        try {
+            val targetFolder = "Android/data/com.ailife.ClockSkinCoco"
+            
+            // Find permission more loosely to avoid encoding mismatches
+            val perm = contentResolver.persistedUriPermissions.firstOrNull { 
+                val uriStr = it.uri.toString()
+                uriStr.contains("com.ailife.ClockSkinCoco") && it.isWritePermission 
+            }
+            
+            if (perm != null) {
+                val treeUri = perm.uri
+                var docFile = androidx.documentfile.provider.DocumentFile.fromTreeUri(this, treeUri) ?: return null
+                
+                // Navigate to subfolder if needed
+                if (path.length > targetFolder.length) {
+                    val subPath = path.substring(targetFolder.length).removePrefix("/")
+                    if (subPath.isNotEmpty()) {
+                        val parts = subPath.split("/")
+                        for (part in parts) {
+                            // Case insensitive search
+                            var nextFile = docFile.listFiles().find { it.name?.equals(part, ignoreCase = true) == true }
+                            
+                            if (nextFile == null) {
+                                // Try to create it if it doesn't exist (using the requested casing)
+                                try {
+                                    if (part.equals("ClockSkin", ignoreCase = true)) {
+                                         // If we are creating the main folder, prefer CamelCase as per standard, 
+                                         // unless 'clockskin' was explicitly requested? 
+                                         // Actually, stick to the requested name if creating, or enforce "ClockSkin"?
+                                         // User said "clockskin folder should also be used", implying existing ones might be lowercase.
+                                         // We will create as requested 'part' if missing.
+                                    }
+                                    
+                                    nextFile = docFile.createDirectory(part)
+                                    Log.i(TAG, "SAF: Created missing directory '$part'")
+                                    
+                                    // If we just created the ClockSkin directory, add a README to confirm it works
+                                    if (part.equals("ClockSkin", ignoreCase = true)) {
+                                        nextFile?.createFile("text/plain", "README.txt")
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "SAF: Failed to create directory '$part': ${e.message}")
+                                }
+                            }
+                            
+                            if (nextFile != null) {
+                                docFile = nextFile
+                            } else {
+                                Log.w(TAG, "SAF: Subfolder '$part' not found in $path and creation failed")
+                                return null
+                            }
+                        }
+                    }
+                }
+                
+                return docFile.listFiles().map {
+                    FileInfo(
+                        name = it.name ?: "unknown",
+                        size = it.length(),
+                        isDirectory = it.isDirectory,
+                        lastModified = it.lastModified()
+                    )
+                }
+            } else {
+                Log.w(TAG, "SAF: No persisted permission found for $targetFolder")
+                // Log available perms for debugging
+                contentResolver.persistedUriPermissions.forEach {
+                     Log.d(TAG, "Available perm: ${it.uri} (write=${it.isWritePermission})")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error listing files using SAF: ${e.message}")
+        }
+        return null
     }
 
     private suspend fun handleRequestFileDownload(message: ProtocolMessage) {
@@ -1142,24 +1242,35 @@ class BluetoothService : Service() {
     private suspend fun handleDeleteFile(message: ProtocolMessage) {
         val path = ProtocolHelper.extractStringField(message, "path") ?: return
         android.util.Log.d(TAG, "Delete requested for path: $path")
-
-        val root = android.os.Environment.getExternalStorageDirectory()
-        // Convert path from file manager "/" format to actual external storage path
+        
+        val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
         val normalizedPath = path.removePrefix("/")
-        val file = File(root, normalizedPath)
-
-        android.util.Log.d(TAG, "Attempting to delete file at: ${file.absolutePath}")
-
-        if (file.exists()) {
-            val deleted = file.delete()
-            android.util.Log.d(TAG, "File deleted: $deleted")
-            if (deleted) {
-                // Refresh list - get parent directory path
-                val parentPath = "/" + (file.parentFile?.let {
-                    it.absolutePath.removePrefix(root.absolutePath).removePrefix("/")
-                } ?: "")
-                handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
+        
+        var success = false
+        
+        if (normalizedPath.startsWith(watchFacePath, ignoreCase = true)) {
+            val doc = getDocumentFileForPath(normalizedPath, false)
+            if (doc != null && doc.exists()) {
+                 success = doc.delete()
+                 if (success) android.util.Log.d(TAG, "SAF File deleted: $path")
             }
+        } else {
+            val root = android.os.Environment.getExternalStorageDirectory()
+            val file = File(root, normalizedPath)
+    
+            android.util.Log.d(TAG, "Attempting to delete file at: ${file.absolutePath}")
+    
+            if (file.exists()) {
+                // Use recursion for folders
+                success = file.deleteRecursively() 
+                android.util.Log.d(TAG, "File deleted: $success")
+            }
+        }
+
+        if (success) {
+            // Refresh list - get parent directory path
+             val parentPath = if (path.lastIndexOf('/') > 0) path.substring(0, path.lastIndexOf('/')) else "/"
+            handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
         }
     }
 
@@ -1167,22 +1278,36 @@ class BluetoothService : Service() {
         val oldPath = message.data.get("oldPath")?.asString ?: return
         val newPath = message.data.get("newPath")?.asString ?: return
         android.util.Log.d(TAG, "Rename requested: $oldPath -> $newPath")
-
-        val root = android.os.Environment.getExternalStorageDirectory()
-        val oldFile = File(root, oldPath.removePrefix("/"))
-        val newFile = File(root, newPath.removePrefix("/"))
-
-        val success = if (isUsingShizuku()) {
-            ensureUserServiceBound()
-            userService?.renameFile(oldFile.absolutePath, newFile.absolutePath) ?: false
-        } else {
-            oldFile.renameTo(newFile)
-        }
         
+        val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
+        val normalizedOld = oldPath.removePrefix("/")
+        val normalizedNew = newPath.removePrefix("/")
+        
+        var success = false
+        
+        if (normalizedOld.startsWith(watchFacePath, ignoreCase = true)) {
+            val oldDoc = getDocumentFileForPath(normalizedOld, false)
+            if (oldDoc != null && oldDoc.exists()) {
+                 // Calculate new name
+                 val newName = normalizedNew.substringAfterLast("/")
+                 success = oldDoc.renameTo(newName)
+            }
+        } else {
+             val root = android.os.Environment.getExternalStorageDirectory()
+             val oldFile = File(root, normalizedOld)
+             val newFile = File(root, normalizedNew)
+     
+             success = if (isUsingShizuku()) {
+                 ensureUserServiceBound()
+                 userService?.renameFile(oldFile.absolutePath, newFile.absolutePath) ?: false
+             } else {
+                 oldFile.renameTo(newFile)
+             }
+        }
+
         if (success) {
-            val parentPath = "/" + (newFile.parentFile?.let {
-                it.absolutePath.removePrefix(root.absolutePath).removePrefix("/")
-            } ?: "")
+             // Refresh parent of the *new* location
+             val parentPath = if (newPath.lastIndexOf('/') > 0) newPath.substring(0, newPath.lastIndexOf('/')) else "/"
             handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
         }
     }
@@ -1191,32 +1316,69 @@ class BluetoothService : Service() {
         val srcPath = message.data.get("srcPath")?.asString ?: return
         val dstPath = message.data.get("dstPath")?.asString ?: return
         android.util.Log.d(TAG, "Move requested: $srcPath -> $dstPath")
-
-        val root = android.os.Environment.getExternalStorageDirectory()
-        val srcFile = File(root, srcPath.removePrefix("/"))
-        val dstFile = File(root, dstPath.removePrefix("/"))
-
-        val success = if (isUsingShizuku()) {
-            ensureUserServiceBound()
-            userService?.moveFile(srcFile.absolutePath, dstFile.absolutePath) ?: false
+        
+        val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
+        val normalizedSrc = srcPath.removePrefix("/")
+        val normalizedDst = dstPath.removePrefix("/")
+        
+        var success = false
+        
+        if (normalizedSrc.startsWith(watchFacePath, ignoreCase = true)) {
+             // SAF Move
+             val srcDoc = getDocumentFileForPath(normalizedSrc, false)
+             // For destination, we need the PARENT directory to create the file there
+             val dstParentPath = if (normalizedDst.contains("/")) normalizedDst.substringBeforeLast("/") else ""
+             val dstName = if (normalizedDst.contains("/")) normalizedDst.substringAfterLast("/") else normalizedDst
+             
+             // Ensure destination parent exists
+             val dstParentDoc = if (dstParentPath.isNotEmpty()) getDocumentFileForPath(dstParentPath, true) else null // Try getting root if empty? Logic needs care. 
+             // If dstParentPath is empty, it means root of allowed tree? 
+             // Actually normalizedDst starts with Android/data... so dstParentPath won't be empty unless it IS that folder.
+             
+             if (srcDoc != null && dstParentDoc != null && srcDoc.exists() && dstParentDoc.exists()) {
+                  // Copy and Delete
+                  try {
+                      // Note: This is potentially slow for large files on main thread, but we are in IO context
+                      val mime = srcDoc.type ?: "application/octet-stream"
+                      val newFile = dstParentDoc.createFile(mime, dstName)
+                      if (newFile != null) {
+                          contentResolver.openInputStream(srcDoc.uri)?.use { input ->
+                              contentResolver.openOutputStream(newFile.uri)?.use { output ->
+                                  input.copyTo(output)
+                              }
+                          }
+                          srcDoc.delete()
+                          success = true
+                      }
+                  } catch (e: Exception) {
+                      Log.e(TAG, "SAF Move failed: ${e.message}")
+                  }
+             }
         } else {
-            if (srcFile.renameTo(dstFile)) true
-            else {
-                // Try copy + delete if rename fails
-                try {
-                    srcFile.copyRecursively(dstFile, true)
-                    srcFile.deleteRecursively()
-                    true
-                } catch (e: Exception) {
-                    false
+            val root = android.os.Environment.getExternalStorageDirectory()
+            val srcFile = File(root, normalizedSrc)
+            val dstFile = File(root, normalizedDst)
+    
+            success = if (isUsingShizuku()) {
+                ensureUserServiceBound()
+                userService?.moveFile(srcFile.absolutePath, dstFile.absolutePath) ?: false
+            } else {
+                if (srcFile.renameTo(dstFile)) true
+                else {
+                    // Try copy + delete if rename fails
+                    try {
+                        srcFile.copyRecursively(dstFile, true)
+                        srcFile.deleteRecursively()
+                        true
+                    } catch (e: Exception) {
+                        false
+                    }
                 }
             }
         }
 
         if (success) {
-            val parentPath = "/" + (dstFile.parentFile?.let {
-                it.absolutePath.removePrefix(root.absolutePath).removePrefix("/")
-            } ?: "")
+            val parentPath = if (dstPath.lastIndexOf('/') > 0) dstPath.substring(0, dstPath.lastIndexOf('/')) else "/"
             handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
         }
     }
@@ -1239,17 +1401,75 @@ class BluetoothService : Service() {
         val path = message.data.get("path")?.asString ?: return
         android.util.Log.d(TAG, "Create folder requested: $path")
 
-        val root = android.os.Environment.getExternalStorageDirectory()
-        val folder = File(root, path.removePrefix("/"))
-
-        val success = folder.mkdirs()
+        val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
+        val normalizedPath = path.removePrefix("/")
+        
+        var success = false
+        if (normalizedPath.startsWith(watchFacePath, ignoreCase = true)) {
+            val doc = getDocumentFileForPath(normalizedPath, true)
+            success = doc != null && doc.isDirectory
+        } else {
+            val root = android.os.Environment.getExternalStorageDirectory()
+            val folder = File(root, normalizedPath)
+            success = folder.exists() || folder.mkdirs()
+        }
 
         if (success) {
-            val parentPath = "/" + (folder.parentFile?.let {
-                it.absolutePath.removePrefix(root.absolutePath).removePrefix("/")
-            } ?: "")
+            // Refresh parent listing logic remains...
+            val parentPath = if (path.lastIndexOf('/') > 0) path.substring(0, path.lastIndexOf('/')) else "/"
             handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
         }
+    }
+    
+    // Helper to find or create DocumentFile given a relative path from external storage root
+    // Only works if path is within a granted permission tree (e.g. Android/data/com.ailife.ClockSkinCoco)
+    private fun getDocumentFileForPath(path: String, createIfNotExists: Boolean): androidx.documentfile.provider.DocumentFile? {
+         try {
+            val targetFolder = "Android/data/com.ailife.ClockSkinCoco"
+            
+             // Case insensitive check if we are targeting this folder
+            if (!path.startsWith(targetFolder, ignoreCase = true)) return null
+
+            // Find permission
+            val perm = contentResolver.persistedUriPermissions.firstOrNull { 
+                val uriStr = it.uri.toString()
+                uriStr.contains("com.ailife.ClockSkinCoco", ignoreCase = true) && it.isWritePermission 
+            }
+            
+            if (perm != null) {
+                var docFile = androidx.documentfile.provider.DocumentFile.fromTreeUri(this, perm.uri) ?: return null
+                
+                if (path.length > targetFolder.length) {
+                    val subPath = path.substring(targetFolder.length).removePrefix("/")
+                    if (subPath.isNotEmpty()) {
+                        val parts = subPath.split("/")
+                        for (part in parts) {
+                            var nextFile = docFile.listFiles().find { it.name?.equals(part, ignoreCase = true) == true }
+                            
+                            if (nextFile == null && createIfNotExists) {
+                                try {
+                                    // Use requested casing for creation
+                                    nextFile = docFile.createDirectory(part)
+                                    Log.i(TAG, "SAF: Created directory '$part'")
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "SAF: Create dir failed: ${e.message}")
+                                }
+                            }
+                            
+                            if (nextFile != null) {
+                                docFile = nextFile
+                            } else {
+                                return null
+                            }
+                        }
+                    }
+                }
+                return docFile
+            }
+         } catch(e: Exception) {
+             Log.e(TAG, "SAF Error: ${e.message}")
+         }
+         return null
     }
 
     private fun handleWatchFaceReceived(file: File) {
@@ -2365,38 +2585,50 @@ class BluetoothService : Service() {
         
         serviceScope.launch(Dispatchers.IO) {
             try {
-                val file = if (path.startsWith("/")) File(path) else File(android.os.Environment.getExternalStorageDirectory(), path)
-                
                 var bitmap: Bitmap? = null
                 
-                if (file.exists()) {
-                    if (file.isDirectory) {
-                        val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
-                        for (c in candidates) {
-                            val img = File(file, c)
-                            if (img.exists()) {
-                                bitmap = android.graphics.BitmapFactory.decodeFile(img.absolutePath)
-                                break
-                            }
-                        }
-                    } else if (file.name.endsWith(".zip", true) || file.name.endsWith(".watch", true)) {
-                        try {
-                            java.util.zip.ZipFile(file).use { zip ->
-                                val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
-                                for (c in candidates) {
-                                    val entry = zip.entries().asSequence().find { 
-                                        it.name.endsWith(c, true) && !it.isDirectory 
-                                    }
-                                    if (entry != null) {
-                                        zip.getInputStream(entry).use { input ->
-                                            bitmap = android.graphics.BitmapFactory.decodeStream(input)
-                                        }
-                                        break
-                                    }
+                val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
+                val normalizedPath = path.removePrefix("/")
+                
+                // 1. Try SAF load if in protected dir
+                if (normalizedPath.startsWith(watchFacePath)) {
+             	   bitmap = loadPreviewFromSaf(normalizedPath)
+                }
+                
+                // 2. Fallback to normal file
+                if (bitmap == null) {
+                    val file = if (path.startsWith("/")) File(path) else File(android.os.Environment.getExternalStorageDirectory(), path)
+                    
+                    if (file.exists()) {
+                        if (file.isDirectory) {
+                            val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
+                            for (c in candidates) {
+                                val img = File(file, c)
+                                if (img.exists()) {
+                                    bitmap = android.graphics.BitmapFactory.decodeFile(img.absolutePath)
+                                    break
                                 }
                             }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
+                        } else if (file.name.endsWith(".zip", true) || file.name.endsWith(".watch", true)) {
+                            // ... (zip logic same as before) ...
+                             try {
+                                java.util.zip.ZipFile(file).use { zip ->
+                                    val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
+                                    for (c in candidates) {
+                                        val entry = zip.entries().asSequence().find { 
+                                            it.name.endsWith(c, true) && !it.isDirectory 
+                                        }
+                                        if (entry != null) {
+                                            zip.getInputStream(entry).use { input ->
+                                                bitmap = android.graphics.BitmapFactory.decodeStream(input)
+                                            }
+                                            break
+                                        }
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
                         }
                     }
                 }
@@ -2416,5 +2648,77 @@ class BluetoothService : Service() {
                 sendMessage(ProtocolHelper.createResponsePreview(path, null))
             }
         }
+    }
+
+    private fun loadPreviewFromSaf(path: String): Bitmap? {
+         try {
+            val targetFolder = "Android/data/com.ailife.ClockSkinCoco"
+            val perm = contentResolver.persistedUriPermissions.firstOrNull { 
+                val uriStr = it.uri.toString()
+                uriStr.contains("com.ailife.ClockSkinCoco") && it.isWritePermission 
+            }
+            
+            if (perm != null) {
+                var docFile = androidx.documentfile.provider.DocumentFile.fromTreeUri(this, perm.uri) ?: return null
+                
+                // Navigate to the file/folder
+                if (path.length > targetFolder.length) {
+                    val subPath = path.substring(targetFolder.length).removePrefix("/")
+                    if (subPath.isNotEmpty()) {
+                        val parts = subPath.split("/")
+                        for (part in parts) {
+                            // docFile = docFile.findFile(part) ?: return null
+                            // Case insensitive find
+                            val next = docFile.listFiles().find { it.name?.equals(part, ignoreCase = true) == true }
+                            if (next != null) {
+                                docFile = next
+                            } else {
+                                return null
+                            }
+                        }
+                    }
+                }
+                
+                if (docFile.isDirectory) {
+                    val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
+                    for (c in candidates) {
+                         val img = docFile.findFile(c)
+                         if (img != null) {
+                             return contentResolver.openInputStream(img.uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
+                         }
+                    }
+                } else if (docFile.name?.endsWith(".zip", true) == true || docFile.name?.endsWith(".watch", true) == true) {
+                     // Can't easily random access zip via SAF stream without copying.
+                     // But we can copy to cache
+                     // But we can copy to cache
+                     val tempFile = File(cacheDir, "preview_${System.currentTimeMillis()}_${path.hashCode()}.zip")
+                     contentResolver.openInputStream(docFile.uri)?.use { input ->
+                         java.io.FileOutputStream(tempFile).use { output ->
+                             input.copyTo(output)
+                         }
+                     }
+                      try {
+                        java.util.zip.ZipFile(tempFile).use { zip ->
+                            val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
+                            for (c in candidates) {
+                                val entry = zip.entries().asSequence().find { 
+                                    it.name.endsWith(c, true) && !it.isDirectory 
+                                }
+                                if (entry != null) {
+                                    zip.getInputStream(entry).use { input ->
+                                        return android.graphics.BitmapFactory.decodeStream(input)
+                                    }
+                                }
+                            }
+                        }
+                    } finally {
+                        tempFile.delete()
+                    }
+                }
+            }
+         } catch(e: Exception) {
+             Log.e(TAG, "Error loading preview from SAF: ${e.message}")
+         }
+         return null
     }
 }

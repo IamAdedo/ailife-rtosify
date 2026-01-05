@@ -76,7 +76,7 @@ class PermissionActivity : AppCompatActivity() {
         perms.add(PermissionItem("SHIZUKU", getString(R.string.perm_shizuku), getString(R.string.perm_shizuku_desc), hasShizuku))
 
         // 4. Root
-        val isRoot = Shell.isAppGrantedRoot() == true || (Shell.getCachedShell()?.isRoot == true)
+        val isRoot = (Shell.isAppGrantedRoot() == true)
         perms.add(PermissionItem("ROOT", getString(R.string.perm_root), getString(R.string.perm_root_desc), isRoot))
 
         // 5. Location
@@ -154,7 +154,7 @@ class PermissionActivity : AppCompatActivity() {
                     }
                 } catch (e: Exception) {}
             }
-            "ROOT" -> Shell.getShell { }
+            "ROOT" -> Shell.getShell { updatePermissionList() }
             "LOCATION" -> requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 103)
             "LOCATION_BG" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -196,7 +196,7 @@ class PermissionActivity : AppCompatActivity() {
 
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             // Android 11+ checking SAF for specific folder
-            val uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AAndroid%2Fdata%2Fcom.ailife.ClockSkinCoco%2Ffiles%2FClockSkin")
+            val uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AAndroid%2Fdata%2Fcom.ailife.ClockSkinCoco")
             contentResolver.persistedUriPermissions.any { it.uri == uri && it.isWritePermission }
         } else {
             checkPerm(Manifest.permission.WRITE_EXTERNAL_STORAGE)
@@ -214,8 +214,9 @@ class PermissionActivity : AppCompatActivity() {
             }
 
             // Fallback to SAF for 11-13 (and 14+ if no Shizuku, though 14+ is harder)
-            val path = "Android/data/com.ailife.ClockSkinCoco/files/ClockSkin"
-            val uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3A" + path.replace("/", "%2F"))
+            val path = "Android/data/com.ailife.ClockSkinCoco"
+            // Use 'document' instead of 'tree' for INITIAL_URI to robustly target the folder
+            val uri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3A" + path.replace("/", "%2F"))
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
                 putExtra("android.provider.extra.INITIAL_URI", uri)
                 putExtra("android.content.extra.SHOW_ADVANCED", true)
