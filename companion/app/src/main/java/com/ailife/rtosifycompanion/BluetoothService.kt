@@ -133,10 +133,12 @@ class BluetoothService : Service() {
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    // Cache do NotificationManager para evitar múltiplas chamadas getSystemService
     private val notificationManager: NotificationManager by lazy {
         getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     }
+
+    @Volatile
+    private var isStopping = false
 
     interface ServiceCallback {
         fun onStatusChanged(status: String)
@@ -398,10 +400,13 @@ class BluetoothService : Service() {
 
         if (DEBUG_NOTIFICATIONS) Log.d(TAG, "onStartCommand: Service started, isConnected=$isConnected")
 
+        isStopping = false // Reset on start
         return START_STICKY
     }
 
     private fun initializeLogicFromPrefs() {
+        if (!prefs.getBoolean("service_enabled", true)) return
+
         val deviceType = prefs.getString("device_type", null)
         if (deviceType != null) {
             if (deviceType == "PHONE") startSmartphoneLogic() else startWatchLogic()
@@ -2492,7 +2497,19 @@ class BluetoothService : Service() {
             updateStatus(getString(R.string.status_stopped))
         }
     }
+
+    fun stopServiceCompletely() {
+        isStopping = true
+        stopConnectionLoopOnly()
+        try {
+             stopForeground(STOP_FOREGROUND_REMOVE)
+             notificationManager.cancelAll() // Ensure all are gone
+        } catch (_: Exception) {}
+        stopSelf()
+    }
     private fun updateStatus(text: String) {
+        if (isStopping) return // Prevent updates if stopping
+
         currentStatus = text
         currentNotificationStatus = text
 

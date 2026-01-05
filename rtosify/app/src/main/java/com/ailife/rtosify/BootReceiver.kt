@@ -13,8 +13,9 @@ class BootReceiver : BroadcastReceiver() {
             val prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
             val deviceType = prefs.getString("device_type", null)
 
-            // Só inicia automaticamente se o usuário já tiver configurado o app
-            if (deviceType != null) {
+            // Só inicia automaticamente se o usuário já tiver configurado o app E o serviço estiver ativado
+            val isServiceEnabled = prefs.getBoolean("service_enabled", true)
+            if (deviceType != null && isServiceEnabled) {
                 val serviceIntent = Intent(context, BluetoothService::class.java)
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

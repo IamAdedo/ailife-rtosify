@@ -44,6 +44,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var toolbar: Toolbar
     private lateinit var appBarLayout: AppBarLayout
     private lateinit var mainContentScrollView: NestedScrollView
+    private lateinit var switchService: com.google.android.material.materialswitch.MaterialSwitch
+    private lateinit var switchServiceWatch: com.google.android.material.materialswitch.MaterialSwitch
 
     // Watch Status UI
     private lateinit var cardWatchStatus: MaterialCardView
@@ -87,8 +89,15 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             isBound = true
 
             val type = prefs.getString("device_type", "PHONE")
-            if (type == "PHONE") bluetoothService?.startSmartphoneLogic()
-            else bluetoothService?.startWatchLogic()
+            val isServiceEnabled = prefs.getBoolean("service_enabled", true)
+            
+            if (isServiceEnabled) {
+                if (type == "PHONE") bluetoothService?.startSmartphoneLogic()
+                else bluetoothService?.startWatchLogic()
+            } else {
+                bluetoothService?.stopConnectionLoopOnly()
+                updateStatusUI(getString(R.string.status_stopped), false)
+            }
 
             updateStatusUI(bluetoothService?.currentStatus ?: getString(R.string.status_starting), bluetoothService?.isConnected == true)
         }
@@ -125,6 +134,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         setupDndClickListener()
 
         bindToService()
+        
+        setupServiceToggle()
     }
 
     override fun onResume() {
@@ -166,6 +177,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         layoutConnectionHeader = findViewById(R.id.layoutConnectionHeader)
         imgWatchStatus = findViewById(R.id.imgWatchStatus)
         tvWatchStatusBig = findViewById(R.id.tvWatchStatusBig)
+        switchService = findViewById(R.id.switchService)
+        switchServiceWatch = findViewById(R.id.switchServiceWatch)
     }
 
     private fun setupLayoutMode() {
@@ -195,6 +208,51 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         }
     }
 
+    private fun setupServiceToggle() {
+        val isEnabled = prefs.getBoolean("service_enabled", true)
+        switchService.isChecked = isEnabled
+        switchServiceWatch.isChecked = isEnabled
+        
+        val listener = android.widget.CompoundButton.OnCheckedChangeListener { _, isChecked ->
+            // Prevent recursive updates if we were to sync them, but here we just update pref and logic
+            if (prefs.getBoolean("service_enabled", true) == isChecked) return@OnCheckedChangeListener
+
+            prefs.edit().putBoolean("service_enabled", isChecked).apply()
+            
+            // Sync visual state of the other switch just in case
+            switchService.isChecked = isChecked
+            switchServiceWatch.isChecked = isChecked
+            
+            if (isChecked) {
+                // Ensure service is started and bound
+                val intent = Intent(this@MainActivity, BluetoothService::class.java)
+                ContextCompat.startForegroundService(this@MainActivity, intent)
+                if (!isBound) {
+                    bindService(intent, connection, BIND_AUTO_CREATE)
+                }
+                
+                if (isPhoneMode) bluetoothService?.startSmartphoneLogic() 
+                else bluetoothService?.startWatchLogic()
+                
+                updateStatusUI(getString(R.string.status_starting), false)
+                Toast.makeText(this@MainActivity, "Service Started", Toast.LENGTH_SHORT).show()
+            } else {
+                bluetoothService?.stopServiceCompletely()
+                if (isBound) {
+                    unbindService(connection)
+                    isBound = false
+                    bluetoothService = null
+                }
+                updateStatusUI(getString(R.string.status_stopped), false)
+                Toast.makeText(this, "Service Stopped", Toast.LENGTH_SHORT).show()
+            }
+            refreshMenu()
+        }
+
+        switchService.setOnCheckedChangeListener(listener)
+        switchServiceWatch.setOnCheckedChangeListener(listener)
+    }
+
     // --- NOVA FUNÇÃO DE SEGURANÇA ---
     // Verifica se está conectado antes de executar a ação.
     private fun runIfConnected(action: () -> Unit) {
@@ -217,8 +275,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 android.R.drawable.ic_menu_close_clear_cancel,
                 // PERMITIDO: O usuário precisa poder parar a busca/serviço mesmo se não conectou
                 {
-                    bluetoothService?.stopConnectionLoopOnly()
-                    updateStatusUI(getString(R.string.status_stopped), false)
+                    // Legacy disconnect button removed functionality
                 }
             ),
             MenuOption(
@@ -375,31 +432,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             )
         }
 
-        if (isActive || isConnected) {
-            options.add(
-                MenuOption(
-                    getString(R.string.menu_disconnect),
-                    getString(R.string.menu_disconnect_desc),
-                    android.R.drawable.ic_menu_close_clear_cancel,
-                    {
-                        bluetoothService?.stopConnectionLoopOnly()
-                        updateStatusUI(getString(R.string.status_stopped), false)
-                    }
-                )
-            )
-        } else {
-            options.add(
-                MenuOption(
-                    getString(R.string.menu_connect),
-                    getString(R.string.menu_connect_desc),
-                    android.R.drawable.ic_menu_view,
-                    {
-                        if (isPhoneMode) bluetoothService?.startSmartphoneLogic() else bluetoothService?.startWatchLogic()
-                        updateStatusUI(getString(R.string.status_starting), false)
-                    }
-                )
-            )
-        }
+        // Connect/Disconnect options removed in favor of toggle switch
 
         options.add(
             MenuOption(
@@ -428,6 +461,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun bindToService() {
+        if (!prefs.getBoolean("service_enabled", true)) return
+
         val intent = Intent(this, BluetoothService::class.java)
         ContextCompat.startForegroundService(this, intent)
         bindService(intent, connection, BIND_AUTO_CREATE)

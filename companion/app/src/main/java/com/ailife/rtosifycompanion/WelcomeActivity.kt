@@ -123,9 +123,15 @@ class WelcomeActivity : AppCompatActivity() {
             val qrImageView = findViewById<ImageView>(R.id.imgQrCode)
             val progressBar = findViewById<android.view.View>(R.id.progressBarSetup)
             val statusText = findViewById<android.widget.TextView>(R.id.tvWelcomeStatus)
+            val btnAlreadyPaired = findViewById<android.widget.Button>(R.id.btnAlreadyPaired)
 
             statusText.text = getString(R.string.welcome_qr_scan_instruction)
             progressBar.visibility = android.view.View.GONE
+
+            btnAlreadyPaired.visibility = android.view.View.VISIBLE
+            btnAlreadyPaired.setOnClickListener {
+                finishSetup("WATCH")
+            }
 
             val btManager = getSystemService(android.content.Context.BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
             val adapter = btManager.adapter
