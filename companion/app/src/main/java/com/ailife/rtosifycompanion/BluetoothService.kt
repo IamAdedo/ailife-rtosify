@@ -967,8 +967,10 @@ class BluetoothService : Service() {
                 val isRestricted = absolutePath.contains("Android/data", ignoreCase = true)
                 
                 if (isRestricted) {
-                    android.util.Log.d(TAG, "Target path is restricted, using temp file in cacheDir")
-                    targetFile = File(cacheDir, fileData.name)
+                    android.util.Log.d(TAG, "Target path is restricted, using temp file in externalCacheDir")
+                    // Use externalCacheDir so Shizuku/Shell has read access for move later
+                    val cacheDirToUse = externalCacheDir ?: cacheDir
+                    targetFile = File(cacheDirToUse, fileData.name)
                     finalDestinationPath = absolutePath
                 } else {
                     targetFile = File(absolutePath)
@@ -977,7 +979,8 @@ class BluetoothService : Service() {
                     }
                 }
             } else {
-                targetFile = File(cacheDir, fileData.name)
+                val cacheDirToUse = externalCacheDir ?: cacheDir
+                targetFile = File(cacheDirToUse, fileData.name)
             }
 
             android.util.Log.d(TAG, "Receiving file to: ${targetFile.absolutePath}")
@@ -1234,7 +1237,9 @@ class BluetoothService : Service() {
 
         if (!file.exists() || !file.canRead()) {
             android.util.Log.d(TAG, "File restricted or not found, trying copy via Shizuku/Root...")
-            val tempFile = File(cacheDir, "download_temp_${System.currentTimeMillis()}")
+             // Use externalCacheDir so Shizuku/Shell has write access
+            val cacheDirToUse = externalCacheDir ?: cacheDir
+            val tempFile = File(cacheDirToUse, "download_temp_${System.currentTimeMillis()}")
             
             // Try Shizuku copy
             var copied = false
@@ -2788,7 +2793,9 @@ class BluetoothService : Service() {
         
         var tempFile: File? = null
         try {
-            tempFile = File.createTempFile("pview_", ".png", cacheDir)
+            // Use externalCacheDir if available so Shizuku/Shell has better chance of writing to it
+            val cacheDirToUse = externalCacheDir ?: cacheDir
+            tempFile = File.createTempFile("pview_", ".png", cacheDirToUse)
             var copied = false
             if (isUsingShizuku()) {
                 try {
@@ -2820,10 +2827,13 @@ class BluetoothService : Service() {
             }
             
             if (copied && tempFile.exists()) {
+                android.util.Log.d(TAG, "Successfully copied to temp file: ${tempFile.absolutePath}, size: ${tempFile.length()}")
                 return android.graphics.BitmapFactory.decodeFile(tempFile.absolutePath)
+            } else {
+                 android.util.Log.e(TAG, "Failed to copy to temp file or file does not exist. copied=$copied")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to load bitmap from restricted path $absPath: ${e.message}")
+            Log.e(TAG, "Failed to load bitmap from restricted path $absPath: ${e.message}", e)
         } finally {
             tempFile?.let { if (it.exists()) it.delete() }
         }
@@ -2838,13 +2848,19 @@ class BluetoothService : Service() {
         
         if (!file.exists() || !file.canRead()) {
             try {
-                tempFile = File.createTempFile("pzip_", ".zip", cacheDir)
+                // Use externalCacheDir if available so Shizuku/Shell has better chance of writing to it
+                val cacheDirToUse = externalCacheDir ?: cacheDir
+                tempFile = File.createTempFile("pzip_", ".zip", cacheDirToUse)
                 var copied = false
                 if (isUsingShizuku()) {
                     try {
                         ensureUserServiceBound()
+                        android.util.Log.d(TAG, "Attempting Shizuku copy for ZIP preview: $absPath -> ${tempFile.absolutePath}")
                         copied = userService?.copyFile(absPath, tempFile.absolutePath) ?: false
-                    } catch (_: Exception) {}
+                        android.util.Log.d(TAG, "Shizuku copy result: $copied")
+                    } catch (e: Exception) {
+                        android.util.Log.e(TAG, "Shizuku copy failed", e)
+                    }
                 }
                 
                 if (!copied && Shell.getShell().isRoot) {

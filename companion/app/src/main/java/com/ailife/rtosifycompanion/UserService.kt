@@ -147,14 +147,24 @@ class UserService : IUserService.Stub() {
 
     override fun moveFile(src: String, dst: String): Boolean {
         return try {
-            if (File(src).renameTo(File(dst))) return true
-            if (runShellStatus("mv", src, dst)) return true
-            
-            // Cross-mount fallback: copy then delete
-            if (copyFile(src, dst)) {
-                deleteFile(src)
+            if (File(src).renameTo(File(dst))) {
+                android.util.Log.d(TAG, "moveFile: renameTo success")
                 return true
             }
+            android.util.Log.d(TAG, "moveFile: renameTo failed, trying mv")
+            if (runShellStatus("mv", src, dst)) {
+                android.util.Log.d(TAG, "moveFile: mv success")
+                return true
+            }
+            
+            // Cross-mount fallback: copy then delete
+            android.util.Log.d(TAG, "moveFile: mv failed, trying copy+delete")
+            if (copyFile(src, dst)) {
+                deleteFile(src)
+                android.util.Log.d(TAG, "moveFile: copy+delete success")
+                return true
+            }
+            android.util.Log.e(TAG, "moveFile: all methods failed for $src -> $dst")
             false
         } catch (e: Exception) {
             Log.e(TAG, "Error moving file: ${e.message}")
@@ -184,14 +194,20 @@ class UserService : IUserService.Stub() {
             }
 
             // Shell fallback
-            if (srcFile.isDirectory) {
-                runShellStatus("cp", "-pr", src, dst)
+            android.util.Log.d(TAG, "Standard copy failed, trying shell cp for $src -> $dst")
+            val success = if (srcFile.isDirectory) {
+                runShellStatus("cp", "-r", src, dst)
             } else {
-                // If destination is in a restricted area, we might need 'cat' + redirection, 
-                // but runShellStatus uses exec which doesn't handle redirection.
-                // Shizuku shell user can usually 'cp' between app data dirs.
-                runShellStatus("cp", "-p", src, dst) || runShellStatus("sh", "-c", "cat \"$src\" > \"$dst\"")
+                runShellStatus("cp", src, dst)
             }
+            
+            if (success) {
+                // Ensure the copied file is readable
+                runShellStatus("chmod", "-R", "777", dst)
+            } else {
+                android.util.Log.e(TAG, "Shell cp failed for $src -> $dst")
+            }
+            return success
         } catch (e: Exception) {
             Log.e(TAG, "Error copying file: ${e.message}")
             false
