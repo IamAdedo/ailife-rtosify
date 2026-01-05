@@ -95,11 +95,13 @@ class UserService : IUserService.Stub() {
             // Fallback to Shell (ls -F1)
             if (files == null) {
                 Log.d(TAG, "Standard listFiles failed for $path, trying shell fallback")
-                val output = runShellCommand("ls", "-F1", path)
+                val cmdPath = if (path.endsWith("/")) path else "$path/"
+                val output = runShellCommand("ls", "-F1L", cmdPath)
                 if (output != null) {
                     files = output.map { line ->
+                        // ls -F markers: / folder, @ link, * executable, | FIFO, = socket, > door
                         val isDir = line.endsWith("/")
-                        val name = line.removeSuffix("/")
+                        val name = line.trimEnd('/', '@', '*', '|', '=', '>')
                         mapOf(
                             "name" to name,
                             "size" to 0L,

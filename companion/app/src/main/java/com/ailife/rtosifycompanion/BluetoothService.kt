@@ -98,6 +98,7 @@ class BluetoothService : Service() {
 
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothSocket: BluetoothSocket? = null
+    private val shizukuLock = Any()
     private var globalOutputStream: DataOutputStream? = null
 
     private val APP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
@@ -312,37 +313,41 @@ class BluetoothService : Service() {
     
     private fun ensureUserServiceBound() {
         if (userService == null) {
-            Log.d(TAG, "UserService is null, attempting to bind...")
-            
-            // Check if Shizuku is even available
-            try {
-                if (!Shizuku.pingBinder()) {
-                    Log.w(TAG, "Shizuku binder not available")
-                    return
+            synchronized(shizukuLock) {
+                if (userService == null) {
+                    Log.d(TAG, "UserService is null, attempting to bind...")
+                    
+                    // Check if Shizuku is even available
+                    try {
+                        if (!Shizuku.pingBinder()) {
+                            Log.w(TAG, "Shizuku binder not available")
+                            return
+                        }
+                        if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+                            Log.w(TAG, "Shizuku permission not granted")
+                            return
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error checking Shizuku availability: ${e.message}")
+                        return
+                    }
+                    
+                    // Try to bind
+                    bindUserServiceIfNeeded()
+                    
+                    // Wait for binding to complete (up to 3 seconds)
+                    val maxWaitTime = 3000L
+                    val startTime = System.currentTimeMillis()
+                    while (userService == null && (System.currentTimeMillis() - startTime) < maxWaitTime) {
+                        Thread.sleep(100)
+                    }
+                    
+                    if (userService != null) {
+                        Log.i(TAG, "✅ UserService bound successfully after ${System.currentTimeMillis() - startTime}ms")
+                    } else {
+                        Log.w(TAG, "❌ UserService binding timed out after ${maxWaitTime}ms")
+                    }
                 }
-                if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
-                    Log.w(TAG, "Shizuku permission not granted")
-                    return
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error checking Shizuku availability: ${e.message}")
-                return
-            }
-            
-            // Try to bind
-            bindUserServiceIfNeeded()
-            
-            // Wait for binding to complete (up to 3 seconds)
-            val maxWaitTime = 3000L
-            val startTime = System.currentTimeMillis()
-            while (userService == null && (System.currentTimeMillis() - startTime) < maxWaitTime) {
-                Thread.sleep(100)
-            }
-            
-            if (userService != null) {
-                Log.i(TAG, "✅ UserService bound successfully after ${System.currentTimeMillis() - startTime}ms")
-            } else {
-                Log.w(TAG, "❌ UserService binding timed out after ${maxWaitTime}ms")
             }
         }
     }
@@ -1389,18 +1394,19 @@ class BluetoothService : Service() {
         if (Shell.getShell().isRoot) {
             val rootPath = translatePathForRoot(path)
             try {
-                Log.d(TAG, "Root attempting ls -F1 \"$rootPath\"")
-                val result = Shell.cmd("ls -F1 \"$rootPath\"").exec()
+                // Use -L to follow symlinks and append / to path to ensure directory listing
+                val cmdPath = if (rootPath.endsWith("/")) rootPath else "$rootPath/"
+                Log.d(TAG, "Root attempting ls -F1L \"$cmdPath\"")
+                val result = Shell.cmd("ls -F1L \"$cmdPath\"").exec()
                 if (result.isSuccess && result.out.isNotEmpty()) {
                     return result.out.map { line ->
+                        // ls -F markers: / folder, @ link, * executable, | FIFO, = socket, > door
                         val isDir = line.endsWith("/")
-                        val name = line.removeSuffix("/")
-                        FileInfo(name, 0, isDir, System.currentTimeMillis()) 
+                        val cleanName = line.trimEnd('/', '@', '*', '|', '=', '>')
+                        FileInfo(cleanName, 0, isDir, System.currentTimeMillis()) 
                     }
                 } else if (!result.isSuccess) {
                     Log.e(TAG, "Root ls failed for $rootPath: code=${result.code}, err=${result.err}")
-                } else {
-                    Log.d(TAG, "Root ls returned empty for $rootPath")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Root listFiles failed: ${e.message}")
@@ -2704,143 +2710,189 @@ class BluetoothService : Service() {
 
     private fun handleRequestPreview(message: ProtocolMessage) {
         val path = ProtocolHelper.extractStringField(message, "path") ?: return
+        val absPath = toAbsolutePath(path)
         
         serviceScope.launch(Dispatchers.IO) {
             try {
                 var bitmap: Bitmap? = null
                 
-                val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
-                val normalizedPath = path.removePrefix("/")
+                // 1. Try to check if it's a directory or file using dispatcher logic
+                val isDir = isDirectoryDispatcher(absPath)
                 
-                // 1. Try SAF load if in protected dir
-                if (normalizedPath.startsWith(watchFacePath)) {
-             	   bitmap = loadPreviewFromSaf(normalizedPath)
-                }
-                
-                // 2. Fallback to normal file
-                if (bitmap == null) {
-                    val file = if (path.startsWith("/")) File(path) else File(android.os.Environment.getExternalStorageDirectory(), path)
-                    
-                    if (file.exists()) {
-                        if (file.isDirectory) {
-                            val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
-                            for (c in candidates) {
-                                val img = File(file, c)
-                                if (img.exists()) {
-                                    bitmap = android.graphics.BitmapFactory.decodeFile(img.absolutePath)
-                                    break
-                                }
-                            }
-                        } else if (file.name.endsWith(".zip", true) || file.name.endsWith(".watch", true)) {
-                            // ... (zip logic same as before) ...
-                             try {
-                                java.util.zip.ZipFile(file).use { zip ->
-                                    val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
-                                    for (c in candidates) {
-                                        val entry = zip.entries().asSequence().find { 
-                                            it.name.endsWith(c, true) && !it.isDirectory 
-                                        }
-                                        if (entry != null) {
-                                            zip.getInputStream(entry).use { input ->
-                                                bitmap = android.graphics.BitmapFactory.decodeStream(input)
-                                            }
-                                            break
-                                        }
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                        }
+                if (isDir) {
+                    val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
+                    for (c in candidates) {
+                        val imgPath = if (absPath.endsWith("/")) "$absPath$c" else "$absPath/$c"
+                        bitmap = loadBitmapFromRestrictedPath(imgPath)
+                        if (bitmap != null) break
                     }
+                } else {
+                    // It's likely a ZIP or .watch file
+                    bitmap = loadPreviewFromZip(absPath)
                 }
                 
-                val imageBase64 = if (bitmap != null) {
+                if (bitmap != null) {
                     val thumb = Bitmap.createScaledBitmap(bitmap!!, 200, 200, true)
                     val output = ByteArrayOutputStream()
                     thumb.compress(Bitmap.CompressFormat.JPEG, 70, output)
-                    Base64.encodeToString(output.toByteArray(), Base64.NO_WRAP)
+                    val base64 = android.util.Base64.encodeToString(output.toByteArray(), android.util.Base64.NO_WRAP)
+                    sendMessage(ProtocolHelper.createResponsePreview(path, base64))
                 } else {
-                    null
+                    sendMessage(ProtocolHelper.createResponsePreview(path, null))
                 }
-                
-                sendMessage(ProtocolHelper.createResponsePreview(path, imageBase64))
-                
             } catch (e: Exception) {
+                Log.e(TAG, "Error generating preview for $path: ${e.message}")
                 sendMessage(ProtocolHelper.createResponsePreview(path, null))
             }
         }
     }
 
-    private fun loadPreviewFromSaf(path: String): Bitmap? {
-         try {
-            val targetFolder = "Android/data/com.ailife.ClockSkinCoco"
-            val perm = contentResolver.persistedUriPermissions.firstOrNull { 
-                val uriStr = it.uri.toString()
-                uriStr.contains("com.ailife.ClockSkinCoco") && it.isWritePermission 
+    private fun isDirectoryDispatcher(absPath: String): Boolean {
+        val file = File(absPath)
+        if (file.exists()) return file.isDirectory
+        
+        if (isUsingShizuku()) {
+            try {
+                ensureUserServiceBound()
+                return userService?.isDirectory(absPath) ?: false
+            } catch (_: Exception) {}
+        }
+        
+        if (Shell.getShell().isRoot) {
+            val rootPath = translatePathForRoot(absPath)
+            val result = Shell.cmd("test -d \"$rootPath\"").exec()
+            if (result.isSuccess) return true
+        }
+        
+        val relPath = getRelPath(absPath)
+        val doc = getDocumentFileForPath(relPath, false)
+        return doc?.isDirectory ?: false
+    }
+
+    private fun loadBitmapFromRestrictedPath(absPath: String): Bitmap? {
+        val file = File(absPath)
+        if (file.exists() && file.canRead()) {
+            return android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+        }
+        
+        var tempFile: File? = null
+        try {
+            tempFile = File.createTempFile("pview_", ".png", cacheDir)
+            var copied = false
+            if (isUsingShizuku()) {
+                try {
+                    ensureUserServiceBound()
+                    copied = userService?.copyFile(absPath, tempFile.absolutePath) ?: false
+                } catch (_: Exception) {}
             }
             
-            if (perm != null) {
-                var docFile = androidx.documentfile.provider.DocumentFile.fromTreeUri(this, perm.uri) ?: return null
-                
-                // Navigate to the file/folder
-                if (path.length > targetFolder.length) {
-                    val subPath = path.substring(targetFolder.length).removePrefix("/")
-                    if (subPath.isNotEmpty()) {
-                        val parts = subPath.split("/")
-                        for (part in parts) {
-                            // docFile = docFile.findFile(part) ?: return null
-                            // Case insensitive find
-                            val next = docFile.listFiles().find { it.name?.equals(part, ignoreCase = true) == true }
-                            if (next != null) {
-                                docFile = next
-                            } else {
-                                return null
-                            }
-                        }
-                    }
-                }
-                
-                if (docFile.isDirectory) {
-                    val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
-                    for (c in candidates) {
-                         val img = docFile.findFile(c)
-                         if (img != null) {
-                             return contentResolver.openInputStream(img.uri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
-                         }
-                    }
-                } else if (docFile.name?.endsWith(".zip", true) == true || docFile.name?.endsWith(".watch", true) == true) {
-                     // Can't easily random access zip via SAF stream without copying.
-                     // But we can copy to cache
-                     // But we can copy to cache
-                     val tempFile = File(cacheDir, "preview_${System.currentTimeMillis()}_${path.hashCode()}.zip")
-                     contentResolver.openInputStream(docFile.uri)?.use { input ->
-                         java.io.FileOutputStream(tempFile).use { output ->
-                             input.copyTo(output)
-                         }
-                     }
-                      try {
-                        java.util.zip.ZipFile(tempFile).use { zip ->
-                            val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
-                            for (c in candidates) {
-                                val entry = zip.entries().asSequence().find { 
-                                    it.name.endsWith(c, true) && !it.isDirectory 
-                                }
-                                if (entry != null) {
-                                    zip.getInputStream(entry).use { input ->
-                                        return android.graphics.BitmapFactory.decodeStream(input)
-                                    }
-                                }
-                            }
-                        }
-                    } finally {
-                        tempFile.delete()
-                    }
+            if (!copied && Shell.getShell().isRoot) {
+                val rootSrc = translatePathForRoot(absPath)
+                val result = Shell.cmd("cp \"$rootSrc\" \"${tempFile.absolutePath}\"").exec()
+                if (result.isSuccess) {
+                    Shell.cmd("chmod 666 \"${tempFile.absolutePath}\"").exec()
+                    copied = true
                 }
             }
-         } catch(e: Exception) {
-             Log.e(TAG, "Error loading preview from SAF: ${e.message}")
-         }
-         return null
+            
+            if (!copied) {
+                val relPath = getRelPath(absPath)
+                val doc = getDocumentFileForPath(relPath, false)
+                if (doc != null && doc.exists() && !doc.isDirectory) {
+                    contentResolver.openInputStream(doc.uri)?.use { input ->
+                        tempFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    copied = true
+                }
+            }
+            
+            if (copied && tempFile.exists()) {
+                return android.graphics.BitmapFactory.decodeFile(tempFile.absolutePath)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load bitmap from restricted path $absPath: ${e.message}")
+        } finally {
+            tempFile?.let { if (it.exists()) it.delete() }
+        }
+        return null
     }
+
+    private fun loadPreviewFromZip(absPath: String): Bitmap? {
+        val file = File(absPath)
+        var zipFileToUse = file
+        var isTemp = false
+        var tempFile: File? = null
+        
+        if (!file.exists() || !file.canRead()) {
+            try {
+                tempFile = File.createTempFile("pzip_", ".zip", cacheDir)
+                var copied = false
+                if (isUsingShizuku()) {
+                    try {
+                        ensureUserServiceBound()
+                        copied = userService?.copyFile(absPath, tempFile.absolutePath) ?: false
+                    } catch (_: Exception) {}
+                }
+                
+                if (!copied && Shell.getShell().isRoot) {
+                    val rootSrc = translatePathForRoot(absPath)
+                    val result = Shell.cmd("cp \"$rootSrc\" \"${tempFile.absolutePath}\"").exec()
+                    if (result.isSuccess) {
+                        Shell.cmd("chmod 666 \"${tempFile.absolutePath}\"").exec()
+                        copied = true
+                    }
+                }
+                
+                if (!copied) {
+                    val relPath = getRelPath(absPath)
+                    val doc = getDocumentFileForPath(relPath, false)
+                    if (doc != null && doc.exists() && !doc.isDirectory) {
+                        contentResolver.openInputStream(doc.uri)?.use { input ->
+                            tempFile.outputStream().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        copied = true
+                    }
+                }
+                
+                if (copied) {
+                    zipFileToUse = tempFile
+                    isTemp = true
+                } else {
+                    tempFile.delete()
+                    return null
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to copy remote ZIP for preview: ${e.message}")
+                tempFile?.delete()
+                return null
+            }
+        }
+        
+        return try {
+            java.util.zip.ZipFile(zipFileToUse).use { zip ->
+                val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
+                for (c in candidates) {
+                    val entry = zip.entries().asSequence().find { 
+                        it.name.endsWith(c, true) && !it.isDirectory 
+                    }
+                    if (entry != null) {
+                        zip.getInputStream(entry).use { input ->
+                            android.graphics.BitmapFactory.decodeStream(input)
+                        }?.let { return it }
+                    }
+                }
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting preview from ZIP: ${e.message}")
+            null
+        } finally {
+            if (isTemp && zipFileToUse.exists()) zipFileToUse.delete()
+        }
+    }
+
 }
