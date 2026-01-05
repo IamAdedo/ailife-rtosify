@@ -51,16 +51,46 @@ class UserService : IUserService.Stub() {
     override fun listFiles(path: String): String {
         return try {
             val dir = File(path)
-            if (!dir.exists() || !dir.isDirectory) return "[]"
-            val files = dir.listFiles()?.map {
-                mapOf(
-                    "name" to it.name,
-                    "size" to it.length(),
-                    "isDirectory" to it.isDirectory,
-                    "lastModified" to it.lastModified()
-                )
-            } ?: emptyList()
-            gson.toJson(files)
+            if (!dir.exists()) return "[]"
+            
+            var files: List<Map<String, Any>>? = null
+            
+            if (dir.isDirectory) {
+                val stdFiles = dir.listFiles()
+                if (stdFiles != null) {
+                    files = stdFiles.map {
+                        mapOf(
+                            "name" to it.name,
+                            "size" to it.length(),
+                            "isDirectory" to it.isDirectory,
+                            "lastModified" to it.lastModified()
+                        )
+                    }
+                } else {
+                    // Standard File.listFiles() failed, try shell fallback
+                    Log.d(TAG, "File.listFiles() failed for $path, trying shell fallback")
+                    try {
+                        val process = Runtime.getRuntime().exec(arrayOf("ls", "-F1", path))
+                        val output = process.inputStream.bufferedReader().readLines()
+                        if (output.isNotEmpty()) {
+                            files = output.map { line ->
+                                val isDir = line.endsWith("/")
+                                val name = line.removeSuffix("/")
+                                mapOf(
+                                    "name" to name,
+                                    "size" to 0L, // Hard to get via ls without parsing more
+                                    "isDirectory" to isDir,
+                                    "lastModified" to System.currentTimeMillis()
+                                )
+                            }
+                        }
+                    } catch (shellEx: Exception) {
+                        Log.e(TAG, "Shell fallback failed: ${shellEx.message}")
+                    }
+                }
+            }
+            
+            gson.toJson(files ?: emptyList<Map<String, Any>>())
         } catch (e: Exception) {
             Log.e(TAG, "Error listing files: ${e.message}")
             "[]"
@@ -129,6 +159,38 @@ class UserService : IUserService.Stub() {
         } catch (e: Exception) {
             Log.e(TAG, "Error creating directory: ${e.message}")
             false
+        }
+    }
+
+    override fun exists(path: String): Boolean {
+        return try {
+            File(path).exists()
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    override fun isDirectory(path: String): Boolean {
+        return try {
+            File(path).isDirectory
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    override fun getFileSize(path: String): Long {
+        return try {
+            File(path).length()
+        } catch (e: Exception) {
+            0L
+        }
+    }
+
+    override fun getLastModified(path: String): Long {
+        return try {
+            File(path).lastModified()
+        } catch (e: Exception) {
+            0L
         }
     }
 }

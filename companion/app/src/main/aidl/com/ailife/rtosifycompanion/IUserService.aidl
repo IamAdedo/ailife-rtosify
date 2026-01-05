@@ -15,4 +15,8 @@ interface IUserService {
     boolean moveFile(String src, String dst) = 7;
     boolean copyFile(String src, String dst) = 8;
     boolean makeDirectory(String path) = 9;
+    boolean exists(String path) = 10;
+    boolean isDirectory(String path) = 11;
+    long getFileSize(String path) = 12;
+    long getLastModified(String path) = 13;
 }

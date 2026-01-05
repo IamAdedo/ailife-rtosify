@@ -73,6 +73,8 @@ import com.topjohnwu.superuser.Shell
 import rikka.shizuku.Shizuku
 import org.json.JSONArray
 import org.json.JSONObject
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import androidx.core.graphics.drawable.toBitmap
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
@@ -942,7 +944,7 @@ class BluetoothService : Service() {
     private var receivingFileType: String = "REGULAR"
     private val receivedChunks = mutableListOf<ByteArray>()
 
-    // File transfer state (sending - waiting for ack)
+    private var finalDestinationPath: String? = null
     private var waitingForFileAck = false
     private var fileAckDeferred: kotlinx.coroutines.CompletableDeferred<Boolean>? = null
 
@@ -951,31 +953,37 @@ class BluetoothService : Service() {
             val fileData = ProtocolHelper.extractData<FileTransferData>(message)
             android.util.Log.d(TAG, "File transfer starting: ${fileData.name}, ${fileData.size} bytes, path: ${fileData.path}")
 
-            // Prepare to receive file
             val root = android.os.Environment.getExternalStorageDirectory()
-            val targetFile = if (fileData.path != null) {
-                // Convert path from file manager "/" format to actual external storage path
-                val normalizedPath = fileData.path.removePrefix("/")
-                if (normalizedPath.isEmpty()) {
-                    // Path was just "/" - save to root of external storage
-                    File(root, fileData.name)
+            var targetFile: File
+            finalDestinationPath = null
+
+            if (fileData.path != null) {
+                // Determine if the path is restricted (e.g. Android/data)
+                val isRestricted = fileData.path.contains("Android/data", ignoreCase = true)
+                val normalizedPath = if (fileData.path.startsWith("/")) fileData.path else "/sdcard/${fileData.path.removePrefix("/")}"
+                
+                if (isRestricted) {
+                    android.util.Log.d(TAG, "Target path is restricted, using temp file in cacheDir")
+                    targetFile = File(cacheDir, fileData.name)
+                    finalDestinationPath = normalizedPath
                 } else {
-                    // Path was "/subdir/file" - save to external_storage/subdir/file
-                    File(root, normalizedPath)
+                    targetFile = File(normalizedPath)
+                    if (targetFile.isDirectory) {
+                        targetFile = File(targetFile, fileData.name)
+                    }
                 }
             } else {
-                File(cacheDir, fileData.name)
+                targetFile = File(cacheDir, fileData.name)
             }
 
-            android.util.Log.d(TAG, "Target file path: ${targetFile.absolutePath}")
+            android.util.Log.d(TAG, "Receiving file to: ${targetFile.absolutePath}")
 
-            // Ensure parent directory exists
+            // Ensure parent directory exists (if possible)
             targetFile.parentFile?.mkdirs()
 
             receivingFile = targetFile
-            // Use RandomAccessFile for random write access (out-of-order chunks)
             receivingFileStream = java.io.RandomAccessFile(targetFile, "rw")
-            receivingFileStream?.setLength(fileData.size) // Pre-allocate file size
+            receivingFileStream?.setLength(fileData.size)
             expectedFileSize = fileData.size
             receivedFileSize = 0
             expectedChecksum = fileData.checksum
@@ -1060,18 +1068,36 @@ class BluetoothService : Service() {
 
             android.util.Log.d(TAG, "File received successfully at: ${file.absolutePath}")
 
+            // Handle restricted destination
+            val finalPath = finalDestinationPath
+            if (finalPath != null) {
+                android.util.Log.d(TAG, "Moving file to restricted destination: $finalPath")
+                val successMove = moveFileDispatcher(file.absolutePath, finalPath)
+                if (!successMove) {
+                    android.util.Log.e(TAG, "Failed to move file to restricted destination")
+                    sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = "Failed to move file to restricted destination"))
+                    cleanupFileTransfer()
+                    return
+                }
+                // Update file reference for further processing (like APK install)
+                // Note: File install might fail if it's in a restricted area even with Shizuku move, 
+                // but we can try.
+            }
+
             // Show install dialog ONLY if type is "APK" (sent from app install section, not file manager)
             if (receivingFileType == "APK") {
+                val installFile = if (finalPath != null) File(finalPath) else file
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
                     try {
-                        showInstallApkDialog(file)
+                        showInstallApkDialog(installFile)
                         android.util.Log.d(TAG, "showInstallApkDialog completed")
                     } catch (e: Exception) {
                         android.util.Log.e(TAG, "Error showing install dialog: ${e.message}", e)
                     }
                 }
             } else if (receivingFileType == FileTransferData.TYPE_WATCHFACE) {
-                handleWatchFaceReceived(file)
+                val wfFile = if (finalPath != null) File(finalPath) else file
+                handleWatchFaceReceived(wfFile)
             } else {
                 android.util.Log.d(TAG, "Regular file received (type=$receivingFileType), no install dialog needed.")
             }
@@ -1097,51 +1123,87 @@ class BluetoothService : Service() {
         expectedChecksum = ""
         receivingFileType = "REGULAR"
         receivedChunks.clear()
+        finalDestinationPath = null
+    }
+
+    private fun getRelPath(absolutePath: String): String {
+        val root = android.os.Environment.getExternalStorageDirectory().absolutePath
+        return absolutePath.removePrefix(root).removePrefix("/")
+    }
+
+    private fun translatePathForRoot(path: String): String {
+        val root = android.os.Environment.getExternalStorageDirectory().absolutePath
+        // /storage/emulated/0 -> /data/media/0
+        // Need to handle both /storage/emulated/0 and /sdcard
+        return when {
+            path.startsWith(root) -> path.replaceFirst(root, "/data/media/0")
+            path.startsWith("/storage/emulated/0") -> path.replaceFirst("/storage/emulated/0", "/data/media/0")
+            path.startsWith("/sdcard") -> path.replaceFirst("/sdcard", "/data/media/0")
+            else -> path
+        }
+    }
+
+    private fun toAbsolutePath(path: String): String {
+        val root = android.os.Environment.getExternalStorageDirectory().absolutePath
+        return when {
+            path == "/" || path.isEmpty() -> root
+            path.startsWith("/") -> {
+                if (path.startsWith("/storage/") || path.startsWith("/sdcard/") || path.startsWith("/data/")) {
+                    path
+                } else {
+                    File(root, path.substring(1)).absolutePath
+                }
+            }
+            else -> File(root, path).absolutePath
+        }
     }
 
     private suspend fun handleRequestFileList(message: ProtocolMessage) {
         val path = ProtocolHelper.extractStringField(message, "path") ?: "/"
+        val absolutePath = toAbsolutePath(path)
         
-        val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
-        val normalizedPath = path.removePrefix("/")
+        android.util.Log.d(TAG, "Listing files: $path -> $absolutePath")
+
+        // 1. Try Dispatcher (Shizuku -> Root -> Standard)
+        var files = listFilesDispatcher(absolutePath)?.toMutableList()
         
-        // 1. If inside the protected directory, ensure we use SAF
-        if (normalizedPath.startsWith(watchFacePath)) {
-            val safFiles = listUsingSaf(normalizedPath)
-            if (safFiles != null) {
-                sendMessage(ProtocolHelper.createResponseFileList(path, safFiles))
-                return
+        // 2. Fallback to SAF for the specific watch face path if dispatcher fails or returns null
+        if (files == null) {
+            val watchFaceRelPath = "Android/data/com.ailife.ClockSkinCoco"
+            val storageRoot = android.os.Environment.getExternalStorageDirectory().absolutePath
+            if (absolutePath.startsWith(storageRoot)) {
+                val relPath = absolutePath.removePrefix(storageRoot).removePrefix("/")
+                if (relPath.startsWith(watchFaceRelPath)) {
+                    val safFiles = listUsingSaf(relPath)
+                    if (safFiles != null) {
+                        sendMessage(ProtocolHelper.createResponseFileList(path, safFiles))
+                        return
+                    }
+                }
             }
         }
 
-        // 2. Standard File API listing
-        val root = android.os.Environment.getExternalStorageDirectory()
-        val targetDir = if (path == "/" || path.isEmpty()) root else File(root, normalizedPath)
-
-        if (!targetDir.exists() || !targetDir.isDirectory) {
-            sendMessage(ProtocolHelper.createResponseFileList(path, emptyList()))
-            return
-        }
-
-        var files = targetDir.listFiles()?.map {
-            FileInfo(
-                name = it.name,
-                size = it.length(),
-                isDirectory = it.isDirectory,
-                lastModified = it.lastModified()
-            )
-        }?.toMutableList() ?: mutableListOf()
-
-        // 3. Inject "com.ailife.ClockSkinCoco" if we are in Android/data and it's missing (hidden by Android 11+)
-        if (normalizedPath == "Android/data") {
-            if (files.none { it.name == "com.ailife.ClockSkinCoco" }) {
-                // Determine if we should show it (e.g. only if we have permission, or always to let user try)
-                // Always showing it allows the user to click it and trigger the SAF logic in step 1.
-                files.add(FileInfo("com.ailife.ClockSkinCoco", 0, true, System.currentTimeMillis()))
+        // 3. Last Resort Fallback (Standard API)
+        if (files == null) {
+            val targetDir = File(absolutePath)
+            if (targetDir.exists() && targetDir.isDirectory) {
+                files = targetDir.listFiles()?.map {
+                    FileInfo(it.name, it.length(), it.isDirectory, it.lastModified())
+                }?.toMutableList()
             }
         }
 
-        sendMessage(ProtocolHelper.createResponseFileList(path, files))
+        val resultFiles = files ?: mutableListOf()
+
+        // 4. Inject "com.ailife.ClockSkinCoco" if we are in Android/data and it's missing (hidden by Android 11+)
+        val storageRoot = android.os.Environment.getExternalStorageDirectory().absolutePath
+        if (absolutePath == File(storageRoot, "Android/data").absolutePath) {
+            if (resultFiles.none { it.name == "com.ailife.ClockSkinCoco" }) {
+                resultFiles.add(FileInfo("com.ailife.ClockSkinCoco", 0, true, System.currentTimeMillis()))
+            }
+        }
+
+        sendMessage(ProtocolHelper.createResponseFileList(path, resultFiles))
     }
 
     private fun listUsingSaf(path: String): List<FileInfo>? {
@@ -1223,53 +1285,61 @@ class BluetoothService : Service() {
 
     private suspend fun handleRequestFileDownload(message: ProtocolMessage) {
         val path = ProtocolHelper.extractStringField(message, "path") ?: return
-        android.util.Log.d(TAG, "Download requested for path: $path")
+        val absPath = toAbsolutePath(path)
+        android.util.Log.d(TAG, "Download requested: $path -> $absPath")
 
-        val root = android.os.Environment.getExternalStorageDirectory()
-        // Convert path from file manager "/" format to actual external storage path
-        val normalizedPath = path.removePrefix("/")
-        val file = File(root, normalizedPath)
+        var file = File(absPath)
+        var isRestricted = false
 
-        android.util.Log.d(TAG, "Looking for file at: ${file.absolutePath}, exists: ${file.exists()}, isFile: ${file.isFile}")
+        if (!file.exists() || !file.canRead()) {
+            android.util.Log.d(TAG, "File restricted or not found, trying copy via Shizuku/Root...")
+            val tempFile = File(cacheDir, "download_temp_${System.currentTimeMillis()}")
+            
+            // Try Shizuku copy
+            var copied = false
+            if (isUsingShizuku()) {
+                ensureUserServiceBound()
+                copied = userService?.copyFile(absPath, tempFile.absolutePath) ?: false
+            }
+            
+            // Try Root copy
+            if (!copied && Shell.getShell().isRoot) {
+                val rootSrc = translatePathForRoot(absPath)
+                val result = Shell.cmd("cp \"$rootSrc\" \"${tempFile.absolutePath}\"").exec()
+                if (result.isSuccess) {
+                    Shell.cmd("chmod 666 \"${tempFile.absolutePath}\"").exec()
+                    copied = true
+                }
+            }
+
+            if (copied && tempFile.exists()) {
+                file = tempFile
+                isRestricted = true
+            }
+        }
 
         if (file.exists() && file.isFile) {
-            sendFile(file)
+            // Send file name as original, not temp name
+            val originalName = absPath.substringAfterLast("/")
+            sendFile(file, "REGULAR", originalName)
+            if (isRestricted) {
+                // Delete temp file after sending
+            }
         } else {
-            sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = "File not found"))
+            sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = "File not found or inaccessible"))
         }
     }
 
     private suspend fun handleDeleteFile(message: ProtocolMessage) {
         val path = ProtocolHelper.extractStringField(message, "path") ?: return
-        android.util.Log.d(TAG, "Delete requested for path: $path")
+        val absolutePath = toAbsolutePath(path)
         
-        val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
-        val normalizedPath = path.removePrefix("/")
+        android.util.Log.d(TAG, "Delete requested: $path -> $absolutePath")
         
-        var success = false
-        
-        if (normalizedPath.startsWith(watchFacePath, ignoreCase = true)) {
-            val doc = getDocumentFileForPath(normalizedPath, false)
-            if (doc != null && doc.exists()) {
-                 success = doc.delete()
-                 if (success) android.util.Log.d(TAG, "SAF File deleted: $path")
-            }
-        } else {
-            val root = android.os.Environment.getExternalStorageDirectory()
-            val file = File(root, normalizedPath)
-    
-            android.util.Log.d(TAG, "Attempting to delete file at: ${file.absolutePath}")
-    
-            if (file.exists()) {
-                // Use recursion for folders
-                success = file.deleteRecursively() 
-                android.util.Log.d(TAG, "File deleted: $success")
-            }
-        }
+        val success = deleteFileDispatcher(absolutePath)
 
         if (success) {
-            // Refresh list - get parent directory path
-             val parentPath = if (path.lastIndexOf('/') > 0) path.substring(0, path.lastIndexOf('/')) else "/"
+            val parentPath = if (path.lastIndexOf('/') > 0) path.substring(0, path.lastIndexOf('/')) else "/"
             handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
         }
     }
@@ -1277,37 +1347,16 @@ class BluetoothService : Service() {
     private suspend fun handleRenameFile(message: ProtocolMessage) {
         val oldPath = message.data.get("oldPath")?.asString ?: return
         val newPath = message.data.get("newPath")?.asString ?: return
-        android.util.Log.d(TAG, "Rename requested: $oldPath -> $newPath")
         
-        val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
-        val normalizedOld = oldPath.removePrefix("/")
-        val normalizedNew = newPath.removePrefix("/")
+        val absOld = toAbsolutePath(oldPath)
+        val absNew = toAbsolutePath(newPath)
+
+        android.util.Log.d(TAG, "Rename requested: $absOld -> $absNew")
         
-        var success = false
-        
-        if (normalizedOld.startsWith(watchFacePath, ignoreCase = true)) {
-            val oldDoc = getDocumentFileForPath(normalizedOld, false)
-            if (oldDoc != null && oldDoc.exists()) {
-                 // Calculate new name
-                 val newName = normalizedNew.substringAfterLast("/")
-                 success = oldDoc.renameTo(newName)
-            }
-        } else {
-             val root = android.os.Environment.getExternalStorageDirectory()
-             val oldFile = File(root, normalizedOld)
-             val newFile = File(root, normalizedNew)
-     
-             success = if (isUsingShizuku()) {
-                 ensureUserServiceBound()
-                 userService?.renameFile(oldFile.absolutePath, newFile.absolutePath) ?: false
-             } else {
-                 oldFile.renameTo(newFile)
-             }
-        }
+        val success = renameFileDispatcher(absOld, absNew)
 
         if (success) {
-             // Refresh parent of the *new* location
-             val parentPath = if (newPath.lastIndexOf('/') > 0) newPath.substring(0, newPath.lastIndexOf('/')) else "/"
+            val parentPath = if (newPath.lastIndexOf('/') > 0) newPath.substring(0, newPath.lastIndexOf('/')) else "/"
             handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
         }
     }
@@ -1315,70 +1364,30 @@ class BluetoothService : Service() {
     private suspend fun handleMoveFile(message: ProtocolMessage) {
         val srcPath = message.data.get("srcPath")?.asString ?: return
         val dstPath = message.data.get("dstPath")?.asString ?: return
-        android.util.Log.d(TAG, "Move requested: $srcPath -> $dstPath")
         
-        val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
-        val normalizedSrc = srcPath.removePrefix("/")
-        val normalizedDst = dstPath.removePrefix("/")
+        val absSrc = toAbsolutePath(srcPath)
+        val absDst = toAbsolutePath(dstPath)
+
+        android.util.Log.d(TAG, "Move requested: $absSrc -> $absDst")
         
-        var success = false
-        
-        if (normalizedSrc.startsWith(watchFacePath, ignoreCase = true)) {
-             // SAF Move
-             val srcDoc = getDocumentFileForPath(normalizedSrc, false)
-             // For destination, we need the PARENT directory to create the file there
-             val dstParentPath = if (normalizedDst.contains("/")) normalizedDst.substringBeforeLast("/") else ""
-             val dstName = if (normalizedDst.contains("/")) normalizedDst.substringAfterLast("/") else normalizedDst
-             
-             // Ensure destination parent exists
-             val dstParentDoc = if (dstParentPath.isNotEmpty()) getDocumentFileForPath(dstParentPath, true) else null // Try getting root if empty? Logic needs care. 
-             // If dstParentPath is empty, it means root of allowed tree? 
-             // Actually normalizedDst starts with Android/data... so dstParentPath won't be empty unless it IS that folder.
-             
-             if (srcDoc != null && dstParentDoc != null && srcDoc.exists() && dstParentDoc.exists()) {
-                  // Copy and Delete
-                  try {
-                      // Note: This is potentially slow for large files on main thread, but we are in IO context
-                      val mime = srcDoc.type ?: "application/octet-stream"
-                      val newFile = dstParentDoc.createFile(mime, dstName)
-                      if (newFile != null) {
-                          contentResolver.openInputStream(srcDoc.uri)?.use { input ->
-                              contentResolver.openOutputStream(newFile.uri)?.use { output ->
-                                  input.copyTo(output)
-                              }
-                          }
-                          srcDoc.delete()
-                          success = true
-                      }
-                  } catch (e: Exception) {
-                      Log.e(TAG, "SAF Move failed: ${e.message}")
-                  }
-             }
-        } else {
-            val root = android.os.Environment.getExternalStorageDirectory()
-            val srcFile = File(root, normalizedSrc)
-            val dstFile = File(root, normalizedDst)
-    
-            success = if (isUsingShizuku()) {
-                ensureUserServiceBound()
-                userService?.moveFile(srcFile.absolutePath, dstFile.absolutePath) ?: false
-            } else {
-                if (srcFile.renameTo(dstFile)) true
-                else {
-                    // Try copy + delete if rename fails
-                    try {
-                        srcFile.copyRecursively(dstFile, true)
-                        srcFile.deleteRecursively()
-                        true
-                    } catch (e: Exception) {
-                        false
-                    }
-                }
-            }
-        }
+        val success = moveFileDispatcher(absSrc, absDst)
 
         if (success) {
             val parentPath = if (dstPath.lastIndexOf('/') > 0) dstPath.substring(0, dstPath.lastIndexOf('/')) else "/"
+            handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
+        }
+    }
+
+    private suspend fun handleCreateFolder(message: ProtocolMessage) {
+        val path = message.data.get("path")?.asString ?: return
+        val absPath = toAbsolutePath(path)
+        
+        android.util.Log.d(TAG, "Create folder requested: $absPath")
+
+        val success = createFolderDispatcher(absPath)
+
+        if (success) {
+            val parentPath = if (path.lastIndexOf('/') > 0) path.substring(0, path.lastIndexOf('/')) else "/"
             handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
         }
     }
@@ -1397,30 +1406,172 @@ class BluetoothService : Service() {
         }
     }
 
-    private suspend fun handleCreateFolder(message: ProtocolMessage) {
-        val path = message.data.get("path")?.asString ?: return
-        android.util.Log.d(TAG, "Create folder requested: $path")
+    // ========================================================================
+    // UNIFIED FILE OPERATION DISPATCHERS (Shizuku -> Root -> Standard)
+    // ========================================================================
 
-        val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
-        val normalizedPath = path.removePrefix("/")
-        
-        var success = false
-        if (normalizedPath.startsWith(watchFacePath, ignoreCase = true)) {
-            val doc = getDocumentFileForPath(normalizedPath, true)
-            success = doc != null && doc.isDirectory
-        } else {
-            val root = android.os.Environment.getExternalStorageDirectory()
-            val folder = File(root, normalizedPath)
-            success = folder.exists() || folder.mkdirs()
+    private fun listFilesDispatcher(path: String): List<FileInfo>? {
+        // 1. Try Shizuku (UserService)
+        if (isUsingShizuku()) {
+            try {
+                ensureUserServiceBound()
+                val json = userService?.listFiles(path)
+                if (json != null && json != "[]") {
+                    Log.d(TAG, "Shizuku listFiles success for $path")
+                    return Gson().fromJson(json, object : com.google.gson.reflect.TypeToken<List<FileInfo>>() {}.type)
+                }
+                Log.d(TAG, "Shizuku listFiles returned empty or null for $path")
+            } catch (e: Exception) {
+                Log.e(TAG, "Shizuku listFiles failed: ${e.message}")
+            }
         }
 
-        if (success) {
-            // Refresh parent listing logic remains...
-            val parentPath = if (path.lastIndexOf('/') > 0) path.substring(0, path.lastIndexOf('/')) else "/"
-            handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
+        // 2. Try Root (libsu) fallback for listing
+        if (Shell.getShell().isRoot) {
+            val rootPath = translatePathForRoot(path)
+            try {
+                Log.d(TAG, "Root attempting ls -F1 \"$rootPath\"")
+                val result = Shell.cmd("ls -F1 \"$rootPath\"").exec()
+                if (result.isSuccess && result.out.isNotEmpty()) {
+                    return result.out.map { line ->
+                        val isDir = line.endsWith("/")
+                        val name = line.removeSuffix("/")
+                        FileInfo(name, 0, isDir, System.currentTimeMillis()) 
+                    }
+                } else if (!result.isSuccess) {
+                    Log.e(TAG, "Root ls failed for $rootPath: code=${result.code}, err=${result.err}")
+                } else {
+                    Log.d(TAG, "Root ls returned empty for $rootPath")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Root listFiles failed: ${e.message}")
+            }
         }
+
+        // 3. Standard Fallback
+        val dir = File(path)
+        if (dir.exists() && dir.isDirectory) {
+            val files = dir.listFiles()
+            if (files != null) {
+                return files.map {
+                    FileInfo(it.name, it.length(), it.isDirectory, it.lastModified())
+                }
+            }
+        }
+
+        return null
     }
-    
+
+    private fun deleteFileDispatcher(path: String): Boolean {
+        if (isUsingShizuku()) {
+            try {
+                ensureUserServiceBound()
+                if (userService?.deleteFile(path) == true) return true
+            } catch (e: Exception) { Log.e(TAG, "Shizuku deleteFile failed: ${e.message}") }
+        }
+
+        if (Shell.getShell().isRoot) {
+            val rootPath = translatePathForRoot(path)
+            val result = Shell.cmd("rm -rf \"$rootPath\"").exec()
+            if (result.isSuccess) return true
+        }
+
+        // 3. Fallback to SAF
+        val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
+        val relPath = getRelPath(path)
+        if (relPath.startsWith(watchFacePath)) {
+            val doc = getDocumentFileForPath(relPath, false)
+            if (doc != null && doc.exists()) return doc.delete()
+        }
+
+        // 4. Standard Fallback
+        return File(path).deleteRecursively()
+    }
+
+    private suspend fun renameFileDispatcher(oldPath: String, newPath: String): Boolean {
+        if (isUsingShizuku()) {
+            try {
+                ensureUserServiceBound()
+                if (userService?.renameFile(oldPath, newPath) == true) return true
+            } catch (e: Exception) { Log.e(TAG, "Shizuku renameFile failed: ${e.message}") }
+        }
+
+        if (Shell.getShell().isRoot) {
+            val rootOld = translatePathForRoot(oldPath)
+            val rootNew = translatePathForRoot(newPath)
+            val result = Shell.cmd("mv \"$rootOld\" \"$rootNew\"").exec()
+            if (result.isSuccess) return true
+        }
+
+        // 3. Fallback to SAF
+        val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
+        val relPath = getRelPath(oldPath)
+        if (relPath.startsWith(watchFacePath)) {
+            val doc = getDocumentFileForPath(relPath, false)
+            if (doc != null && doc.exists()) {
+                val newName = newPath.substringAfterLast("/")
+                return doc.renameTo(newName)
+            }
+        }
+
+        return File(oldPath).renameTo(File(newPath))
+    }
+
+    private suspend fun moveFileDispatcher(src: String, dst: String): Boolean {
+        if (isUsingShizuku()) {
+            try {
+                ensureUserServiceBound()
+                if (userService?.moveFile(src, dst) == true) return true
+            } catch (e: Exception) { Log.e(TAG, "Shizuku moveFile failed: ${e.message}") }
+        }
+
+        if (Shell.getShell().isRoot) {
+            val rootSrc = translatePathForRoot(src)
+            val rootDst = translatePathForRoot(dst)
+            val result = Shell.cmd("mv \"$rootSrc\" \"$rootDst\"").exec()
+            if (result.isSuccess) return true
+        }
+
+        // 3. Standard Fallback
+        val srcFile = File(src)
+        val dstFile = File(dst)
+        if (srcFile.renameTo(dstFile)) return true
+        
+        return try {
+            srcFile.copyRecursively(dstFile, true)
+            srcFile.deleteRecursively()
+            true
+        } catch (e: Exception) { false }
+    }
+
+    private fun createFolderDispatcher(path: String): Boolean {
+        // 1. Try Shizuku
+        if (isUsingShizuku()) {
+            try {
+                ensureUserServiceBound()
+                if (userService?.makeDirectory(path) == true) return true
+            } catch (e: Exception) { Log.e(TAG, "Shizuku makeDirectory failed: ${e.message}") }
+        }
+
+        // 2. Try Root
+        if (Shell.getShell().isRoot) {
+            val rootPath = translatePathForRoot(path)
+            val result = Shell.cmd("mkdir -p \"$rootPath\"").exec()
+            if (result.isSuccess) return true
+        }
+
+        // 3. Fallback to SAF
+        val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
+        val relPath = getRelPath(path)
+        if (relPath.startsWith(watchFacePath)) {
+            val doc = getDocumentFileForPath(relPath, true)
+            return doc != null && doc.isDirectory
+        }
+
+        // 4. Standard Fallback
+        return File(path).mkdirs()
+    }
+
     // Helper to find or create DocumentFile given a relative path from external storage root
     // Only works if path is within a granted permission tree (e.g. Android/data/com.ailife.ClockSkinCoco)
     private fun getDocumentFileForPath(path: String, createIfNotExists: Boolean): androidx.documentfile.provider.DocumentFile? {
