@@ -1,4 +1,5 @@
 package com.ailife.rtosifycompanion;
+import android.os.ParcelFileDescriptor;
 
 interface IUserService {
     void destroy() = 16777114; // Destroy method defined by Shizuku
@@ -19,4 +20,8 @@ interface IUserService {
     boolean isDirectory(String path) = 11;
     long getFileSize(String path) = 12;
     long getLastModified(String path) = 13;
+    
+    boolean installApp(String apkPath) = 14;
+    boolean uninstallApp(String packageName) = 15;
+    boolean installAppFromPfd(in ParcelFileDescriptor pfd) = 16;
 }

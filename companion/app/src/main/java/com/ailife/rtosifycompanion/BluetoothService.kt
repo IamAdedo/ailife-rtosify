@@ -39,6 +39,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.ParcelFileDescriptor
 import android.provider.Settings
 import android.provider.CalendarContract
 import android.provider.ContactsContract
@@ -313,7 +314,7 @@ class BluetoothService : Service() {
         if (DEBUG_NOTIFICATIONS) Log.d(TAG, "onCreate: Service created")
     }
     
-    private fun ensureUserServiceBound() {
+    private suspend fun ensureUserServiceBound() {
         if (userService == null) {
             synchronized(shizukuLock) {
                 if (userService == null) {
@@ -334,22 +335,23 @@ class BluetoothService : Service() {
                         return
                     }
                     
-                    // Try to bind
+                    // Try to bind (this is not suspend)
                     bindUserServiceIfNeeded()
-                    
-                    // Wait for binding to complete (up to 3 seconds)
-                    val maxWaitTime = 3000L
-                    val startTime = System.currentTimeMillis()
-                    while (userService == null && (System.currentTimeMillis() - startTime) < maxWaitTime) {
-                        Thread.sleep(100)
-                    }
-                    
-                    if (userService != null) {
-                        Log.i(TAG, "✅ UserService bound successfully after ${System.currentTimeMillis() - startTime}ms")
-                    } else {
-                        Log.w(TAG, "❌ UserService binding timed out after ${maxWaitTime}ms")
-                    }
                 }
+            }
+
+            // Wait for binding to complete (up to 3 seconds)
+            // We wait OUTSIDE the synchronized block to avoid deadlocking if onServiceConnected needs it (though it shouldn't)
+            val maxWaitTime = 3000L
+            val startTime = System.currentTimeMillis()
+            while (userService == null && (System.currentTimeMillis() - startTime) < maxWaitTime) {
+                delay(100)
+            }
+            
+            if (userService != null) {
+                Log.i(TAG, "✅ UserService bound successfully after ${System.currentTimeMillis() - startTime}ms")
+            } else {
+                Log.w(TAG, "❌ UserService binding timed out after ${maxWaitTime}ms")
             }
         }
     }
@@ -663,6 +665,7 @@ class BluetoothService : Service() {
                     MessageType.SET_WATCH_FACE -> handleSetWatchFace(message)
                     MessageType.CREATE_FOLDER -> handleCreateFolder(message)
                     MessageType.REQUEST_PREVIEW -> handleRequestPreview(message)
+                    MessageType.UNINSTALL_APP -> handleUninstallApp(message)
                 }
             }
         } catch (_: IOException) {
@@ -1451,7 +1454,7 @@ class BluetoothService : Service() {
     // UNIFIED FILE OPERATION DISPATCHERS (Shizuku -> Root -> Standard)
     // ========================================================================
 
-    private fun listFilesDispatcher(path: String): List<FileInfo>? {
+    private suspend fun listFilesDispatcher(path: String): List<FileInfo>? {
         // 1. Try Shizuku (UserService)
         if (isUsingShizuku()) {
             try {
@@ -1504,7 +1507,7 @@ class BluetoothService : Service() {
         return null
     }
 
-    private fun deleteFileDispatcher(path: String): Boolean {
+    private suspend fun deleteFileDispatcher(path: String): Boolean {
         if (isUsingShizuku()) {
             try {
                 ensureUserServiceBound()
@@ -1592,7 +1595,7 @@ class BluetoothService : Service() {
         } catch (e: Exception) { false }
     }
 
-    private fun createFolderDispatcher(path: String): Boolean {
+    private suspend fun createFolderDispatcher(path: String): Boolean {
         // 1. Try Shizuku
         if (isUsingShizuku()) {
             try {
@@ -1734,8 +1737,42 @@ class BluetoothService : Service() {
         return md.digest().joinToString("") { "%02x".format(it) }
     }
 
-    private fun showInstallApkDialog(tempFile: File) {
+    private suspend fun showInstallApkDialog(tempFile: File) {
         android.util.Log.d(TAG, "showInstallApkDialog called for: ${tempFile.absolutePath}")
+
+        // 1. Try Shizuku (UserService)
+        if (isUsingShizuku()) {
+            try {
+                ensureUserServiceBound()
+                val pfd = android.os.ParcelFileDescriptor.open(tempFile, android.os.ParcelFileDescriptor.MODE_READ_ONLY)
+                if (userService?.installAppFromPfd(pfd) == true) {
+                    Log.i(TAG, "✅ Silent install via Shizuku Succeeded: ${tempFile.name}")
+                    mainHandler.post { 
+                        Toast.makeText(this, getString(R.string.upload_complete_title) + ": ${tempFile.name}", Toast.LENGTH_SHORT).show() 
+                    }
+                    tempFile.delete()
+                    return
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Shizuku silent install failed: ${e.message}")
+            }
+        }
+
+        // 2. Try Root (libsu)
+        if (Shell.getShell().isRoot) {
+            val rootPath = translatePathForRoot(tempFile.absolutePath)
+            val result = Shell.cmd("pm install -r \"$rootPath\"").exec()
+            if (result.isSuccess) {
+                Log.i(TAG, "✅ Silent install via Root succeeded: ${tempFile.name}")
+                mainHandler.post { 
+                    Toast.makeText(this, getString(R.string.upload_complete_title) + ": ${tempFile.name}", Toast.LENGTH_SHORT).show() 
+                }
+                tempFile.delete()
+                return
+            }
+        }
+
+        // Fallback to manual intent
         val canInstall = packageManager.canRequestPackageInstalls()
         android.util.Log.d(TAG, "canRequestPackageInstalls: $canInstall")
         if (!canInstall) {
@@ -1946,13 +1983,42 @@ class BluetoothService : Service() {
         sendMessage(ProtocolHelper.createFindDevice(enabled))
     }
 
-    private fun handleUninstallApp(message: ProtocolMessage) {
+    private suspend fun handleUninstallApp(message: ProtocolMessage) {
         val pkg = ProtocolHelper.extractStringField(message, "package") ?: run {
             android.util.Log.e(TAG, "Uninstall failed: package field missing")
             return
         }
         android.util.Log.d(TAG, "Requesting uninstall for: $pkg")
         
+        // 1. Try Shizuku (UserService)
+        if (isUsingShizuku()) {
+            try {
+                ensureUserServiceBound()
+                if (userService?.uninstallApp(pkg) == true) {
+                    Log.i(TAG, "✅ Silent uninstall via Shizuku succeeded: $pkg")
+                    mainHandler.post { 
+                        Toast.makeText(this, "Uninstalled: $pkg", Toast.LENGTH_SHORT).show() 
+                    }
+                    return
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Shizuku silent uninstall failed: ${e.message}")
+            }
+        }
+
+        // 2. Try Root (libsu)
+        if (Shell.getShell().isRoot) {
+            val result = Shell.cmd("pm uninstall $pkg").exec()
+            if (result.isSuccess) {
+                Log.i(TAG, "✅ Silent uninstall via Root succeeded: $pkg")
+                mainHandler.post { 
+                    Toast.makeText(this, "Uninstalled: $pkg", Toast.LENGTH_SHORT).show() 
+                }
+                return
+            }
+        }
+
+        // Fallback to manual intent
         mainHandler.post {
             Toast.makeText(this, "Uninstalling: $pkg", Toast.LENGTH_SHORT).show()
         }
@@ -2847,7 +2913,7 @@ class BluetoothService : Service() {
         }
     }
 
-    private fun isDirectoryDispatcher(absPath: String): Boolean {
+    private suspend fun isDirectoryDispatcher(absPath: String): Boolean {
         val file = File(absPath)
         if (file.exists()) return file.isDirectory
         
@@ -2869,7 +2935,7 @@ class BluetoothService : Service() {
         return doc?.isDirectory ?: false
     }
 
-    private fun loadBitmapFromRestrictedPath(absPath: String): Bitmap? {
+    private suspend fun loadBitmapFromRestrictedPath(absPath: String): Bitmap? {
         val file = File(absPath)
         if (file.exists() && file.canRead()) {
             return android.graphics.BitmapFactory.decodeFile(file.absolutePath)
@@ -2924,7 +2990,7 @@ class BluetoothService : Service() {
         return null
     }
 
-    private fun loadPreviewFromZip(absPath: String): Bitmap? {
+    private suspend fun loadPreviewFromZip(absPath: String): Bitmap? {
         val file = File(absPath)
         var zipFileToUse = file
         var isTemp = false

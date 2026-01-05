@@ -1,6 +1,7 @@
 package com.ailife.rtosifycompanion
 
 import android.util.Log
+import android.os.ParcelFileDescriptor
 import com.google.gson.Gson
 import java.io.File
 import java.io.FileInputStream
@@ -266,6 +267,58 @@ class UserService : IUserService.Stub() {
             (output?.firstOrNull()?.toLongOrNull() ?: 0L) * 1000L
         } catch (e: Exception) {
             0L
+        }
+    }
+
+    override fun installApp(apkPath: String): Boolean {
+        Log.i(TAG, "Installing app from $apkPath")
+        return runShellStatus("pm", "install", "-r", apkPath)
+    }
+
+    override fun uninstallApp(packageName: String): Boolean {
+        Log.i(TAG, "Uninstalling app $packageName")
+        return runShellStatus("pm", "uninstall", packageName)
+    }
+
+    override fun installAppFromPfd(pfd: ParcelFileDescriptor): Boolean {
+        Log.i(TAG, "installAppFromPfd called")
+        var tempFile: File? = null
+        return try {
+            tempFile = File("/data/local/tmp/temp_install_${System.currentTimeMillis()}.apk")
+            Log.d(TAG, "Copying APK to ${tempFile.absolutePath}")
+            
+            pfd.use { descriptor ->
+                FileInputStream(descriptor.fileDescriptor).use { input ->
+                    FileOutputStream(tempFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            }
+            
+            Log.d(TAG, "Chmod 666 ${tempFile.absolutePath}")
+            runShellStatus("chmod", "666", tempFile.absolutePath)
+            
+            Log.d(TAG, "Running pm install -r ${tempFile.absolutePath}")
+            val success = runShellStatus("pm", "install", "-r", tempFile.absolutePath)
+            Log.i(TAG, "pm install result: $success")
+            success
+        } catch (e: Exception) {
+            Log.e(TAG, "installAppFromPfd failed: ${e.message}")
+            e.printStackTrace()
+            false
+        } finally {
+            try {
+                tempFile?.let {
+                    if (it.exists()) {
+                        Log.d(TAG, "Deleting temp file ${it.absolutePath}")
+                        it.delete()
+                        // Try shell rm if delete fails
+                        if (it.exists()) runShellStatus("rm", it.absolutePath)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to delete temp file: ${e.message}")
+            }
         }
     }
 }
