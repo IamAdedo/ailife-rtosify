@@ -285,14 +285,17 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
     override fun onAppListReceived(appsJson: String) {}
     override fun onDownloadProgress(progress: Int) {}
     override fun onFileListReceived(path: String, filesJson: String) {
-        if (path.contains("ClockSkin", ignoreCase = true)) {
-            // Check if this is the root ClockSkin folder or a subfolder
-            val clockSkinPath = "Android/data/com.ailife.ClockSkinCoco/files/ClockSkin"
-            if (path == clockSkinPath) {
+        val clockSkinRoot = "Android/data/com.ailife.ClockSkinCoco/files/ClockSkin"
+        val normalizedPath = path.removePrefix("/").removeSuffix("/")
+        val normalizedTarget = clockSkinRoot.removePrefix("/").removeSuffix("/")
+        
+        if (normalizedPath.contains("ClockSkin", ignoreCase = true)) {
+            // Check if this is the target root folder (ignoring potential /sdcard/ or /storage/emulated/0 prefixes)
+            if (normalizedPath == normalizedTarget || normalizedPath.endsWith("/$normalizedTarget")) {
                 // Root folder
                 managerFragment.updateList(filesJson)
-            } else {
-                // Subfolder
+            } else if (normalizedPath.contains(normalizedTarget)) {
+                // Subfolder of our target
                 managerFragment.updateFolderContents(path, filesJson)
             }
         }
@@ -300,7 +303,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
     override fun onDeviceConnected(deviceName: String) {}
     override fun onDeviceDisconnected() {}
     override fun onScanResult(devices: List<android.bluetooth.BluetoothDevice>) {}
-    override fun onWatchStatusUpdated(battery: Int, charging: Boolean, wifi: String, dnd: Boolean) {}
+    override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, dndEnabled: Boolean) {}
     override fun onPreviewReceived(path: String, imageBase64: String?) {
         if (imageBase64 != null) {
             managerFragment.updatePreview(path, imageBase64)

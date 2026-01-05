@@ -958,16 +958,15 @@ class BluetoothService : Service() {
             finalDestinationPath = null
 
             if (fileData.path != null) {
-                // Determine if the path is restricted (e.g. Android/data)
-                val isRestricted = fileData.path.contains("Android/data", ignoreCase = true)
-                val normalizedPath = if (fileData.path.startsWith("/")) fileData.path else "/sdcard/${fileData.path.removePrefix("/")}"
+                val absolutePath = toAbsolutePath(fileData.path)
+                val isRestricted = absolutePath.contains("Android/data", ignoreCase = true)
                 
                 if (isRestricted) {
                     android.util.Log.d(TAG, "Target path is restricted, using temp file in cacheDir")
                     targetFile = File(cacheDir, fileData.name)
-                    finalDestinationPath = normalizedPath
+                    finalDestinationPath = absolutePath
                 } else {
-                    targetFile = File(normalizedPath)
+                    targetFile = File(absolutePath)
                     if (targetFile.isDirectory) {
                         targetFile = File(targetFile, fileData.name)
                     }
@@ -1133,12 +1132,11 @@ class BluetoothService : Service() {
 
     private fun translatePathForRoot(path: String): String {
         val root = android.os.Environment.getExternalStorageDirectory().absolutePath
-        // /storage/emulated/0 -> /data/media/0
-        // Need to handle both /storage/emulated/0 and /sdcard
+        // Prefer /sdcard for root operations as it proved more reliable for 'ls' on some devices
         return when {
-            path.startsWith(root) -> path.replaceFirst(root, "/data/media/0")
-            path.startsWith("/storage/emulated/0") -> path.replaceFirst("/storage/emulated/0", "/data/media/0")
-            path.startsWith("/sdcard") -> path.replaceFirst("/sdcard", "/data/media/0")
+            path.startsWith(root) -> path.replaceFirst(root, "/sdcard")
+            path.startsWith("/storage/emulated/0") -> path.replaceFirst("/storage/emulated/0", "/sdcard")
+            path.startsWith("/data/media/0") -> path.replaceFirst("/data/media/0", "/sdcard")
             else -> path
         }
     }
@@ -1162,10 +1160,8 @@ class BluetoothService : Service() {
         val path = ProtocolHelper.extractStringField(message, "path") ?: "/"
         val absolutePath = toAbsolutePath(path)
         
-        android.util.Log.d(TAG, "Listing files: $path -> $absolutePath")
-
         // 1. Try Dispatcher (Shizuku -> Root -> Standard)
-        var files = listFilesDispatcher(absolutePath)?.toMutableList()
+        var files: MutableList<FileInfo>? = listFilesDispatcher(absolutePath)?.toMutableList()
         
         // 2. Fallback to SAF for the specific watch face path if dispatcher fails or returns null
         if (files == null) {
@@ -1207,80 +1203,20 @@ class BluetoothService : Service() {
     }
 
     private fun listUsingSaf(path: String): List<FileInfo>? {
-        try {
-            val targetFolder = "Android/data/com.ailife.ClockSkinCoco"
-            
-            // Find permission more loosely to avoid encoding mismatches
-            val perm = contentResolver.persistedUriPermissions.firstOrNull { 
-                val uriStr = it.uri.toString()
-                uriStr.contains("com.ailife.ClockSkinCoco") && it.isWritePermission 
-            }
-            
-            if (perm != null) {
-                val treeUri = perm.uri
-                var docFile = androidx.documentfile.provider.DocumentFile.fromTreeUri(this, treeUri) ?: return null
-                
-                // Navigate to subfolder if needed
-                if (path.length > targetFolder.length) {
-                    val subPath = path.substring(targetFolder.length).removePrefix("/")
-                    if (subPath.isNotEmpty()) {
-                        val parts = subPath.split("/")
-                        for (part in parts) {
-                            // Case insensitive search
-                            var nextFile = docFile.listFiles().find { it.name?.equals(part, ignoreCase = true) == true }
-                            
-                            if (nextFile == null) {
-                                // Try to create it if it doesn't exist (using the requested casing)
-                                try {
-                                    if (part.equals("ClockSkin", ignoreCase = true)) {
-                                         // If we are creating the main folder, prefer CamelCase as per standard, 
-                                         // unless 'clockskin' was explicitly requested? 
-                                         // Actually, stick to the requested name if creating, or enforce "ClockSkin"?
-                                         // User said "clockskin folder should also be used", implying existing ones might be lowercase.
-                                         // We will create as requested 'part' if missing.
-                                    }
-                                    
-                                    nextFile = docFile.createDirectory(part)
-                                    Log.i(TAG, "SAF: Created missing directory '$part'")
-                                    
-                                    // If we just created the ClockSkin directory, add a README to confirm it works
-                                    if (part.equals("ClockSkin", ignoreCase = true)) {
-                                        nextFile?.createFile("text/plain", "README.txt")
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "SAF: Failed to create directory '$part': ${e.message}")
-                                }
-                            }
-                            
-                            if (nextFile != null) {
-                                docFile = nextFile
-                            } else {
-                                Log.w(TAG, "SAF: Subfolder '$part' not found in $path and creation failed")
-                                return null
-                            }
-                        }
-                    }
-                }
-                
-                return docFile.listFiles().map {
-                    FileInfo(
-                        name = it.name ?: "unknown",
-                        size = it.length(),
-                        isDirectory = it.isDirectory,
-                        lastModified = it.lastModified()
-                    )
-                }
-            } else {
-                Log.w(TAG, "SAF: No persisted permission found for $targetFolder")
-                // Log available perms for debugging
-                contentResolver.persistedUriPermissions.forEach {
-                     Log.d(TAG, "Available perm: ${it.uri} (write=${it.isWritePermission})")
-                }
+        return try {
+            val doc = getDocumentFileForPath(path, false)
+            doc?.listFiles()?.map {
+                FileInfo(
+                    name = it.name ?: "unknown",
+                    size = it.length(),
+                    isDirectory = it.isDirectory,
+                    lastModified = it.lastModified()
+                )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error listing files using SAF: ${e.message}")
+            Log.e(TAG, "Error listing files using SAF for $path: ${e.message}")
+            null
         }
-        return null
     }
 
     private suspend fun handleRequestFileDownload(message: ProtocolMessage) {
@@ -1312,6 +1248,28 @@ class BluetoothService : Service() {
                 }
             }
 
+            // Try SAF fallback
+            if (!copied) {
+                val relPath = getRelPath(absPath)
+                if (relPath.startsWith("Android/data/com.ailife.ClockSkinCoco")) {
+                    val doc = getDocumentFileForPath(relPath, false)
+                    if (doc != null && doc.exists() && doc.isFile) {
+                        try {
+                            contentResolver.openInputStream(doc.uri)?.use { input ->
+                                tempFile.outputStream().use { output ->
+                                    input.copyTo(output)
+                                }
+                            }
+                            if (tempFile.exists()) {
+                                copied = true
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "SAF copy failed: ${e.message}")
+                        }
+                    }
+                }
+            }
+
             if (copied && tempFile.exists()) {
                 file = tempFile
                 isRestricted = true
@@ -1321,9 +1279,10 @@ class BluetoothService : Service() {
         if (file.exists() && file.isFile) {
             // Send file name as original, not temp name
             val originalName = absPath.substringAfterLast("/")
-            sendFile(file, "REGULAR", originalName)
+            sendFile(file, "REGULAR", null, originalName)
             if (isRestricted) {
-                // Delete temp file after sending
+                // We keep it in cacheDir for now, sendFile is async and we don't want to delete it too early
+                // cleanupFileTransfer will handle its own temp files, but this is a manual download temp.
             }
         } else {
             sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = "File not found or inaccessible"))
@@ -1518,6 +1477,12 @@ class BluetoothService : Service() {
     }
 
     private suspend fun moveFileDispatcher(src: String, dst: String): Boolean {
+        // Ensure destination parent directory exists
+        val dstParent = dst.substringBeforeLast("/", "/")
+        if (dstParent != "/") {
+            createFolderDispatcher(dstParent)
+        }
+
         if (isUsingShizuku()) {
             try {
                 ensureUserServiceBound()
@@ -1575,7 +1540,7 @@ class BluetoothService : Service() {
     // Helper to find or create DocumentFile given a relative path from external storage root
     // Only works if path is within a granted permission tree (e.g. Android/data/com.ailife.ClockSkinCoco)
     private fun getDocumentFileForPath(path: String, createIfNotExists: Boolean): androidx.documentfile.provider.DocumentFile? {
-         try {
+          try {
             val targetFolder = "Android/data/com.ailife.ClockSkinCoco"
             
              // Case insensitive check if we are targeting this folder
@@ -1583,15 +1548,21 @@ class BluetoothService : Service() {
 
             // Find permission
             val perm = contentResolver.persistedUriPermissions.firstOrNull { 
-                val uriStr = it.uri.toString()
-                uriStr.contains("com.ailife.ClockSkinCoco", ignoreCase = true) && it.isWritePermission 
+                val decodedUri = android.net.Uri.decode(it.uri.toString())
+                decodedUri.contains("com.ailife.ClockSkinCoco", ignoreCase = true) && it.isWritePermission 
             }
             
             if (perm != null) {
                 var docFile = androidx.documentfile.provider.DocumentFile.fromTreeUri(this, perm.uri) ?: return null
                 
-                if (path.length > targetFolder.length) {
-                    val subPath = path.substring(targetFolder.length).removePrefix("/")
+                // Determine relative path from the treeUri root to our target path
+                val decodedTreeUri = android.net.Uri.decode(perm.uri.toString())
+                val treePathPart = decodedTreeUri.substringAfterLast(":", "").removePrefix("/")
+                
+                val normalizedTarget = path.removePrefix("/").removeSuffix("/")
+                
+                if (normalizedTarget.startsWith(treePathPart, ignoreCase = true)) {
+                    val subPath = normalizedTarget.substring(treePathPart.length).removePrefix("/")
                     if (subPath.isNotEmpty()) {
                         val parts = subPath.split("/")
                         for (part in parts) {
@@ -1599,7 +1570,6 @@ class BluetoothService : Service() {
                             
                             if (nextFile == null && createIfNotExists) {
                                 try {
-                                    // Use requested casing for creation
                                     nextFile = docFile.createDirectory(part)
                                     Log.i(TAG, "SAF: Created directory '$part'")
                                 } catch (e: Exception) {
@@ -1610,6 +1580,7 @@ class BluetoothService : Service() {
                             if (nextFile != null) {
                                 docFile = nextFile
                             } else {
+                                Log.w(TAG, "SAF: Could not find/create subpath '$part' in $path")
                                 return null
                             }
                         }
@@ -1617,10 +1588,10 @@ class BluetoothService : Service() {
                 }
                 return docFile
             }
-         } catch(e: Exception) {
-             Log.e(TAG, "SAF Error: ${e.message}")
-         }
-         return null
+          } catch(e: Exception) {
+              Log.e(TAG, "SAF Error for $path: ${e.message}")
+          }
+          return null
     }
 
     private fun handleWatchFaceReceived(file: File) {
@@ -1918,7 +1889,7 @@ class BluetoothService : Service() {
         }
     }
 
-    fun sendFile(file: File, type: String = "REGULAR", remotePath: String? = null) {
+    fun sendFile(file: File, type: String = "REGULAR", remotePath: String? = null, preferredName: String? = null) {
         serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             if (!isConnected) {
                 withContext(Dispatchers.Main) { 
@@ -1935,7 +1906,7 @@ class BluetoothService : Service() {
                 val checksum = md5.digest().joinToString("") { "%02x".format(it) }
 
                 val fileData = FileTransferData(
-                    name = file.name,
+                    name = preferredName ?: file.name,
                     size = fileBytes.size.toLong(),
                     checksum = checksum,
                     type = type,
