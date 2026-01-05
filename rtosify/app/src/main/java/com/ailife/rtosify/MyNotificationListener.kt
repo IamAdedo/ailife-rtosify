@@ -30,14 +30,37 @@ class MyNotificationListener : NotificationListenerService() {
 
     // Map to store notification actions for later execution
     private val notificationActionsMap = mutableMapOf<String, MutableMap<String, android.app.Notification.Action>>()
-    
+
     // Map to track the last time a reply was sent for a notification (to prevent premature dismissal)
     private val lastReplyTimes = mutableMapOf<String, Long>()
+
+    // Cache for notification rules
+    private var notificationRules = mutableListOf<NotificationRule>()
+
+    // SharedPreferences listener for rule changes
+    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->
+        if (key == "notification_rules") {
+            Log.d("Listener", "Rules preference changed, reloading rules...")
+            loadNotificationRules()
+        }
+    }
+
+    data class NotificationRule(
+        val id: String,
+        val packageName: String,
+        val mode: String,
+        val titlePattern: String,
+        val contentPattern: String
+    )
 
     // Receiver para ouvir comandos do BluetoothService (Ex: Watch pediu pra apagar)
     private val commandReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
+                "com.ailife.rtosify.ACTION_RULES_UPDATED" -> {
+                    Log.d("Listener", "Rules updated, reloading...")
+                    loadNotificationRules()
+                }
                 BluetoothService.ACTION_CMD_DISMISS_ON_PHONE -> {
                     val key = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_KEY)
                     if (key != null) {
@@ -74,6 +97,7 @@ class MyNotificationListener : NotificationListenerService() {
         prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
 
         val filter = IntentFilter().apply {
+            addAction("com.ailife.rtosify.ACTION_RULES_UPDATED")
             addAction(BluetoothService.ACTION_CMD_DISMISS_ON_PHONE)
             addAction(BluetoothService.ACTION_CMD_EXECUTE_ACTION)
             addAction(BluetoothService.ACTION_CMD_SEND_REPLY)
@@ -87,6 +111,138 @@ class MyNotificationListener : NotificationListenerService() {
             // Android 12 e inferiores não suportam/exigem essa flag
             registerReceiver(commandReceiver, filter)
         }
+
+        // Register SharedPreferences listener for rule changes
+        prefs.registerOnSharedPreferenceChangeListener(prefsListener)
+        Log.d("Listener", "SharedPreferences listener registered")
+
+        // Load notification rules
+        loadNotificationRules()
+    }
+
+    private fun loadNotificationRules() {
+        val rulesJson = prefs.getString("notification_rules", "[]") ?: "[]"
+        notificationRules.clear()
+
+        try {
+            Log.d("Listener", "Loading rules from preferences, JSON: $rulesJson")
+            val jsonArray = JSONArray(rulesJson)
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                val rule = NotificationRule(
+                    id = obj.getString("id"),
+                    packageName = obj.getString("packageName"),
+                    mode = obj.getString("mode"),
+                    titlePattern = obj.optString("titlePattern", ""),
+                    contentPattern = obj.optString("contentPattern", "")
+                )
+                notificationRules.add(rule)
+                Log.d("Listener", "Loaded rule: pkg=${rule.packageName}, mode=${rule.mode}, title='${rule.titlePattern}', content='${rule.contentPattern}'")
+            }
+            Log.d("Listener", "Total rules loaded: ${notificationRules.size}")
+        } catch (e: Exception) {
+            Log.e("Listener", "Error loading notification rules: ${e.message}", e)
+        }
+    }
+
+    private fun shouldForwardNotification(packageName: String, title: String, text: String): Boolean {
+        Log.d("NotifRules", "=== Checking notification ===")
+        Log.d("NotifRules", "Package: $packageName")
+        Log.d("NotifRules", "Title: '$title'")
+        Log.d("NotifRules", "Text: '$text'")
+        Log.d("NotifRules", "Total rules configured: ${notificationRules.size}")
+
+        // If no rules configured, allow all notifications
+        if (notificationRules.isEmpty()) {
+            Log.d("NotifRules", "No rules configured, allowing notification")
+            return true
+        }
+
+        // Find rules for this package
+        val rulesForPackage = notificationRules.filter { it.packageName == packageName }
+        Log.d("NotifRules", "Rules for this package: ${rulesForPackage.size}")
+
+        // If no rules for this package, allow notification
+        if (rulesForPackage.isEmpty()) {
+            Log.d("NotifRules", "No rules for this package, allowing notification")
+            return true
+        }
+
+        // Log all rules for this package
+        rulesForPackage.forEachIndexed { index, rule ->
+            Log.d("NotifRules", "Rule #${index + 1}: mode=${rule.mode}, titlePattern='${rule.titlePattern}', contentPattern='${rule.contentPattern}'")
+        }
+
+        // Process each rule
+        for (rule in rulesForPackage) {
+            val matchesPattern = matchesRulePattern(rule, title, text)
+            Log.d("NotifRules", "Rule check: mode=${rule.mode}, matches=$matchesPattern")
+
+            when (rule.mode) {
+                "whitelist" -> {
+                    // For whitelist: if pattern matches (or no pattern), ALLOW
+                    if (matchesPattern) {
+                        Log.d("NotifRules", "✓ ALLOWED: Whitelist rule matched")
+                        return true
+                    } else {
+                        Log.d("NotifRules", "✗ Whitelist rule did NOT match")
+                    }
+                }
+                "blacklist" -> {
+                    // For blacklist: if pattern matches (or no pattern), BLOCK
+                    if (matchesPattern) {
+                        Log.d("NotifRules", "✗ BLOCKED: Blacklist rule matched")
+                        return false
+                    } else {
+                        Log.d("NotifRules", "✓ Blacklist rule did NOT match")
+                    }
+                }
+            }
+        }
+
+        // Default behavior after checking all rules:
+        // If we have whitelist rules for this app but none matched, block it
+        // If we have only blacklist rules and none matched, allow it
+        val hasWhitelistRules = rulesForPackage.any { it.mode == "whitelist" }
+        val result = !hasWhitelistRules
+        Log.d("NotifRules", "Default behavior: hasWhitelistRules=$hasWhitelistRules, result=$result")
+        if (hasWhitelistRules && !result) {
+            Log.d("NotifRules", "✗ BLOCKED: No whitelist rules matched")
+        }
+        return result
+    }
+
+    private fun matchesRulePattern(rule: NotificationRule, title: String, text: String): Boolean {
+        val hasTitlePattern = rule.titlePattern.isNotEmpty()
+        val hasContentPattern = rule.contentPattern.isNotEmpty()
+
+        Log.d("NotifRules", "  Pattern matching: hasTitlePattern=$hasTitlePattern, hasContentPattern=$hasContentPattern")
+
+        // If no patterns specified, the rule applies to all notifications from this app
+        if (!hasTitlePattern && !hasContentPattern) {
+            Log.d("NotifRules", "  No patterns specified, rule applies to all notifications")
+            return true
+        }
+
+        var titleMatches = true
+        var contentMatches = true
+
+        // Check title pattern if specified
+        if (hasTitlePattern) {
+            titleMatches = title.contains(rule.titlePattern, ignoreCase = true)
+            Log.d("NotifRules", "  Title check: '$title' contains '${rule.titlePattern}' (ignoreCase) = $titleMatches")
+        }
+
+        // Check content pattern if specified
+        if (hasContentPattern) {
+            contentMatches = text.contains(rule.contentPattern, ignoreCase = true)
+            Log.d("NotifRules", "  Content check: '$text' contains '${rule.contentPattern}' (ignoreCase) = $contentMatches")
+        }
+
+        // Both patterns must match (if specified)
+        val result = titleMatches && contentMatches
+        Log.d("NotifRules", "  Final pattern match result: $result (titleMatches=$titleMatches, contentMatches=$contentMatches)")
+        return result
     }
 
     override fun onDestroy() {
@@ -94,6 +250,13 @@ class MyNotificationListener : NotificationListenerService() {
         // É boa prática desregistrar para evitar leaks, embora o sistema mate o serviço junto
         try {
             unregisterReceiver(commandReceiver)
+        } catch (e: Exception) {
+            // Ignora se já não estiver registrado
+        }
+
+        // Unregister SharedPreferences listener
+        try {
+            prefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
         } catch (e: Exception) {
             // Ignora se já não estiver registrado
         }
@@ -124,14 +287,43 @@ class MyNotificationListener : NotificationListenerService() {
         }
 
         if (sbn.packageName == packageName) return
-        if (sbn.isOngoing) return
 
         val notification = sbn.notification
+
+        // Check if ongoing notifications should be forwarded
+        val forwardOngoing = prefs.getBoolean("forward_ongoing_enabled", false)
+        if (sbn.isOngoing && !forwardOngoing) {
+            Log.d("Listener", "Skipping ongoing notification (forward_ongoing disabled)")
+            return
+        }
+
+        // Check if silent notifications should be forwarded
+        val forwardSilent = prefs.getBoolean("forward_silent_enabled", false)
+        if (!forwardSilent) {
+            val isSilent = (notification.flags and android.app.Notification.FLAG_ONLY_ALERT_ONCE) != 0 ||
+                    (notification.defaults == 0 && notification.sound == null && notification.vibrate == null)
+            if (isSilent) {
+                Log.d("Listener", "Skipping silent notification (forward_silent disabled)")
+                return
+            }
+        }
+
         val extras = notification.extras
-        val title = extras.getString("android.title") ?: ""
-        val text = extras.getString("android.text") ?: ""
+
+        // Use getCharSequence instead of getString to handle SpannableString
+        val title = extras.getCharSequence("android.title")?.toString() ?: ""
+        val text = extras.getCharSequence("android.text")?.toString() ?: ""
 
         if (title.isEmpty() && text.isEmpty()) return
+
+        // Apply notification rules
+        val shouldForward = shouldForwardNotification(sbn.packageName, title, text)
+        Log.d("Listener", "Rule decision: shouldForward=$shouldForward for ${sbn.packageName}")
+        if (!shouldForward) {
+            Log.d("Listener", "✗ Notification BLOCKED by rules: ${sbn.packageName} - '$title'")
+            return
+        }
+        Log.d("Listener", "✓ Notification ALLOWED by rules: ${sbn.packageName} - '$title'")
 
         try {
             // Debug: Log all extras keys to see what's available

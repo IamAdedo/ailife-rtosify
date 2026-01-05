@@ -141,17 +141,25 @@
     <string name="applist_title">Installed Apps</string>
     <string name="applist_loading_layout">Loading list…</string>
     <string name="notif_settings_title">Notifications</string>
-    <string name="notif_mirroring_title">Mirroring</string>
+    <string name="notif_mirroring_title">Notification Forwarding</string>
     <string name="notif_mirroring_desc">Send notifications to the watch</string>
     <string name="notif_permission_required">Read permission required</string>
     <string name="notif_permission_desc">The app needs to read system notifications to send them to the watch. Tap below to resolve.</string>
     <string name="notif_grant_access">Grant Access</string>
     <string name="notif_apps_title">Applications</string>
     <string name="notif_apps_loading">Loading applications…</string>
+    <string name="notif_manage_apps_title">Manage Applications</string>
+    <string name="notif_manage_apps_desc">Select which apps can send notifications to the watch</string>
+    <string name="notif_manage_rules_title">Notification Rules</string>
+    <string name="notif_manage_rules_desc">Add filters to control which notifications are forwarded</string>
     <string name="notif_skip_screen_on_title">Skip when screen on</string>
     <string name="notif_skip_screen_on_desc">Do not send alerts if you\'re using the phone</string>
     <string name="settings_notif_disconnect_title">Notify on disconnect</string>
     <string name="settings_notif_disconnect_desc">Alert me on the watch if it loses connection to the phone</string>
+    <string name="notif_forward_ongoing_title">Forward ongoing notifications</string>
+    <string name="notif_forward_ongoing_desc">Include persistent notifications like music players</string>
+    <string name="notif_forward_silent_title">Forward silent notifications</string>
+    <string name="notif_forward_silent_desc">Include notifications without sound or vibration</string>
 
     <string name="menu_uninstall_app">Uninstall</string>
     <string name="dialog_uninstall_title">Uninstall App?</string>

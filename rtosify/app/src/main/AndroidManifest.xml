@@ -113,6 +113,20 @@
             android:exported="false"
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Smartwatch" />
+
+        <!-- Lista de Apps para Notificações -->
+        <activity
+            android:name=".NotificationAppListActivity"
+            android:exported="false"
+            android:parentActivityName=".NotificationSettingsActivity"
+            android:theme="@style/Theme.Smartwatch" />
+
+        <!-- Regras de Notificação -->
+        <activity
+            android:name=".NotificationRulesActivity"
+            android:exported="false"
+            android:parentActivityName=".NotificationSettingsActivity"
+            android:theme="@style/Theme.Smartwatch" />
             
         <activity
             android:name=".AppPickerActivity"

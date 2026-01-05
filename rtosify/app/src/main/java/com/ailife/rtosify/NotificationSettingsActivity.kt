@@ -4,52 +4,30 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.content.pm.PackageManager
-import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.provider.Settings
-import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
-import android.view.ViewGroup
 import android.widget.Button
-import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
-import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.switchmaterial.SwitchMaterial
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import android.util.LruCache
 
 class NotificationSettingsActivity : AppCompatActivity() {
 
     private lateinit var switchEnable: SwitchMaterial
     private lateinit var switchSkipScreenOn: SwitchMaterial
     private lateinit var switchNotifyDisconnect: SwitchMaterial
+    private lateinit var switchForwardOngoing: SwitchMaterial
+    private lateinit var switchForwardSilent: SwitchMaterial
     private lateinit var layoutPermissionWarning: LinearLayout
-    private lateinit var layoutAppsSection: LinearLayout
+    private lateinit var cardManageApps: View
+    private lateinit var cardManageRules: View
     private lateinit var btnOpenSettings: Button
-    private lateinit var recyclerView: RecyclerView
-    private lateinit var editTextSearch: com.google.android.material.textfield.TextInputEditText
-    private lateinit var switchShowSystemApps: SwitchMaterial
-
-    // Agora referenciamos o container de loading inteiro
-    private lateinit var layoutLoadingApps: View
 
     private lateinit var prefs: SharedPreferences
-    private lateinit var appAdapter: AppNotificationAdapter
-
-    private var loadingJob: Job? = null
-    private var isLoadingVisible = false
-    private var allAppsList = listOf<AppNotificationItem>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,75 +44,36 @@ class NotificationSettingsActivity : AppCompatActivity() {
         setupMasterSwitch()
         setupSkipScreenOnSwitch()
         setupNotifyDisconnectSwitch()
-        setupRecyclerView()
-        setupSearch()
-        setupSystemAppsToggle()
-
-        // Carrega apps se tiver permissão, senão a UI já trata no updateUiState
-        if (isNotificationServiceEnabled()) {
-            loadInstalledApps()
-        }
+        setupForwardOngoingSwitch()
+        setupForwardSilentSwitch()
+        setupCardClickListeners()
     }
 
     private fun initViews() {
         switchEnable = findViewById(R.id.switchEnableMirroring)
         switchSkipScreenOn = findViewById(R.id.switchSkipScreenOn)
         switchNotifyDisconnect = findViewById(R.id.switchNotifyDisconnect)
+        switchForwardOngoing = findViewById(R.id.switchForwardOngoing)
+        switchForwardSilent = findViewById(R.id.switchForwardSilent)
         layoutPermissionWarning = findViewById(R.id.layoutPermissionWarning)
-        layoutAppsSection = findViewById(R.id.layoutAppsSection)
+        cardManageApps = findViewById(R.id.cardManageApps)
+        cardManageRules = findViewById(R.id.cardManageRules)
         btnOpenSettings = findViewById(R.id.btnOpenSettings)
-        recyclerView = findViewById(R.id.recyclerViewApps)
-        editTextSearch = findViewById(R.id.editTextSearch)
-        switchShowSystemApps = findViewById(R.id.switchShowSystemApps)
-
-        // Novo ID do container
-        layoutLoadingApps = findViewById(R.id.layoutLoadingApps)
     }
 
-    private fun setupSearch() {
-        editTextSearch.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                filterApps(s?.toString() ?: "")
+    private fun setupCardClickListeners() {
+        cardManageApps.setOnClickListener {
+            if (isNotificationServiceEnabled()) {
+                val intent = Intent(this, NotificationAppListActivity::class.java)
+                startActivity(intent)
             }
-        })
-    }
-
-    private fun setupSystemAppsToggle() {
-        switchShowSystemApps.isChecked = prefs.getBoolean("show_system_apps", false)
-        switchShowSystemApps.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("show_system_apps", isChecked).apply()
-            filterApps(editTextSearch.text?.toString() ?: "")
         }
-    }
 
-    private var filterJob: Job? = null
-    
-    private fun filterApps(query: String) {
-        filterJob?.cancel()
-        filterJob = lifecycleScope.launch {
-            val showSystemApps = switchShowSystemApps.isChecked
-            val filtered = withContext(Dispatchers.Default) {
-                allAppsList.filter { app ->
-                    val matchesSearch = if (query.isEmpty()) {
-                        true
-                    } else {
-                        app.packageName.contains(query, ignoreCase = true) ||
-                                app.appName.contains(query, ignoreCase = true)
-                    }
-
-                    val matchesSystemFilter = if (showSystemApps) {
-                        true
-                    } else {
-                        // Only show non-system apps
-                        !app.isSystemApp
-                    }
-
-                    matchesSearch && matchesSystemFilter
-                }
+        cardManageRules.setOnClickListener {
+            if (isNotificationServiceEnabled()) {
+                val intent = Intent(this, NotificationRulesActivity::class.java)
+                startActivity(intent)
             }
-            appAdapter.setData(filtered)
         }
     }
 
@@ -151,10 +90,26 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchNotifyDisconnect.isChecked = isEnabled
         switchNotifyDisconnect.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("notify_on_disconnect", isChecked).apply()
-            
+
             // Sync with service if connected
             val intent = Intent("com.ailife.rtosify.ACTION_UPDATE_SETTINGS")
             sendBroadcast(intent)
+        }
+    }
+
+    private fun setupForwardOngoingSwitch() {
+        val isEnabled = prefs.getBoolean("forward_ongoing_enabled", false)
+        switchForwardOngoing.isChecked = isEnabled
+        switchForwardOngoing.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("forward_ongoing_enabled", isChecked).apply()
+        }
+    }
+
+    private fun setupForwardSilentSwitch() {
+        val isEnabled = prefs.getBoolean("forward_silent_enabled", false)
+        switchForwardSilent.isChecked = isEnabled
+        switchForwardSilent.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("forward_silent_enabled", isChecked).apply()
         }
     }
 
@@ -198,7 +153,8 @@ class NotificationSettingsActivity : AppCompatActivity() {
             switchEnable.isEnabled = false
             switchEnable.isChecked = false
             layoutPermissionWarning.visibility = View.VISIBLE
-            layoutAppsSection.visibility = View.GONE
+            cardManageApps.visibility = View.GONE
+            cardManageRules.visibility = View.GONE
 
             btnOpenSettings.setOnClickListener {
                 prefs.edit().putBoolean("waiting_for_permission", true).apply()
@@ -207,86 +163,23 @@ class NotificationSettingsActivity : AppCompatActivity() {
         } else {
             switchEnable.isEnabled = true
             layoutPermissionWarning.visibility = View.GONE
-            layoutAppsSection.visibility = View.VISIBLE
+            cardManageApps.visibility = View.VISIBLE
+            cardManageRules.visibility = View.VISIBLE
 
             if (isSwitchOn) {
-                recyclerView.alpha = 1.0f
-                recyclerView.isEnabled = true
+                cardManageApps.alpha = 1.0f
+                cardManageApps.isEnabled = true
+                cardManageRules.alpha = 1.0f
+                cardManageRules.isEnabled = true
             } else {
-                recyclerView.alpha = 0.4f
-            }
-
-            // Se a lista estiver vazia e não estiver carregando, tenta carregar
-            if (appAdapter.itemCount == 0 && !isLoadingVisible) {
-                loadInstalledApps()
+                cardManageApps.alpha = 0.4f
+                cardManageApps.isEnabled = false
+                cardManageRules.alpha = 0.4f
+                cardManageRules.isEnabled = false
             }
         }
     }
 
-    private fun setupRecyclerView() {
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        appAdapter = AppNotificationAdapter(prefs)
-        recyclerView.adapter = appAdapter
-
-        // Optimize RecyclerView performance for large lists
-        recyclerView.setHasFixedSize(true)
-        recyclerView.setItemViewCacheSize(20)  // Cache more views to reduce rebinding during scroll
-    }
-
-    private fun loadInstalledApps() {
-        if (isLoadingVisible) return
-
-        // Mostra o container de loading (Texto + Spinner)
-        layoutLoadingApps.visibility = View.VISIBLE
-        recyclerView.visibility = View.GONE
-        isLoadingVisible = true
-
-        loadingJob?.cancel()
-        loadingJob = lifecycleScope.launch(Dispatchers.IO) {
-            val pm = packageManager
-            val packageNamesFound = mutableSetOf<String>()
-
-            // Use getInstalledApplications instead of getInstalledPackages - more efficient
-            // since we only need ApplicationInfo, not full PackageInfo
-            val installedApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
-
-            val appsList = installedApps.mapNotNull { appInfo ->
-                val pkgName = appInfo.packageName
-                // Skip our own app
-                if (pkgName == packageName) return@mapNotNull null
-
-                val isSystemApp = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
-
-                // Load app name during initial load instead of lazily
-                // This prevents UI jank when scrolling through the list
-                val appName = try {
-                    pm.getApplicationLabel(appInfo).toString()
-                } catch (e: Exception) {
-                    pkgName
-                }
-
-                packageNamesFound.add(pkgName)
-                AppNotificationItem(appName, pkgName, null, isSystemApp)
-            }.distinctBy { it.packageName }
-            .sortedBy { it.appName.lowercase() }  // Sort by app name instead of package name for better UX
-
-            if (!prefs.contains("allowed_notif_packages")) {
-                prefs.edit().putStringSet("allowed_notif_packages", packageNamesFound).apply()
-                withContext(Dispatchers.Main) {
-                    appAdapter.reloadAllowedPackages()
-                }
-            }
-
-            withContext(Dispatchers.Main) {
-                isLoadingVisible = false
-                layoutLoadingApps.visibility = View.GONE
-                recyclerView.visibility = View.VISIBLE
-                allAppsList = appsList
-                // Apply initial filter (only user apps by default)
-                filterApps(editTextSearch.text?.toString() ?: "")
-            }
-        }
-    }
 
     private fun isNotificationServiceEnabled(): Boolean {
         val cn = ComponentName(this, MyNotificationListener::class.java)
@@ -308,118 +201,5 @@ class NotificationSettingsActivity : AppCompatActivity() {
             return true
         }
         return super.onOptionsItemSelected(item)
-    }
-}
-
-// --- Classes do Adapter ---
-data class AppNotificationItem(
-    val appName: String, // Deixamos como fallback ou vazio inicialmente
-    val packageName: String,
-    val icon: Drawable?,
-    val isSystemApp: Boolean = false
-)
-
-class AppNotificationAdapter(private val prefs: SharedPreferences) : RecyclerView.Adapter<AppNotificationAdapter.ViewHolder>() {
-
-    private var items = listOf<AppNotificationItem>()
-    private val allowedPackages = mutableSetOf<String>()
-    
-    // Cache para evitar IPC repetitivo para metadados
-    private val labelCache = LruCache<String, String>(200)
-    private val iconCache = LruCache<String, Drawable>(100)
-
-    init {
-        reloadAllowedPackages()
-    }
-
-    fun reloadAllowedPackages() {
-        val savedSet = prefs.getStringSet("allowed_notif_packages", null)
-        allowedPackages.clear()
-        if (savedSet != null) {
-            allowedPackages.addAll(savedSet)
-        }
-    }
-
-    fun setData(newItems: List<AppNotificationItem>) {
-        items = newItems
-        notifyDataSetChanged()
-    }
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_notification_app, parent, false)
-        return ViewHolder(view)
-    }
-
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(items[position])
-    }
-
-    override fun getItemCount() = items.size
-
-    inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val imgIcon: ImageView = itemView.findViewById(R.id.imgAppIcon)
-        private val tvName: TextView = itemView.findViewById(R.id.tvAppName)
-        private val tvAppPackage: TextView = itemView.findViewById(R.id.tvAppPackage)
-        private val switchApp: SwitchMaterial = itemView.findViewById(R.id.switchAppNotification)
-
-        private var loadJob: Job? = null
-
-        fun bind(item: AppNotificationItem) {
-            tvAppPackage.text = item.packageName
-            switchApp.setOnCheckedChangeListener(null)
-            switchApp.isChecked = allowedPackages.contains(item.packageName)
-
-            switchApp.setOnCheckedChangeListener { _, isChecked ->
-                if (isChecked) {
-                    allowedPackages.add(item.packageName)
-                } else {
-                    allowedPackages.remove(item.packageName)
-                }
-                prefs.edit().putStringSet("allowed_notif_packages", allowedPackages.toSet()).apply()
-            }
-
-            // Cancela job anterior se a view for reciclada
-            loadJob?.cancel()
-
-            // Use pre-loaded app name if available (loaded during initial app list fetch)
-            if (item.appName.isNotEmpty()) {
-                tvName.text = item.appName
-            } else {
-                // Fallback: use cached label or load lazily (for edge cases)
-                val cachedLabel = labelCache.get(item.packageName)
-                if (cachedLabel != null) {
-                    tvName.text = cachedLabel
-                } else {
-                    tvName.text = item.packageName
-                }
-            }
-
-            // Check cache for icon first
-            val cachedIcon = iconCache.get(item.packageName)
-            if (cachedIcon != null) {
-                imgIcon.setImageDrawable(cachedIcon)
-                return
-            }
-
-            // Set default icon while loading
-            imgIcon.setImageResource(android.R.drawable.sym_def_app_icon)
-
-            // Load icon in background only (app name is already loaded during initial fetch)
-            loadJob = (itemView.context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
-                val pm = itemView.context.packageManager
-                try {
-                    val appInfo = pm.getApplicationInfo(item.packageName, 0)
-                    val icon = pm.getApplicationIcon(appInfo)
-
-                    iconCache.put(item.packageName, icon)
-
-                    withContext(Dispatchers.Main) {
-                        imgIcon.setImageDrawable(icon)
-                    }
-                } catch (e: Exception) {
-                    // Icon loading failed, keep default icon
-                }
-            }
-        }
     }
 }
