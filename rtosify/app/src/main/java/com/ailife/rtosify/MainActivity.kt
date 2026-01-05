@@ -11,6 +11,7 @@ import android.content.res.ColorStateList
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
 import android.os.IBinder
 import android.view.LayoutInflater
 import android.view.View
@@ -122,6 +123,10 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
 
         if (!prefs.contains("device_type") || hasMissingPermissions()) {
+            if (hasMissingPermissions()) {
+                Toast.makeText(this, "Redirecting to setup: Missing permissions", Toast.LENGTH_SHORT).show()
+                android.util.Log.d("MainActivity", "Missing permissions, redirecting to WelcomeActivity")
+            }
             startActivity(Intent(this, WelcomeActivity::class.java))
             finish()
             return
@@ -155,7 +160,17 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun hasMissingPermissions(): Boolean {
-        return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+        val permissions = mutableListOf<String>()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+            permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+        } else {
+            permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+
+        return permissions.any {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
     }
 
     private fun initViews() {

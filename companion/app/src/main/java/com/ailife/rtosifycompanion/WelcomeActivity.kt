@@ -34,27 +34,16 @@ class WelcomeActivity : AppCompatActivity() {
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-            // Verifica se a localização "durante o uso" foi concedida
-            val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
-
-            if (fineLocationGranted) {
-                // Se deu permissão básica, agora tentamos pedir a permissão "O Tempo Todo"
-                checkAndRequestBackgroundLocation()
-            }
+            startAutomaticSetup()
         }
     private val backgroundLocationLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-            checkBluetoothAndStartSetup()
+            startAutomaticSetup()
         }
 
     private val enableBluetoothLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             startAutomaticSetup()
-        }
-
-    private val installPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            checkDndPermissionAndFinish()
         }
 
     private val dndPermissionLauncher =
@@ -74,7 +63,7 @@ class WelcomeActivity : AppCompatActivity() {
                     android.util.Log.d("Welcome", "Device paired successfully! Continuing setup...")
                     // Device was successfully paired, proceed with setup
                     unregisterReceiver(this)
-                    checkRootAndSetup()
+                    finishSetup("WATCH")
                 }
             }
         }
@@ -88,7 +77,6 @@ class WelcomeActivity : AppCompatActivity() {
         val filter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
         registerReceiver(pairingReceiver, filter)
 
-        checkBatteryOptimizationDirect()
         checkAndRequestPermissions()
     }
 
@@ -97,25 +85,6 @@ class WelcomeActivity : AppCompatActivity() {
         try {
             unregisterReceiver(pairingReceiver)
         } catch (_: Exception) {}
-    }
-
-    private fun checkBluetoothAndStartSetup() {
-        val btManager = getSystemService(android.content.Context.BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
-        val adapter = btManager.adapter
-
-        if (adapter == null) {
-            // Device doesn't support Bluetooth
-            android.widget.Toast.makeText(this, R.string.welcome_bt_not_supported, android.widget.Toast.LENGTH_LONG).show()
-            return
-        }
-
-        if (!adapter.isEnabled) {
-            // Request to enable Bluetooth
-            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-            enableBluetoothLauncher.launch(enableBtIntent)
-        } else {
-            startAutomaticSetup()
-        }
     }
 
     private fun startAutomaticSetup() {
@@ -224,99 +193,27 @@ class WelcomeActivity : AppCompatActivity() {
         }
     }
 
-    // Lógica para solicitar Localização em Background ("O Tempo Todo")
-    private fun checkAndRequestBackgroundLocation() {
-        // Background Location só existe no Android 10 (Q) ou superior
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val hasBackground = ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_BACKGROUND_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
+    // Simplified setup flow: Bluetooth -> QR -> Finish
 
-            if (!hasBackground) {
-                // No Android 11+ (R), é recomendável explicar ao usuário antes de pedir,
-                // pois o sistema irá redirecionar para as Configurações.
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    AlertDialog.Builder(this)
-                        .setTitle(getString(R.string.welcome_permission_title))
-                        .setMessage(getString(R.string.welcome_permission_message))
-                        .setPositiveButton(getString(R.string.welcome_permission_understood)) { _, _ ->
-                            backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                        }
-                        .setNegativeButton(getString(R.string.welcome_permission_not_now), null)
-                        .show()
-                } else {
-                    // Android 10 pede direto no popup
-                    backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                }
-            } else {
-                checkBluetoothAndStartSetup()
-            }
-        } else {
-            checkBluetoothAndStartSetup()
-        }
-    }
-
-    // 2. Faz a verificação de Root e DEPOIS chama a permissão de instalação.
-    private fun checkRootAndSetup() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            android.util.Log.d("Welcome", "Starting root check...")
-            checkRootAccess() // Essa chamada dispara o prompt de root (se houver magisk/su)
-
-            withContext(Dispatchers.Main) {
-                android.util.Log.d("Welcome", "Root check done, requesting install permission...")
-                // Após o prompt de root ser tratado, pedimos a permissão de instalação
-                requestInstallPermission()
-            }
-        }
-    }
-
-    // 3. Chamado após a verificação de root.
-    private fun requestInstallPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
-            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
-            intent.data = "package:$packageName".toUri()
-            installPermissionLauncher.launch(intent)
-        } else {
-            checkDndPermissionAndFinish()
-        }
-    }
-
-    // 4. Nova verificação para Não Perturbe (DND)
-    private fun checkDndPermissionAndFinish() {
-        val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        if (!notificationManager.isNotificationPolicyAccessGranted) {
-            val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
-            dndPermissionLauncher.launch(intent)
-        } else {
-            finishSetup("WATCH")
-        }
-    }
-
-    private suspend fun checkRootAccess(): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "id"))
-                val result = process.waitFor()
-                result == 0
-            } catch (_: Exception) {
-                false
-            }
-        }
-    }
+    // Methods removed as they are now handled in PermissionActivity
 
     // 5. Finaliza o processo
     private fun finishSetup(type: String) {
         val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
         prefs.edit { putString("device_type", type) }
-        startActivity(Intent(this, MainActivity::class.java))
+        
+        // After paired, show PermissionActivity to handle other permissions
+        val intent = Intent(this, PermissionActivity::class.java).apply {
+            putExtra("from_setup", true)
+        }
+        startActivity(intent)
         finish()
     }
 
     private fun checkAndRequestPermissions() {
         val permissions = mutableListOf<String>()
 
-        // Solicita permissões básicas (Foreground)
+        // Solicita permissões básicas de Bluetooth/Localização (necessárias para Discovery/Advertising)
         permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
         permissions.add(Manifest.permission.ACCESS_COARSE_LOCATION)
 
@@ -327,35 +224,17 @@ class WelcomeActivity : AppCompatActivity() {
             permissions.add(Manifest.permission.BLUETOOTH_ADVERTISE)
         }
 
-        // Notificações no Android 13+
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
-        }
-
         // Filtra o que falta
         val missing = permissions.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
 
         if (missing.isNotEmpty()) {
-            requestPermissionLauncher.launch(permissions.toTypedArray())
+            requestPermissionLauncher.launch(missing.toTypedArray())
         } else {
-            // Se já tem as básicas, checa se falta a Background
-            checkAndRequestBackgroundLocation()
+            startAutomaticSetup()
         }
     }
 
-    @SuppressLint("BatteryLife")
-    private fun checkBatteryOptimizationDirect() {
-        val pm = getSystemService(POWER_SERVICE) as PowerManager
-        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-            try {
-                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                    data = "package:$packageName".toUri()
-                }
-                startActivity(intent)
-            } catch (_: Exception) {
-            }
-        }
-    }
+    // Battery optimization check removed from here, will be in PermissionActivity
 }

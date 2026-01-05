@@ -28,6 +28,8 @@ class PermissionActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: PermissionAdapter
     private lateinit var toolbar: Toolbar
+    private lateinit var btnFinish: View
+    private var fromSetup = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,6 +44,18 @@ class PermissionActivity : AppCompatActivity() {
         recyclerView.layoutManager = LinearLayoutManager(this)
         adapter = PermissionAdapter { perm -> handlePermissionClick(perm) }
         recyclerView.adapter = adapter
+
+        btnFinish = findViewById(R.id.btnFinishPermission)
+        fromSetup = intent.getBooleanExtra("from_setup", false)
+
+        if (fromSetup) {
+            btnFinish.visibility = View.VISIBLE
+            btnFinish.setOnClickListener {
+                startActivity(Intent(this, MainActivity::class.java))
+                finish()
+            }
+            supportActionBar?.setDisplayHomeAsUpEnabled(false)
+        }
 
         Shizuku.addBinderReceivedListener {
             updatePermissionList()

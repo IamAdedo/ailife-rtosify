@@ -129,6 +129,7 @@
     <string name="welcome_manual_selection">Manual Selection</string>
     <string name="welcome_qr_scan_instruction">Scan the QR Code on your Watch</string>
     <string name="welcome_searching_qr">Searching for your watch...\nMake sure it\'s showing the QR code.</string>
+    <string name="welcome_finish">Finish Setup</string>
 
     <string name="notification_apk_received_title">APK Received</string>
     <string name="notification_apk_received_text">Tap to install</string>

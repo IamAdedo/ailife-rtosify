@@ -74,6 +74,7 @@
     <string name="welcome_bt_disabled">Bluetooth is disabled. Please enable it.</string>
     <string name="welcome_pairing_waiting">Scan QR Code on your phone\nWaiting for pairing...</string>
     <string name="welcome_qr_gen_error">Failed to generate QR code</string>
+    <string name="welcome_finish">Finish</string>
 
     <string name="notification_apk_received_title">APK Received</string>
     <string name="notification_apk_received_text">Tap to install</string>
