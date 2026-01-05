@@ -88,6 +88,10 @@ object MessageType {
     const val CREATE_FOLDER = "create_folder"
     const val REQUEST_PREVIEW = "request_preview"
     const val RESPONSE_PREVIEW = "response_preview"
+    const val INCOMING_CALL = "incoming_call"
+    const val CALL_STATE_CHANGED = "call_state_changed"
+    const val REJECT_CALL = "reject_call"
+    const val ANSWER_CALL = "answer_call"
 }
 
 // Data classes for specific message types
@@ -530,5 +534,26 @@ object ProtocolHelper {
 
     fun extractLongField(message: ProtocolMessage, field: String): Long {
         return message.data.get(field)?.asLong ?: 0L
+    }
+
+    fun createIncomingCall(number: String, callerId: String?): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("number", number)
+        if (callerId != null) data.addProperty("callerId", callerId)
+        return ProtocolMessage(type = MessageType.INCOMING_CALL, data = data)
+    }
+
+    fun createCallStateChanged(state: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("state", state)
+        return ProtocolMessage(type = MessageType.CALL_STATE_CHANGED, data = data)
+    }
+
+    fun createRejectCall(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.REJECT_CALL)
+    }
+
+    fun createAnswerCall(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.ANSWER_CALL)
     }
 }

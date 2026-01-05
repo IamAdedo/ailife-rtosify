@@ -147,6 +147,14 @@
             android:exported="false"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Smartwatch" />
+
+        <activity
+            android:name=".CallActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Smartwatch" />
             
         <!-- FileProvider (for APK installation) -->
         <provider

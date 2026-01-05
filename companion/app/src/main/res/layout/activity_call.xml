@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="@android:color/black"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/tv_caller_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Unknown"
+        android:textColor="@android:color/white"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:maxLines="2"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/tv_caller_number"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="000 000 000"
+        android:textColor="#AAAAAA"
+        android:textSize="16sp"
+        android:layout_marginTop="4dp"
+        android:gravity="center" />
+
+    <TextView
+        android:id="@+id/tv_call_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Incoming Call"
+        android:textColor="@android:color/holo_green_light"
+        android:textSize="12sp"
+        android:layout_marginTop="12dp"
+        android:textStyle="italic" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginTop="24dp">
+
+        <ImageButton
+            android:id="@+id/btn_reject"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@android:drawable/btn_default"
+            android:backgroundTint="@android:color/holo_red_dark"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:scaleType="centerInside"
+            android:padding="12dp"
+            android:contentDescription="Reject" />
+
+        <Space
+            android:layout_width="24dp"
+            android:layout_height="wrap_content" />
+
+        <ImageButton
+            android:id="@+id/btn_answer"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@android:drawable/btn_default"
+            android:backgroundTint="@android:color/holo_green_dark"
+            android:src="@android:drawable/ic_menu_call"
+            android:scaleType="centerInside"
+            android:padding="12dp"
+            android:contentDescription="Answer" />
+
+    </LinearLayout>
+
+</LinearLayout>

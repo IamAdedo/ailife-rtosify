@@ -666,6 +666,8 @@ class BluetoothService : Service() {
                     MessageType.CREATE_FOLDER -> handleCreateFolder(message)
                     MessageType.REQUEST_PREVIEW -> handleRequestPreview(message)
                     MessageType.UNINSTALL_APP -> handleUninstallApp(message)
+                    MessageType.INCOMING_CALL -> handleIncomingCall(message)
+                    MessageType.CALL_STATE_CHANGED -> handleCallStateChanged(message)
                 }
             }
         } catch (_: IOException) {
@@ -980,6 +982,14 @@ class BluetoothService : Service() {
 
     fun sendMakeCall(phoneNumber: String) {
         sendMessage(ProtocolHelper.createMakeCall(phoneNumber))
+    }
+
+    fun sendRejectCall() {
+        sendMessage(ProtocolHelper.createRejectCall())
+    }
+
+    fun sendAnswerCall() {
+        sendMessage(ProtocolHelper.createAnswerCall())
     }
 
     fun sendMediaCommand(command: String, volume: Int? = null) {
@@ -3070,6 +3080,34 @@ class BluetoothService : Service() {
         } finally {
             if (isTemp && zipFileToUse.exists()) zipFileToUse.delete()
         }
+    }
+
+    private fun handleIncomingCall(message: ProtocolMessage) {
+        val number = ProtocolHelper.extractStringField(message, "number") ?: "Unknown"
+        val callerId = ProtocolHelper.extractStringField(message, "callerId")
+        
+        Log.d(TAG, "Incoming call: $number ($callerId)")
+        
+        val intent = Intent(this, CallActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra("number", number)
+            putExtra("callerId", callerId)
+        }
+        startActivity(intent)
+    }
+
+    private fun handleCallStateChanged(message: ProtocolMessage) {
+        val state = ProtocolHelper.extractStringField(message, "state")
+        Log.d(TAG, "Call state changed: $state")
+        
+        // Notify CallActivity to close if it's idle
+        val intent = Intent(this, CallActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra("state", state)
+        }
+        startActivity(intent)
     }
 
 }

@@ -54,6 +54,8 @@ import androidx.core.net.toUri
 import kotlinx.coroutines.*
 import org.json.JSONArray
 import org.json.JSONObject
+import android.telephony.TelephonyManager
+import android.telecom.TelecomManager
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -139,6 +141,47 @@ class BluetoothService : Service() {
     var currentDeviceName: String? = null
     @Volatile
     var isConnected: Boolean = false
+
+    private val phoneStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == TelephonyManager.ACTION_PHONE_STATE_CHANGED) {
+                val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
+                val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
+                
+                Log.d(TAG, "Phone State Changed: $state, Number: $number")
+                
+                when (state) {
+                    TelephonyManager.EXTRA_STATE_RINGING -> {
+                        if (number != null) {
+                            val callerName = getContactName(number)
+                            sendMessage(ProtocolHelper.createIncomingCall(number, callerName))
+                        }
+                    }
+                    TelephonyManager.EXTRA_STATE_IDLE -> {
+                        sendMessage(ProtocolHelper.createCallStateChanged("IDLE"))
+                    }
+                    TelephonyManager.EXTRA_STATE_OFFHOOK -> {
+                        sendMessage(ProtocolHelper.createCallStateChanged("OFFHOOK"))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun getContactName(phoneNumber: String): String? {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            return null
+        }
+        val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(phoneNumber))
+        val projection = arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME)
+        return try {
+            contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
 
     // JSON Protocol - message types defined in Protocol.kt
 
@@ -248,6 +291,9 @@ class BluetoothService : Service() {
             registerReceiver(internalReceiver, filterInternal)
             registerReceiver(watchDismissReceiver, filterWatch)
         }
+
+        val filterPhone = IntentFilter(TelephonyManager.ACTION_PHONE_STATE_CHANGED)
+        registerReceiver(phoneStateReceiver, filterPhone)
 
         if (DEBUG_NOTIFICATIONS) Log.d(TAG, "onCreate: Service created")
     }
@@ -546,6 +592,8 @@ class BluetoothService : Service() {
                     MessageType.RESPONSE_HEALTH_SETTINGS -> handleHealthSettingsReceived(message)
                     MessageType.RESPONSE_PREVIEW -> handlePreviewReceived(message)
                     MessageType.MAKE_CALL -> handleMakeCallCommand(message)
+                    MessageType.REJECT_CALL -> handleRejectCallCommand()
+                    MessageType.ANSWER_CALL -> handleAnswerCallCommand()
                 }
             }
         } catch (_: IOException) {
@@ -1850,10 +1898,39 @@ class BluetoothService : Service() {
         prefs.edit().putString(key, value).apply()
     }
 
+    private fun handleRejectCallCommand() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val telecomManager = getSystemService(TELECOM_SERVICE) as TelecomManager
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ANSWER_PHONE_CALLS) == PackageManager.PERMISSION_GRANTED) {
+                try {
+                    telecomManager.endCall()
+                    Log.d(TAG, "Call rejected via TelecomManager")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error rejecting call: ${e.message}")
+                }
+            }
+        }
+    }
+
+    private fun handleAnswerCallCommand() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val telecomManager = getSystemService(TELECOM_SERVICE) as TelecomManager
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ANSWER_PHONE_CALLS) == PackageManager.PERMISSION_GRANTED) {
+                try {
+                    telecomManager.acceptRingingCall()
+                    Log.d(TAG, "Call answered via TelecomManager")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error answering call: ${e.message}")
+                }
+            }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         try { unregisterReceiver(internalReceiver) } catch(_:Exception){}
         try { unregisterReceiver(watchDismissReceiver) } catch(_:Exception){}
+        try { unregisterReceiver(phoneStateReceiver) } catch(_:Exception){}
         mainHandler.removeCallbacksAndMessages(null)
         serviceScope.cancel()
         forceDisconnect()

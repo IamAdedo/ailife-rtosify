@@ -153,6 +153,10 @@ class PermissionActivity : AppCompatActivity() {
         // 15. Contacts
         perms.add(PermissionItem("CONTACTS", getString(R.string.perm_contacts), getString(R.string.perm_contacts_desc), checkPerm(Manifest.permission.READ_CONTACTS)))
 
+        // 16. Phone Status
+        val hasPhoneStatus = checkPerm(Manifest.permission.READ_PHONE_STATE) && checkPerm(Manifest.permission.READ_CALL_LOG) && (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) checkPerm(Manifest.permission.ANSWER_PHONE_CALLS) else true)
+        perms.add(PermissionItem("PHONE", getString(R.string.perm_phone_status), getString(R.string.perm_phone_status_desc), hasPhoneStatus))
+
         adapter.updateList(perms)
     }
 
@@ -235,6 +239,11 @@ class PermissionActivity : AppCompatActivity() {
             "CALL" -> requestPermissions(arrayOf(Manifest.permission.CALL_PHONE), 108)
             "CALENDAR" -> requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR), 109)
             "CONTACTS" -> requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS), 110)
+            "PHONE" -> {
+                val p = mutableListOf(Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_CALL_LOG)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) p.add(Manifest.permission.ANSWER_PHONE_CALLS)
+                requestPermissions(p.toTypedArray(), 111)
+            }
         }
     }
 

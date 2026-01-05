@@ -217,6 +217,8 @@
     <string name="perm_calendar_desc">Allows the app to sync calendar events to the watch.</string>
     <string name="perm_contacts">Read Contacts</string>
     <string name="perm_contacts_desc">Allows the app to sync contacts to the watch.</string>
+    <string name="perm_phone_status">Phone Status</string>
+    <string name="perm_phone_status_desc">Required to detect incoming calls and show them on the watch.</string>
     
     <string name="menu_sync_calendar">Sync Calendar</string>
     <string name="menu_sync_calendar_desc">Send your calendar events to the watch</string>
