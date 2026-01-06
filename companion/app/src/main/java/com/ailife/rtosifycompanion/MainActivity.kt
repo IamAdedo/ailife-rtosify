@@ -306,18 +306,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         val options = mutableListOf(
             MenuOption(
-                getString(R.string.menu_find_phone),
-                getString(R.string.menu_find_phone_desc),
-                android.R.drawable.ic_menu_search,
-                { runIfConnected { confirmFindPhone() } }
-            ),
-            MenuOption(
-                getString(R.string.perm_title),
-                getString(R.string.perm_shizuku_desc),
-                android.R.drawable.ic_menu_manage,
-                { startActivity(Intent(this, PermissionActivity::class.java)) }
-            ),
-            MenuOption(
                 "Media Control", // Hardcoded string for now or add to strings.xml later if requested
                 "Control phone playback",
                 android.R.drawable.ic_media_play, // Using a standard system drawable
@@ -368,6 +356,23 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         options.add(
             MenuOption(
+                getString(R.string.menu_find_phone),
+                getString(R.string.menu_find_phone_desc),
+                android.R.drawable.ic_menu_search,
+                { runIfConnected { confirmFindPhone() } }
+            )
+        )
+        options.add(
+            MenuOption(
+                getString(R.string.perm_title),
+                getString(R.string.perm_shizuku_desc),
+                android.R.drawable.ic_menu_manage,
+                { startActivity(Intent(this, PermissionActivity::class.java)) }
+            )
+        )
+
+        options.add(
+            MenuOption(
                 getString(R.string.menu_reset_all),
                 getString(R.string.menu_reset_all_desc),
                 android.R.drawable.ic_menu_delete,
@@ -397,22 +402,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         } else {
             options.add(
                 MenuOption(
-                    getString(R.string.menu_find_phone),
-                    getString(R.string.menu_find_phone_desc),
-                    android.R.drawable.ic_menu_search,
-                    { runIfConnected { confirmFindPhone() } }
-                )
-            )
-            options.add(
-                MenuOption(
-                    getString(R.string.perm_title),
-                    getString(R.string.perm_shizuku_desc),
-                    android.R.drawable.ic_menu_manage,
-                    { startActivity(Intent(this, PermissionActivity::class.java)) }
-                )
-            )
-            options.add(
-                MenuOption(
                     "Media Control",
                     "Control phone playback",
                     android.R.drawable.ic_media_play,
@@ -438,6 +427,25 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         }
 
         // Connect/Disconnect options removed in favor of toggle switch
+
+        if (!isPhoneMode) {
+            options.add(
+                MenuOption(
+                    getString(R.string.menu_find_phone),
+                    getString(R.string.menu_find_phone_desc),
+                    android.R.drawable.ic_menu_search,
+                    { runIfConnected { confirmFindPhone() } }
+                )
+            )
+            options.add(
+                MenuOption(
+                    getString(R.string.perm_title),
+                    getString(R.string.perm_shizuku_desc),
+                    android.R.drawable.ic_menu_manage,
+                    { startActivity(Intent(this, PermissionActivity::class.java)) }
+                )
+            )
+        }
 
         options.add(
             MenuOption(
