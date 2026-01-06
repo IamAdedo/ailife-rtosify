@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.app.Service
 import android.bluetooth.BluetoothAdapter
@@ -172,6 +173,7 @@ class BluetoothService : Service() {
         const val ACTION_CMD_DISMISS_ON_PHONE = "com.ailife.rtosify.CMD_DISMISS_PHONE"
         const val ACTION_CMD_EXECUTE_ACTION = "com.ailife.rtosify.CMD_EXECUTE_ACTION"
         const val ACTION_CMD_SEND_REPLY = "com.ailife.rtosify.CMD_SEND_REPLY"
+        const val ACTION_DND_UPDATED = "com.ailife.rtosifycompanion.ACTION_DND_UPDATED"
 
         const val EXTRA_NOTIF_JSON = "extra_notif_json"
         const val EXTRA_NOTIF_KEY = "extra_notif_key"
@@ -389,10 +391,126 @@ class BluetoothService : Service() {
         }
     }
 
+    private fun handleUpdateDndSettings(message: ProtocolMessage) {
+        try {
+            val settings = ProtocolHelper.extractData<DndSettingsData>(message)
+            Log.d(TAG, "Received DND settings update: $settings")
+
+            prefs.edit().apply {
+                putBoolean("dnd_schedule_enabled", settings.scheduleEnabled)
+                putString("dnd_start_time", settings.startTime)
+                putString("dnd_end_time", settings.endTime)
+            }.apply()
+
+            if (settings.scheduleEnabled) {
+                setupDndSchedule(settings.startTime, settings.endTime)
+            } else {
+                cancelDndSchedule()
+            }
+
+            // Quick duration
+            settings.quickDurationMinutes?.let { minutes ->
+                enableQuickDnd(minutes)
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling DND settings update: ${e.message}")
+        }
+    }
+
+    private fun setupDndSchedule(start: String?, end: String?) {
+        if (start == null || end == null) return
+        cancelDndSchedule()
+
+        val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        
+        // Start alarm
+        val startIntent = Intent(this, DndReceiver::class.java).apply { action = DndReceiver.ACTION_DND_ON }
+        val startPI = PendingIntent.getBroadcast(this, 101, startIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        
+        // End alarm
+        val endIntent = Intent(this, DndReceiver::class.java).apply { action = DndReceiver.ACTION_DND_OFF }
+        val endPI = PendingIntent.getBroadcast(this, 102, endIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+        val startTime = parseTimeToMillis(start)
+        val endTime = parseTimeToMillis(end)
+
+        am.setRepeating(AlarmManager.RTC_WAKEUP, startTime, AlarmManager.INTERVAL_DAY, startPI)
+        am.setRepeating(AlarmManager.RTC_WAKEUP, endTime, AlarmManager.INTERVAL_DAY, endPI)
+        
+        Log.d(TAG, "DND Alarms set: Start $start, End $end")
+    }
+
+    private fun cancelDndSchedule() {
+        val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val startPI = PendingIntent.getBroadcast(this, 101, Intent(this, DndReceiver::class.java), PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)
+        val endPI = PendingIntent.getBroadcast(this, 102, Intent(this, DndReceiver::class.java), PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)
+        
+        startPI?.let { am.cancel(it); it.cancel() }
+        endPI?.let { am.cancel(it); it.cancel() }
+        Log.d(TAG, "DND Schedule alarms cancelled")
+    }
+
+    private fun enableQuickDnd(minutes: Int) {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        if (nm.isNotificationPolicyAccessGranted) {
+            nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
+            
+            val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val intent = Intent(this, DndReceiver::class.java).apply { action = DndReceiver.ACTION_DND_OFF }
+            val pi = PendingIntent.getBroadcast(this, 103, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            
+            val triggerAt = System.currentTimeMillis() + (minutes * 60 * 1000L)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+            } else {
+                am.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+            }
+            Log.d(TAG, "Quick DND enabled for $minutes minutes")
+            
+            // Notify phone immediately
+            serviceScope.launch {
+                delay(500)
+                val status = collectWatchStatus()
+                sendMessage(ProtocolHelper.createStatusUpdate(status))
+            }
+        }
+    }
+
+    private fun parseTimeToMillis(time: String): Long {
+        val parts = time.split(":")
+        val hour = parts[0].toInt()
+        val minute = parts[1].toInt()
+        
+        val calendar = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, hour)
+            set(java.util.Calendar.MINUTE, minute)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }
+        
+        if (calendar.timeInMillis < System.currentTimeMillis()) {
+            calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
+        }
+        return calendar.timeInMillis
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP_SERVICE) {
-            stopSelf()
+            stopServiceCompletely()
             return START_NOT_STICKY
+        }
+        
+        if (intent?.action == ACTION_DND_UPDATED) {
+            val enabled = intent.getBooleanExtra("enabled", false)
+            Log.d(TAG, "DND state updated via Receiver: $enabled")
+            serviceScope.launch {
+                delay(500)
+                if (isConnected) {
+                    val status = collectWatchStatus()
+                    sendMessage(ProtocolHelper.createStatusUpdate(status))
+                }
+            }
         }
 
         if (intent?.action == "STOP_ALARM") {
@@ -680,6 +798,7 @@ class BluetoothService : Service() {
                     MessageType.FIND_DEVICE -> handleFindDeviceCommand(message)
                     MessageType.STATUS_UPDATE -> handleStatusUpdateReceived(message)
                     MessageType.SET_DND -> handleSetDndCommand(message)
+                    MessageType.UPDATE_DND_SETTINGS -> handleUpdateDndSettings(message)
                     MessageType.SET_WIFI -> handleSetWifiCommand(message)
                     MessageType.REQUEST_WIFI_SCAN -> serviceScope.launch { handleRequestWifiScan() }
                     MessageType.CONNECT_WIFI -> handleConnectWifi(message)

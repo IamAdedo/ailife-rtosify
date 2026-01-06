@@ -96,6 +96,7 @@ object MessageType {
     const val REQUEST_WIFI_SCAN = "request_wifi_scan"
     const val WIFI_SCAN_RESULTS = "wifi_scan_results"
     const val CONNECT_WIFI = "connect_wifi"
+    const val UPDATE_DND_SETTINGS = "update_dnd_settings"
 }
 
 // Data classes for specific message types
@@ -268,6 +269,13 @@ data class WifiScanResultData(
 data class WifiConnectData(
     val ssid: String,
     val password: String? = null
+)
+
+data class DndSettingsData(
+    val scheduleEnabled: Boolean,
+    val startTime: String? = null, // "HH:mm"
+    val endTime: String? = null,   // "HH:mm"
+    val quickDurationMinutes: Int? = null
 )
 
 // Helper functions to create messages
@@ -589,5 +597,10 @@ object ProtocolHelper {
             data.addProperty("password", password)
         }
         return ProtocolMessage(type = MessageType.CONNECT_WIFI, data = data)
+    }
+
+    fun createUpdateDndSettings(settings: DndSettingsData): ProtocolMessage {
+        val data = gson.toJsonTree(settings).asJsonObject
+        return ProtocolMessage(type = MessageType.UPDATE_DND_SETTINGS, data = data)
     }
 }

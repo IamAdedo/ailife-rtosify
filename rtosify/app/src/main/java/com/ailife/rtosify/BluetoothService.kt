@@ -1288,6 +1288,10 @@ class BluetoothService : Service() {
         }
     }
 
+    fun updateDndSettings(settings: DndSettingsData) {
+        sendMessage(ProtocolHelper.createUpdateDndSettings(settings))
+    }
+
     fun syncContacts() {
         if (!isConnected) {
             mainHandler.post { Toast.makeText(this, getString(R.string.toast_watch_not_connected), Toast.LENGTH_SHORT).show() }

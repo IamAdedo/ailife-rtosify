@@ -30,6 +30,17 @@
     <string name="dnd_on">DND ON</string>
     <string name="dnd_off">DND OFF</string>
     <string name="dnd_normal">Normal</string>
+    <string name="dnd_dialog_title">DND Schedule &amp; Quick Duration</string>
+    <string name="dnd_schedule_enable">Enable Schedule</string>
+    <string name="dnd_start_time">Start Time</string>
+    <string name="dnd_end_time">End Time</string>
+    <string name="dnd_quick_options">Quick Activate</string>
+    <string name="dnd_duration_1h">1 Hour</string>
+    <string name="dnd_duration_2h">2 Hours</string>
+    <string name="dnd_duration_custom">Custom</string>
+    <string name="dnd_save_settings">Save Settings</string>
+    <string name="dnd_custom_duration_title">Custom Duration</string>
+    <string name="dnd_custom_duration_message">Enter duration in minutes:</string>
 
     <!-- Battery -->
     <string name="battery_placeholder">—%</string>

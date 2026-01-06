@@ -254,6 +254,128 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 updateDndUI(newState)
             }
         }
+
+        layoutDndAction.setOnLongClickListener {
+            runIfConnected {
+                showDndOptionsDialog()
+            }
+            true
+        }
+    }
+
+    private fun showDndOptionsDialog() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_dnd_options, null)
+        val swDndSchedule = dialogView.findViewById<com.google.android.material.materialswitch.MaterialSwitch>(R.id.swDndSchedule)
+        val tvStartTime = dialogView.findViewById<TextView>(R.id.tvStartTime)
+        val tvEndTime = dialogView.findViewById<TextView>(R.id.tvEndTime)
+        val btnStartTime = dialogView.findViewById<LinearLayout>(R.id.btnStartTime)
+        val btnEndTime = dialogView.findViewById<LinearLayout>(R.id.btnEndTime)
+        val btn1h = dialogView.findViewById<Button>(R.id.btnQuick1h)
+        val btn2h = dialogView.findViewById<Button>(R.id.btnQuick2h)
+        val btnCustom = dialogView.findViewById<Button>(R.id.btnQuickCustom)
+
+        // Load existing settings if any (could be from SharedPreferences)
+        val scheduleEnabled = prefs.getBoolean("dnd_schedule_enabled", false)
+        val startTime = prefs.getString("dnd_start_time", "22:00") ?: "22:00"
+        val endTime = prefs.getString("dnd_end_time", "07:00") ?: "07:00"
+
+        swDndSchedule.isChecked = scheduleEnabled
+        tvStartTime.text = startTime
+        tvEndTime.text = endTime
+
+        btnStartTime.setOnClickListener {
+            val parts = tvStartTime.text.split(":")
+            android.app.TimePickerDialog(this, { _, h, m ->
+                val time = String.format("%02d:%02d", h, m)
+                tvStartTime.text = time
+            }, parts[0].toInt(), parts[1].toInt(), true).show()
+        }
+
+        btnEndTime.setOnClickListener {
+            val parts = tvEndTime.text.split(":")
+            android.app.TimePickerDialog(this, { _, h, m ->
+                val time = String.format("%02d:%02d", h, m)
+                tvEndTime.text = time
+            }, parts[0].toInt(), parts[1].toInt(), true).show()
+        }
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.dnd_dialog_title)
+            .setView(dialogView)
+            .setPositiveButton(R.string.dnd_save_settings) { _, _ ->
+                val newEnabled = swDndSchedule.isChecked
+                val newStart = tvStartTime.text.toString()
+                val newEnd = tvEndTime.text.toString()
+
+                prefs.edit()
+                    .putBoolean("dnd_schedule_enabled", newEnabled)
+                    .putString("dnd_start_time", newStart)
+                    .putString("dnd_end_time", newEnd)
+                    .apply()
+
+                bluetoothService?.updateDndSettings(DndSettingsData(
+                    scheduleEnabled = newEnabled,
+                    startTime = newStart,
+                    endTime = newEnd
+                ))
+                Toast.makeText(this, R.string.toast_command_sent, Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(R.string.wifi_cancel, null)
+            .create()
+
+        btn1h.setOnClickListener {
+            bluetoothService?.updateDndSettings(DndSettingsData(
+                scheduleEnabled = swDndSchedule.isChecked,
+                startTime = tvStartTime.text.toString(),
+                endTime = tvEndTime.text.toString(),
+                quickDurationMinutes = 60
+            ))
+            Toast.makeText(this, "DND for 1 hour sent", Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+        }
+
+        btn2h.setOnClickListener {
+            bluetoothService?.updateDndSettings(DndSettingsData(
+                scheduleEnabled = swDndSchedule.isChecked,
+                startTime = tvStartTime.text.toString(),
+                endTime = tvEndTime.text.toString(),
+                quickDurationMinutes = 120
+            ))
+            Toast.makeText(this, "DND for 2 hours sent", Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+        }
+
+        btnCustom.setOnClickListener {
+            showCustomDurationDialog(dialog, swDndSchedule.isChecked, tvStartTime.text.toString(), tvEndTime.text.toString())
+        }
+
+        dialog.show()
+    }
+
+    private fun showCustomDurationDialog(parentDialog: AlertDialog, scheduleEnabled: Boolean, startTime: String, endTime: String) {
+        val input = EditText(this)
+        input.inputType = InputType.TYPE_CLASS_NUMBER
+        input.hint = "Minutes"
+
+        AlertDialog.Builder(this)
+            .setTitle(R.string.dnd_custom_duration_title)
+            .setMessage(R.string.dnd_custom_duration_message)
+            .setView(input)
+            .setPositiveButton("OK") { _, _ ->
+                val mins = input.text.toString().toIntOrNull()
+                if (mins != null && mins > 0) {
+                    bluetoothService?.updateDndSettings(DndSettingsData(
+                        scheduleEnabled = scheduleEnabled,
+                        startTime = startTime,
+                        endTime = endTime,
+                        quickDurationMinutes = mins
+                    ))
+                    Toast.makeText(this, "DND for $mins minutes sent", Toast.LENGTH_SHORT).show()
+                    parentDialog.dismiss()
+                }
+            }
+            .setNegativeButton(R.string.wifi_cancel, null)
+            .show()
     }
 
     private fun setupWifiClickListener() {

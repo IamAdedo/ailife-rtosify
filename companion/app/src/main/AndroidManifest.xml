@@ -30,6 +30,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:ignore="ExactAlarm" />
 
     <!-- APK Installation/Uninstallation (Watch needs this for phone-triggered app management) -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" tools:ignore="QueryAllPackagesPermission" />
@@ -129,6 +130,16 @@
             android:name=".NotificationActionReceiver"
             android:enabled="true"
             android:exported="false" />
+
+        <receiver
+            android:name=".DndReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.ailife.rtosifycompanion.ACTION_DND_ON" />
+                <action android:name="com.ailife.rtosifycompanion.ACTION_DND_OFF" />
+            </intent-filter>
+        </receiver>
 
         <activity
             android:name=".FindDeviceActivity"
