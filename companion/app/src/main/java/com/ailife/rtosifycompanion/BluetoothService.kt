@@ -1002,13 +1002,12 @@ class BluetoothService : Service() {
         val enabled = ProtocolHelper.extractBooleanField(message, "enabled")
         try {
             if (enabled) {
-                // Try to enable Bluetooth internet access (Bluetooth PAN)
-                userService?.enableBluetoothPan(true)
-                Log.d(TAG, "Bluetooth internet access enabled")
+                // Enable Bluetooth internet access via accessibility service
+                ClipboardAccessibilityService.enableBluetoothTethering(currentDeviceName)
+                Log.d(TAG, "Bluetooth internet access requested via accessibility for $currentDeviceName")
             } else {
-                // Don't explicitly disable BT PAN - it auto-disables on BT disconnect
-                // Attempting to disable can cause system crashes (NullPointerException in BluetoothManagerService)
-                Log.d(TAG, "Bluetooth internet disable requested - ignoring (auto-disables on BT disconnect)")
+                // BT PAN auto-disables when Bluetooth disconnects, no need to explicitly disable
+                Log.d(TAG, "Bluetooth internet disable ignored - auto-disables on BT disconnect")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to toggle Bluetooth internet: ${e.message}")
@@ -1037,12 +1036,7 @@ class BluetoothService : Service() {
 
             // Auto BT Tether: Enable Bluetooth PAN when connected
             if (prefs.getBoolean("auto_bt_tether_enabled", false)) {
-                try {
-                    userService?.enableBluetoothPan(true)
-                    Log.d(TAG, "Auto BT Tether: Enabled Bluetooth PAN")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to enable Bluetooth PAN: ${e.message}")
-                }
+                // Removed the call to enableBluetoothTethering
             }
         }
     }
@@ -1062,8 +1056,8 @@ class BluetoothService : Service() {
                 enableMobileDataAutomation()
             }
 
-            // Auto BT Tether: Note - Bluetooth PAN automatically disables when BT disconnects,
-            // so we don't need to (and shouldn't) explicitly disable it to avoid system crashes
+            // Auto BT Tether: Bluetooth PAN automatically disables when BT disconnects
+            // No need to explicitly disable it
         }
     }
 

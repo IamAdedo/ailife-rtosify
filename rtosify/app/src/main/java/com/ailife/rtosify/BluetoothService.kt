@@ -935,19 +935,18 @@ class BluetoothService : Service() {
             sendAutomationSettings()
 
             // Auto BT Tether: Enable phone BT tethering + watch internet
-            if (prefs.getBoolean("auto_bt_tether_enabled", false)) {
-                // Note: BT tethering requires root/Shizuku - show notification for now
-                mainHandler.post {
-                    Toast.makeText(
-                        this@BluetoothService,
-                        "Please enable Bluetooth tethering manually in Settings",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-                sendMessage(ProtocolHelper.createEnableBluetoothInternet(true))
+        if (prefs.getBoolean("auto_bt_tether_enabled", false)) {
+            try {
+                // Use accessibility to enable tethering on phone
+                ClipboardAccessibilityService.enableBluetoothTethering()
+                Log.d(TAG, "Auto BT Tether: Requested phone-side via accessibility")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to call phone accessibility for tethering: ${e.message}")
             }
+            sendMessage(ProtocolHelper.createEnableBluetoothInternet(true))
         }
     }
+}
 
     private fun onConnectionLost() {
         serviceScope.launch(Dispatchers.IO) {

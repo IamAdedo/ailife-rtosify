@@ -384,16 +384,10 @@ class UserService : IUserService.Stub() {
     }
 
     override fun enableBluetoothPan(enabled: Boolean) {
-        Log.d(TAG, "Setting Bluetooth PAN enabled: $enabled")
-        try {
-            // Use bluetooth profile to enable/disable PAN
-            if (enabled) {
-                runShellCommand("service", "call", "bluetooth_manager", "9", "i32", "5")
-            } else {
-                runShellCommand("service", "call", "bluetooth_manager", "10", "i32", "5")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to set Bluetooth PAN: ${e.message}")
-        }
+        // PERMANENTLY DISABLED: Bluetooth PAN tethering causes system crashes on this Android version
+        // The ITetheringConnector API requires complex AIDL callback implementation that crashes
+        // the network stack even with dynamic proxy. This is a limitation of the Android platform.
+        // Users must manually enable Bluetooth tethering via: Settings > Network > Hotspot & tethering
+        Log.w(TAG, "Auto Bluetooth PAN disabled - must be enabled manually in system settings")
     }
 }
