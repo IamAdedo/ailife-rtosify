@@ -661,14 +661,21 @@ class BluetoothService : Service() {
         statusUpdateJob?.cancel()
     }
 
+
     private fun syncSettingsToWatch() {
         if (!isConnected) {
             Log.d(TAG, "Not syncing settings: Not connected")
             return
         }
-        val notifyOnDisconnect = prefs.getBoolean("notify_on_disconnect", false)
-        Log.d(TAG, "Syncing settings to watch: notifyOnDisconnect=$notifyOnDisconnect")
-        sendMessage(ProtocolHelper.createUpdateSettings(SettingsUpdateData(notifyOnDisconnect = notifyOnDisconnect)))
+        val settings = SettingsUpdateData(
+            notifyOnDisconnect = prefs.getBoolean("notify_on_disconnect", false),
+            clipboardSyncEnabled = prefs.getBoolean("clipboard_sync_enabled", false),
+            autoWifiEnabled = prefs.getBoolean("auto_wifi_enabled", false),
+            autoDataEnabled = prefs.getBoolean("auto_data_enabled", false),
+            autoBtTetherEnabled = prefs.getBoolean("auto_bt_tether_enabled", false)
+        )
+        Log.d(TAG, "Syncing settings to watch: notifyOnDisconnect=${settings.notifyOnDisconnect}, clipboard=${settings.clipboardSyncEnabled}, wifi=${settings.autoWifiEnabled}, data=${settings.autoDataEnabled}, btTether=${settings.autoBtTetherEnabled}")
+        sendMessage(ProtocolHelper.createUpdateSettings(settings))
     }
 
     fun sendMessage(message: ProtocolMessage) {

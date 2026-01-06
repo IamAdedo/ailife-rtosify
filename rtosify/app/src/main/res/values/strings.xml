@@ -259,6 +259,10 @@
     <string name="perm_phone_status">Phone Status</string>
     <string name="perm_phone_status_desc">Required to detect incoming calls and show them on the watch.</string>
     
+    <string name="perm_accessibility">Accessibility Service</string>
+    <string name="perm_accessibility_desc">Required for clipboard sync in background.</string>
+    <string name="accessibility_service_description">Allows RTOSify to sync clipboard with companion device</string>
+    
     <string name="menu_sync_calendar">Sync Calendar</string>
     <string name="menu_sync_calendar_desc">Send your calendar events to the watch</string>
     <string name="menu_sync_contacts">Sync Contacts</string>

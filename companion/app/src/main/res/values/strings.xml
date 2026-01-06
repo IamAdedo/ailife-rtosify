@@ -167,4 +167,8 @@
 
     <string name="perm_nearby_wifi">Nearby WiFi Devices</string>
     <string name="perm_nearby_wifi_desc">Required to scan for WiFi networks on Android 13+.</string>
+    
+    <string name="perm_accessibility">Accessibility Service</string>
+    <string name="perm_accessibility_desc">Required for clipboard sync in background.</string>
+    <string name="accessibility_service_description">Allows RTOSify companion to sync clipboard with phone</string>
 </resources>

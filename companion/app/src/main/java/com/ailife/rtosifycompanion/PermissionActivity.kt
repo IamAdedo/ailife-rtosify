@@ -139,7 +139,11 @@ class PermissionActivity : AppCompatActivity() {
         } else true
         perms.add(PermissionItem("NEARBY_WIFI", getString(R.string.perm_nearby_wifi), getString(R.string.perm_nearby_wifi_desc), hasNearbyWifi))
 
-        // 14. Write Settings (for WiFi connection via WifiNetworkSpecifier)
+        // 14. Accessibility Service (for clipboard access)
+        val hasAccessibility = isAccessibilityServiceEnabled()
+        perms.add(PermissionItem("ACCESSIBILITY", getString(R.string.perm_accessibility), getString(R.string.perm_accessibility_desc), hasAccessibility))
+
+        // 15. Write Settings (for WiFi connection via WifiNetworkSpecifier)
         val hasWriteSettings = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             Settings.System.canWrite(this)
         } else true
@@ -212,6 +216,7 @@ class PermissionActivity : AppCompatActivity() {
             "CALENDAR" -> requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR), 111)
             "CONTACTS" -> requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS), 112)
             "WATCHFACE" -> handleWatchFacePermissionClick()
+            "ACCESSIBILITY" -> startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             "NEARBY_WIFI" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     requestPermissions(arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES), 115)
@@ -236,12 +241,18 @@ class PermissionActivity : AppCompatActivity() {
         if (Shell.isAppGrantedRoot() == true) return true
 
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11+ checking SAF for specific folder
+            // Android 11+ checking SAF for specific folder  
             val uri = Uri.parse("content://com.android.externalstorage.documents/tree/primary%3AAndroid%2Fdata%2Fcom.ailife.ClockSkinCoco")
             contentResolver.persistedUriPermissions.any { it.uri == uri && it.isWritePermission }
         } else {
             checkPerm(Manifest.permission.WRITE_EXTERNAL_STORAGE)
         }
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val cn = android.content.ComponentName(this, ClipboardAccessibilityService::class.java)
+        val flat = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+        return flat != null && flat.contains(cn.flattenToString())
     }
 
     private fun handleWatchFacePermissionClick() {

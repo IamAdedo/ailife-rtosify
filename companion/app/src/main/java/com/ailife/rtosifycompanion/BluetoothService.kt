@@ -870,23 +870,36 @@ class BluetoothService : Service() {
     private fun handleUpdateSettings(message: ProtocolMessage) {
         try {
             val settings = ProtocolHelper.extractData<SettingsUpdateData>(message)
-            Log.d(TAG, "Received settings update: notifyOnDisconnect=${settings.notifyOnDisconnect}")
+            Log.d(TAG, "Received settings update: notifyOnDisconnect=${settings.notifyOnDisconnect}, clipboard=${settings.clipboardSyncEnabled}, wifi=${settings.autoWifiEnabled}, data=${settings.autoDataEnabled}, btTether=${settings.autoBtTetherEnabled}")
 
             // Store all automation preferences
             settings.notifyOnDisconnect?.let {
                 prefs.edit().putBoolean("notify_on_disconnect", it).apply()
             }
             settings.clipboardSyncEnabled?.let {
+                val wasEnabled = prefs.getBoolean("clipboard_sync_enabled", false)
                 prefs.edit().putBoolean("clipboard_sync_enabled", it).apply()
+                
+                // Start/stop clipboard monitoring based on change
+                if (it && !wasEnabled) {
+                    startClipboardMonitoring()
+                    Log.d(TAG, "Started clipboard monitoring")
+                } else if (!it && wasEnabled) {
+                    stopClipboardMonitoring()
+                    Log.d(TAG, "Stopped clipboard monitoring")
+                }
             }
             settings.autoWifiEnabled?.let {
                 prefs.edit().putBoolean("auto_wifi_enabled", it).apply()
+                Log.d(TAG, "Auto WiFi setting updated: $it")
             }
             settings.autoDataEnabled?.let {
                 prefs.edit().putBoolean("auto_data_enabled", it).apply()
+                Log.d(TAG, "Auto Data setting updated: $it")
             }
             settings.autoBtTetherEnabled?.let {
                 prefs.edit().putBoolean("auto_bt_tether_enabled", it).apply()
+                Log.d(TAG, "Auto BT Tether setting updated: $it")
             }
 
             Log.d(TAG, "Automation settings updated from phone")
@@ -1006,6 +1019,16 @@ class BluetoothService : Service() {
             if (prefs.getBoolean("auto_data_enabled", false)) {
                 disableMobileDataAutomation()
             }
+
+            // Auto BT Tether: Enable Bluetooth PAN when connected
+            if (prefs.getBoolean("auto_bt_tether_enabled", false)) {
+                try {
+                    userService?.enableBluetoothPan(true)
+                    Log.d(TAG, "Auto BT Tether: Enabled Bluetooth PAN")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to enable Bluetooth PAN: ${e.message}")
+                }
+            }
         }
     }
 
@@ -1022,6 +1045,16 @@ class BluetoothService : Service() {
             // Auto Data: Enable mobile data when BT disconnects
             if (prefs.getBoolean("auto_data_enabled", false)) {
                 enableMobileDataAutomation()
+            }
+
+            // Auto BT Tether: Disable Bluetooth PAN when disconnected
+            if (prefs.getBoolean("auto_bt_tether_enabled", false)) {
+                try {
+                    userService?.enableBluetoothPan(false)
+                    Log.d(TAG, "Auto BT Tether: Disabled Bluetooth PAN")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to disable Bluetooth PAN: ${e.message}")
+                }
             }
         }
     }

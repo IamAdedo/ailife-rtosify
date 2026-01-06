@@ -156,8 +156,12 @@ class PermissionActivity : AppCompatActivity() {
         // 16. Phone Status
         val hasPhoneStatus = checkPerm(Manifest.permission.READ_PHONE_STATE) && checkPerm(Manifest.permission.READ_CALL_LOG) && (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) checkPerm(Manifest.permission.ANSWER_PHONE_CALLS) else true)
         perms.add(PermissionItem("PHONE", getString(R.string.perm_phone_status), getString(R.string.perm_phone_status_desc), hasPhoneStatus))
+        
+        // 17. Accessibility Service (for clipboard access)
+        val hasAccessibility = isAccessibilityServiceEnabled()
+        perms.add(PermissionItem("ACCESSIBILITY", getString(R.string.perm_accessibility), getString(R.string.perm_accessibility_desc), hasAccessibility))
 
-        // 17. Nearby WiFi Devices (Android 13+)
+        // 18. Nearby WiFi Devices (Android 13+)
         val hasNearbyWifi = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             checkPerm(Manifest.permission.NEARBY_WIFI_DEVICES)
         } else true
@@ -173,6 +177,12 @@ class PermissionActivity : AppCompatActivity() {
     private fun isNotificationServiceEnabled(): Boolean {
         val cn = ComponentName(this, MyNotificationListener::class.java)
         val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+        return flat != null && flat.contains(cn.flattenToString())
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val cn = ComponentName(this, ClipboardAccessibilityService::class.java)
+        val flat = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
         return flat != null && flat.contains(cn.flattenToString())
     }
 
@@ -250,6 +260,7 @@ class PermissionActivity : AppCompatActivity() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) p.add(Manifest.permission.ANSWER_PHONE_CALLS)
                 requestPermissions(p.toTypedArray(), 111)
             }
+            "ACCESSIBILITY" -> startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             "NEARBY_WIFI" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     requestPermissions(arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES), 115)
