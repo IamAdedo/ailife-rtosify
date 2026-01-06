@@ -146,6 +146,9 @@ class BluetoothService : Service() {
         getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     }
 
+    private var panManager: BluetoothPanManager? = null
+    private var currentDevice: BluetoothDevice? = null
+
     @Volatile
     private var isStopping = false
 
@@ -333,6 +336,11 @@ class BluetoothService : Service() {
 
         // Initialize health data collector
         healthDataCollector = HealthDataCollector(this)
+        
+        // Initialize PAN manager
+        panManager = BluetoothPanManager(this)
+
+        Log.d(TAG, "BluetoothService created")
 
         // Bind to Shizuku UserService if available
         bindUserServiceIfNeeded()
@@ -763,6 +771,7 @@ class BluetoothService : Service() {
         isTransferring = false
         lastMessageTime = System.currentTimeMillis()
         currentDeviceName = deviceName
+        currentDevice = socket.remoteDevice
 
         // Atualiza status E notificação simultaneamente
         updateStatus(getString(R.string.status_connected_to, deviceName))
@@ -1002,15 +1011,18 @@ class BluetoothService : Service() {
         val enabled = ProtocolHelper.extractBooleanField(message, "enabled")
         try {
             if (enabled) {
-                // Enable Bluetooth internet access via accessibility service
-                ClipboardAccessibilityService.enableBluetoothTethering(currentDeviceName)
-                Log.d(TAG, "Bluetooth internet access requested via accessibility for $currentDeviceName")
+                Log.d(TAG, "🔵 Bluetooth Internet Access enable requested via accessibility...")
+                currentDevice?.let { device ->
+                    ClipboardAccessibilityService.enableBluetoothTethering(device.name ?: device.address)
+                } ?: run {
+                    ClipboardAccessibilityService.enableBluetoothTethering(currentDeviceName)
+                }
             } else {
-                // BT PAN auto-disables when Bluetooth disconnects, no need to explicitly disable
-                Log.d(TAG, "Bluetooth internet disable ignored - auto-disables on BT disconnect")
+                Log.d(TAG, "🔵 Bluetooth Internet Access disable not implemented (disconnect BT to disable)")
+                // Disabling is automatic when Bluetooth disconnects
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to toggle Bluetooth internet: ${e.message}")
+            Log.e(TAG, "💥 Exception toggling Bluetooth internet: ${e.message}", e)
         }
     }
 
@@ -1035,8 +1047,11 @@ class BluetoothService : Service() {
             }
 
             // Auto BT Tether: Enable Bluetooth PAN when connected
+            // NOTE: We don't trigger it here anymore because the phone sends an explicit 
+            // 'enable_bt_internet' message after it has enabled its own tethering toggle,
+            // which ensures the sequence is correct.
             if (prefs.getBoolean("auto_bt_tether_enabled", false)) {
-                // Removed the call to enableBluetoothTethering
+                Log.d(TAG, "Auto BT Tether enabled, waiting for phone signal...")
             }
         }
     }
@@ -3513,6 +3528,12 @@ class BluetoothService : Service() {
     }
 
     override fun onDestroy() {
+        Log.d(TAG, "BluetoothService destroying...")
+        isStopping = true
+        
+        panManager?.close()
+        panManager = null
+
         // Unbind UserService
         try {
             Shizuku.unbindUserService(userServiceArgs, userServiceConn as ServiceConnection, true)

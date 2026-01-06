@@ -1,9 +1,11 @@
 package com.ailife.rtosifycompanion
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
@@ -42,12 +44,32 @@ class ClipboardAccessibilityService : AccessibilityService() {
     private fun performBluetoothTetheringEnable(deviceName: String?) {
         try {
             Log.d(TAG, "Attempting to enable Internet Access via accessibility for device: $deviceName")
-            
-            // Wait for phone to enable tethering first (as requested by user)
-            Handler(Looper.getMainLooper()).postDelayed({
-                startBluetoothSettingsAndToggle(deviceName)
-            }, 3000)
-            
+
+            // Check if screen is on, wake it up if needed
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (!powerManager.isInteractive) {
+                Log.d(TAG, "Screen is off, waking up...")
+                val wakeLock = powerManager.newWakeLock(
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                    "rtosifycompanion:BtInternetWakeLock"
+                )
+                wakeLock.acquire(8000) // 8 seconds
+
+                // Wait for screen to wake up, then wait for phone tethering
+                Handler(Looper.getMainLooper()).postDelayed({
+                    wakeLock.release()
+                    // Wait for phone to enable tethering first
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        startBluetoothSettingsAndToggle(deviceName)
+                    }, 3000)
+                }, 1000)
+            } else {
+                // Wait for phone to enable tethering first
+                Handler(Looper.getMainLooper()).postDelayed({
+                    startBluetoothSettingsAndToggle(deviceName)
+                }, 3000)
+            }
+
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initiate automation: ${e.message}")
         }
@@ -110,7 +132,7 @@ class ClipboardAccessibilityService : AccessibilityService() {
                 Log.e(TAG, "No root node available")
                 return
             }
-            
+
             var targetNode: AccessibilityNodeInfo? = null
             for (keyword in keywords) {
                 targetNode = findNodeByText(rootNode, keyword)
@@ -119,13 +141,29 @@ class ClipboardAccessibilityService : AccessibilityService() {
                     break
                 }
             }
-            
+
             if (targetNode != null) {
                 val clickableNode = findClickableOrSwitch(targetNode)
                 if (clickableNode != null) {
+                    // Check current state before toggling
+                    val switchNode = findSwitchInHierarchy(targetNode.parent ?: targetNode)
+                    val isCurrentlyOn = switchNode?.isChecked ?: false
+
+                    Log.d(TAG, "Internet Access current state: ${if (isCurrentlyOn) "ON" else "OFF"}")
+
+                    if (isCurrentlyOn) {
+                        Log.i(TAG, "✅ Internet Access already ON, skipping toggle")
+                        // Still navigate back
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            performControlledBackSequence()
+                        }, 500)
+                        return
+                    }
+
+                    Log.d(TAG, "Internet Access is OFF, toggling ON...")
                     val clicked = clickableNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                    Log.i(TAG, if (clicked) "✅ Successfully clicked toggle" else "❌ Failed to click toggle")
-                    
+                    Log.i(TAG, if (clicked) "✅ Successfully toggled ON" else "❌ Failed to toggle")
+
                     if (clicked) {
                         // Controlled back navigation
                         Handler(Looper.getMainLooper()).postDelayed({
@@ -140,7 +178,7 @@ class ClipboardAccessibilityService : AccessibilityService() {
                 Log.w(TAG, "Could not find any of $keywords on screen")
                 logNodeHeirarchy(rootNode, 0)
             }
-            
+
         } catch (e: Exception) {
             Log.e(TAG, "Error in findAndClickTetheringToggle: ${e.message}")
             e.printStackTrace()

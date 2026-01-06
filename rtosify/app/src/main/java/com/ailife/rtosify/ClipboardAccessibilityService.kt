@@ -1,9 +1,11 @@
 package com.ailife.rtosify
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
@@ -42,37 +44,58 @@ class ClipboardAccessibilityService : AccessibilityService() {
     private fun performBluetoothTetheringEnable() {
         try {
             Log.d(TAG, "Attempting to enable Bluetooth Tethering (Phone hotspot)")
-            
-            val rootNode = rootInActiveWindow
-            val pkg = rootNode?.packageName?.toString() ?: ""
-            
-            // On phone, we want "Bluetooth tethering" in Hotspot settings
-            if (pkg.contains("com.android.settings")) {
-                Log.d(TAG, "Settings open, searching for BT tethering toggle...")
-                findAndClickTetheringToggle(listOf("Bluetooth tethering", "Tethering", "Hotspot"))
-                return
+
+            // Check if screen is on, wake it up if needed
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (!powerManager.isInteractive) {
+                Log.d(TAG, "Screen is off, waking up...")
+                val wakeLock = powerManager.newWakeLock(
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                    "rtosify:BtTetheringWakeLock"
+                )
+                wakeLock.acquire(5000) // 5 seconds
+
+                // Wait for screen to wake up
+                Handler(Looper.getMainLooper()).postDelayed({
+                    wakeLock.release()
+                    openSettingsAndToggleTethering()
+                }, 1000)
+            } else {
+                openSettingsAndToggleTethering()
             }
 
-            // Open Tethering settings
-            Log.d(TAG, "Opening tethering settings")
-            val intent = Intent("android.settings.TETHER_SETTINGS").apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            try {
-                startActivity(intent)
-            } catch (e: Exception) {
-                val intent = Intent("android.settings.TETHER_SETTINGS")
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            startActivity(intent)
-            }
-            
-            Handler(Looper.getMainLooper()).postDelayed({
-                findAndClickTetheringToggle(listOf("Bluetooth tethering", "Portable hotspot", "Tethering", "Hotspot"))
-            }, 2500)
-            
         } catch (e: Exception) {
             Log.e(TAG, "Failed: ${e.message}")
         }
+    }
+
+    private fun openSettingsAndToggleTethering() {
+        val rootNode = rootInActiveWindow
+        val pkg = rootNode?.packageName?.toString() ?: ""
+
+        // On phone, we want "Bluetooth tethering" in Hotspot settings
+        if (pkg.contains("com.android.settings")) {
+            Log.d(TAG, "Settings open, searching for BT tethering toggle...")
+            findAndClickTetheringToggle(listOf("Bluetooth tethering", "Tethering", "Hotspot"))
+            return
+        }
+
+        // Open Tethering settings
+        Log.d(TAG, "Opening tethering settings")
+        val intent = Intent("android.settings.TETHER_SETTINGS").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            val intent2 = Intent("android.settings.TETHER_SETTINGS")
+            intent2.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            startActivity(intent2)
+        }
+
+        Handler(Looper.getMainLooper()).postDelayed({
+            findAndClickTetheringToggle(listOf("Bluetooth tethering", "Portable hotspot", "Tethering", "Hotspot"))
+        }, 2500)
     }
     
     private fun findAndClickTetheringToggle(keywords: List<String>) {
@@ -91,9 +114,25 @@ class ClipboardAccessibilityService : AccessibilityService() {
             if (targetNode != null) {
                 val clickableNode = findClickableOrSwitch(targetNode)
                 if (clickableNode != null) {
+                    // Check current state before toggling
+                    val switchNode = findSwitchInHierarchy(targetNode.parent ?: targetNode)
+                    val isCurrentlyOn = switchNode?.isChecked ?: false
+
+                    Log.d(TAG, "Bluetooth Tethering current state: ${if (isCurrentlyOn) "ON" else "OFF"}")
+
+                    if (isCurrentlyOn) {
+                        Log.i(TAG, "✅ Bluetooth Tethering already ON, skipping toggle")
+                        // Still navigate back
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            performControlledBack()
+                        }, 500)
+                        return
+                    }
+
+                    Log.d(TAG, "Bluetooth Tethering is OFF, toggling ON...")
                     val clicked = clickableNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                    Log.i(TAG, if (clicked) "✅ Clicked BT tether toggle" else "❌ Click failed")
-                    
+                    Log.i(TAG, if (clicked) "✅ Successfully toggled ON" else "❌ Click failed")
+
                     if (clicked) {
                         // Controlled back navigation: only if inside settings
                         Handler(Looper.getMainLooper()).postDelayed({
