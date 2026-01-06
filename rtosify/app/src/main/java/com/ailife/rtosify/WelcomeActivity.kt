@@ -110,6 +110,7 @@ class WelcomeActivity : AppCompatActivity() {
     }
 
     private val discoveryReceiver = object : BroadcastReceiver() {
+        @android.annotation.SuppressLint("MissingPermission")
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 BluetoothDevice.ACTION_FOUND -> {
@@ -176,15 +177,16 @@ class WelcomeActivity : AppCompatActivity() {
         checkAndRequestPermissions()
     }
 
+    @android.annotation.SuppressLint("MissingPermission")
     private fun startAutomaticSetup() {
         lifecycleScope.launch {
             val statusText = findViewById<TextView>(R.id.tvWelcomeStatus)
             val progressBar = findViewById<android.view.View>(R.id.progressBarSetup)
             val btnRetry = findViewById<android.view.View>(R.id.btnRetry)
-            
+
             progressBar.visibility = android.view.View.VISIBLE
             btnRetry.visibility = android.view.View.GONE
-            
+
             val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
             prefs.edit { putString("device_type", "PHONE") }
 
@@ -334,6 +336,7 @@ class WelcomeActivity : AppCompatActivity() {
         }
     }
 
+    @android.annotation.SuppressLint("MissingPermission")
     private fun startPairingWithDevice(mac: String) {
         val btManager = getSystemService(BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
         val adapter = btManager.adapter

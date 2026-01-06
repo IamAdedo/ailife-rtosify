@@ -12,6 +12,7 @@
 
     <!-- CORREÇÃO: Localização Precisa necessária para ler SSID do Wi-Fi em TODAS as versões -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Opcional: Localização em Background para Android 10+ (melhora leitura de Wi-Fi com tela desligada) -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 

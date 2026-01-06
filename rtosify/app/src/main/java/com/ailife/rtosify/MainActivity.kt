@@ -706,6 +706,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 { runIfConnected { startActivity(Intent(this, FileManagerActivity::class.java)) } }
             ),
             MenuOption(
+                "Watch Automations",
+                "Manage watch automated tasks and behaviors",
+                android.R.drawable.ic_menu_preferences,
+                { startActivity(Intent(this, WatchAutomationsActivity::class.java)) }
+            ),
+            MenuOption(
                 getString(R.string.menu_device_mgmt),
                 getString(R.string.menu_device_mgmt_desc),
                 android.R.drawable.ic_lock_power_off,
@@ -781,6 +787,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 "Browse and manage watch files",
                 android.R.drawable.ic_menu_save,
                 { runIfConnected { startActivity(Intent(this, FileManagerActivity::class.java)) } }
+            ),
+            MenuOption(
+                "Watch Automations",
+                "Manage watch automated tasks and behaviors",
+                android.R.drawable.ic_menu_preferences,
+                { startActivity(Intent(this, WatchAutomationsActivity::class.java)) }
             ),
             MenuOption(
                 getString(R.string.menu_device_mgmt),
@@ -1057,6 +1069,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             }
         }
     }
+    @android.annotation.SuppressLint("MissingPermission")
     override fun onScanResult(devices: List<BluetoothDevice>) {
         runOnUiThread {
             if (devices.isEmpty()) return@runOnUiThread

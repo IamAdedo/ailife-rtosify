@@ -52,6 +52,7 @@ class WelcomeActivity : AppCompatActivity() {
         }
 
     private val pairingReceiver = object : BroadcastReceiver() {
+        @android.annotation.SuppressLint("MissingPermission")
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == BluetoothDevice.ACTION_BOND_STATE_CHANGED) {
                 val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
@@ -87,6 +88,7 @@ class WelcomeActivity : AppCompatActivity() {
         } catch (_: Exception) {}
     }
 
+    @android.annotation.SuppressLint("MissingPermission")
     private fun startAutomaticSetup() {
         lifecycleScope.launch {
             val qrImageView = findViewById<ImageView>(R.id.imgQrCode)

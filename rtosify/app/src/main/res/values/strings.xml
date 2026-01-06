@@ -88,6 +88,19 @@
     <string name="menu_reset_all">Reset All</string>
     <string name="menu_reset_all_desc">Clear settings and return to start</string>
 
+    <!-- Watch Automations -->
+    <string name="watch_automations_title">Watch Automations</string>
+    <string name="automation_boot_service_title">Start Service on Boot</string>
+    <string name="automation_boot_service_desc">Automatically start RTOSify service when phone boots</string>
+    <string name="automation_clipboard_title">Sync Clipboard</string>
+    <string name="automation_clipboard_desc">Automatically sync clipboard between phone and watch when connected</string>
+    <string name="automation_wifi_title">Auto WiFi Control</string>
+    <string name="automation_wifi_desc">Watch auto-enables WiFi when Bluetooth disconnects, disables when reconnects</string>
+    <string name="automation_data_title">Auto Mobile Data</string>
+    <string name="automation_data_desc">Watch auto-enables mobile data when Bluetooth disconnects, disables when reconnects</string>
+    <string name="automation_bt_tether_title">Auto Bluetooth Tethering</string>
+    <string name="automation_bt_tether_desc">Enable phone BT tethering and watch internet access when connected</string>
+
     <!-- Dialog: APK Upload -->
     <string name="dialog_upload_apk_title">Send APK?</string>
     <string name="dialog_upload_apk_message">Do you want to install this app on the Watch?</string>

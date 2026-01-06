@@ -109,6 +109,7 @@ class NotificationAppListActivity : AppCompatActivity() {
         }
     }
 
+    @android.annotation.SuppressLint("InvalidSetHasFixedSize")
     private fun setupRecyclerView() {
         recyclerView.layoutManager = LinearLayoutManager(this)
         appAdapter = AppNotificationAdapter(prefs)

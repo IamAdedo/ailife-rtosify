@@ -28,4 +28,6 @@ interface IUserService {
     void connectToWifi(String ssid, String password) = 18;
     String getWifiScanResults() = 19;
     void startWifiScan() = 20;
+    void setMobileDataEnabled(boolean enabled) = 21;
+    void enableBluetoothPan(boolean enabled) = 22;
 }

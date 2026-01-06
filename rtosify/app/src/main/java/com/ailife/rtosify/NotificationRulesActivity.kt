@@ -123,6 +123,7 @@ class NotificationRulesActivity : AppCompatActivity() {
 
         // Notify the notification listener service about the rule change
         val intent = android.content.Intent("com.ailife.rtosify.ACTION_RULES_UPDATED")
+        intent.setPackage(packageName)
         sendBroadcast(intent)
         android.util.Log.d("RulesActivity", "Broadcast sent: ACTION_RULES_UPDATED")
 

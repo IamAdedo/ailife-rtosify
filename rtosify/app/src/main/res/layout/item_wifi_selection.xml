@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/layoutWifiItem"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -14,7 +15,7 @@
         android:layout_height="24dp"
         android:src="@drawable/ic_wifi"
         android:contentDescription="Signal"
-        android:tint="?android:attr/textColorPrimary"/>
+        app:tint="?android:attr/textColorPrimary"/>
 
     <LinearLayout
         android:layout_width="0dp"
@@ -48,6 +49,6 @@
         android:src="@android:drawable/ic_lock_lock"
         android:visibility="gone"
         android:contentDescription="Secured"
-        android:tint="?android:attr/textColorSecondary"/>
+        app:tint="?android:attr/textColorSecondary"/>
 
 </LinearLayout>

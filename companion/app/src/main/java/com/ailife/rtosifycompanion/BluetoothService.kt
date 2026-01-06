@@ -113,6 +113,11 @@ class BluetoothService : Service() {
 
     private var lastValidWifiSsid: String = ""
 
+    // Clipboard sync
+    private var clipboardManager: android.content.ClipboardManager? = null
+    private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
+    private var lastClipboardText: String = ""
+
     @Volatile
     private var lastMessageTime: Long = 0L
 
@@ -302,6 +307,7 @@ class BluetoothService : Service() {
         prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE)
         val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothAdapter = btManager.adapter
+        clipboardManager = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
         createNotificationChannel()
 
         val filterInternal = IntentFilter().apply {
@@ -451,15 +457,16 @@ class BluetoothService : Service() {
         Log.d(TAG, "DND Schedule alarms cancelled")
     }
 
+    @android.annotation.SuppressLint("ScheduleExactAlarm")
     private fun enableQuickDnd(minutes: Int) {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (nm.isNotificationPolicyAccessGranted) {
             nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
-            
+
             val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
             val intent = Intent(this, DndReceiver::class.java).apply { action = DndReceiver.ACTION_DND_OFF }
             val pi = PendingIntent.getBroadcast(this, 103, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            
+
             val triggerAt = System.currentTimeMillis() + (minutes * 60 * 1000L)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pi)
@@ -773,6 +780,9 @@ class BluetoothService : Service() {
             // Health data is now request-based, not continuous
         }
 
+        // Trigger automation on connection
+        onConnectionEstablished()
+
         try {
             while (currentCoroutineContext().isActive) {
                 val message = readMessage(inputStream)
@@ -823,6 +833,8 @@ class BluetoothService : Service() {
                     MessageType.UNINSTALL_APP -> handleUninstallApp(message)
                     MessageType.INCOMING_CALL -> handleIncomingCall(message)
                     MessageType.CALL_STATE_CHANGED -> handleCallStateChanged(message)
+                    MessageType.CLIPBOARD_SYNC -> handleClipboardReceived(message)
+                    MessageType.ENABLE_BT_INTERNET -> handleEnableBluetoothInternet(message)
                 }
             }
         } catch (_: IOException) {
@@ -844,6 +856,9 @@ class BluetoothService : Service() {
                 if (shouldNotify) {
                     showDisconnectionNotification()
                 }
+
+                // Trigger automation on disconnection
+                onConnectionLost()
             }
 
             withContext(Dispatchers.Main) {
@@ -856,11 +871,158 @@ class BluetoothService : Service() {
         try {
             val settings = ProtocolHelper.extractData<SettingsUpdateData>(message)
             Log.d(TAG, "Received settings update: notifyOnDisconnect=${settings.notifyOnDisconnect}")
-            if (settings.notifyOnDisconnect != null) {
-                prefs.edit().putBoolean("notify_on_disconnect", settings.notifyOnDisconnect).apply()
+
+            // Store all automation preferences
+            settings.notifyOnDisconnect?.let {
+                prefs.edit().putBoolean("notify_on_disconnect", it).apply()
             }
+            settings.clipboardSyncEnabled?.let {
+                prefs.edit().putBoolean("clipboard_sync_enabled", it).apply()
+            }
+            settings.autoWifiEnabled?.let {
+                prefs.edit().putBoolean("auto_wifi_enabled", it).apply()
+            }
+            settings.autoDataEnabled?.let {
+                prefs.edit().putBoolean("auto_data_enabled", it).apply()
+            }
+            settings.autoBtTetherEnabled?.let {
+                prefs.edit().putBoolean("auto_bt_tether_enabled", it).apply()
+            }
+
+            Log.d(TAG, "Automation settings updated from phone")
         } catch (e: Exception) {
             Log.e(TAG, "Error handling settings update: ${e.message}")
+        }
+    }
+
+    // Clipboard sync functions
+    private fun startClipboardMonitoring() {
+        if (clipboardListener != null) return
+
+        clipboardListener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
+            val clip = clipboardManager?.primaryClip
+            if (clip != null && clip.itemCount > 0) {
+                val text = clip.getItemAt(0).text?.toString()
+                if (text != null && text != lastClipboardText) {
+                    lastClipboardText = text
+                    sendMessage(ProtocolHelper.createClipboardSync(text))
+                }
+            }
+        }
+        clipboardManager?.addPrimaryClipChangedListener(clipboardListener)
+    }
+
+    private fun stopClipboardMonitoring() {
+        clipboardListener?.let {
+            clipboardManager?.removePrimaryClipChangedListener(it)
+        }
+        clipboardListener = null
+    }
+
+    private suspend fun handleClipboardReceived(message: ProtocolMessage) {
+        val text = ProtocolHelper.extractStringField(message, "text") ?: return
+        if (text != lastClipboardText) {
+            lastClipboardText = text
+            withContext(Dispatchers.Main) {
+                val clip = android.content.ClipData.newPlainText("RTOSify", text)
+                clipboardManager?.setPrimaryClip(clip)
+            }
+        }
+    }
+
+    // WiFi/Data automation control
+    private fun enableWifiAutomation() {
+        try {
+            val wm = getSystemService(WIFI_SERVICE) as WifiManager
+            wm.isWifiEnabled = true
+            Log.d(TAG, "Auto WiFi: Enabled")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to enable WiFi: ${e.message}")
+        }
+    }
+
+    private fun disableWifiAutomation() {
+        try {
+            val wm = getSystemService(WIFI_SERVICE) as WifiManager
+            wm.isWifiEnabled = false
+            Log.d(TAG, "Auto WiFi: Disabled")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to disable WiFi: ${e.message}")
+        }
+    }
+
+    private fun enableMobileDataAutomation() {
+        try {
+            // Try privileged method via Shizuku
+            userService?.setMobileDataEnabled(true)
+            Log.d(TAG, "Auto Data: Enabled via Shizuku")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to enable mobile data: ${e.message}")
+        }
+    }
+
+    private fun disableMobileDataAutomation() {
+        try {
+            // Try privileged method via Shizuku
+            userService?.setMobileDataEnabled(false)
+            Log.d(TAG, "Auto Data: Disabled via Shizuku")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to disable mobile data: ${e.message}")
+        }
+    }
+
+    private fun handleEnableBluetoothInternet(message: ProtocolMessage) {
+        val enabled = ProtocolHelper.extractBooleanField(message, "enabled")
+        try {
+            if (enabled) {
+                // Try to enable Bluetooth internet access (Bluetooth PAN)
+                userService?.enableBluetoothPan(true)
+                Log.d(TAG, "Bluetooth internet access enabled")
+            } else {
+                userService?.enableBluetoothPan(false)
+                Log.d(TAG, "Bluetooth internet access disabled")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to toggle Bluetooth internet: ${e.message}")
+        }
+    }
+
+    // Connection state automation - called on connection
+    private fun onConnectionEstablished() {
+        serviceScope.launch(Dispatchers.IO) {
+            delay(1000) // Debounce
+
+            // Check clipboard pref
+            if (prefs.getBoolean("clipboard_sync_enabled", false)) {
+                startClipboardMonitoring()
+            }
+
+            // Auto WiFi: Disable WiFi when BT connects
+            if (prefs.getBoolean("auto_wifi_enabled", false)) {
+                disableWifiAutomation()
+            }
+
+            // Auto Data: Disable mobile data when BT connects
+            if (prefs.getBoolean("auto_data_enabled", false)) {
+                disableMobileDataAutomation()
+            }
+        }
+    }
+
+    // Connection state automation - called on disconnection
+    private fun onConnectionLost() {
+        serviceScope.launch(Dispatchers.IO) {
+            stopClipboardMonitoring()
+
+            // Auto WiFi: Enable WiFi when BT disconnects
+            if (prefs.getBoolean("auto_wifi_enabled", false)) {
+                enableWifiAutomation()
+            }
+
+            // Auto Data: Enable mobile data when BT disconnects
+            if (prefs.getBoolean("auto_data_enabled", false)) {
+                enableMobileDataAutomation()
+            }
         }
     }
 

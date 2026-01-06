@@ -635,6 +635,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             if (uploadDialog?.isShowing == true) updateUploadProgress(-1)
         }
     }
+    @android.annotation.SuppressLint("MissingPermission")
     override fun onScanResult(devices: List<BluetoothDevice>) {
         runOnUiThread {
             if (devices.isEmpty()) return@runOnUiThread

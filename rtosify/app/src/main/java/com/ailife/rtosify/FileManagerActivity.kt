@@ -237,11 +237,12 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
             .show()
     }
 
+    @android.annotation.SuppressLint("GestureBackNavigation")
     override fun onBackPressed() {
         if (pathStack.size > 1) {
             pathStack.pop() // Remove current
             val previous = pathStack.peek()
-            pathStack.pop() // Remove again to re-push in onFileListReceived logic if needed? 
+            pathStack.pop() // Remove again to re-push in onFileListReceived logic if needed?
             // Actually, requestFileList will trigger onFileListReceived which pushes to stack.
             // So we just request the previous path.
             requestFileList(previous)

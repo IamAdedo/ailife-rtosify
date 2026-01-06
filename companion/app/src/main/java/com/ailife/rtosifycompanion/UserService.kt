@@ -373,4 +373,27 @@ class UserService : IUserService.Stub() {
         Log.d(TAG, "Starting WiFi scan via shell")
         runShellCommand("cmd", "wifi", "start-scan")
     }
+
+    override fun setMobileDataEnabled(enabled: Boolean) {
+        Log.d(TAG, "Setting mobile data enabled: $enabled")
+        try {
+            runShellCommand("svc", "data", if (enabled) "enable" else "disable")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to set mobile data: ${e.message}")
+        }
+    }
+
+    override fun enableBluetoothPan(enabled: Boolean) {
+        Log.d(TAG, "Setting Bluetooth PAN enabled: $enabled")
+        try {
+            // Use bluetooth profile to enable/disable PAN
+            if (enabled) {
+                runShellCommand("service", "call", "bluetooth_manager", "9", "i32", "5")
+            } else {
+                runShellCommand("service", "call", "bluetooth_manager", "10", "i32", "5")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to set Bluetooth PAN: ${e.message}")
+        }
+    }
 }

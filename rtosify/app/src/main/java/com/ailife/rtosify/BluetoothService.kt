@@ -88,6 +88,11 @@ class BluetoothService : Service() {
 
     private var lastValidWifiSsid: String = ""
 
+    // Clipboard sync
+    private var clipboardManager: android.content.ClipboardManager? = null
+    private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
+    private var lastClipboardText: String = ""
+
     @Volatile
     private var lastMessageTime: Long = 0L
 
@@ -278,6 +283,7 @@ class BluetoothService : Service() {
         prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE)
         val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothAdapter = btManager.adapter
+        clipboardManager = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
         createNotificationChannel()
 
         val filterInternal = IntentFilter().apply {
@@ -559,6 +565,9 @@ class BluetoothService : Service() {
         // Sync settings on connection
         syncSettingsToWatch()
 
+        // Trigger automation on connection
+        onConnectionEstablished()
+
         val deviceType = prefs.getString("device_type", "PHONE")
         if (deviceType == "WATCH") {
             startWatchStatusSender()
@@ -598,6 +607,7 @@ class BluetoothService : Service() {
                     MessageType.REJECT_CALL -> handleRejectCallCommand()
                     MessageType.ANSWER_CALL -> handleAnswerCallCommand()
                     MessageType.WIFI_SCAN_RESULTS -> handleWifiScanResults(message)
+                    MessageType.CLIPBOARD_SYNC -> handleClipboardReceived(message)
                 }
             }
         } catch (_: IOException) {
@@ -611,6 +621,7 @@ class BluetoothService : Service() {
 
             if (wasConnected) {
                 updateStatus(getString(R.string.status_disconnected))
+                onConnectionLost()
             }
 
             withContext(Dispatchers.Main) {
@@ -866,6 +877,93 @@ class BluetoothService : Service() {
 
     fun sendWifiCommand(enable: Boolean) {
         sendMessage(ProtocolHelper.createSetWifi(enable))
+    }
+
+    // Clipboard sync functions
+    private fun startClipboardMonitoring() {
+        if (clipboardListener != null) return
+
+        clipboardListener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
+            val clip = clipboardManager?.primaryClip
+            if (clip != null && clip.itemCount > 0) {
+                val text = clip.getItemAt(0).text?.toString()
+                if (text != null && text != lastClipboardText) {
+                    lastClipboardText = text
+                    sendMessage(ProtocolHelper.createClipboardSync(text))
+                }
+            }
+        }
+        clipboardManager?.addPrimaryClipChangedListener(clipboardListener)
+    }
+
+    private fun stopClipboardMonitoring() {
+        clipboardListener?.let {
+            clipboardManager?.removePrimaryClipChangedListener(it)
+        }
+        clipboardListener = null
+    }
+
+    private suspend fun handleClipboardReceived(message: ProtocolMessage) {
+        val text = ProtocolHelper.extractStringField(message, "text") ?: return
+        if (text != lastClipboardText) {
+            lastClipboardText = text
+            withContext(Dispatchers.Main) {
+                val clip = android.content.ClipData.newPlainText("RTOSify", text)
+                clipboardManager?.setPrimaryClip(clip)
+            }
+        }
+    }
+
+    // Connection state automation
+    private fun onConnectionEstablished() {
+        serviceScope.launch(Dispatchers.IO) {
+            delay(1000) // Debounce
+
+            // Check clipboard pref
+            if (prefs.getBoolean("clipboard_sync_enabled", false)) {
+                startClipboardMonitoring()
+            }
+
+            // Send automation settings to watch (watch will handle the logic)
+            sendAutomationSettings()
+
+            // Auto BT Tether: Enable phone BT tethering + watch internet
+            if (prefs.getBoolean("auto_bt_tether_enabled", false)) {
+                // Note: BT tethering requires root/Shizuku - show notification for now
+                mainHandler.post {
+                    Toast.makeText(
+                        this@BluetoothService,
+                        "Please enable Bluetooth tethering manually in Settings",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                sendMessage(ProtocolHelper.createEnableBluetoothInternet(true))
+            }
+        }
+    }
+
+    private fun onConnectionLost() {
+        serviceScope.launch(Dispatchers.IO) {
+            stopClipboardMonitoring()
+
+            // Auto BT Tether: Disable phone side (notify to disable manually)
+            if (prefs.getBoolean("auto_bt_tether_enabled", false)) {
+                // Watch will handle its own disconnection
+            }
+
+            // Note: WiFi/Data automation runs on watch side
+            // Watch detects disconnection and handles WiFi/Data automatically
+        }
+    }
+
+    private fun sendAutomationSettings() {
+        val settings = SettingsUpdateData(
+            clipboardSyncEnabled = prefs.getBoolean("clipboard_sync_enabled", false),
+            autoWifiEnabled = prefs.getBoolean("auto_wifi_enabled", false),
+            autoDataEnabled = prefs.getBoolean("auto_data_enabled", false),
+            autoBtTetherEnabled = prefs.getBoolean("auto_bt_tether_enabled", false)
+        )
+        sendMessage(ProtocolHelper.createUpdateSettings(settings))
     }
 
     private fun handleSetDndCommand(message: ProtocolMessage) {

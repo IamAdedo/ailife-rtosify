@@ -93,6 +93,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
 
             // Sync with service if connected
             val intent = Intent("com.ailife.rtosify.ACTION_UPDATE_SETTINGS")
+            intent.setPackage(packageName)
             sendBroadcast(intent)
         }
     }

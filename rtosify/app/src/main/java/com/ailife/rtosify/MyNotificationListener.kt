@@ -108,7 +108,8 @@ class MyNotificationListener : NotificationListenerService() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
             registerReceiver(commandReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
-            // Android 12 e inferiores não suportam/exigem essa flag
+            // Android 12 e inferiores - lint requires explicit flag check
+            @Suppress("UnspecifiedRegisterReceiverFlag")
             registerReceiver(commandReceiver, filter)
         }
 

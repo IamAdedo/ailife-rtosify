@@ -97,6 +97,8 @@ object MessageType {
     const val WIFI_SCAN_RESULTS = "wifi_scan_results"
     const val CONNECT_WIFI = "connect_wifi"
     const val UPDATE_DND_SETTINGS = "update_dnd_settings"
+    const val CLIPBOARD_SYNC = "clipboard_sync"
+    const val ENABLE_BT_INTERNET = "enable_bt_internet"
 }
 
 // Data classes for specific message types
@@ -197,7 +199,12 @@ data class FileInfo(
 )
 
 data class SettingsUpdateData(
-    val notifyOnDisconnect: Boolean? = null
+    val notifyOnDisconnect: Boolean? = null,
+    // Automation settings
+    val clipboardSyncEnabled: Boolean? = null,
+    val autoWifiEnabled: Boolean? = null,
+    val autoDataEnabled: Boolean? = null,
+    val autoBtTetherEnabled: Boolean? = null
 )
 
 data class HealthDataUpdate(
@@ -602,5 +609,17 @@ object ProtocolHelper {
     fun createUpdateDndSettings(settings: DndSettingsData): ProtocolMessage {
         val data = gson.toJsonTree(settings).asJsonObject
         return ProtocolMessage(type = MessageType.UPDATE_DND_SETTINGS, data = data)
+    }
+
+    fun createClipboardSync(text: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("text", text)
+        return ProtocolMessage(type = MessageType.CLIPBOARD_SYNC, data = data)
+    }
+
+    fun createEnableBluetoothInternet(enabled: Boolean): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("enabled", enabled)
+        return ProtocolMessage(type = MessageType.ENABLE_BT_INTERNET, data = data)
     }
 }
