@@ -946,9 +946,16 @@ class BluetoothService : Service() {
     // WiFi/Data automation control
     private fun enableWifiAutomation() {
         try {
-            val wm = getSystemService(WIFI_SERVICE) as WifiManager
-            wm.isWifiEnabled = true
-            Log.d(TAG, "Auto WiFi: Enabled")
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                // Android 9 and below - standard API still works
+                val wm = getSystemService(WIFI_SERVICE) as WifiManager
+                wm.isWifiEnabled = true
+                Log.d(TAG, "Auto WiFi: Enabled via standard API")
+            } else {
+                // Android 10+ - requires privileged access via Shizuku
+                userService?.setWifiEnabled(true)
+                Log.d(TAG, "Auto WiFi: Enabled via Shizuku")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to enable WiFi: ${e.message}")
         }
@@ -956,9 +963,16 @@ class BluetoothService : Service() {
 
     private fun disableWifiAutomation() {
         try {
-            val wm = getSystemService(WIFI_SERVICE) as WifiManager
-            wm.isWifiEnabled = false
-            Log.d(TAG, "Auto WiFi: Disabled")
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                // Android 9 and below - standard API still works
+                val wm = getSystemService(WIFI_SERVICE) as WifiManager
+                wm.isWifiEnabled = false
+                Log.d(TAG, "Auto WiFi: Disabled via standard API")
+            } else {
+                // Android 10+ - requires privileged access via Shizuku
+                userService?.setWifiEnabled(false)
+                Log.d(TAG, "Auto WiFi: Disabled via Shizuku")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to disable WiFi: ${e.message}")
         }
@@ -992,8 +1006,9 @@ class BluetoothService : Service() {
                 userService?.enableBluetoothPan(true)
                 Log.d(TAG, "Bluetooth internet access enabled")
             } else {
-                userService?.enableBluetoothPan(false)
-                Log.d(TAG, "Bluetooth internet access disabled")
+                // Don't explicitly disable BT PAN - it auto-disables on BT disconnect
+                // Attempting to disable can cause system crashes (NullPointerException in BluetoothManagerService)
+                Log.d(TAG, "Bluetooth internet disable requested - ignoring (auto-disables on BT disconnect)")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to toggle Bluetooth internet: ${e.message}")
@@ -1047,15 +1062,8 @@ class BluetoothService : Service() {
                 enableMobileDataAutomation()
             }
 
-            // Auto BT Tether: Disable Bluetooth PAN when disconnected
-            if (prefs.getBoolean("auto_bt_tether_enabled", false)) {
-                try {
-                    userService?.enableBluetoothPan(false)
-                    Log.d(TAG, "Auto BT Tether: Disabled Bluetooth PAN")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to disable Bluetooth PAN: ${e.message}")
-                }
-            }
+            // Auto BT Tether: Note - Bluetooth PAN automatically disables when BT disconnects,
+            // so we don't need to (and shouldn't) explicitly disable it to avoid system crashes
         }
     }
 
