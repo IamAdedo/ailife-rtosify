@@ -669,12 +669,19 @@ class BluetoothService : Service() {
         }
         val settings = SettingsUpdateData(
             notifyOnDisconnect = prefs.getBoolean("notify_on_disconnect", false),
+            notificationMirroringEnabled = prefs.getBoolean("notification_mirroring_enabled", false),
+            skipScreenOnEnabled = prefs.getBoolean("skip_screen_on_enabled", false),
+            forwardOngoingEnabled = prefs.getBoolean("forward_ongoing_enabled", false),
+            forwardSilentEnabled = prefs.getBoolean("forward_silent_enabled", false),
             clipboardSyncEnabled = prefs.getBoolean("clipboard_sync_enabled", false),
             autoWifiEnabled = prefs.getBoolean("auto_wifi_enabled", false),
             autoDataEnabled = prefs.getBoolean("auto_data_enabled", false),
-            autoBtTetherEnabled = prefs.getBoolean("auto_bt_tether_enabled", false)
+            autoBtTetherEnabled = prefs.getBoolean("auto_bt_tether_enabled", false),
+            wakeScreenEnabled = prefs.getBoolean("wake_screen_enabled", false),
+            vibrateEnabled = prefs.getBoolean("vibrate_enabled", false),
+            vibrateInSilentEnabled = prefs.getBoolean("vibrate_silent_enabled", false)
         )
-        Log.d(TAG, "Syncing settings to watch: notifyOnDisconnect=${settings.notifyOnDisconnect}, clipboard=${settings.clipboardSyncEnabled}, wifi=${settings.autoWifiEnabled}, data=${settings.autoDataEnabled}, btTether=${settings.autoBtTetherEnabled}")
+        Log.d(TAG, "Syncing settings to watch: mirroring=${settings.notificationMirroringEnabled}, skipScreenOn=${settings.skipScreenOnEnabled}, ongoing=${settings.forwardOngoingEnabled}, silent=${settings.forwardSilentEnabled}, notifyOnDisconnect=${settings.notifyOnDisconnect}, clipboard=${settings.clipboardSyncEnabled}, wifi=${settings.autoWifiEnabled}, data=${settings.autoDataEnabled}, btTether=${settings.autoBtTetherEnabled}")
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
     }
 

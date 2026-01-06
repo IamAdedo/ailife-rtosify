@@ -22,6 +22,12 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var switchNotifyDisconnect: SwitchMaterial
     private lateinit var switchForwardOngoing: SwitchMaterial
     private lateinit var switchForwardSilent: SwitchMaterial
+    private lateinit var switchWakeScreen: SwitchMaterial
+    private lateinit var switchVibrate: SwitchMaterial
+    private lateinit var switchVibrateSilent: SwitchMaterial
+    private lateinit var cardMasterSwitch: View
+    private lateinit var cardGeneralSettings: View
+    private lateinit var cardNotificationBehavior: View
     private lateinit var layoutPermissionWarning: LinearLayout
     private lateinit var cardManageApps: View
     private lateinit var cardManageRules: View
@@ -46,6 +52,9 @@ class NotificationSettingsActivity : AppCompatActivity() {
         setupNotifyDisconnectSwitch()
         setupForwardOngoingSwitch()
         setupForwardSilentSwitch()
+        setupWakeScreenSwitch()
+        setupVibrateSwitch()
+        setupVibrateSilentSwitch()
         setupCardClickListeners()
     }
 
@@ -55,6 +64,13 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchNotifyDisconnect = findViewById(R.id.switchNotifyDisconnect)
         switchForwardOngoing = findViewById(R.id.switchForwardOngoing)
         switchForwardSilent = findViewById(R.id.switchForwardSilent)
+        switchWakeScreen = findViewById(R.id.switchWakeScreen)
+        switchVibrate = findViewById(R.id.switchVibrate)
+        switchVibrateSilent = findViewById(R.id.switchVibrateSilent)
+
+        cardMasterSwitch = findViewById(R.id.cardMasterSwitch)
+        cardGeneralSettings = findViewById(R.id.cardGeneralSettings)
+        cardNotificationBehavior = findViewById(R.id.cardNotificationBehavior)
         layoutPermissionWarning = findViewById(R.id.layoutPermissionWarning)
         cardManageApps = findViewById(R.id.cardManageApps)
         cardManageRules = findViewById(R.id.cardManageRules)
@@ -82,6 +98,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchSkipScreenOn.isChecked = isSkipEnabled
         switchSkipScreenOn.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("skip_screen_on_enabled", isChecked).apply()
+            syncSettings()
         }
     }
 
@@ -103,6 +120,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchForwardOngoing.isChecked = isEnabled
         switchForwardOngoing.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("forward_ongoing_enabled", isChecked).apply()
+            syncSettings()
         }
     }
 
@@ -111,7 +129,48 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchForwardSilent.isChecked = isEnabled
         switchForwardSilent.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("forward_silent_enabled", isChecked).apply()
+            syncSettings()
         }
+    }
+
+    private fun setupWakeScreenSwitch() {
+        val isEnabled = prefs.getBoolean("wake_screen_enabled", false)
+        switchWakeScreen.isChecked = isEnabled
+        switchWakeScreen.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("wake_screen_enabled", isChecked).apply()
+            syncSettings()
+        }
+    }
+
+    private fun setupVibrateSwitch() {
+        val isEnabled = prefs.getBoolean("vibrate_enabled", false)
+        switchVibrate.isChecked = isEnabled
+        switchVibrateSilent.isEnabled = isEnabled
+        switchVibrate.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("vibrate_enabled", isChecked).apply()
+            switchVibrateSilent.isEnabled = isChecked
+            if (!isChecked) {
+                switchVibrateSilent.isChecked = false
+                prefs.edit().putBoolean("vibrate_silent_enabled", false).apply()
+            }
+            syncSettings()
+        }
+    }
+
+    private fun setupVibrateSilentSwitch() {
+        val isEnabled = prefs.getBoolean("vibrate_silent_enabled", false)
+        switchVibrateSilent.isChecked = isEnabled
+        switchVibrateSilent.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("vibrate_silent_enabled", isChecked).apply()
+            syncSettings()
+        }
+    }
+
+    private fun syncSettings() {
+        // Sync with service if connected
+        val intent = Intent("com.ailife.rtosify.ACTION_UPDATE_SETTINGS")
+        intent.setPackage(packageName)
+        sendBroadcast(intent)
     }
 
     override fun onResume() {
@@ -130,6 +189,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchEnable.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("notification_mirroring_enabled", isChecked).apply()
             updateUiState()
+            syncSettings()
         }
     }
 
@@ -154,8 +214,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
             switchEnable.isEnabled = false
             switchEnable.isChecked = false
             layoutPermissionWarning.visibility = View.VISIBLE
-            cardManageApps.visibility = View.GONE
-            cardManageRules.visibility = View.GONE
+            setCardsVisibility(View.GONE)
 
             btnOpenSettings.setOnClickListener {
                 prefs.edit().putBoolean("waiting_for_permission", true).apply()
@@ -164,21 +223,35 @@ class NotificationSettingsActivity : AppCompatActivity() {
         } else {
             switchEnable.isEnabled = true
             layoutPermissionWarning.visibility = View.GONE
-            cardManageApps.visibility = View.VISIBLE
-            cardManageRules.visibility = View.VISIBLE
+            setCardsVisibility(View.VISIBLE)
 
+            val cards = listOf(cardGeneralSettings, cardNotificationBehavior, cardManageApps, cardManageRules)
+            val childSwitches = listOf(switchSkipScreenOn, switchNotifyDisconnect, switchForwardOngoing, switchForwardSilent, switchWakeScreen, switchVibrate)
+            
             if (isSwitchOn) {
-                cardManageApps.alpha = 1.0f
-                cardManageApps.isEnabled = true
-                cardManageRules.alpha = 1.0f
-                cardManageRules.isEnabled = true
+                cards.forEach {
+                    it.alpha = 1.0f
+                    it.isEnabled = true
+                }
+                childSwitches.forEach { it.isEnabled = true }
+                
+                // Vibrate Silent still depends on Vibrate
+                val isVibrateOn = prefs.getBoolean("vibrate_enabled", false)
+                switchVibrateSilent.isEnabled = isVibrateOn
             } else {
-                cardManageApps.alpha = 0.4f
-                cardManageApps.isEnabled = false
-                cardManageRules.alpha = 0.4f
-                cardManageRules.isEnabled = false
+                cards.forEach {
+                    it.alpha = 0.4f
+                    it.isEnabled = false
+                }
+                childSwitches.forEach { it.isEnabled = false }
+                switchVibrateSilent.isEnabled = false
             }
         }
+    }
+
+    private fun setCardsVisibility(visibility: Int) {
+        val cards = listOf(cardGeneralSettings, cardNotificationBehavior, cardManageApps, cardManageRules)
+        cards.forEach { it.visibility = visibility }
     }
 
 

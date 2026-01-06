@@ -200,11 +200,18 @@ data class FileInfo(
 
 data class SettingsUpdateData(
     val notifyOnDisconnect: Boolean? = null,
+    val notificationMirroringEnabled: Boolean? = null,
+    val skipScreenOnEnabled: Boolean? = null,
+    val forwardOngoingEnabled: Boolean? = null,
+    val forwardSilentEnabled: Boolean? = null,
     // Automation settings
     val clipboardSyncEnabled: Boolean? = null,
     val autoWifiEnabled: Boolean? = null,
     val autoDataEnabled: Boolean? = null,
-    val autoBtTetherEnabled: Boolean? = null
+    val autoBtTetherEnabled: Boolean? = null,
+    val wakeScreenEnabled: Boolean? = null,
+    val vibrateEnabled: Boolean? = null,
+    val vibrateInSilentEnabled: Boolean? = null
 )
 
 data class HealthDataUpdate(

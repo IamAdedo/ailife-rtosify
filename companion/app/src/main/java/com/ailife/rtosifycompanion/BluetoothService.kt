@@ -36,6 +36,7 @@ import android.net.wifi.SupplicantState
 import android.net.wifi.WifiManager
 import android.net.wifi.WifiNetworkSuggestion
 import android.net.NetworkRequest
+import android.os.PowerManager
 import android.os.BatteryManager
 import android.os.Binder
 import android.os.Build
@@ -885,6 +886,18 @@ class BluetoothService : Service() {
             settings.notifyOnDisconnect?.let {
                 prefs.edit().putBoolean("notify_on_disconnect", it).apply()
             }
+            settings.notificationMirroringEnabled?.let {
+                prefs.edit().putBoolean("notification_mirroring_enabled", it).apply()
+            }
+            settings.skipScreenOnEnabled?.let {
+                prefs.edit().putBoolean("skip_screen_on_enabled", it).apply()
+            }
+            settings.forwardOngoingEnabled?.let {
+                prefs.edit().putBoolean("forward_ongoing_enabled", it).apply()
+            }
+            settings.forwardSilentEnabled?.let {
+                prefs.edit().putBoolean("forward_silent_enabled", it).apply()
+            }
             settings.clipboardSyncEnabled?.let {
                 val wasEnabled = prefs.getBoolean("clipboard_sync_enabled", false)
                 prefs.edit().putBoolean("clipboard_sync_enabled", it).apply()
@@ -909,6 +922,18 @@ class BluetoothService : Service() {
             settings.autoBtTetherEnabled?.let {
                 prefs.edit().putBoolean("auto_bt_tether_enabled", it).apply()
                 Log.d(TAG, "Auto BT Tether setting updated: $it")
+            }
+            settings.wakeScreenEnabled?.let {
+                prefs.edit().putBoolean("wake_screen_enabled", it).apply()
+                Log.d(TAG, "Wake Screen setting updated: $it")
+            }
+            settings.vibrateEnabled?.let {
+                prefs.edit().putBoolean("vibrate_enabled", it).apply()
+                Log.d(TAG, "Vibrate setting updated: $it")
+            }
+            settings.vibrateInSilentEnabled?.let {
+                prefs.edit().putBoolean("vibrate_silent_enabled", it).apply()
+                Log.d(TAG, "Vibrate in Silent setting updated: $it")
             }
 
             Log.d(TAG, "Automation settings updated from phone")
@@ -2982,7 +3007,30 @@ class BluetoothService : Service() {
                 .setAutoCancel(true)
                 .setDeleteIntent(deletePending)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setDefaults(android.app.Notification.DEFAULT_ALL)
+
+            val wakeScreen = prefs.getBoolean("wake_screen_enabled", false)
+            val vibrate = prefs.getBoolean("vibrate_enabled", false)
+            val vibrateInSilent = prefs.getBoolean("vibrate_silent_enabled", false)
+
+            if (wakeScreen) {
+                wakeDeviceScreen()
+            }
+
+            var defaults = NotificationCompat.DEFAULT_ALL
+            if (vibrate) {
+                val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+                val isSilent = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+                
+                if (isSilent && !vibrateInSilent) {
+                    defaults = defaults and NotificationCompat.DEFAULT_VIBRATE.inv()
+                } else {
+                    // Force vibration pattern if enabled
+                    builder.setVibrate(longArrayOf(0, 250, 250, 250))
+                }
+            } else {
+                defaults = defaults and NotificationCompat.DEFAULT_VIBRATE.inv()
+            }
+            builder.setDefaults(defaults)
 
 
             // De-base64 all available icons
@@ -3195,6 +3243,21 @@ class BluetoothService : Service() {
             setPackage(packageName)
         }
         sendBroadcast(intent)
+    }
+
+    private fun wakeDeviceScreen() {
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            @Suppress("deprecation")
+            val wakeLock = pm.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
+                "RTOSify:NotificationWakeLock"
+            )
+            wakeLock.acquire(3000)
+            Log.d(TAG, "Screen wake requested via SCREEN_BRIGHT_WAKE_LOCK")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error waking screen: ${e.message}")
+        }
     }
 
     private fun handleSendNotificationReply(message: ProtocolMessage) {
