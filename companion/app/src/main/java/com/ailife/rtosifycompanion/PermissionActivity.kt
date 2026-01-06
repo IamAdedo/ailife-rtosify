@@ -133,6 +133,18 @@ class PermissionActivity : AppCompatActivity() {
         val hasWF = isWatchFaceDirAccessible()
         perms.add(PermissionItem("WATCHFACE", getString(R.string.perm_watchface), getString(R.string.perm_watchface_desc), hasWF))
 
+        // 13. Nearby WiFi Devices (Android 13+)
+        val hasNearbyWifi = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            checkPerm(Manifest.permission.NEARBY_WIFI_DEVICES)
+        } else true
+        perms.add(PermissionItem("NEARBY_WIFI", getString(R.string.perm_nearby_wifi), getString(R.string.perm_nearby_wifi_desc), hasNearbyWifi))
+
+        // 14. Write Settings (for WiFi connection via WifiNetworkSpecifier)
+        val hasWriteSettings = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.System.canWrite(this)
+        } else true
+        perms.add(PermissionItem("WRITE_SETTINGS", "Write System Settings", "Required for immediate WiFi connection", hasWriteSettings))
+
         adapter.updateList(perms)
     }
 
@@ -200,6 +212,21 @@ class PermissionActivity : AppCompatActivity() {
             "CALENDAR" -> requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR), 111)
             "CONTACTS" -> requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS), 112)
             "WATCHFACE" -> handleWatchFacePermissionClick()
+            "NEARBY_WIFI" -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    requestPermissions(arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES), 115)
+                }
+            }
+            "WRITE_SETTINGS" -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    if (!Settings.System.canWrite(this)) {
+                        val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                            data = Uri.parse("package:$packageName")
+                        }
+                        startActivity(intent)
+                    }
+                }
+            }
         }
     }
 

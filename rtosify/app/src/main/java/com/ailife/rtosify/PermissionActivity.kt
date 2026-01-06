@@ -157,6 +157,12 @@ class PermissionActivity : AppCompatActivity() {
         val hasPhoneStatus = checkPerm(Manifest.permission.READ_PHONE_STATE) && checkPerm(Manifest.permission.READ_CALL_LOG) && (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) checkPerm(Manifest.permission.ANSWER_PHONE_CALLS) else true)
         perms.add(PermissionItem("PHONE", getString(R.string.perm_phone_status), getString(R.string.perm_phone_status_desc), hasPhoneStatus))
 
+        // 17. Nearby WiFi Devices (Android 13+)
+        val hasNearbyWifi = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            checkPerm(Manifest.permission.NEARBY_WIFI_DEVICES)
+        } else true
+        perms.add(PermissionItem("NEARBY_WIFI", getString(R.string.perm_nearby_wifi), getString(R.string.perm_nearby_wifi_desc), hasNearbyWifi))
+
         adapter.updateList(perms)
     }
 
@@ -243,6 +249,11 @@ class PermissionActivity : AppCompatActivity() {
                 val p = mutableListOf(Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_CALL_LOG)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) p.add(Manifest.permission.ANSWER_PHONE_CALLS)
                 requestPermissions(p.toTypedArray(), 111)
+            }
+            "NEARBY_WIFI" -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    requestPermissions(arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES), 115)
+                }
             }
         }
     }

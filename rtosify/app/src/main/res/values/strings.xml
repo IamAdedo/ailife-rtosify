@@ -37,6 +37,21 @@
     <!-- Wi-Fi -->
     <string name="wifi_verifying">Verifying</string>
     <string name="wifi_placeholder">---</string>
+    <string name="wifi_dialog_title">Watch WiFi Networks</string>
+    <string name="wifi_available_networks">Available Networks</string>
+    <string name="wifi_activate_message">Activate WiFi to see available networks</string>
+    <string name="wifi_connected">Connected</string>
+    <string name="wifi_already_connected">Already connected to %s</string>
+    <string name="wifi_connecting">Connecting to %s…</string>
+
+    <!-- WiFi Password Dialog -->
+    <string name="wifi_password_dialog_title">Connect to %s</string>
+    <string name="wifi_password_message">Enter WiFi password:</string>
+    <string name="wifi_password_hint">Password (optional if saved)</string>
+    <string name="wifi_connect_with_password">Connect with Password</string>
+    <string name="wifi_connect_saved">Connect (Use Saved)</string>
+    <string name="wifi_password_empty_error">Password cannot be empty</string>
+    <string name="wifi_cancel">Cancel</string>
 
     <!-- Menu Options -->
     <string name="menu_manage_apps">Manage Apps</string>
@@ -280,4 +295,7 @@
         <item>Female</item>
         <item>Other</item>
     </string-array>
+    <string name="perm_nearby_wifi">Nearby WiFi Devices</string>
+    <string name="perm_nearby_wifi_desc">Required to scan for WiFi networks on Android 13+.</string>
+    <string name="wifi_scanning">Scanning WiFi on watch…</string>
 </resources>

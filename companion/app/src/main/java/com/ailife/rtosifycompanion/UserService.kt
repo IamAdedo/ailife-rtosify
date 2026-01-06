@@ -327,4 +327,50 @@ class UserService : IUserService.Stub() {
         Log.i(TAG, "Setting WiFi to $cmd")
         runShellStatus("svc", "wifi", cmd)
     }
+
+    override fun connectToWifi(ssid: String, password: String?) {
+        Log.i(TAG, "Connecting to WiFi: $ssid (password provided: ${!password.isNullOrEmpty()})")
+
+        // First, check if this network is already saved
+        val savedNetworks = runShellCommand("cmd", "wifi", "list-networks")
+        Log.d(TAG, "Saved networks: $savedNetworks")
+
+        var isNetworkSaved = false
+        savedNetworks?.forEach { line ->
+            if (line.contains(ssid, ignoreCase = true)) {
+                isNetworkSaved = true
+                Log.d(TAG, "Network $ssid is already saved")
+            }
+        }
+
+        // If network is saved and no new password is provided, just try to connect
+        if (isNetworkSaved && password.isNullOrEmpty()) {
+            Log.i(TAG, "Network already saved, attempting to connect without adding new suggestion")
+            // Try to connect to saved network by re-enabling it
+            runShellStatus("cmd", "wifi", "connect-network", ssid)
+            return
+        }
+
+        // If password is provided or network is not saved, add/update suggestion
+        if (password.isNullOrEmpty()) {
+            runShellStatus("cmd", "wifi", "add-suggestion", ssid, "open")
+        } else {
+            runShellStatus("cmd", "wifi", "add-suggestion", ssid, "wpa2", password)
+        }
+
+        // Auto-approve suggestions from shell to trigger immediate connection
+        runShellStatus("cmd", "wifi", "network-suggestions-set-user-approved", "com.android.shell", "yes")
+        Log.d(TAG, "Network suggestion added/updated and approved for $ssid")
+    }
+
+    override fun getWifiScanResults(): String {
+        Log.d(TAG, "Getting WiFi scan results via shell")
+        val output = runShellCommand("cmd", "wifi", "list-scan-results")
+        return gson.toJson(output ?: emptyList<String>())
+    }
+
+    override fun startWifiScan() {
+        Log.d(TAG, "Starting WiFi scan via shell")
+        runShellCommand("cmd", "wifi", "start-scan")
+    }
 }

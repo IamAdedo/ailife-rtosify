@@ -10,12 +10,16 @@ import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.net.Uri
+import android.view.LayoutInflater
+import android.view.ViewGroup
 import android.os.Bundle
 import android.os.Build
 import android.os.IBinder
-import android.view.LayoutInflater
+import android.text.InputType
+import android.widget.EditText
 import android.view.View
 import android.widget.Button
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
@@ -78,9 +82,14 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private var isPhoneMode = true
     private var menuAdapter: MenuAdapter? = null
 
-    // Estado local do DND
     private var currentDndState = false
     private var currentWifiState = true
+    private var currentWifiSsid = ""
+
+    // WiFi Selection Dialog
+    private var wifiSelectionDialog: AlertDialog? = null
+    private var wifiAdapter: WifiResultAdapter? = null
+    private var wifiLoadingLayout: LinearLayout? = null
 
     // Diálogo Upload
     private var uploadDialog: AlertDialog? = null
@@ -90,6 +99,14 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private var uploadTitleText: TextView? = null
     private var uploadIconView: ImageView? = null
     private var uploadOkButton: Button? = null
+
+    // WiFi Dialog UI References
+    private var layoutCurrentWifi: LinearLayout? = null
+    private var containerCurrentWifi: FrameLayout? = null
+    private var dividerWifi: View? = null
+    private var tvAvailableTitle: TextView? = null
+    private var swWifiToggle: androidx.appcompat.widget.SwitchCompat? = null
+    private var swipeRefreshWifi: androidx.swiperefreshlayout.widget.SwipeRefreshLayout? = null
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -247,6 +264,173 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 updateWifiUI(newState)
             }
         }
+
+        layoutWifiAction.setOnLongClickListener {
+            runIfConnected {
+                showWifiSelectionDialog()
+                bluetoothService?.requestWifiScan()
+            }
+            true
+        }
+    }
+
+    private fun showWifiSelectionDialog() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_wifi_selection, null)
+        val rvWifiList = dialogView.findViewById<RecyclerView>(R.id.rvWifiList)
+        wifiLoadingLayout = dialogView.findViewById<LinearLayout>(R.id.layoutWifiLoading)
+        layoutCurrentWifi = dialogView.findViewById<LinearLayout>(R.id.layoutCurrentWifi)
+        containerCurrentWifi = dialogView.findViewById<FrameLayout>(R.id.containerCurrentWifi)
+        dividerWifi = dialogView.findViewById<View>(R.id.dividerWifi)
+        tvAvailableTitle = dialogView.findViewById<TextView>(R.id.tvAvailableTitle)
+        swWifiToggle = dialogView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.swWifiToggle)
+        swipeRefreshWifi = dialogView.findViewById<androidx.swiperefreshlayout.widget.SwipeRefreshLayout>(R.id.swipeRefreshWifi)
+
+        // Set up toggle
+        swWifiToggle?.isChecked = currentWifiState
+        swWifiToggle?.setOnCheckedChangeListener { _, isChecked ->
+            runIfConnected {
+                bluetoothService?.sendWifiCommand(isChecked)
+                updateWifiUI(isChecked)
+                updateDialogState(isChecked)
+            }
+        }
+
+        // Set up pull-to-refresh
+        swipeRefreshWifi?.setOnRefreshListener {
+            runIfConnected {
+                bluetoothService?.requestWifiScan()
+            }
+        }
+
+        updateDialogState(currentWifiState)
+
+        wifiAdapter = WifiResultAdapter { result ->
+            // Check if this is the currently connected network
+            if (result.ssid == currentWifiSsid && currentWifiState) {
+                Toast.makeText(this, getString(R.string.wifi_already_connected, result.ssid), Toast.LENGTH_SHORT).show()
+                return@WifiResultAdapter
+            }
+
+            // For secure networks, ask for password only if not already saved
+            if (result.isSecure) {
+                // Show password dialog
+                showWifiPasswordDialog(result.ssid)
+            } else {
+                // Open network, connect directly
+                bluetoothService?.connectToWifi(result.ssid, null)
+                Toast.makeText(this, getString(R.string.wifi_connecting, result.ssid), Toast.LENGTH_SHORT).show()
+            }
+        }
+        rvWifiList.layoutManager = LinearLayoutManager(this)
+        rvWifiList.adapter = wifiAdapter
+
+        wifiSelectionDialog = AlertDialog.Builder(this)
+            .setTitle(R.string.wifi_dialog_title)
+            .setView(dialogView)
+            .setNegativeButton(R.string.wifi_cancel) { _, _ ->
+                wifiSelectionDialog = null
+                clearWifiDialogRefs()
+            }
+            .setOnDismissListener {
+                wifiSelectionDialog = null
+                clearWifiDialogRefs()
+            }
+            .show()
+    }
+
+    private fun clearWifiDialogRefs() {
+        layoutCurrentWifi = null
+        containerCurrentWifi = null
+        dividerWifi = null
+        tvAvailableTitle = null
+        swWifiToggle = null
+        wifiLoadingLayout = null
+        swipeRefreshWifi = null
+    }
+
+    private fun updateCurrentWifiView() {
+        val container = containerCurrentWifi ?: return
+        val layout = layoutCurrentWifi ?: return
+        val divider = dividerWifi ?: return
+
+        // Filter out invalid/temporary states
+        val invalidStates = setOf(
+            "Desconectado", "Disconnected", "Desativado", "Off",
+            "WiFi Disabled", "Disabled", "None", "N/A", ""
+        )
+
+        val isValidConnection = currentWifiState &&
+                                currentWifiSsid.isNotEmpty() &&
+                                !invalidStates.contains(currentWifiSsid)
+
+        if (isValidConnection) {
+            layout.visibility = View.VISIBLE
+            divider.visibility = View.VISIBLE
+
+            container.removeAllViews()
+            val itemView = LayoutInflater.from(this).inflate(R.layout.item_wifi_selection, container, false)
+            val tvSsid = itemView.findViewById<TextView>(R.id.tvWifiSsid)
+            val tvSecurity = itemView.findViewById<TextView>(R.id.tvWifiSecurity)
+            val imgSignal = itemView.findViewById<ImageView>(R.id.imgWifiSignal)
+            val imgLock = itemView.findViewById<ImageView>(R.id.imgWifiLock)
+            val layoutItem = itemView.findViewById<LinearLayout>(R.id.layoutWifiItem)
+
+            tvSsid.text = currentWifiSsid
+            tvSecurity.text = getString(R.string.wifi_connected)
+            imgSignal.setImageResource(R.drawable.ic_wifi)
+            imgLock.visibility = View.GONE
+
+            // Highlight blue as requested
+            layoutItem.setBackgroundColor(Color.parseColor("#332196F3")) // Light blue
+
+            container.addView(itemView)
+        } else {
+            layout.visibility = View.GONE
+            divider.visibility = View.GONE
+        }
+    }
+
+    private fun updateDialogState(isWifiOn: Boolean) {
+        val title = tvAvailableTitle ?: return
+        if (isWifiOn) {
+            title.text = getString(R.string.wifi_available_networks)
+            wifiLoadingLayout?.visibility = View.VISIBLE
+            updateCurrentWifiView()
+            bluetoothService?.requestWifiScan()
+        } else {
+            layoutCurrentWifi?.visibility = View.GONE
+            dividerWifi?.visibility = View.GONE
+            title.text = getString(R.string.wifi_activate_message)
+            wifiLoadingLayout?.visibility = View.GONE
+            wifiAdapter?.setResults(emptyList())
+        }
+    }
+
+    private fun showWifiPasswordDialog(ssid: String) {
+        val input = EditText(this)
+        input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
+        input.hint = getString(R.string.wifi_password_hint)
+
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.wifi_password_dialog_title, ssid))
+            .setMessage(R.string.wifi_password_message)
+            .setView(input)
+            .setPositiveButton(R.string.wifi_connect_with_password) { _, _ ->
+                val password = input.text.toString()
+                if (password.isEmpty()) {
+                    Toast.makeText(this, R.string.wifi_password_empty_error, Toast.LENGTH_SHORT).show()
+                } else {
+                    bluetoothService?.connectToWifi(ssid, password)
+                    Toast.makeText(this, getString(R.string.wifi_connecting, ssid), Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNeutralButton(R.string.wifi_connect_saved) { _, _ ->
+                // Connect without password (use saved credentials)
+                bluetoothService?.connectToWifi(ssid, null)
+                Toast.makeText(this, getString(R.string.wifi_connecting, ssid), Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton(R.string.wifi_cancel, null)
+            .show()
     }
 
     private fun setupHealthClickListeners() {
@@ -777,8 +961,15 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private var hasRequestedHealthData = false
 
     override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean) {
+        currentWifiSsid = wifiSsid
         runOnUiThread {
             updateWatchStatusCard(batteryLevel, isCharging, wifiSsid, wifiEnabled, dndEnabled)
+
+            // Update WiFi dialog if it's open
+            if (wifiSelectionDialog?.isShowing == true) {
+                swWifiToggle?.isChecked = wifiEnabled
+                updateCurrentWifiView()
+            }
         }
         // Request health data only once when watch status first updates
         if (!hasRequestedHealthData && bluetoothService?.isConnected == true) {
@@ -788,10 +979,71 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         }
     }
 
+    override fun onWifiScanResultsReceived(results: List<WifiScanResultData>) {
+        runOnUiThread {
+            if (wifiSelectionDialog != null && wifiSelectionDialog?.isShowing == true) {
+                wifiLoadingLayout?.visibility = View.GONE
+                swipeRefreshWifi?.isRefreshing = false
+
+                // Filter out current SSID to prevent duplicate
+                val filteredResults = results.filter { it.ssid != currentWifiSsid }
+                wifiAdapter?.setResults(filteredResults)
+                
+                if (filteredResults.isEmpty() && results.isNotEmpty()) {
+                    // All discovered networks were hidden because they are currently connected?
+                    // Or list is just empty
+                } else if (results.isEmpty()) {
+                    Toast.makeText(this, "No WiFi networks found.", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     override fun onHealthDataUpdated(healthData: HealthDataUpdate) {
         android.util.Log.d("MainActivity", "Health data received: steps=${healthData.steps}, cal=${healthData.calories}, hr=${healthData.heartRate}")
         runOnUiThread {
             updateHealthDataCard(healthData)
+        }
+    }
+
+    private inner class WifiResultAdapter(private val onItemClick: (WifiScanResultData) -> Unit) :
+        androidx.recyclerview.widget.RecyclerView.Adapter<WifiResultAdapter.ViewHolder>() {
+
+        private var results: List<WifiScanResultData> = emptyList()
+
+        fun setResults(newResults: List<WifiScanResultData>) {
+            results = newResults
+            notifyDataSetChanged()
+        }
+
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder {
+            val view = android.view.LayoutInflater.from(parent.context)
+                .inflate(R.layout.item_wifi_selection, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val item = results[position]
+            holder.tvSsid.text = item.ssid
+            holder.tvSecurity.text = if (item.isSecure) "Secured" else "Open"
+            holder.imgLock.visibility = if (item.isSecure) android.view.View.VISIBLE else android.view.View.GONE
+            
+            holder.imgSignal.setImageResource(R.drawable.ic_wifi)
+            
+            // Standard background
+            holder.layoutItem.setBackgroundResource(android.R.drawable.list_selector_background)
+            
+            holder.itemView.setOnClickListener { onItemClick(item) }
+        }
+
+        override fun getItemCount(): Int = results.size
+
+        inner class ViewHolder(view: android.view.View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
+            val tvSsid: android.widget.TextView = view.findViewById(R.id.tvWifiSsid)
+            val tvSecurity: android.widget.TextView = view.findViewById(R.id.tvWifiSecurity)
+            val imgSignal: android.widget.ImageView = view.findViewById(R.id.imgWifiSignal)
+            val imgLock: android.widget.ImageView = view.findViewById(R.id.imgWifiLock)
+            val layoutItem: android.widget.LinearLayout = view.findViewById(R.id.layoutWifiItem)
         }
     }
 

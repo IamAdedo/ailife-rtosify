@@ -25,4 +25,7 @@ interface IUserService {
     boolean uninstallApp(String packageName) = 15;
     boolean installAppFromPfd(in ParcelFileDescriptor pfd) = 16;
     void setWifiEnabled(boolean enabled) = 17;
+    void connectToWifi(String ssid, String password) = 18;
+    String getWifiScanResults() = 19;
+    void startWifiScan() = 20;
 }

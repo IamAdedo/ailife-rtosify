@@ -48,6 +48,8 @@ import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
@@ -131,6 +133,7 @@ class BluetoothService : Service() {
         fun onHealthHistoryReceived(historyData: HealthHistoryResponse) {}
         fun onHealthSettingsReceived(settings: HealthSettingsUpdate) {}
         fun onPreviewReceived(path: String, imageBase64: String?) {}
+        fun onWifiScanResultsReceived(results: List<WifiScanResultData>) {}
     }
 
     var callback: ServiceCallback? = null
@@ -594,6 +597,7 @@ class BluetoothService : Service() {
                     MessageType.MAKE_CALL -> handleMakeCallCommand(message)
                     MessageType.REJECT_CALL -> handleRejectCallCommand()
                     MessageType.ANSWER_CALL -> handleAnswerCallCommand()
+                    MessageType.WIFI_SCAN_RESULTS -> handleWifiScanResults(message)
                 }
             }
         } catch (_: IOException) {
@@ -809,6 +813,19 @@ class BluetoothService : Service() {
         }
     }
 
+    private suspend fun handleWifiScanResults(message: ProtocolMessage) {
+        try {
+            val resultsJson = message.data.getAsJsonArray("results")
+            val listType = object : TypeToken<List<WifiScanResultData>>() {}.type
+            val results: List<WifiScanResultData> = ProtocolHelper.gson.fromJson(resultsJson, listType)
+            withContext(Dispatchers.Main) {
+                callback?.onWifiScanResultsReceived(results)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro parser wifi scan results: ${e.message}")
+        }
+    }
+
     fun requestHealthData() {
         sendMessage(ProtocolHelper.createRequestHealthData())
     }
@@ -833,6 +850,14 @@ class BluetoothService : Service() {
 
     fun requestHealthSettings() {
         sendMessage(ProtocolHelper.createRequestHealthSettings())
+    }
+
+    fun requestWifiScan() {
+        sendMessage(ProtocolHelper.createRequestWifiScan())
+    }
+
+    fun connectToWifi(ssid: String, password: String?) {
+        sendMessage(ProtocolHelper.createConnectWifi(ssid, password))
     }
 
     fun sendDndCommand(enable: Boolean) {

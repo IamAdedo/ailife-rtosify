@@ -164,4 +164,7 @@
 
     <string name="perm_watchface">Watch Face Directory</string>
     <string name="perm_watchface_desc">Required to manage and apply watch faces directly.</string>
+
+    <string name="perm_nearby_wifi">Nearby WiFi Devices</string>
+    <string name="perm_nearby_wifi_desc">Required to scan for WiFi networks on Android 13+.</string>
 </resources>

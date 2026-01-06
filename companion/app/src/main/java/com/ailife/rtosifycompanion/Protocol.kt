@@ -93,6 +93,9 @@ object MessageType {
     const val CALL_STATE_CHANGED = "call_state_changed"
     const val REJECT_CALL = "reject_call"
     const val ANSWER_CALL = "answer_call"
+    const val REQUEST_WIFI_SCAN = "request_wifi_scan"
+    const val WIFI_SCAN_RESULTS = "wifi_scan_results"
+    const val CONNECT_WIFI = "connect_wifi"
 }
 
 // Data classes for specific message types
@@ -253,6 +256,18 @@ data class AppInfo(
     val name: String,
     val packageName: String,
     val icon: String  // Base64 encoded PNG
+)
+
+data class WifiScanResultData(
+    val ssid: String,
+    val bssid: String,
+    val signalLevel: Int,
+    val isSecure: Boolean
+)
+
+data class WifiConnectData(
+    val ssid: String,
+    val password: String? = null
 )
 
 // Helper functions to create messages
@@ -563,5 +578,24 @@ object ProtocolHelper {
 
     fun createAnswerCall(): ProtocolMessage {
         return ProtocolMessage(type = MessageType.ANSWER_CALL)
+    }
+
+    fun createRequestWifiScan(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.REQUEST_WIFI_SCAN)
+    }
+
+    fun createWifiScanResults(results: List<WifiScanResultData>): ProtocolMessage {
+        val data = JsonObject()
+        data.add("results", gson.toJsonTree(results))
+        return ProtocolMessage(type = MessageType.WIFI_SCAN_RESULTS, data = data)
+    }
+
+    fun createConnectWifi(ssid: String, password: String? = null): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("ssid", ssid)
+        if (password != null) {
+            data.addProperty("password", password)
+        }
+        return ProtocolMessage(type = MessageType.CONNECT_WIFI, data = data)
     }
 }

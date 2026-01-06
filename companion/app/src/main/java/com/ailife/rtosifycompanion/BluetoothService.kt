@@ -33,6 +33,8 @@ import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.net.wifi.SupplicantState
 import android.net.wifi.WifiManager
+import android.net.wifi.WifiNetworkSuggestion
+import android.net.NetworkRequest
 import android.os.BatteryManager
 import android.os.Binder
 import android.os.Build
@@ -235,6 +237,30 @@ class BluetoothService : Service() {
         }
     }
 
+    private val wifiStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                WifiManager.WIFI_STATE_CHANGED_ACTION,
+                WifiManager.NETWORK_STATE_CHANGED_ACTION,
+                WifiManager.SUPPLICANT_STATE_CHANGED_ACTION -> {
+                    Log.d(TAG, "WiFi state changed: ${intent.action}, sending status update")
+                    // Send updated status to phone when WiFi state changes
+                    serviceScope.launch {
+                        delay(500) // Small delay to let the state settle
+                        if (isConnected) {
+                            try {
+                                val status = collectWatchStatus()
+                                sendMessage(ProtocolHelper.createStatusUpdate(status))
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error sending WiFi status update: ${e.message}")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private var userServiceConnection: Shizuku.UserServiceArgs? = null
     private var userService: IUserService? = null
     
@@ -281,13 +307,20 @@ class BluetoothService : Service() {
             addAction(ACTION_SEND_REMOVE_TO_WATCH)
         }
         val filterWatch = IntentFilter(ACTION_WATCH_DISMISSED_LOCAL)
+        val filterWifi = IntentFilter().apply {
+            addAction(WifiManager.WIFI_STATE_CHANGED_ACTION)
+            addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION)
+            addAction(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION)
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(internalReceiver, filterInternal, RECEIVER_NOT_EXPORTED)
             registerReceiver(watchDismissReceiver, filterWatch, RECEIVER_NOT_EXPORTED)
+            registerReceiver(wifiStateReceiver, filterWifi, RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(internalReceiver, filterInternal)
             registerReceiver(watchDismissReceiver, filterWatch)
+            registerReceiver(wifiStateReceiver, filterWifi)
         }
 
         // Initialize health data collector
@@ -648,6 +681,8 @@ class BluetoothService : Service() {
                     MessageType.STATUS_UPDATE -> handleStatusUpdateReceived(message)
                     MessageType.SET_DND -> handleSetDndCommand(message)
                     MessageType.SET_WIFI -> handleSetWifiCommand(message)
+                    MessageType.REQUEST_WIFI_SCAN -> serviceScope.launch { handleRequestWifiScan() }
+                    MessageType.CONNECT_WIFI -> handleConnectWifi(message)
                     MessageType.CAMERA_FRAME -> handleCameraFrame(message)
                     MessageType.REQUEST_FILE_LIST -> handleRequestFileList(message)
                     MessageType.REQUEST_FILE_DOWNLOAD -> handleRequestFileDownload(message)
@@ -835,7 +870,7 @@ class BluetoothService : Service() {
 
                         if (rawSsid == "<unknown ssid>" || rawSsid.isEmpty()) {
                             wifiSsid = lastValidWifiSsid.ifEmpty {
-                                "Conectado"
+                                "Connected"
                             }
                         } else {
                             val cleanSsid = rawSsid.replace("\"", "")
@@ -845,22 +880,22 @@ class BluetoothService : Service() {
                             } else if (lastValidWifiSsid.isNotEmpty()) {
                                 wifiSsid = lastValidWifiSsid
                             } else {
-                                wifiSsid = "Conectado"
+                                wifiSsid = "Connected"
                             }
                         }
                     } else {
                         lastValidWifiSsid = ""
-                        wifiSsid = "Desconectado"
+                        wifiSsid = "Disconnected"
                     }
                 } else {
                     lastValidWifiSsid = ""
-                    wifiSsid = "Wifi Off"
+                    wifiSsid = "WiFi Disabled"
                 }
             } else {
-                wifiSsid = "Sem Permissão"
+                wifiSsid = "No Permission"
             }
         } catch (_: Exception) {
-            wifiSsid = "Erro Wifi"
+            wifiSsid = "WiFi Error"
         }
 
         return StatusUpdateData(
@@ -977,6 +1012,277 @@ class BluetoothService : Service() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Erro parser status: ${e.message}")
+        }
+    }
+
+    private suspend fun handleRequestWifiScan() {
+        Log.d(TAG, "Solicitando scan de WiFi...")
+        val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+        
+        // Trigger a fresh scan if possible
+        try {
+            wm.startScan()
+            // Try privileged trigger as well
+            userService?.startWifiScan()
+        } catch (e: Exception) {
+            Log.w(TAG, "Falha ao iniciar scan WiFi: ${e.message}")
+        }
+
+        // Wait for scan results to populate (typically 3-4 seconds)
+        Log.d(TAG, "Aguardando 4 segundos para o hardware encontrar redes...")
+        delay(4000)
+
+        val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.NEARBY_WIFI_DEVICES) == PackageManager.PERMISSION_GRANTED
+        } else {
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        }
+
+        var results = if (hasPermission) {
+            wm.scanResults.map {
+                WifiScanResultData(
+                    ssid = it.SSID,
+                    bssid = it.BSSID,
+                    signalLevel = WifiManager.calculateSignalLevel(it.level, 5),
+                    isSecure = it.capabilities.contains("WPA") || it.capabilities.contains("WEP") || it.capabilities.contains("SAE")
+                )
+            }.filter { it.ssid.isNotEmpty() }
+             .distinctBy { it.ssid }
+             .sortedByDescending { it.signalLevel }
+        } else {
+            Log.e(TAG, "Sem permissão (Location/Nearby) para scan WiFi")
+            emptyList()
+        }
+
+        // Fallback to privileged service if results are empty
+        if (results.isEmpty()) {
+            Log.d(TAG, "Standard scan results empty, trying privileged fallback...")
+            try {
+                val privilegedJson = userService?.getWifiScanResults()
+                if (privilegedJson != null) {
+                    val lines = Gson().fromJson<List<String>>(privilegedJson, object : TypeToken<List<String>>() {}.type)
+                    Log.d(TAG, "Privileged scan returned ${lines.size} lines")
+                    if (lines.size > 1) { // Header + at least one result
+                        results = parseWifiScanResults(lines)
+                    }
+                } else {
+                    Log.w(TAG, "UserService returned null for scan results")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Fail in privileged scan fallback: ${e.message}")
+            }
+        }
+        
+        Log.d(TAG, "Enviando ${results.size} resultados de scan WiFi")
+        sendMessage(ProtocolHelper.createWifiScanResults(results))
+    }
+
+    private fun parseWifiScanResults(lines: List<String>): List<WifiScanResultData> {
+        val results = mutableListOf<WifiScanResultData>()
+        if (lines.isEmpty()) return results
+        
+        // Header example: BSSID              Frequency  Signal  Flags             SSID
+        // OR: BSSID              Frequency      RSSI           Age(sec)     SSID                                 Flags
+        val header = lines[0]
+        Log.d(TAG, "Parsing WiFi header: $header")
+        
+        val ssidIndex = header.indexOf("SSID")
+        var signalIndex = header.indexOf("Signal")
+        if (signalIndex == -1) signalIndex = header.indexOf("RSSI")
+        if (signalIndex == -1) signalIndex = header.indexOf("Level")
+        
+        val bssidIndex = header.indexOf("BSSID")
+        val flagsIndex = header.indexOf("Flags")
+
+        // If we can't find SSID or some signal indicator, the format is too unexpected
+        if (ssidIndex == -1 || (signalIndex == -1 && flagsIndex == -1)) {
+            Log.w(TAG, "Unexpected WiFi scan header format")
+            return results
+        }
+
+        for (i in 1 until lines.size) {
+            val line = lines[i]
+            if (line.isBlank()) continue
+            
+            try {
+                val parts = line.trim().split(Regex("\\s+"))
+                if (parts.size < 3) continue
+
+                // Locate SSID and Flags based on headers if possible, otherwise heuristic
+                var ssid = ""
+                var flags = ""
+                var level = -100
+                var bssid = parts[0]
+
+                if (ssidIndex != -1 && flagsIndex != -1) {
+                    if (ssidIndex < flagsIndex) {
+                        // SSID before Flags
+                        ssid = line.substring(ssidIndex, flagsIndex).trim()
+                        flags = line.substring(flagsIndex).trim()
+                    } else {
+                        // Flags before SSID (standard `cmd wifi list-scan-results` output often has SSID last)
+                        flags = line.substring(flagsIndex, ssidIndex).trim()
+                        ssid = line.substring(ssidIndex).trim()
+                    }
+                } else if (ssidIndex != -1) {
+                    ssid = line.substring(ssidIndex).trim()
+                }
+
+                // Try to find RSSI/Level in parts
+                // Usually it's the 3rd column (index 2)
+                if (parts.size > 2) {
+                    // Try to find a part that looks like a signal level (-30 to -100)
+                    for (part in parts) {
+                        val v = part.toIntOrNull()
+                        if (v != null && v < 0 && v > -120) {
+                            level = v
+                            break
+                        }
+                    }
+                }
+
+                if (ssid.isEmpty() || ssid == "<unknown ssid>") {
+                    // Fallback to parts if substring fails
+                    ssid = parts.last() 
+                }
+
+                if (ssid.isEmpty() || ssid == "<unknown ssid>") continue
+
+                results.add(WifiScanResultData(
+                    ssid = ssid,
+                    bssid = bssid,
+                    signalLevel = WifiManager.calculateSignalLevel(level, 5),
+                    isSecure = flags.contains("WPA") || flags.contains("WEP") || flags.contains("SAE") || flags.contains("EAP")
+                ))
+            } catch (e: Exception) {
+                Log.e(TAG, "Error parsing wifi line: $line - ${e.message}")
+            }
+        }
+        val distinct = results.distinctBy { it.ssid }.sortedByDescending { it.signalLevel }
+        Log.d(TAG, "Parsed ${distinct.size} distinct WiFi results")
+        return distinct
+    }
+
+    private fun handleConnectWifi(message: ProtocolMessage) {
+        val data = ProtocolHelper.extractData<WifiConnectData>(message)
+        val ssid = data.ssid
+        val password = data.password
+
+        Log.d(TAG, "Connecting to WiFi: $ssid (password: ${!password.isNullOrEmpty()})")
+
+        // For Android 10+: Use combination of Suggestion (for saving) + Specifier (for immediate connection)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            connectWifiModern(ssid, password)
+        }
+        // For Android 9 and below: Use legacy WifiConfiguration API
+        else {
+            connectWifiLegacy(ssid, password)
+        }
+    }
+
+    @androidx.annotation.RequiresApi(Build.VERSION_CODES.Q)
+    private fun connectWifiModern(ssid: String, password: String?) {
+        try {
+            val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                // Android 11+: Use incremental priority system
+
+                // Get current timestamp as priority (ensures newest selection has highest priority)
+                val currentPriority = (System.currentTimeMillis() / 1000).toInt()
+
+                // Get all existing suggestions from our app
+                val existingSuggestions = wm.networkSuggestions
+
+                // Check if this network already exists
+                val existingSuggestion = existingSuggestions.find { it.ssid == "\"$ssid\"" }
+
+                // If network exists with old priority, remove it so we can re-add with new priority
+                if (existingSuggestion != null) {
+                    Log.d(TAG, "Removing old suggestion for $ssid to update priority")
+                    wm.removeNetworkSuggestions(listOf(existingSuggestion))
+                }
+
+                // Build network suggestion with new highest priority
+                val suggestionBuilder = WifiNetworkSuggestion.Builder()
+                    .setSsid(ssid)
+                    .setPriority(currentPriority) // Newest selection gets current timestamp as priority
+                    .setIsInitialAutojoinEnabled(true)
+
+                if (!password.isNullOrEmpty()) {
+                    suggestionBuilder.setWpa2Passphrase(password)
+                }
+
+                val suggestion = suggestionBuilder.build()
+                val status = wm.addNetworkSuggestions(listOf(suggestion))
+
+                when (status) {
+                    WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS -> {
+                        Log.i(TAG, "✓ Network suggestion added with priority $currentPriority: $ssid")
+                        Log.i(TAG, "  Old networks kept with lower priorities for auto-connect")
+                        wm.startScan()
+                    }
+                    WifiManager.STATUS_NETWORK_SUGGESTIONS_ERROR_ADD_DUPLICATE -> {
+                        Log.i(TAG, "✓ Network suggestion exists: $ssid")
+                        wm.startScan()
+                    }
+                    else -> {
+                        Log.e(TAG, "✗ Failed to add suggestion: status=$status")
+                    }
+                }
+
+            } else {
+                // Android 10: No priority support, just add/update
+                val suggestionBuilder = WifiNetworkSuggestion.Builder().setSsid(ssid)
+
+                if (!password.isNullOrEmpty()) {
+                    suggestionBuilder.setWpa2Passphrase(password)
+                }
+
+                val status = wm.addNetworkSuggestions(listOf(suggestionBuilder.build()))
+
+                if (status == WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS) {
+                    Log.i(TAG, "✓ Network suggestion added: $ssid")
+                    wm.startScan()
+                }
+            }
+
+            // Send status update after delay
+            serviceScope.launch {
+                delay(3000)
+                val status = collectWatchStatus()
+                sendMessage(ProtocolHelper.createStatusUpdate(status))
+            }
+
+        } catch (e: SecurityException) {
+            Log.e(TAG, "✗ Security exception: ${e.message}")
+        } catch (e: Exception) {
+            Log.e(TAG, "✗ Exception: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+
+    private fun connectWifiLegacy(ssid: String, password: String?) {
+        val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+        if (!wm.isWifiEnabled) wm.isWifiEnabled = true
+        
+        @Suppress("DEPRECATION")
+        val wifiConfig = android.net.wifi.WifiConfiguration().apply {
+            SSID = "\"$ssid\""
+            if (password != null) {
+                preSharedKey = "\"$password\""
+            } else {
+                allowedKeyManagement.set(android.net.wifi.WifiConfiguration.KeyMgmt.NONE)
+            }
+        }
+        
+        @Suppress("DEPRECATION")
+        val netId = wm.addNetwork(wifiConfig)
+        if (netId != -1) {
+            wm.disconnect()
+            wm.enableNetwork(netId, true)
+            wm.reconnect()
+            Log.d(TAG, "Conexão legada iniciada para $ssid")
         }
     }
 
@@ -2903,6 +3209,7 @@ class BluetoothService : Service() {
         super.onDestroy()
         try { unregisterReceiver(internalReceiver) } catch(_:Exception){}
         try { unregisterReceiver(watchDismissReceiver) } catch(_:Exception){}
+        try { unregisterReceiver(wifiStateReceiver) } catch(_:Exception){}
         mainHandler.removeCallbacksAndMessages(null)
         serviceScope.cancel()
         forceDisconnect()
