@@ -50,6 +50,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var imgBatteryIcon: ImageView
     private lateinit var tvWifiSsid: TextView
     private lateinit var imgWifiIcon: ImageView
+    private lateinit var layoutWifiAction: LinearLayout
     private lateinit var layoutDndAction: LinearLayout
     private lateinit var tvDndStatus: TextView
     private lateinit var imgDndIcon: ImageView
@@ -79,6 +80,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     // Estado local do DND
     private var currentDndState = false
+    private var currentWifiState = true
 
     // Diálogo Upload
     private var uploadDialog: AlertDialog? = null
@@ -141,6 +143,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         isPhoneMode = prefs.getString("device_type", "PHONE") == "PHONE"
         setupLayoutMode()
         setupDndClickListener()
+        setupWifiClickListener()
         setupHealthClickListeners()
 
         bindToService()
@@ -189,6 +192,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         imgBatteryIcon = findViewById(R.id.imgBatteryIcon)
         tvWifiSsid = findViewById(R.id.tvWifiSsid)
         imgWifiIcon = findViewById(R.id.imgWifiIcon)
+        layoutWifiAction = findViewById(R.id.layoutWifiAction)
         layoutDndAction = findViewById(R.id.layoutDndAction)
         tvDndStatus = findViewById(R.id.tvDndStatus)
         imgDndIcon = findViewById(R.id.imgDndIcon)
@@ -231,6 +235,16 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 val newState = !currentDndState
                 bluetoothService?.sendDndCommand(newState)
                 updateDndUI(newState)
+            }
+        }
+    }
+
+    private fun setupWifiClickListener() {
+        layoutWifiAction.setOnClickListener {
+            runIfConnected {
+                val newState = !currentWifiState
+                bluetoothService?.sendWifiCommand(newState)
+                updateWifiUI(newState)
             }
         }
     }
@@ -542,7 +556,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         refreshMenu()
     }
 
-    private fun updateWatchStatusCard(battery: Int, isCharging: Boolean, wifi: String, dnd: Boolean) {
+    private fun updateWatchStatusCard(battery: Int, isCharging: Boolean, wifi: String, wifiEnabled: Boolean, dnd: Boolean) {
         tvBatteryPercent.text = "$battery%"
         if (isCharging) {
             imgBatteryIcon.setImageResource(android.R.drawable.ic_lock_idle_charging)
@@ -550,6 +564,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             imgBatteryIcon.setImageResource(R.drawable.ic_battery_full)
         }
         tvWifiSsid.text = wifi.ifEmpty { "---" }
+        updateWifiUI(wifiEnabled)
         updateDndUI(dnd)
     }
 
@@ -559,10 +574,23 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         if (enabled) {
             tvDndStatus.text = getString(R.string.dnd_on)
+            imgDndIcon.imageAlpha = 255
         } else {
             tvDndStatus.text = getString(R.string.dnd_off)
+            imgDndIcon.imageAlpha = 100
         }
     }
+
+    private fun updateWifiUI(enabled: Boolean) {
+        currentWifiState = enabled
+        layoutWifiAction.alpha = 1.0f // Assuming layoutWifiAction is a clickable view
+        if (enabled) {
+            imgWifiIcon.imageAlpha = 255
+        } else {
+            imgWifiIcon.imageAlpha = 100
+        }
+    }
+
 
     private fun resetApp() {
         bluetoothService?.resetApp()
@@ -748,9 +776,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     private var hasRequestedHealthData = false
 
-    override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, dndEnabled: Boolean) {
+    override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean) {
         runOnUiThread {
-            updateWatchStatusCard(batteryLevel, isCharging, wifiSsid, dndEnabled)
+            updateWatchStatusCard(batteryLevel, isCharging, wifiSsid, wifiEnabled, dndEnabled)
         }
         // Request health data only once when watch status first updates
         if (!hasRequestedHealthData && bluetoothService?.isConnected == true) {

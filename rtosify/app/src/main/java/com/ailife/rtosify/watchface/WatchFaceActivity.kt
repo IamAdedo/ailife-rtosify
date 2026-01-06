@@ -318,7 +318,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
     override fun onDeviceConnected(deviceName: String) {}
     override fun onDeviceDisconnected() {}
     override fun onScanResult(devices: List<android.bluetooth.BluetoothDevice>) {}
-    override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, dndEnabled: Boolean) {}
+    override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean) {}
     override fun onPreviewReceived(path: String, imageBase64: String?) {
         if (imageBase64 != null) {
             managerFragment.updatePreview(path, imageBase64)

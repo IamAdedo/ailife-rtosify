@@ -24,4 +24,5 @@ interface IUserService {
     boolean installApp(String apkPath) = 14;
     boolean uninstallApp(String packageName) = 15;
     boolean installAppFromPfd(in ParcelFileDescriptor pfd) = 16;
+    void setWifiEnabled(boolean enabled) = 17;
 }

@@ -647,6 +647,7 @@ class BluetoothService : Service() {
                     MessageType.FIND_DEVICE -> handleFindDeviceCommand(message)
                     MessageType.STATUS_UPDATE -> handleStatusUpdateReceived(message)
                     MessageType.SET_DND -> handleSetDndCommand(message)
+                    MessageType.SET_WIFI -> handleSetWifiCommand(message)
                     MessageType.CAMERA_FRAME -> handleCameraFrame(message)
                     MessageType.REQUEST_FILE_LIST -> handleRequestFileList(message)
                     MessageType.REQUEST_FILE_DOWNLOAD -> handleRequestFileDownload(message)
@@ -820,11 +821,13 @@ class BluetoothService : Service() {
         val dndEnabled = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
 
         var wifiSsid: String
+        var wifiEnabled = false
         try {
+            val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+            wifiEnabled = wm.isWifiEnabled
+            
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
-
-                if (wm.isWifiEnabled) {
+                if (wifiEnabled) {
                     val info = wm.connectionInfo
 
                     if (info != null && info.supplicantState == SupplicantState.COMPLETED) {
@@ -864,7 +867,8 @@ class BluetoothService : Service() {
             battery = batteryLevel,
             charging = isCharging,
             dnd = dndEnabled,
-            wifi = wifiSsid
+            wifi = wifiSsid,
+            wifiEnabled = wifiEnabled
         )
     }
 
@@ -1010,6 +1014,36 @@ class BluetoothService : Service() {
                 val status = collectWatchStatus()
                 sendMessage(ProtocolHelper.createStatusUpdate(status))
             }
+        }
+    }
+
+    private fun handleSetWifiCommand(message: ProtocolMessage) {
+        val enable = ProtocolHelper.extractBooleanField(message, "enabled")
+        Log.i(TAG, "Handling SET_WIFI: $enable")
+        
+        // Try UserService (Shizuku) first as it's more reliable on Android 10+
+        if (userService != null) {
+            try {
+                userService?.setWifiEnabled(enable)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error calling userService.setWifiEnabled: ${e.message}")
+            }
+        } else {
+            // Standard API fallback
+            try {
+                val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+                @Suppress("DEPRECATION")
+                wm.isWifiEnabled = enable
+            } catch (e: Exception) {
+                Log.e(TAG, "Error setting WiFi via WifiManager: ${e.message}")
+            }
+        }
+        
+        // Update status and notify phone
+        serviceScope.launch {
+            delay(1000) // Give it a second to change state
+            val status = collectWatchStatus()
+            sendMessage(ProtocolHelper.createStatusUpdate(status))
         }
     }
 

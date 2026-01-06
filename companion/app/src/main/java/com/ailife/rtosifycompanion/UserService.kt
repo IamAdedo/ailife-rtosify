@@ -321,4 +321,10 @@ class UserService : IUserService.Stub() {
             }
         }
     }
+
+    override fun setWifiEnabled(enabled: Boolean) {
+        val cmd = if (enabled) "enable" else "disable"
+        Log.i(TAG, "Setting WiFi to $cmd")
+        runShellStatus("svc", "wifi", cmd)
+    }
 }

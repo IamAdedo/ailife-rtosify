@@ -57,6 +57,7 @@ object MessageType {
     const val FIND_PHONE = "find_phone"
     const val STATUS_UPDATE = "status_update"
     const val SET_DND = "set_dnd"
+    const val SET_WIFI = "set_wifi"
     const val UNINSTALL_APP = "uninstall_app"
     const val EXECUTE_NOTIFICATION_ACTION = "execute_notification_action"
     const val SEND_NOTIFICATION_REPLY = "send_notification_reply"
@@ -147,7 +148,8 @@ data class StatusUpdateData(
     val battery: Int,
     val charging: Boolean,
     val dnd: Boolean,
-    val wifi: String
+    val wifi: String,
+    val wifiEnabled: Boolean = true
 )
 
 data class FileTransferData(
@@ -320,6 +322,12 @@ object ProtocolHelper {
         val data = JsonObject()
         data.addProperty("enabled", enabled)
         return ProtocolMessage(type = MessageType.SET_DND, data = data)
+    }
+
+    fun createSetWifi(enabled: Boolean): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("enabled", enabled)
+        return ProtocolMessage(type = MessageType.SET_WIFI, data = data)
     }
 
     fun createUninstallApp(packageName: String): ProtocolMessage {

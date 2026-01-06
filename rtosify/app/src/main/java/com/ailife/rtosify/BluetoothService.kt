@@ -126,7 +126,7 @@ class BluetoothService : Service() {
         fun onUploadProgress(progress: Int)
         fun onDownloadProgress(progress: Int)
         fun onFileListReceived(path: String, filesJson: String)
-        fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, dndEnabled: Boolean) {}
+        fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean) {}
         fun onHealthDataUpdated(healthData: HealthDataUpdate) {}
         fun onHealthHistoryReceived(historyData: HealthHistoryResponse) {}
         fun onHealthSettingsReceived(settings: HealthSettingsUpdate) {}
@@ -769,7 +769,7 @@ class BluetoothService : Service() {
         try {
             val status = ProtocolHelper.extractData<StatusUpdateData>(message)
             withContext(Dispatchers.Main) {
-                callback?.onWatchStatusUpdated(status.battery, status.charging, status.wifi, status.dnd)
+                callback?.onWatchStatusUpdated(status.battery, status.charging, status.wifi, status.wifiEnabled, status.dnd)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Erro parser status: ${e.message}")
@@ -837,6 +837,10 @@ class BluetoothService : Service() {
 
     fun sendDndCommand(enable: Boolean) {
         sendMessage(ProtocolHelper.createSetDnd(enable))
+    }
+
+    fun sendWifiCommand(enable: Boolean) {
+        sendMessage(ProtocolHelper.createSetWifi(enable))
     }
 
     private fun handleSetDndCommand(message: ProtocolMessage) {
