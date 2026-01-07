@@ -12,13 +12,24 @@ import android.util.Base64
 
 class AppUsageAdapter : RecyclerView.Adapter<AppUsageAdapter.ViewHolder>() {
 
+    enum class SortOrder {
+        TIME, POWER, SPEED
+    }
+
     private val items = mutableListOf<AppUsageData>()
     private var maxUsage = 0L
+    private var currentSortOrder = SortOrder.TIME
 
-    fun updateData(newItems: List<AppUsageData>) {
+    fun updateData(newItems: List<AppUsageData>, sortOrder: SortOrder = currentSortOrder) {
+        currentSortOrder = sortOrder
         items.clear()
-        items.addAll(newItems)
-        maxUsage = newItems.maxOfOrNull { it.usageTimeMillis } ?: 0L
+        val sorted = when (sortOrder) {
+            SortOrder.TIME -> newItems.sortedByDescending { it.usageTimeMillis }
+            SortOrder.POWER -> newItems.sortedByDescending { it.batteryPowerMah ?: 0.0 }
+            SortOrder.SPEED -> newItems.sortedByDescending { it.drainSpeed ?: 0.0 }
+        }
+        items.addAll(sorted)
+        maxUsage = items.maxOfOrNull { it.usageTimeMillis } ?: 0L
         notifyDataSetChanged()
     }
 
@@ -28,7 +39,7 @@ class AppUsageAdapter : RecyclerView.Adapter<AppUsageAdapter.ViewHolder>() {
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(items[position], maxUsage)
+        holder.bind(items[position], maxUsage, currentSortOrder)
     }
 
     override fun getItemCount() = items.size
@@ -39,15 +50,18 @@ class AppUsageAdapter : RecyclerView.Adapter<AppUsageAdapter.ViewHolder>() {
         private val pbUsage: ProgressBar = itemView.findViewById(R.id.pbUsage)
         private val tvUsageDetail: TextView = itemView.findViewById(R.id.tvUsageDetail)
 
-        fun bind(item: AppUsageData, maxUsage: Long) {
+        fun bind(item: AppUsageData, maxUsage: Long, sortOrder: SortOrder) {
             tvAppName.text = item.name ?: item.packageName
             
-            val minutes = item.usageTimeMillis / 1000 / 60
-            if (minutes < 1) {
-                 tvUsageDetail.text = "< 1 min"
-            } else {
-                 tvUsageDetail.text = "$minutes min"
+            val detailText = when (sortOrder) {
+                SortOrder.TIME -> {
+                    val minutes = item.usageTimeMillis / 1000 / 60
+                    if (minutes < 1) "< 1 min" else "$minutes min"
+                }
+                SortOrder.POWER -> String.format("%.1f mAh", item.batteryPowerMah ?: 0.0)
+                SortOrder.SPEED -> String.format("%.1f mAh/h", item.drainSpeed ?: 0.0)
             }
+            tvUsageDetail.text = detailText
             
             if (maxUsage > 0) {
                 pbUsage.max = 100

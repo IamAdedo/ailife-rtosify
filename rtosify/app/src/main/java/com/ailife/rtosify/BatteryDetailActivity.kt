@@ -35,6 +35,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
     private lateinit var progressBattery: ProgressBar
     private lateinit var tvCurrentNow: TextView
     private lateinit var tvVoltage: TextView
+    private lateinit var tvRemainingTime: TextView
     private lateinit var chartBattery: LineChart
     private lateinit var switchNotifyFull: SwitchMaterial
     private lateinit var switchNotifyLow: SwitchMaterial
@@ -42,6 +43,10 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
     private lateinit var seekbarLowThreshold: SeekBar
     private lateinit var tvUsageEmpty: TextView
     private lateinit var rvAppUsage: RecyclerView
+    private lateinit var btnSortUsage: TextView
+
+    private var currentBatteryData: BatteryDetailData? = null
+    private val timeHistory = mutableListOf<Long>()
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -51,7 +56,8 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
             isBound = true
             
             // Initial Request
-            bluetoothService?.sendMessage(ProtocolHelper.createRequestBatteryDetail())
+            bluetoothService?.sendMessage(ProtocolHelper.createRequestBatteryStatic())
+            startPolling()
             
             loadSettings()
         }
@@ -87,8 +93,33 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         super.onResume()
         if (isBound) {
              bluetoothService?.callback = this
-             bluetoothService?.sendMessage(ProtocolHelper.createRequestBatteryDetail())
+             bluetoothService?.sendMessage(ProtocolHelper.createRequestBatteryStatic())
+             startPolling()
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        stopPolling()
+    }
+
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val pollingRunnable = object : Runnable {
+        override fun run() {
+            if (isBound && bluetoothService?.isConnected == true) {
+                bluetoothService?.sendMessage(ProtocolHelper.createRequestBatteryLive())
+            }
+            mainHandler.postDelayed(this, 2000)
+        }
+    }
+
+    private fun startPolling() {
+        stopPolling()
+        mainHandler.post(pollingRunnable)
+    }
+
+    private fun stopPolling() {
+        mainHandler.removeCallbacks(pollingRunnable)
     }
 
     private fun initViews() {
@@ -99,7 +130,11 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         progressBattery = findViewById(R.id.progressBattery)
         tvCurrentNow = findViewById(R.id.tvCurrentNow)
         tvVoltage = findViewById(R.id.tvVoltage)
+        tvRemainingTime = findViewById(R.id.tvRemainingTime)
         chartBattery = findViewById(R.id.chartBattery)
+        btnSortUsage = findViewById(R.id.btnSortUsage)
+        btnSortUsage.setOnClickListener { showSortMenu() }
+        
         switchNotifyFull = findViewById(R.id.switchNotifyFull)
         switchNotifyLow = findViewById(R.id.switchNotifyLow)
         tvLowThresholdTitle = findViewById(R.id.tvLowThresholdTitle)
@@ -114,11 +149,36 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         // Chart Styling
         chartBattery.description.isEnabled = false
         chartBattery.setTouchEnabled(false)
-        chartBattery.axisRight.isEnabled = false
-        chartBattery.xAxis.isEnabled = false
-        chartBattery.legend.isEnabled = false
         chartBattery.setNoDataText("No battery history available")
         chartBattery.setNoDataTextColor(android.graphics.Color.GRAY)
+
+        val textColor = android.graphics.Color.WHITE
+        val gridColor = android.graphics.Color.parseColor("#333333")
+
+        chartBattery.axisLeft.textColor = textColor
+        chartBattery.axisLeft.gridColor = gridColor
+        chartBattery.axisRight.isEnabled = false
+        
+        chartBattery.xAxis.isEnabled = true
+        chartBattery.xAxis.textColor = textColor
+        chartBattery.xAxis.gridColor = gridColor
+        chartBattery.xAxis.position = com.github.mikephil.charting.components.XAxis.XAxisPosition.BOTTOM
+        chartBattery.xAxis.valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+            override fun getFormattedValue(value: Float): String {
+                // Show -24h, -12h, Now for example
+                val size = currentBatteryData?.history?.size ?: 0
+                if (size == 0) return ""
+                val percent = value / (size - 1)
+                return when {
+                    percent < 0.1f -> "-24h"
+                    percent > 0.45f && percent < 0.55f -> "-12h"
+                    percent > 0.9f -> "Now"
+                    else -> ""
+                }
+            }
+        }
+        
+        chartBattery.legend.isEnabled = false
     }
 
     private fun setupListeners() {
@@ -178,9 +238,17 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
 
     // ServiceCallback
     override fun onBatteryDetailReceived(data: BatteryDetailData) {
+        // Merge state: keep old appUsage/history if new data doesn't have it
+        val mergedData = if (data.appUsage.isEmpty() && currentBatteryData != null) {
+            data.copy(appUsage = currentBatteryData!!.appUsage, history = currentBatteryData!!.history)
+        } else {
+            data
+        }
+        currentBatteryData = mergedData
+
         runOnUiThread {
-            tvBatteryPercentLarge.text = "${data.batteryLevel}%"
-            progressBattery.progress = data.batteryLevel
+            tvBatteryPercentLarge.text = "${mergedData.batteryLevel}%"
+            progressBattery.progress = mergedData.batteryLevel
             
             val statusText = when {
                 data.isCharging -> "Charging"
@@ -189,18 +257,88 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
             }
             tvChargingStatus.text = statusText
 
-            tvCurrentNow.text = "${data.currentNow} mA"
-            tvVoltage.text = "${data.voltage} mV"
+            mergedData.remainingTimeMillis?.let { millis ->
+                timeHistory.add(millis)
+                if (timeHistory.size > 10) timeHistory.removeAt(0)
+                
+                if (timeHistory.size < 10) {
+                    tvRemainingTime.text = "Calculating..."
+                } else {
+                    val avgMillis = timeHistory.average().toLong()
+                    val hours = avgMillis / (1000 * 60 * 60)
+                    val mins = (avgMillis / (1000 * 60)) % 60
+                    val timeStr = if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
+                    tvRemainingTime.text = if (mergedData.isCharging) "$timeStr until full" else "$timeStr remaining"
+                }
+                tvRemainingTime.visibility = View.VISIBLE
+            } ?: run {
+                timeHistory.clear()
+                tvRemainingTime.visibility = View.GONE
+            }
 
-            if (data.appUsage.isNotEmpty()) {
-                appUsageAdapter.updateData(data.appUsage)
+            // Units and values
+            // Detection heuristic: if abs(current) > 10000, it's almost certainly microamperes.
+            val currentVal = mergedData.currentNow
+            val displayCurrent = if (Math.abs(currentVal) > 5000) {
+                currentVal / 1000.0
+            } else {
+                currentVal.toDouble()
+            }
+            tvCurrentNow.text = String.format("%.1f mA", displayCurrent)
+            tvVoltage.text = "${mergedData.voltage} mV"
+
+            if (mergedData.appUsage.isNotEmpty()) {
+                appUsageAdapter.updateData(mergedData.appUsage)
                 rvAppUsage.visibility = View.VISIBLE
                 tvUsageEmpty.visibility = View.GONE
-            } else {
-                rvAppUsage.visibility = View.GONE
-                tvUsageEmpty.visibility = View.VISIBLE
+            }
+
+            if (mergedData.history.isNotEmpty()) {
+                updateChart(mergedData.history)
             }
         }
+    }
+
+    private fun showSortMenu() {
+        val popup = android.widget.PopupMenu(this, btnSortUsage)
+        popup.menu.add("Usage Time")
+        popup.menu.add("Battery Used (mAh)")
+        popup.menu.add("Drain Speed (mAh/h)")
+        
+        popup.setOnMenuItemClickListener { item ->
+            val order = when (item.title) {
+                "Usage Time" -> AppUsageAdapter.SortOrder.TIME
+                "Battery Used (mAh)" -> AppUsageAdapter.SortOrder.POWER
+                "Drain Speed (mAh/h)" -> AppUsageAdapter.SortOrder.SPEED
+                else -> AppUsageAdapter.SortOrder.TIME
+            }
+            btnSortUsage.text = "Sort by ${item.title}"
+            currentBatteryData?.appUsage?.let {
+                appUsageAdapter.updateData(it, order)
+            }
+            true
+        }
+        popup.show()
+    }
+
+    private fun updateChart(history: List<BatteryHistoryPoint>) {
+        val entries = history.mapIndexed { index, point ->
+            Entry(index.toFloat(), point.level.toFloat())
+        }
+
+        val dataSet = LineDataSet(entries, "Battery Level")
+        dataSet.color = android.graphics.Color.parseColor("#00E676")
+        dataSet.setDrawCircles(false)
+        dataSet.setDrawValues(true)
+        dataSet.valueTextColor = android.graphics.Color.WHITE
+        dataSet.lineWidth = 2f
+        dataSet.mode = LineDataSet.Mode.CUBIC_BEZIER
+        dataSet.setDrawFilled(true)
+        dataSet.fillColor = android.graphics.Color.parseColor("#00E676")
+        dataSet.fillAlpha = 50
+
+        chartBattery.data = LineData(dataSet)
+        chartBattery.invalidate()
     }
     
     // Stub other callbacks

@@ -100,6 +100,7 @@ class BluetoothService : Service() {
     private var statusUpdateJob: Job? = null
     private lateinit var healthDataCollector: HealthDataCollector
     private var liveMeasurementJob: Job? = null
+    private var batteryHistoryJob: Job? = null
 
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothSocket: BluetoothSocket? = null
@@ -355,6 +356,9 @@ class BluetoothService : Service() {
         
         // Initialize PAN manager
         panManager = BluetoothPanManager(this)
+
+        // Start battery history tracking
+        startBatteryHistoryTracking()
 
         Log.d(TAG, "BluetoothService created")
 
@@ -858,7 +862,8 @@ class BluetoothService : Service() {
                     MessageType.UNINSTALL_APP -> handleUninstallApp(message)
                     MessageType.INCOMING_CALL -> handleIncomingCall(message)
                     MessageType.CALL_STATE_CHANGED -> handleCallStateChanged(message)
-                    MessageType.REQUEST_BATTERY_DETAIL -> handleRequestBatteryDetail()
+                    MessageType.REQUEST_BATTERY_LIVE -> handleRequestBatteryLive()
+                    MessageType.REQUEST_BATTERY_STATIC -> handleRequestBatteryStatic()
                     MessageType.UPDATE_BATTERY_SETTINGS -> handleUpdateBatterySettings(message)
                     MessageType.CLIPBOARD_SYNC -> handleClipboardReceived(message)
                     MessageType.ENABLE_BT_INTERNET -> handleEnableBluetoothInternet(message)
@@ -3922,20 +3927,51 @@ class BluetoothService : Service() {
         }
     }
 
-    private fun handleRequestBatteryDetail() {
-        Log.d(TAG, "Handling battery detail request")
+    private fun startBatteryHistoryTracking() {
+        batteryHistoryJob?.cancel()
+        batteryHistoryJob = serviceScope.launch(Dispatchers.IO) {
+            while (isActive) {
+                try {
+                    saveBatteryHistoryPoint()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error saving battery history: ${e.message}")
+                }
+                delay(30 * 60 * 1000) // 30 minutes
+            }
+        }
+    }
+
+    private fun saveBatteryHistoryPoint() {
+        val bm = getSystemService(BATTERY_SERVICE) as BatteryManager
+        val level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        val current = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW).toInt()
+        val batteryStatus: Intent? = IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
+            registerReceiver(null, ifilter)
+        }
+        val voltage = batteryStatus?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) ?: 0
+        
+        val newPoint = BatteryHistoryPoint(System.currentTimeMillis(), level, voltage, current)
+        
+        val currentHistoryJson = prefs.getString("battery_history", "[]")
+        val type = object : TypeToken<MutableList<BatteryHistoryPoint>>() {}.type
+        val history: MutableList<BatteryHistoryPoint> = Gson().fromJson(currentHistoryJson, type) ?: mutableListOf()
+        
+        history.add(newPoint)
+        
+        // Keep last 48 points (24 hours)
+        if (history.size > 48) {
+            history.removeAt(0)
+        }
+        
+        prefs.edit().putString("battery_history", Gson().toJson(history)).apply()
+    }
+
+    private fun handleRequestBatteryLive() {
+        Log.d(TAG, "Handling battery live request")
         serviceScope.launch(Dispatchers.IO) {
             try {
                 val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
                 
-                // Get standard properties
-                val capacity = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY).toInt()
-                val chargeCounter = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER).toInt()
-                val currentNow = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW).toInt()
-                val currentAverage = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE).toInt()
-                val energyCounter = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER)
-                
-                // Get status and voltage from sticky intent
                 val batteryStatus: Intent? = IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
                     registerReceiver(null, ifilter)
                 }
@@ -3947,26 +3983,86 @@ class BluetoothService : Service() {
                 val status = batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
                 val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
                 
+                val currentNow = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW).toInt()
                 val voltage = batteryStatus?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) ?: 0
                 
-                // Collect App Usage
-                val appUsage = collectAppUsage()
-                
+                // Estimation
+                var remainingTimeMillis: Long? = null
+                if (isCharging) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        val chargeTime = bm.computeChargeTimeRemaining()
+                        if (chargeTime > 0) remainingTimeMillis = chargeTime
+                    }
+                } else {
+                    // Current is usually negative when discharging
+                    val absCurrent = if (currentNow < 0) -currentNow.toDouble() else 0.0
+                    // Heuristic: If it's > 5000, it's likely microamperes. If < 5000, it might be milliamperes.
+                    val dischargeCurrentMa = if (absCurrent > 5000) absCurrent / 1000.0 else absCurrent
+                    
+                    if (dischargeCurrentMa > 1.0) { // More than 1mA discharge
+                        var chargeCounterMah = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER).toDouble() / 1000.0
+                        
+                        // Fallback if chargeCounter is unavailable (returns 0 or very small)
+                        if (chargeCounterMah <= 0) {
+                            // Assume a typical watch capacity of 300mAh for estimation if unknown
+                            val totalCapacityMah = 300.0 
+                            chargeCounterMah = (batteryPct / 100.0) * totalCapacityMah
+                        }
+                        
+                        val hoursRemaining = chargeCounterMah / dischargeCurrentMa
+                        if (hoursRemaining in 0.1..500.0) {
+                            remainingTimeMillis = (hoursRemaining * 3600 * 1000).toLong()
+                        }
+                    }
+                }
+
                 val detail = BatteryDetailData(
                     batteryLevel = batteryPct,
                     isCharging = isCharging,
                     currentNow = currentNow,
-                    currentAverage = currentAverage,
+                    currentAverage = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE).toInt(),
                     voltage = voltage,
-                    chargeCounter = chargeCounter,
-                    energyCounter = energyCounter,
+                    chargeCounter = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER).toInt(),
+                    energyCounter = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER),
                     capacity = 0.0,
-                    appUsage = appUsage
+                    remainingTimeMillis = remainingTimeMillis
                 )
                 
                 sendMessage(ProtocolHelper.createBatteryDetailUpdate(detail))
             } catch (e: Exception) {
-                Log.e(TAG, "Error collecting battery detail: ${e.message}")
+                Log.e(TAG, "Error collecting live battery data: ${e.message}")
+            }
+        }
+    }
+
+    private fun handleRequestBatteryStatic() {
+        Log.d(TAG, "Handling battery static request")
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                // Collect App Usage
+                val appUsage = collectAppUsage()
+                
+                // Get History
+                val currentHistoryJson = prefs.getString("battery_history", "[]")
+                val type = object : TypeToken<List<BatteryHistoryPoint>>() {}.type
+                val history: List<BatteryHistoryPoint> = Gson().fromJson(currentHistoryJson, type) ?: emptyList()
+
+                val detail = BatteryDetailData(
+                    batteryLevel = 0,
+                    isCharging = false,
+                    currentNow = 0,
+                    currentAverage = 0,
+                    voltage = 0,
+                    chargeCounter = 0,
+                    energyCounter = 0L,
+                    capacity = 0.0,
+                    appUsage = appUsage,
+                    history = history
+                )
+                
+                sendMessage(ProtocolHelper.createBatteryDetailUpdate(detail))
+            } catch (e: Exception) {
+                Log.e(TAG, "Error collecting static battery data: ${e.message}")
             }
         }
     }
@@ -3985,6 +4081,14 @@ class BluetoothService : Service() {
         
         if (usageStats.isNullOrEmpty()) return emptyList()
         
+        val totalForegroundTime = usageStats.sumOf { it.totalTimeInForeground }
+        if (totalForegroundTime <= 0) return emptyList()
+
+        // Estimate total energy spent in last 24h
+        // Nominal capacity 300mAh. Let's assume 50% drop in 24h is typical.
+        // So total 150mAh spent. This is just for visualization and sorting.
+        val estTotalSpentMah = 150.0 
+
         return usageStats.asSequence()
             .filter { it.totalTimeInForeground > 0 }
             .sortedByDescending { it.totalTimeInForeground }
@@ -4002,11 +4106,18 @@ class BluetoothService : Service() {
                     iconBase64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
                 } catch (_: Exception) {}
                 
+                val usageRatio = stats.totalTimeInForeground.toDouble() / totalForegroundTime
+                val appPowerMah = usageRatio * estTotalSpentMah
+                val hoursForeground = stats.totalTimeInForeground / (1000.0 * 3600.0)
+                val drainSpeed = if (hoursForeground > 0) appPowerMah / hoursForeground else 0.0
+
                 AppUsageData(
                     packageName = stats.packageName,
                     name = name,
                     usageTimeMillis = stats.totalTimeInForeground,
-                    icon = iconBase64
+                    icon = iconBase64,
+                    batteryPowerMah = appPowerMah,
+                    drainSpeed = drainSpeed
                 )
             }.toList()
     }
