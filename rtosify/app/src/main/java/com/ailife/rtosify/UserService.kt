@@ -1,4 +1,4 @@
-package com.ailife.rtosifycompanion
+package com.ailife.rtosify
 
 import android.util.Log
 import android.os.ParcelFileDescriptor
@@ -27,51 +27,6 @@ class UserService : IUserService.Stub() {
             Log.w(TAG, "ClipboardManager not available on this device")
         } else {
             Log.d(TAG, "ClipboardManager initialized successfully")
-        }
-    }
-
-    override fun getPrimaryClipText(): String? {
-        Log.d(TAG, "getPrimaryClipText called")
-        
-        if (clipboardManager == null) {
-            Log.e(TAG, "ClipboardManager not available")
-            return null
-        }
-        
-        return try {
-            val text = clipboardManager.getText()?.toString()
-            Log.i(TAG, "Successfully read clipboard: $text")
-            text
-        } catch (e: Exception) {
-            Log.e(TAG, "Error reading clipboard: ${e.message}")
-            e.printStackTrace()
-            null
-        }
-    }
-    
-    override fun setPrimaryClipText(text: String?) {
-        Log.d(TAG, "setPrimaryClipText called with: $text")
-        
-        if (clipboardManager == null) {
-            Log.e(TAG, "ClipboardManager not available")
-            return
-        }
-        
-        if (text == null) {
-            Log.w(TAG, "Attempted to set null clipboard text")
-            return
-        }
-        
-        try {
-            val success = clipboardManager.setText(text)
-            if (success) {
-                Log.i(TAG, "Successfully set clipboard text")
-            } else {
-                Log.w(TAG, "Failed to set clipboard text")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error setting clipboard: ${e.message}")
-            e.printStackTrace()
         }
     }
 
@@ -451,5 +406,50 @@ class UserService : IUserService.Stub() {
         // the network stack even with dynamic proxy. This is a limitation of the Android platform.
         // Users must manually enable Bluetooth tethering via: Settings > Network > Hotspot & tethering
         Log.w(TAG, "Auto Bluetooth PAN disabled - must be enabled manually in system settings")
+    }
+
+    override fun getPrimaryClipText(): String? {
+        Log.d(TAG, "getPrimaryClipText called")
+        
+        if (clipboardManager == null) {
+            Log.e(TAG, "ClipboardManager not available")
+            return null
+        }
+        
+        return try {
+            val text = clipboardManager.getText()?.toString()
+            Log.i(TAG, "Successfully read clipboard: $text")
+            text
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading clipboard: ${e.message}")
+            e.printStackTrace()
+            null
+        }
+    }
+    
+    override fun setPrimaryClipText(text: String?) {
+        Log.d(TAG, "setPrimaryClipText called with: $text")
+        
+        if (clipboardManager == null) {
+            Log.e(TAG, "ClipboardManager not available")
+            return
+        }
+        
+        if (text == null) {
+            Log.w(TAG, "Attempted to set null clipboard text")
+            return
+        }
+        
+        try {
+            val success = clipboardManager.setText(text)
+            if (success) {
+                Log.i(TAG, "Successfully set clipboard text")
+            } else {
+                Log.w(TAG, "Failed to set clipboard text")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting clipboard: ${e.message}")
+            e.printStackTrace()
+        }
     }
 }

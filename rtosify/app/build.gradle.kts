@@ -8,6 +8,8 @@ android {
     compileSdk = 36
     buildFeatures {
         buildConfig = true
+        viewBinding = true
+        aidl = true
     }
     defaultConfig {
         applicationId = "com.ailife.rtosify"

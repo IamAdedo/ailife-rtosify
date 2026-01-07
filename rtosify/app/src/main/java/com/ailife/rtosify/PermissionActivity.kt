@@ -181,7 +181,7 @@ class PermissionActivity : AppCompatActivity() {
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {
-        val cn = ComponentName(this, ClipboardAccessibilityService::class.java)
+        val cn = ComponentName(this, RtosifyAccessibilityService::class.java)
         val flat = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
         return flat != null && flat.contains(cn.flattenToString())
     }

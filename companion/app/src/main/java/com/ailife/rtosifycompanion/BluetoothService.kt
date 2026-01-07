@@ -114,7 +114,12 @@ class BluetoothService : Service() {
 
     private var lastValidWifiSsid: String = ""
 
-    // Clipboard sync managed via ClipboardAccessibilityService
+    // Clipboard monitoring
+    private var clipboardManager: android.content.ClipboardManager? = null
+    private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
+    private var lastClipboardText: String? = null
+    private val clipboardPollingHandler = Handler(Looper.getMainLooper())
+    private var clipboardPollingRunnable: Runnable? = null
 
     @Volatile
     private var lastMessageTime: Long = 0L
@@ -245,16 +250,7 @@ class BluetoothService : Service() {
         }
     }
 
-    private val clipboardBroadcastReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == ClipboardAccessibilityService.ACTION_CLIPBOARD_CHANGED) {
-                val text = intent.getStringExtra(ClipboardAccessibilityService.EXTRA_TEXT) ?: return
-                if (isConnected) {
-                    sendMessage(ProtocolHelper.createClipboardSync(text))
-                }
-            }
-        }
-    }
+
 
     private val wifiStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -336,12 +332,12 @@ class BluetoothService : Service() {
             registerReceiver(internalReceiver, filterInternal, RECEIVER_NOT_EXPORTED)
             registerReceiver(watchDismissReceiver, filterWatch, RECEIVER_NOT_EXPORTED)
             registerReceiver(wifiStateReceiver, filterWifi, RECEIVER_NOT_EXPORTED)
-            registerReceiver(clipboardBroadcastReceiver, IntentFilter(ClipboardAccessibilityService.ACTION_CLIPBOARD_CHANGED), RECEIVER_NOT_EXPORTED)
+
         } else {
             registerReceiver(internalReceiver, filterInternal)
             registerReceiver(watchDismissReceiver, filterWatch)
             registerReceiver(wifiStateReceiver, filterWifi)
-            registerReceiver(clipboardBroadcastReceiver, IntentFilter(ClipboardAccessibilityService.ACTION_CLIPBOARD_CHANGED))
+
         }
 
         // Initialize health data collector
@@ -953,30 +949,116 @@ class BluetoothService : Service() {
 
     // Clipboard sync functions
     private fun startClipboardMonitoring() {
-        Log.d(TAG, "Requesting startClipboardMonitoring from Accessibility Service via Broadcast")
-        val intent = Intent(ClipboardAccessibilityService.ACTION_START_MONITORING).apply {
-            setPackage(packageName)
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+            // Android 9 and below: Use standard ClipboardManager listener only
+            startStandardClipboardListener()
+            Log.d(TAG, "Clipboard monitoring started (Android 9- mode - listener only)")
+        } else {
+            // Android 10+: Shizuku UserService ONLY
+            if (userService != null) {
+                startClipboardPolling(3000)
+                Log.d(TAG, "Clipboard monitoring started (Shizuku mode)")
+            } else {
+                Log.w(TAG, "Shizuku UserService not available, clipboard sync disabled on Android 10+")
+            }
         }
-        sendBroadcast(intent)
     }
 
     private fun stopClipboardMonitoring() {
-        Log.d(TAG, "Requesting stopClipboardMonitoring from Accessibility Service via Broadcast")
-        val intent = Intent(ClipboardAccessibilityService.ACTION_STOP_MONITORING).apply {
-            setPackage(packageName)
+        Log.d(TAG, "Stopping clipboard monitoring")
+        
+        // Stop listener (Android 9-)
+        clipboardListener?.let {
+            clipboardManager?.removePrimaryClipChangedListener(it)
         }
-        sendBroadcast(intent)
+        clipboardListener = null
+        
+        // Stop polling
+        clipboardPollingRunnable?.let {
+            clipboardPollingHandler.removeCallbacks(it)
+        }
+        clipboardPollingRunnable = null
+    }
+    
+    private fun startStandardClipboardListener() {
+        if (clipboardManager == null) {
+            clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+        }
+        
+        clipboardListener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
+            val clip = clipboardManager?.primaryClip
+            if (clip != null && clip.itemCount > 0) {
+                val text = clip.getItemAt(0).text?.toString()
+                if (text != null && text != lastClipboardText) {
+                    lastClipboardText = text
+                    Log.d(TAG, "Clipboard changed (listener): $text")
+                    if (isConnected) {
+                        sendMessage(ProtocolHelper.createClipboardSync(text))
+                    }
+                }
+            }
+        }
+        clipboardManager?.addPrimaryClipChangedListener(clipboardListener)
+    }
+    
+    private fun startClipboardPolling(intervalMs: Long) {
+        clipboardPollingRunnable = object : Runnable {
+            override fun run() {
+                checkClipboard()
+                clipboardPollingHandler.postDelayed(this, intervalMs)
+            }
+        }
+        clipboardPollingHandler.postDelayed(clipboardPollingRunnable!!, intervalMs)
+    }
+    
+    private fun checkClipboard() {
+        val text = if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+            // Android 9-: Use standard ClipboardManager
+            val clip = clipboardManager?.primaryClip
+            if (clip != null && clip.itemCount > 0) {
+                clip.getItemAt(0).text?.toString()
+            } else null
+        } else {
+            // Android 10+: Use Shizuku UserService
+            try {
+                userService?.primaryClipText
+            } catch (e: Exception) {
+                Log.e(TAG, "Error reading clipboard via Shizuku: ${e.message}")
+                null
+            }
+        }
+        
+        if (text != null && text != lastClipboardText) {
+            lastClipboardText = text
+            Log.d(TAG, "Clipboard changed (polling): $text")
+            if (isConnected) {
+                sendMessage(ProtocolHelper.createClipboardSync(text))
+            }
+        }
     }
 
     private suspend fun handleClipboardReceived(message: ProtocolMessage) {
         val text = ProtocolHelper.extractStringField(message, "text") ?: return
+        
+        if (text == lastClipboardText) return
+        lastClipboardText = text
+        
         withContext(Dispatchers.Main) {
-            Log.d(TAG, "Requesting setClipboardText from Accessibility Service via Broadcast")
-            val intent = Intent(ClipboardAccessibilityService.ACTION_SET_CLIPBOARD).apply {
-                setPackage(packageName)
-                putExtra(ClipboardAccessibilityService.EXTRA_TEXT, text)
+            Log.d(TAG, "Setting clipboard text: $text")
+            
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                // Android 9-: Use standard ClipboardManager
+                val clip = android.content.ClipData.newPlainText("RTOSify", text)
+                clipboardManager?.setPrimaryClip(clip)
+            } else {
+                // Android 10+: Use Shizuku UserService
+                try {
+                    userService?.setPrimaryClipText(text)
+                    Log.d(TAG, "Clipboard set via Shizuku")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error setting clipboard via Shizuku: ${e.message}")
+                }
             }
-            sendBroadcast(intent)
         }
     }
 
@@ -1041,9 +1123,9 @@ class BluetoothService : Service() {
             if (enabled) {
                 Log.d(TAG, "🔵 Bluetooth Internet Access enable requested via accessibility...")
                 currentDevice?.let { device ->
-                    ClipboardAccessibilityService.enableBluetoothTethering(device.name ?: device.address)
+                    RtosifyAccessibilityService.enableBluetoothTethering(device.name ?: device.address)
                 } ?: run {
-                    ClipboardAccessibilityService.enableBluetoothTethering(currentDeviceName)
+                    RtosifyAccessibilityService.enableBluetoothTethering(currentDeviceName)
                 }
             } else {
                 Log.d(TAG, "🔵 Bluetooth Internet Access disable not implemented (disconnect BT to disable)")
@@ -3612,7 +3694,7 @@ class BluetoothService : Service() {
         super.onDestroy()
         try { unregisterReceiver(internalReceiver) } catch(_:Exception){}
         try { unregisterReceiver(watchDismissReceiver) } catch(_:Exception){}
-        try { unregisterReceiver(clipboardBroadcastReceiver) } catch(_:Exception){}
+
         try { unregisterReceiver(wifiStateReceiver) } catch(_:Exception){}
         mainHandler.removeCallbacksAndMessages(null)
         serviceScope.cancel()

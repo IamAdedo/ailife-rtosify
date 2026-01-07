@@ -1,4 +1,4 @@
-package com.ailife.rtosifycompanion;
+package com.ailife.rtosify;
 import android.os.ParcelFileDescriptor;
 
 interface IUserService {

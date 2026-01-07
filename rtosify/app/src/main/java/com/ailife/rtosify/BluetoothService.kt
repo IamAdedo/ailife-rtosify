@@ -58,6 +58,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 import android.telephony.TelephonyManager
 import android.telecom.TelecomManager
+import android.content.ServiceConnection
+import android.os.ParcelFileDescriptor
+import rikka.shizuku.Shizuku
+import android.content.ClipboardManager
+import android.content.ClipData
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -88,7 +93,39 @@ class BluetoothService : Service() {
 
     private var lastValidWifiSsid: String = ""
 
-    // Clipboard sync managed via ClipboardAccessibilityService
+    // Clipboard monitoring
+    private var clipboardManager: android.content.ClipboardManager? = null
+    private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
+    private var lastClipboardText: String? = null
+    private val clipboardPollingHandler = Handler(Looper.getMainLooper())
+    private var clipboardPollingRunnable: Runnable? = null
+    
+    // Shizuku UserService for Android 10+ clipboard access
+    private var userServiceConnection: Shizuku.UserServiceArgs? = null
+    private var userService: IUserService? = null
+    private val shizukuLock = Any()
+    
+    private val userServiceArgs by lazy {
+        Shizuku.UserServiceArgs(ComponentName(BuildConfig.APPLICATION_ID, UserService::class.java.name))
+            .daemon(false)
+            .processNameSuffix("user_service")
+            .debuggable(BuildConfig.DEBUG)
+            .version(1)
+    }
+
+    private val userServiceConn = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+            if (binder != null && binder.pingBinder()) {
+                userService = IUserService.Stub.asInterface(binder)
+                Log.i(TAG, "UserService connected successfully")
+            }
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            userService = null
+            Log.w(TAG, "UserService disconnected")
+        }
+    }
 
     @Volatile
     private var lastMessageTime: Long = 0L
@@ -262,16 +299,7 @@ class BluetoothService : Service() {
         }
     }
 
-    private val clipboardBroadcastReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == ClipboardAccessibilityService.ACTION_CLIPBOARD_CHANGED) {
-                val text = intent.getStringExtra(ClipboardAccessibilityService.EXTRA_TEXT) ?: return
-                if (isConnected) {
-                    sendMessage(ProtocolHelper.createClipboardSync(text))
-                }
-            }
-        }
-    }
+
 
     private val watchDismissReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -311,17 +339,73 @@ class BluetoothService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(internalReceiver, filterInternal, RECEIVER_NOT_EXPORTED)
             registerReceiver(watchDismissReceiver, filterWatch, RECEIVER_NOT_EXPORTED)
-            registerReceiver(clipboardBroadcastReceiver, IntentFilter(ClipboardAccessibilityService.ACTION_CLIPBOARD_CHANGED), RECEIVER_NOT_EXPORTED)
+
         } else {
             registerReceiver(internalReceiver, filterInternal)
             registerReceiver(watchDismissReceiver, filterWatch)
-            registerReceiver(clipboardBroadcastReceiver, IntentFilter(ClipboardAccessibilityService.ACTION_CLIPBOARD_CHANGED))
+
         }
 
         val filterPhone = IntentFilter(TelephonyManager.ACTION_PHONE_STATE_CHANGED)
         registerReceiver(phoneStateReceiver, filterPhone)
 
+        // Bind to Shizuku UserService if available (for Android 10+ clipboard)
+        bindUserServiceIfNeeded()
+
         if (DEBUG_NOTIFICATIONS) Log.d(TAG, "onCreate: Service created")
+    }
+    
+    private fun bindUserServiceIfNeeded() {
+        try {
+            if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+                Log.i(TAG, "✅ Binding to Shizuku UserService")
+                Shizuku.bindUserService(userServiceArgs, userServiceConn)
+                userServiceConnection = userServiceArgs
+            } else {
+                Log.w(TAG, "❌ Shizuku not available or permission not granted")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Failed to bind UserService: ${e.message}")
+            e.printStackTrace()
+        }
+    }
+    
+    private suspend fun ensureUserServiceBound() {
+        if (userService == null) {
+            synchronized(shizukuLock) {
+                if (userService == null) {
+                    Log.d(TAG, "UserService is null, attempting to bind...")
+                    
+                    try {
+                        if (!Shizuku.pingBinder()) {
+                            Log.w(TAG, "Shizuku binder not available")
+                            return
+                        }
+                        if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+                            Log.w(TAG, "Shizuku permission not granted")
+                            return
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error checking Shizuku availability: ${e.message}")
+                        return
+                    }
+                    
+                    bindUserServiceIfNeeded()
+                }
+            }
+
+            val maxWaitTime = 3000L
+            val startTime = System.currentTimeMillis()
+            while (userService == null && (System.currentTimeMillis() - startTime) < maxWaitTime) {
+                delay(100)
+            }
+            
+            if (userService != null) {
+                Log.i(TAG, "✅ UserService bound successfully after ${System.currentTimeMillis() - startTime}ms")
+            } else {
+                Log.w(TAG, "❌ UserService binding timed out after ${maxWaitTime}ms")
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -912,30 +996,115 @@ class BluetoothService : Service() {
 
     // Clipboard sync functions
     private fun startClipboardMonitoring() {
-        Log.d(TAG, "Requesting startClipboardMonitoring from Accessibility Service via Broadcast")
-        val intent = Intent(ClipboardAccessibilityService.ACTION_START_MONITORING).apply {
-            setPackage(packageName)
+        serviceScope.launch {
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                // Android 9-: Listener only (no polling needed)
+                withContext(Dispatchers.Main) {
+                    startStandardClipboardListener()
+                }
+                Log.d(TAG, "Clipboard monitoring started (Android 9- mode - listener only)")
+            } else {
+                // Android 10+: Shizuku UserService polling (3s)
+                ensureUserServiceBound()
+                
+                if (userService != null) {
+                    withContext(Dispatchers.Main) {
+                        startClipboardPolling(3000)
+                    }
+                    Log.d(TAG, "Clipboard monitoring started (Shizuku mode)")
+                } else {
+                    Log.w(TAG, "Shizuku UserService not available after waiting, clipboard sync disabled on Android 10+")
+                }
+            }
         }
-        sendBroadcast(intent)
     }
 
     private fun stopClipboardMonitoring() {
-        Log.d(TAG, "Requesting stopClipboardMonitoring from Accessibility Service via Broadcast")
-        val intent = Intent(ClipboardAccessibilityService.ACTION_STOP_MONITORING).apply {
-            setPackage(packageName)
+        Log.d(TAG, "Stopping clipboard monitoring")
+        
+        // Stop listener (Android 9-)
+        clipboardListener?.let {
+            clipboardManager?.removePrimaryClipChangedListener(it)
         }
-        sendBroadcast(intent)
+        clipboardListener = null
+        
+        // Stop polling
+        clipboardPollingRunnable?.let {
+            clipboardPollingHandler.removeCallbacks(it)
+        }
+        clipboardPollingRunnable = null
+    }
+    
+    private fun startStandardClipboardListener() {
+        if (clipboardManager == null) {
+            clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+        }
+        
+        clipboardListener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
+            val clip = clipboardManager?.primaryClip
+            if (clip != null && clip.itemCount > 0) {
+                val text = clip.getItemAt(0).text?.toString()
+                if (text != null && text != lastClipboardText) {
+                    lastClipboardText = text
+                    Log.d(TAG, "Clipboard changed (listener): $text")
+                    if (isConnected) {
+                        sendMessage(ProtocolHelper.createClipboardSync(text))
+                    }
+                }
+            }
+        }
+        clipboardManager?.addPrimaryClipChangedListener(clipboardListener)
+    }
+    
+    private fun startClipboardPolling(intervalMs: Long) {
+        clipboardPollingRunnable = object : Runnable {
+            override fun run() {
+                checkClipboard()
+                clipboardPollingHandler.postDelayed(this, intervalMs)
+            }
+        }
+        clipboardPollingHandler.postDelayed(clipboardPollingRunnable!!, intervalMs)
+    }
+    
+    private fun checkClipboard() {
+        val text = try {
+            userService?.primaryClipText
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading clipboard via Shizuku: ${e.message}")
+            null
+        }
+        
+        if (text != null && text != lastClipboardText) {
+            lastClipboardText = text
+            Log.d(TAG, "Clipboard changed (polling): $text")
+            if (isConnected) {
+                sendMessage(ProtocolHelper.createClipboardSync(text))
+            }
+        }
     }
 
     private suspend fun handleClipboardReceived(message: ProtocolMessage) {
         val text = ProtocolHelper.extractStringField(message, "text") ?: return
+        
+        if (text == lastClipboardText) return
+        lastClipboardText = text
+        
         withContext(Dispatchers.Main) {
-            Log.d(TAG, "Requesting setClipboardText from Accessibility Service via Broadcast")
-            val intent = Intent(ClipboardAccessibilityService.ACTION_SET_CLIPBOARD).apply {
-                setPackage(packageName)
-                putExtra(ClipboardAccessibilityService.EXTRA_TEXT, text)
+            Log.d(TAG, "Setting clipboard text: $text")
+            
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                // Android 9-: Use standard ClipboardManager
+                val clip = android.content.ClipData.newPlainText("RTOSify", text)
+                clipboardManager?.setPrimaryClip(clip)
+            } else {
+                // Android 10+: Use Shizuku UserService
+                try {
+                    userService?.setPrimaryClipText(text)
+                    Log.d(TAG, "Clipboard set via Shizuku")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error setting clipboard via Shizuku: ${e.message}")
+                }
             }
-            sendBroadcast(intent)
         }
     }
 
@@ -956,7 +1125,7 @@ class BluetoothService : Service() {
         if (prefs.getBoolean("auto_bt_tether_enabled", false)) {
             try {
                 // Use accessibility to enable tethering on phone
-                ClipboardAccessibilityService.enableBluetoothTethering()
+                RtosifyAccessibilityService.enableBluetoothTethering()
                 Log.d(TAG, "Auto BT Tether: Requested phone-side via accessibility")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to call phone accessibility for tethering: ${e.message}")
@@ -2083,9 +2252,20 @@ class BluetoothService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        
+        // Unbind Shizuku UserService
+        try {
+            if (userServiceConnection != null) {
+                Shizuku.unbindUserService(userServiceArgs, userServiceConn, true)
+                userServiceConnection = null
+            }
+            userService = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unbinding UserService: ${e.message}")
+        }
+        
         try { unregisterReceiver(internalReceiver) } catch(_:Exception){}
         try { unregisterReceiver(watchDismissReceiver) } catch(_:Exception){}
-        try { unregisterReceiver(clipboardBroadcastReceiver) } catch(_:Exception){}
         try { unregisterReceiver(phoneStateReceiver) } catch(_:Exception){}
         mainHandler.removeCallbacksAndMessages(null)
         serviceScope.cancel()
