@@ -3,9 +3,9 @@
     <!-- Background Ring -->
     <item>
         <shape
-            android:innerRadiusRatio="3.5"
+            android:innerRadiusRatio="2.5"
             android:shape="ring"
-            android:thicknessRatio="16.0"
+            android:thicknessRatio="18.0"
             android:useLevel="false">
             <solid android:color="#333333" />
         </shape>
@@ -18,9 +18,9 @@
             android:pivotY="50%"
             android:toDegrees="270">
             <shape
-                android:innerRadiusRatio="3.5"
+                android:innerRadiusRatio="2.5"
                 android:shape="ring"
-                android:thicknessRatio="16.0"
+                android:thicknessRatio="18.0"
                 android:useLevel="true">
                 <solid android:color="#00E676" />
                 <gradient

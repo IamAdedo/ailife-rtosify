@@ -44,6 +44,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
     private lateinit var tvUsageEmpty: TextView
     private lateinit var rvAppUsage: RecyclerView
     private lateinit var btnSortUsage: TextView
+    private var chartBaseTime = System.currentTimeMillis()
 
     private var currentBatteryData: BatteryDetailData? = null
     private val timeHistory = mutableListOf<Long>()
@@ -165,15 +166,16 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         chartBattery.xAxis.position = com.github.mikephil.charting.components.XAxis.XAxisPosition.BOTTOM
         chartBattery.xAxis.valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
             override fun getFormattedValue(value: Float): String {
-                // Show -24h, -12h, Now for example
-                val size = currentBatteryData?.history?.size ?: 0
-                if (size == 0) return ""
-                val percent = value / (size - 1)
-                return when {
-                    percent < 0.1f -> "-24h"
-                    percent > 0.45f && percent < 0.55f -> "-12h"
-                    percent > 0.9f -> "Now"
-                    else -> ""
+                // value is (timestamp - chartBaseTime)
+                val diffMillis = (chartBaseTime + value).toLong() - System.currentTimeMillis()
+                val diffHours = Math.abs(diffMillis) / (1000 * 3600)
+                
+                return if (Math.abs(diffMillis) < 5 * 60 * 1000) {
+                    "Now"
+                } else if (diffHours > 0 && diffHours % 6 == 0L) {
+                    "-${diffHours}h"
+                } else {
+                    ""
                 }
             }
         }
@@ -251,8 +253,8 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
             progressBattery.progress = mergedData.batteryLevel
             
             val statusText = when {
-                data.isCharging -> "Charging"
-                data.batteryLevel == 100 -> "Full"
+                mergedData.isCharging && mergedData.batteryLevel >= 100 -> "Full"
+                mergedData.isCharging -> "Charging"
                 else -> "Discharging"
             }
             tvChargingStatus.text = statusText
@@ -325,28 +327,33 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         if (history.isEmpty()) return
         
         val entries = mutableListOf<Entry>()
+        val now = System.currentTimeMillis()
+        chartBaseTime = now
         
-        // Add boundary point at start with same level as first data point
-        entries.add(Entry(0f, history.first().level.toFloat()))
+        // Use relative time to 'now' to keep values small and preserve precision
+        val sortedHistory = history.sortedBy { it.timestamp }
         
-        // Add actual data points
-        history.forEachIndexed { index, point ->
-            entries.add(Entry((index + 1).toFloat(), point.level.toFloat()))
+        sortedHistory.forEach { point ->
+            val relTime = (point.timestamp - chartBaseTime).toFloat()
+            entries.add(Entry(relTime, point.level.toFloat()))
         }
-        
-        // Add boundary point at end with same level as last data point
-        entries.add(Entry((history.size + 1).toFloat(), history.last().level.toFloat()))
 
         val dataSet = LineDataSet(entries, "Battery Level")
         dataSet.color = android.graphics.Color.parseColor("#00E676")
         dataSet.setDrawCircles(false)
         dataSet.setDrawValues(false)
-        dataSet.valueTextColor = android.graphics.Color.WHITE
         dataSet.lineWidth = 2f
         dataSet.mode = LineDataSet.Mode.CUBIC_BEZIER
         dataSet.setDrawFilled(true)
         dataSet.fillColor = android.graphics.Color.parseColor("#00E676")
         dataSet.fillAlpha = 50
+
+        // Configure Axis
+        chartBattery.xAxis.axisMinimum = -(24 * 3600 * 1000).toFloat()
+        chartBattery.xAxis.axisMaximum = 0f
+        chartBattery.xAxis.labelCount = 5
+        chartBattery.axisLeft.axisMinimum = 0f
+        chartBattery.axisLeft.axisMaximum = 105f
 
         chartBattery.data = LineData(dataSet)
         chartBattery.invalidate()
