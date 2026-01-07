@@ -114,10 +114,7 @@ class BluetoothService : Service() {
 
     private var lastValidWifiSsid: String = ""
 
-    // Clipboard sync
-    private var clipboardManager: android.content.ClipboardManager? = null
-    private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
-    private var lastClipboardText: String = ""
+    // Clipboard sync managed via ClipboardAccessibilityService
 
     @Volatile
     private var lastMessageTime: Long = 0L
@@ -248,6 +245,17 @@ class BluetoothService : Service() {
         }
     }
 
+    private val clipboardBroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ClipboardAccessibilityService.ACTION_CLIPBOARD_CHANGED) {
+                val text = intent.getStringExtra(ClipboardAccessibilityService.EXTRA_TEXT) ?: return
+                if (isConnected) {
+                    sendMessage(ProtocolHelper.createClipboardSync(text))
+                }
+            }
+        }
+    }
+
     private val wifiStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
@@ -311,7 +319,6 @@ class BluetoothService : Service() {
         prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE)
         val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothAdapter = btManager.adapter
-        clipboardManager = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
         createNotificationChannel()
 
         val filterInternal = IntentFilter().apply {
@@ -329,10 +336,12 @@ class BluetoothService : Service() {
             registerReceiver(internalReceiver, filterInternal, RECEIVER_NOT_EXPORTED)
             registerReceiver(watchDismissReceiver, filterWatch, RECEIVER_NOT_EXPORTED)
             registerReceiver(wifiStateReceiver, filterWifi, RECEIVER_NOT_EXPORTED)
+            registerReceiver(clipboardBroadcastReceiver, IntentFilter(ClipboardAccessibilityService.ACTION_CLIPBOARD_CHANGED), RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(internalReceiver, filterInternal)
             registerReceiver(watchDismissReceiver, filterWatch)
             registerReceiver(wifiStateReceiver, filterWifi)
+            registerReceiver(clipboardBroadcastReceiver, IntentFilter(ClipboardAccessibilityService.ACTION_CLIPBOARD_CHANGED))
         }
 
         // Initialize health data collector
@@ -944,36 +953,30 @@ class BluetoothService : Service() {
 
     // Clipboard sync functions
     private fun startClipboardMonitoring() {
-        if (clipboardListener != null) return
-
-        clipboardListener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
-            val clip = clipboardManager?.primaryClip
-            if (clip != null && clip.itemCount > 0) {
-                val text = clip.getItemAt(0).text?.toString()
-                if (text != null && text != lastClipboardText) {
-                    lastClipboardText = text
-                    sendMessage(ProtocolHelper.createClipboardSync(text))
-                }
-            }
+        Log.d(TAG, "Requesting startClipboardMonitoring from Accessibility Service via Broadcast")
+        val intent = Intent(ClipboardAccessibilityService.ACTION_START_MONITORING).apply {
+            setPackage(packageName)
         }
-        clipboardManager?.addPrimaryClipChangedListener(clipboardListener)
+        sendBroadcast(intent)
     }
 
     private fun stopClipboardMonitoring() {
-        clipboardListener?.let {
-            clipboardManager?.removePrimaryClipChangedListener(it)
+        Log.d(TAG, "Requesting stopClipboardMonitoring from Accessibility Service via Broadcast")
+        val intent = Intent(ClipboardAccessibilityService.ACTION_STOP_MONITORING).apply {
+            setPackage(packageName)
         }
-        clipboardListener = null
+        sendBroadcast(intent)
     }
 
     private suspend fun handleClipboardReceived(message: ProtocolMessage) {
         val text = ProtocolHelper.extractStringField(message, "text") ?: return
-        if (text != lastClipboardText) {
-            lastClipboardText = text
-            withContext(Dispatchers.Main) {
-                val clip = android.content.ClipData.newPlainText("RTOSify", text)
-                clipboardManager?.setPrimaryClip(clip)
+        withContext(Dispatchers.Main) {
+            Log.d(TAG, "Requesting setClipboardText from Accessibility Service via Broadcast")
+            val intent = Intent(ClipboardAccessibilityService.ACTION_SET_CLIPBOARD).apply {
+                setPackage(packageName)
+                putExtra(ClipboardAccessibilityService.EXTRA_TEXT, text)
             }
+            sendBroadcast(intent)
         }
     }
 
@@ -3609,6 +3612,7 @@ class BluetoothService : Service() {
         super.onDestroy()
         try { unregisterReceiver(internalReceiver) } catch(_:Exception){}
         try { unregisterReceiver(watchDismissReceiver) } catch(_:Exception){}
+        try { unregisterReceiver(clipboardBroadcastReceiver) } catch(_:Exception){}
         try { unregisterReceiver(wifiStateReceiver) } catch(_:Exception){}
         mainHandler.removeCallbacksAndMessages(null)
         serviceScope.cancel()
