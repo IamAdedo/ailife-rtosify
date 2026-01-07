@@ -293,6 +293,9 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
                 appUsageAdapter.updateData(mergedData.appUsage)
                 rvAppUsage.visibility = View.VISIBLE
                 tvUsageEmpty.visibility = View.GONE
+            } else {
+                rvAppUsage.visibility = View.GONE
+                tvUsageEmpty.visibility = View.VISIBLE
             }
 
             if (mergedData.history.isNotEmpty()) {

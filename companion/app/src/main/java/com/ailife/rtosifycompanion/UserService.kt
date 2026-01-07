@@ -89,6 +89,32 @@ class UserService : IUserService.Stub() {
         }
     }
 
+    override fun runShellCommandWithOutput(command: String): String {
+        Log.d(TAG, "runShellCommandWithOutput called with: $command")
+        return try {
+            // Split command by spaces, but respect quotes if needed (simple split for now as typically we pass "dumpsys batterystats ...")
+            // Ideally use a proper tokenizer or pass array from AIDL if complex args needed.
+            // For "dumpsys batterystats --checkin", simple split is fine.
+            val parts = command.split(" ").toTypedArray()
+            val process = Runtime.getRuntime().exec(parts)
+            
+            val output = process.inputStream.bufferedReader().use { it.readText() }
+            process.waitFor()
+            
+            if (process.exitValue() == 0) {
+                output
+            } else {
+                val error = process.errorStream.bufferedReader().use { it.readText() }
+                Log.e(TAG, "Command failed with code ${process.exitValue()}: $error")
+                ""
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error executing command with output: ${e.message}")
+            e.printStackTrace()
+            ""
+        }
+    }
+
     override fun destroy() {
         Log.d(TAG, "UserService destroy called")
         System.exit(0)

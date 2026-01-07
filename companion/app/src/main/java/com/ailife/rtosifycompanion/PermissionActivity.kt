@@ -201,6 +201,14 @@ class PermissionActivity : AppCompatActivity() {
         }
         perms.add(PermissionItem("BATTERY_STATS", "Battery Stats", "Access real per-app battery consumption data (Android 12+)", hasBatteryStats))
         
+        // 18. Dump Permission (Direct Dumpsys)
+        val hasDump = try {
+            packageManager.checkPermission("android.permission.DUMP", packageName) == PackageManager.PERMISSION_GRANTED
+        } catch (e: Exception) {
+            false
+        }
+        perms.add(PermissionItem("DUMP", "System Dump", "Directly access system stats for robust data (Method 2)", hasDump))
+        
         adapter.updateList(perms)
     }
 
@@ -286,6 +294,7 @@ class PermissionActivity : AppCompatActivity() {
             }
             "USAGE_STATS" -> startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
             "BATTERY_STATS" -> showBatteryStatsDialog()
+            "DUMP" -> showDumpDialog()
         }
     }
 
@@ -304,48 +313,55 @@ class PermissionActivity : AppCompatActivity() {
     }
 
     private fun showBatteryStatsDialog() {
-        val adbCommand = "adb shell appops set $packageName GET_USAGE_STATS allow"
+        showPermissionDialog("Battery Stats", "android.permission.BATTERY_STATS", 
+            "This permission allows access to real per-app battery consumption data.")
+    }
+
+    private fun showDumpDialog() {
+        showPermissionDialog("Dump Permission", "android.permission.DUMP", 
+            "This permission allows direct access to system dumpsys for robust battery stats collection.")
+    }
+
+    private fun showPermissionDialog(title: String, permission: String, desc: String) {
+        val adbCommand = "adb shell pm grant $packageName $permission"
         
         val dialog = android.app.AlertDialog.Builder(this)
-            .setTitle("Battery Stats Permission")
-            .setMessage("This permission allows access to real per-app battery consumption data.\n\nChoose activation method:")
+            .setTitle(title)
+            .setMessage("$desc\n\nChoose activation method:")
             .setPositiveButton("Copy ADB Command") { _, _ ->
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 val clip = android.content.ClipData.newPlainText("ADB Command", adbCommand)
                 clipboard.setPrimaryClip(clip)
-                android.widget.Toast.makeText(this, "Command copied! Run it on your computer with watch connected via ADB", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(this, "Command copied! Run it on your computer.", android.widget.Toast.LENGTH_LONG).show()
             }
             .setNeutralButton("Activate with Shizuku") { _, _ ->
-                activateBatteryStatsWithShizuku()
+                grantPermissionWithShizuku(permission)
             }
             .setNegativeButton("Cancel", null)
             .create()
         dialog.show()
     }
 
-    private fun activateBatteryStatsWithShizuku() {
-        android.util.Log.d("PermissionActivity", "activateBatteryStatsWithShizuku called")
+    private fun grantPermissionWithShizuku(permission: String) {
+        android.util.Log.d("PermissionActivity", "grantPermissionWithShizuku: $permission")
         
         try {
             // Check if root is available (Shizuku or libsu)
             val hasRoot = Shell.isAppGrantedRoot() == true
             val hasShizuku = Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
             
-            android.util.Log.d("PermissionActivity", "hasRoot: $hasRoot, hasShizuku: $hasShizuku")
-            
             if (!hasRoot && !hasShizuku) {
-                android.widget.Toast.makeText(this, "Root or Shizuku required. Please grant Shizuku permission or use ADB method.", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(this, "Root or Shizuku required.", android.widget.Toast.LENGTH_SHORT).show()
                 return
             }
 
-            android.widget.Toast.makeText(this, "Granting permission...", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(this, "Granting $permission...", android.widget.Toast.LENGTH_SHORT).show()
 
             // Bind UserService if using Shizuku and not already bound
             if (hasShizuku && userService == null) {
                 try {
                     Shizuku.bindUserService(userServiceArgs, userServiceConn)
                     userServiceConnection = userServiceArgs
-                    // Wait a bit for service to connect
                     Thread.sleep(500)
                 } catch (e: Exception) {
                     android.util.Log.e("PermissionActivity", "Failed to bind UserService: ${e.message}")
@@ -355,40 +371,33 @@ class PermissionActivity : AppCompatActivity() {
             // Use UserService to execute command via Shizuku
             Thread {
                 try {
-                    if (userService == null) {
-                        android.util.Log.e("PermissionActivity", "UserService not connected")
+                    if (userService == null && hasShizuku) {
                         runOnUiThread {
-                            android.widget.Toast.makeText(this, "UserService not connected. Please wait and try again.", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(this, "UserService not connected. Try again.", android.widget.Toast.LENGTH_SHORT).show()
                         }
                         return@Thread
                     }
                     
-                    val command = "pm grant $packageName android.permission.BATTERY_STATS"
-                    android.util.Log.d("PermissionActivity", "Executing via UserService: $command")
-                    
-                    val exitCodeStr = userService?.executeCommand(command)
-                    val exitCode = exitCodeStr?.toIntOrNull() ?: -1
-                    
-                    android.util.Log.d("PermissionActivity", "Exit code: $exitCode")
+                    val command = "pm grant $packageName $permission"
+                    val exitCodeStr = userService?.executeCommand(command) ?: Shell.cmd(command).exec().code.toString()
+                    val exitCode = exitCodeStr.toIntOrNull() ?: -1
                     
                     runOnUiThread {
                         if (exitCode == 0) {
-                            android.widget.Toast.makeText(this, "Battery Stats permission granted!", android.widget.Toast.LENGTH_SHORT).show()
+                            android.widget.Toast.makeText(this, "Permission granted!", android.widget.Toast.LENGTH_SHORT).show()
                             updatePermissionList()
                         } else {
-                            android.widget.Toast.makeText(this, "Failed with exit code: $exitCode\nTry ADB method instead.", android.widget.Toast.LENGTH_LONG).show()
+                            android.widget.Toast.makeText(this, "Failed (Code: $exitCode). Try ADB.", android.widget.Toast.LENGTH_LONG).show()
                         }
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("PermissionActivity", "Exception: ${e.message}", e)
                     runOnUiThread {
-                        android.widget.Toast.makeText(this, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                         android.widget.Toast.makeText(this, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
             }.start()
         } catch (e: Exception) {
-            android.util.Log.e("PermissionActivity", "Outer exception: ${e.message}", e)
-            android.widget.Toast.makeText(this, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+             android.widget.Toast.makeText(this, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 

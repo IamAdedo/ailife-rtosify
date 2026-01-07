@@ -62,8 +62,16 @@ class AppUsageAdapter : RecyclerView.Adapter<AppUsageAdapter.ViewHolder>() {
                     val minutes = item.usageTimeMillis / 1000 / 60
                     if (minutes < 1) "< 1 min" else "$minutes min"
                 }
-                SortOrder.POWER -> String.format("%.1f mAh", item.batteryPowerMah ?: 0.0)
-                SortOrder.SPEED -> String.format("%.1f mAh/h", item.drainSpeed ?: 0.0)
+                SortOrder.POWER -> {
+                    val raw = item.batteryPowerMah ?: 0.0
+                    if (raw > 0 && raw < 0.1) String.format("%.3f mAh", raw)
+                    else String.format("%.1f mAh", raw)
+                }
+                SortOrder.SPEED -> {
+                    val raw = item.drainSpeed ?: 0.0
+                     if (raw > 0 && raw < 0.1) String.format("%.3f mAh/h", raw)
+                    else String.format("%.1f mAh/h", raw)
+                }
             }
             tvUsageDetail.text = detailText
             
