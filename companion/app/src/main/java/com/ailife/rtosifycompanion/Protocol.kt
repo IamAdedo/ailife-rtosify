@@ -99,6 +99,9 @@ object MessageType {
     const val UPDATE_DND_SETTINGS = "update_dnd_settings"
     const val CLIPBOARD_SYNC = "clipboard_sync"
     const val ENABLE_BT_INTERNET = "enable_bt_internet"
+    const val REQUEST_BATTERY_DETAIL = "request_battery_detail"
+    const val BATTERY_DETAIL_UPDATE = "battery_detail_update"
+    const val UPDATE_BATTERY_SETTINGS = "update_battery_settings"
 }
 
 // Data classes for specific message types
@@ -290,6 +293,32 @@ data class DndSettingsData(
     val startTime: String? = null, // "HH:mm"
     val endTime: String? = null,   // "HH:mm"
     val quickDurationMinutes: Int? = null
+)
+
+data class AppUsageData(
+    val packageName: String,
+    val name: String,
+    val usageTimeMillis: Long,
+    val icon: String? = null // Base64
+)
+
+data class BatteryDetailData(
+    val batteryLevel: Int,
+    val isCharging: Boolean,
+    val currentNow: Int, // microamperes
+    val currentAverage: Int, // microamperes
+    val voltage: Int, // millivolts
+    val chargeCounter: Int, // microampere-hours
+    val energyCounter: Long, // nanowatt-hours
+    val capacity: Double, // mAh
+    val timestamp: Long = System.currentTimeMillis(),
+    val appUsage: List<AppUsageData> = emptyList()
+)
+
+data class BatterySettingsData(
+    val notifyFull: Boolean,
+    val notifyLow: Boolean,
+    val lowThreshold: Int
 )
 
 // Helper functions to create messages
@@ -636,5 +665,19 @@ object ProtocolHelper {
         val data = JsonObject()
         data.addProperty("enabled", enabled)
         return ProtocolMessage(type = MessageType.ENABLE_BT_INTERNET, data = data)
+    }
+
+    fun createRequestBatteryDetail(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.REQUEST_BATTERY_DETAIL)
+    }
+
+    fun createBatteryDetailUpdate(detail: BatteryDetailData): ProtocolMessage {
+        val data = gson.toJsonTree(detail).asJsonObject
+        return ProtocolMessage(type = MessageType.BATTERY_DETAIL_UPDATE, data = data)
+    }
+
+    fun createUpdateBatterySettings(settings: BatterySettingsData): ProtocolMessage {
+        val data = gson.toJsonTree(settings).asJsonObject
+        return ProtocolMessage(type = MessageType.UPDATE_BATTERY_SETTINGS, data = data)
     }
 }

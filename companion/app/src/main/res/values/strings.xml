@@ -171,4 +171,7 @@
     <string name="perm_accessibility">Accessibility Service</string>
     <string name="perm_accessibility_desc">Required for clipboard sync in background.</string>
     <string name="accessibility_service_description">Allows RTOSify companion to sync clipboard with phone</string>
+
+    <string name="perm_usage_stats">Usage Access</string>
+    <string name="perm_usage_stats_desc">Required to show app battery usage.</string>
 </resources>

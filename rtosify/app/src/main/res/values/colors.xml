@@ -11,6 +11,7 @@
     
     <!-- File Manager UI Colors -->
     <color name="colorAccent">#3DAADC</color>
+    <color name="accent_blue">#3DAADC</color>
     <color name="colorBackground">#121212</color>
     <color name="colorCardBackground">#1E1E1E</color>
     <color name="colorTextPrimary">#FFFFFF</color>

@@ -162,6 +162,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         setupDndClickListener()
         setupWifiClickListener()
         setupHealthClickListeners()
+        setupBatteryClickListener()
 
         bindToService()
 
@@ -579,6 +580,16 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 })
             }
         }
+    }
+
+    private fun setupBatteryClickListener() {
+        val listener = View.OnClickListener {
+            runIfConnected {
+                startActivity(Intent(this, BatteryDetailActivity::class.java))
+            }
+        }
+        tvBatteryPercent.setOnClickListener(listener)
+        imgBatteryIcon.setOnClickListener(listener)
     }
 
     private fun updateHealthDataCard(healthData: HealthDataUpdate) {

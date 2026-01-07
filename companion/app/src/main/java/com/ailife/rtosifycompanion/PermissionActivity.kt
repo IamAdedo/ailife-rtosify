@@ -1,6 +1,7 @@
 package com.ailife.rtosifycompanion
 
 import android.Manifest
+import android.app.AppOpsManager
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
@@ -8,6 +9,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Process
 import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.MenuItem
@@ -149,6 +151,12 @@ class PermissionActivity : AppCompatActivity() {
         } else true
         perms.add(PermissionItem("WRITE_SETTINGS", "Write System Settings", "Required for immediate WiFi connection", hasWriteSettings))
 
+        // 16. Usage Stats (App Battery Usage)
+        val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), packageName)
+        val hasUsageStats = mode == AppOpsManager.MODE_ALLOWED
+        perms.add(PermissionItem("USAGE_STATS", getString(R.string.perm_usage_stats), getString(R.string.perm_usage_stats_desc), hasUsageStats))
+        
         adapter.updateList(perms)
     }
 
@@ -232,6 +240,7 @@ class PermissionActivity : AppCompatActivity() {
                     }
                 }
             }
+            "USAGE_STATS" -> startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
         }
     }
 

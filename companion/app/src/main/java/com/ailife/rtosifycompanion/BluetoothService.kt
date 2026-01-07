@@ -252,6 +252,14 @@ class BluetoothService : Service() {
 
 
 
+    private val batteryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_BATTERY_CHANGED) {
+                handleBatteryChanged(intent)
+            }
+        }
+    }
+
     private val wifiStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
@@ -332,11 +340,13 @@ class BluetoothService : Service() {
             registerReceiver(internalReceiver, filterInternal, RECEIVER_NOT_EXPORTED)
             registerReceiver(watchDismissReceiver, filterWatch, RECEIVER_NOT_EXPORTED)
             registerReceiver(wifiStateReceiver, filterWifi, RECEIVER_NOT_EXPORTED)
+            registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
 
         } else {
             registerReceiver(internalReceiver, filterInternal)
             registerReceiver(watchDismissReceiver, filterWatch)
             registerReceiver(wifiStateReceiver, filterWifi)
+            registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
 
         }
 
@@ -848,6 +858,8 @@ class BluetoothService : Service() {
                     MessageType.UNINSTALL_APP -> handleUninstallApp(message)
                     MessageType.INCOMING_CALL -> handleIncomingCall(message)
                     MessageType.CALL_STATE_CHANGED -> handleCallStateChanged(message)
+                    MessageType.REQUEST_BATTERY_DETAIL -> handleRequestBatteryDetail()
+                    MessageType.UPDATE_BATTERY_SETTINGS -> handleUpdateBatterySettings(message)
                     MessageType.CLIPBOARD_SYNC -> handleClipboardReceived(message)
                     MessageType.ENABLE_BT_INTERNET -> handleEnableBluetoothInternet(message)
                 }
@@ -3696,6 +3708,7 @@ class BluetoothService : Service() {
         try { unregisterReceiver(watchDismissReceiver) } catch(_:Exception){}
 
         try { unregisterReceiver(wifiStateReceiver) } catch(_:Exception){}
+        try { unregisterReceiver(batteryReceiver) } catch(_:Exception){}
         mainHandler.removeCallbacksAndMessages(null)
         serviceScope.cancel()
         forceDisconnect()
@@ -3907,6 +3920,161 @@ class BluetoothService : Service() {
         } finally {
             if (isTemp && zipFileToUse.exists()) zipFileToUse.delete()
         }
+    }
+
+    private fun handleRequestBatteryDetail() {
+        Log.d(TAG, "Handling battery detail request")
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+                
+                // Get standard properties
+                val capacity = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY).toInt()
+                val chargeCounter = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER).toInt()
+                val currentNow = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW).toInt()
+                val currentAverage = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE).toInt()
+                val energyCounter = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER)
+                
+                // Get status and voltage from sticky intent
+                val batteryStatus: Intent? = IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
+                    registerReceiver(null, ifilter)
+                }
+                
+                val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+                val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+                val batteryPct = if (level != -1 && scale != -1) (level * 100 / scale.toFloat()).toInt() else 0
+                
+                val status = batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+                val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+                
+                val voltage = batteryStatus?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) ?: 0
+                
+                // Collect App Usage
+                val appUsage = collectAppUsage()
+                
+                val detail = BatteryDetailData(
+                    batteryLevel = batteryPct,
+                    isCharging = isCharging,
+                    currentNow = currentNow,
+                    currentAverage = currentAverage,
+                    voltage = voltage,
+                    chargeCounter = chargeCounter,
+                    energyCounter = energyCounter,
+                    capacity = 0.0,
+                    appUsage = appUsage
+                )
+                
+                sendMessage(ProtocolHelper.createBatteryDetailUpdate(detail))
+            } catch (e: Exception) {
+                Log.e(TAG, "Error collecting battery detail: ${e.message}")
+            }
+        }
+    }
+    
+    private fun collectAppUsage(): List<AppUsageData> {
+        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
+        val endTime = System.currentTimeMillis()
+        val startTime = endTime - 24 * 60 * 60 * 1000 // Last 24 hours
+        
+        val usageStats = try {
+            usageStatsManager.queryUsageStats(android.app.usage.UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error querying usage stats (permission likely missing): ${e.message}")
+            return emptyList()
+        }
+        
+        if (usageStats.isNullOrEmpty()) return emptyList()
+        
+        return usageStats.asSequence()
+            .filter { it.totalTimeInForeground > 0 }
+            .sortedByDescending { it.totalTimeInForeground }
+            .take(15)
+            .map { stats ->
+                var name = stats.packageName
+                var iconBase64: String? = null
+                try {
+                    val appInfo = packageManager.getApplicationInfo(stats.packageName, 0)
+                    name = packageManager.getApplicationLabel(appInfo).toString()
+                    val icon = packageManager.getApplicationIcon(appInfo)
+                    val bitmap = icon.toBitmap(48, 48)
+                    val stream = ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                    iconBase64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+                } catch (_: Exception) {}
+                
+                AppUsageData(
+                    packageName = stats.packageName,
+                    name = name,
+                    usageTimeMillis = stats.totalTimeInForeground,
+                    icon = iconBase64
+                )
+            }.toList()
+    }
+
+    private fun handleUpdateBatterySettings(message: ProtocolMessage) {
+        val settings = ProtocolHelper.extractData<BatterySettingsData>(message)
+        prefs.edit().apply {
+            putBoolean("batt_notify_full", settings.notifyFull)
+            putBoolean("batt_notify_low", settings.notifyLow)
+            putInt("batt_low_threshold", settings.lowThreshold)
+        }.apply()
+        
+        // Trigger an immediate check
+        checkBatteryStateForNotification()
+    }
+
+    private var lastBatteryLevel = -1
+    private var lastChargingState = false
+    
+    private fun checkBatteryStateForNotification() {
+        val batteryStatus: Intent? = IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
+            registerReceiver(null, ifilter)
+        }
+        if (batteryStatus != null) {
+            handleBatteryChanged(batteryStatus)
+        }
+    }
+
+    private fun handleBatteryChanged(intent: Intent) {
+        val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+        val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+        val batteryPct = (level * 100 / scale.toFloat()).toInt()
+        
+        val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
+        val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+
+        if (batteryPct != lastBatteryLevel || isCharging != lastChargingState) {
+            lastBatteryLevel = batteryPct
+            lastChargingState = isCharging
+            
+            // Notification logic
+            val notifyFull = prefs.getBoolean("batt_notify_full", false)
+            val notifyLow = prefs.getBoolean("batt_notify_low", false)
+            val lowThreshold = prefs.getInt("batt_low_threshold", 20)
+            
+            if (notifyFull && batteryPct >= 100 && isCharging) {
+                postLocalNotification("Battery Full", "Watch is fully charged!")
+            } else if (notifyLow && batteryPct <= lowThreshold && !isCharging) {
+                postLocalNotification("Battery Low", "Watch battery is at $batteryPct%.")
+            }
+        }
+    }
+
+    private fun postLocalNotification(title: String, text: String) {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "battery_alerts"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(NotificationChannel(channelId, "Battery Alerts", NotificationManager.IMPORTANCE_HIGH))
+        }
+        
+        val builder = NotificationCompat.Builder(this, channelId)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_low_battery)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            
+        nm.notify(12345, builder.build())
     }
 
     private fun handleIncomingCall(message: ProtocolMessage) {

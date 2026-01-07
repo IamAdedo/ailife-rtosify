@@ -173,6 +173,7 @@ class BluetoothService : Service() {
         fun onHealthSettingsReceived(settings: HealthSettingsUpdate) {}
         fun onPreviewReceived(path: String, imageBase64: String?) {}
         fun onWifiScanResultsReceived(results: List<WifiScanResultData>) {}
+        fun onBatteryDetailReceived(data: BatteryDetailData) {}
     }
 
     var callback: ServiceCallback? = null
@@ -709,6 +710,7 @@ class BluetoothService : Service() {
                     MessageType.ANSWER_CALL -> handleAnswerCallCommand()
                     MessageType.WIFI_SCAN_RESULTS -> handleWifiScanResults(message)
                     MessageType.CLIPBOARD_SYNC -> handleClipboardReceived(message)
+                    MessageType.BATTERY_DETAIL_UPDATE -> handleBatteryDetailUpdate(message)
                 }
             }
         } catch (_: IOException) {
@@ -2283,4 +2285,14 @@ class BluetoothService : Service() {
     }
 
 
+    private suspend fun handleBatteryDetailUpdate(message: ProtocolMessage) {
+        try {
+            val data = ProtocolHelper.extractData<BatteryDetailData>(message)
+            withContext(Dispatchers.Main) {
+                callback?.onBatteryDetailReceived(data)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling battery detail update: ${e.message}")
+        }
+    }
 }
