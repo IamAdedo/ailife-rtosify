@@ -12,6 +12,42 @@ class UserService : IUserService.Stub() {
         private const val TAG = "UserService"
         private val gson = Gson()
     }
+    
+    private val clipboardManager: ClipboardManagerWrapper?
+    
+    init {
+        // Create clipboard manager wrapper (FakeContext auto-initializes)
+        clipboardManager = ClipboardManagerWrapper.create()
+        
+        val currentUid = android.os.Process.myUid()
+        val currentPid = android.os.Process.myPid()
+        Log.d(TAG, "UserService running as UID: $currentUid, PID: $currentPid (shell=2000, root=0)")
+        
+        if (clipboardManager == null) {
+            Log.w(TAG, "ClipboardManager not available on this device")
+        } else {
+            Log.d(TAG, "ClipboardManager initialized successfully")
+        }
+    }
+
+    override fun getPrimaryClipText(): String? {
+        Log.d(TAG, "getPrimaryClipText called")
+        
+        if (clipboardManager == null) {
+            Log.e(TAG, "ClipboardManager not available")
+            return null
+        }
+        
+        return try {
+            val text = clipboardManager.getText()?.toString()
+            Log.i(TAG, "Successfully read clipboard: $text")
+            text
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading clipboard: ${e.message}")
+            e.printStackTrace()
+            null
+        }
+    }
 
     override fun destroy() {
         Log.d(TAG, "UserService destroy called")

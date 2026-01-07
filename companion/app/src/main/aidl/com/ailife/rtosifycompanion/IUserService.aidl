@@ -30,4 +30,5 @@ interface IUserService {
     void startWifiScan() = 20;
     void setMobileDataEnabled(boolean enabled) = 21;
     void enableBluetoothPan(boolean enabled) = 22;
+    String getPrimaryClipText() = 23;
 }

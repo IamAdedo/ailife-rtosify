@@ -84,6 +84,7 @@ class ClipboardAccessibilityService : AccessibilityService() {
         Log.d(TAG, "Starting clipboard monitoring")
 
         clipboardListener = ClipboardManager.OnPrimaryClipChangedListener {
+            Log.d(TAG, "Clipboard listener triggered")
             val clip = clipboardManager?.primaryClip
             if (clip != null && clip.itemCount > 0) {
                 val text = clip.getItemAt(0).text?.toString()
