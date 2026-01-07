@@ -4067,6 +4067,7 @@ class BluetoothService : Service() {
         }
     }
     
+    @Suppress("DEPRECATION")
     private fun collectAppUsage(): List<AppUsageData> {
         val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
         val endTime = System.currentTimeMillis()
@@ -4081,13 +4082,65 @@ class BluetoothService : Service() {
         
         if (usageStats.isNullOrEmpty()) return emptyList()
         
+        // Try to get real battery stats on Android 12+ using reflection
+        val batteryStatsMap = mutableMapOf<String, Pair<Double, Double>>() // packageName -> (powerMah, drainSpeed)
+        
+        if (android.os.Build.VERSION.SDK_INT >= 31) { // Android 12
+            try {
+                Log.d(TAG, "Attempting to get battery stats via reflection (Android ${android.os.Build.VERSION.SDK_INT})")
+                val batteryStatsManager = getSystemService("batterystats")
+                Log.d(TAG, "BatteryStatsManager: ${batteryStatsManager != null}")
+                
+                if (batteryStatsManager != null) {
+                    val getBatteryUsageStatsMethod = batteryStatsManager.javaClass.getMethod("getBatteryUsageStats")
+                    val batteryUsageStats = getBatteryUsageStatsMethod.invoke(batteryStatsManager)
+                    Log.d(TAG, "BatteryUsageStats: ${batteryUsageStats != null}")
+                    
+                    if (batteryUsageStats != null) {
+                        val getUidBatteryConsumersMethod = batteryUsageStats.javaClass.getMethod("getUidBatteryConsumers")
+                        val uidBatteryConsumers = getUidBatteryConsumersMethod.invoke(batteryUsageStats) as? List<*>
+                        Log.d(TAG, "UidBatteryConsumers count: ${uidBatteryConsumers?.size ?: 0}")
+                        
+                        uidBatteryConsumers?.forEach { consumer ->
+                            try {
+                                val getUidMethod = consumer?.javaClass?.getMethod("getUid")
+                                val uid = getUidMethod?.invoke(consumer) as? Int
+                                
+                                if (uid != null) {
+                                    val packageName = packageManager.getNameForUid(uid)
+                                    if (packageName != null) {
+                                        val getConsumedPowerMethod = consumer.javaClass.getMethod("getConsumedPower")
+                                        val consumedPower = getConsumedPowerMethod.invoke(consumer) as? Double
+                                        
+                                        if (consumedPower != null && consumedPower > 0) {
+                                            // consumedPower is in microwatt-hours, divide by 1000 for mAh
+                                            val consumedPowerMah = consumedPower / 1000.0
+                                            
+                                            val appUsageStat = usageStats.find { it.packageName == packageName }
+                                            val hoursForeground = (appUsageStat?.totalTimeInForeground ?: 0L) / (1000.0 * 3600.0)
+                                            val drainSpeed = if (hoursForeground > 0.01) consumedPowerMah / hoursForeground else 0.0
+                                            
+                                            batteryStatsMap[packageName] = Pair(consumedPowerMah, drainSpeed)
+                                            Log.d(TAG, "Battery stats for $packageName: ${consumedPowerMah}mAh, ${drainSpeed}mAh/h")
+                                        }
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.d(TAG, "Error processing consumer: ${e.message}")
+                            }
+                        }
+                        Log.d(TAG, "Total apps with battery stats: ${batteryStatsMap.size}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Battery stats API error: ${e.message}", e)
+            }
+        }
+        
+        // If we didn't get battery stats, fall back to estimation
+        val useFallback = batteryStatsMap.isEmpty()
         val totalForegroundTime = usageStats.sumOf { it.totalTimeInForeground }
-        if (totalForegroundTime <= 0) return emptyList()
-
-        // Estimate total energy spent in last 24h
-        // Nominal capacity 300mAh. Let's assume 50% drop in 24h is typical.
-        // So total 150mAh spent. This is just for visualization and sorting.
-        val estTotalSpentMah = 150.0 
+        val estTotalSpentMah = if (useFallback && totalForegroundTime > 0) 150.0 else 0.0
 
         return usageStats.asSequence()
             .filter { it.totalTimeInForeground > 0 }
@@ -4106,10 +4159,43 @@ class BluetoothService : Service() {
                     iconBase64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
                 } catch (_: Exception) {}
                 
-                val usageRatio = stats.totalTimeInForeground.toDouble() / totalForegroundTime
-                val appPowerMah = usageRatio * estTotalSpentMah
-                val hoursForeground = stats.totalTimeInForeground / (1000.0 * 3600.0)
-                val drainSpeed = if (hoursForeground > 0) appPowerMah / hoursForeground else 0.0
+                // Use real battery stats if available, otherwise estimate with variation
+                val (appPowerMah, drainSpeed) = if (batteryStatsMap.containsKey(stats.packageName)) {
+                    batteryStatsMap[stats.packageName]!!
+                } else {
+                    // Fallback estimation with variation based on app type
+                    // Assign different drain rates based on package name patterns
+                    val baseDrainRateMahPerHour = when {
+                        // Games and graphics-intensive apps
+                        stats.packageName.contains("game", ignoreCase = true) ||
+                        stats.packageName.contains("unity", ignoreCase = true) -> 15.0 + (stats.packageName.hashCode() % 10)
+                        
+                        // Video and media apps
+                        stats.packageName.contains("video", ignoreCase = true) ||
+                        stats.packageName.contains("youtube", ignoreCase = true) ||
+                        stats.packageName.contains("media", ignoreCase = true) -> 12.0 + (stats.packageName.hashCode() % 8)
+                        
+                        // Social media and messaging
+                        stats.packageName.contains("chat", ignoreCase = true) ||
+                        stats.packageName.contains("message", ignoreCase = true) ||
+                        stats.packageName.contains("social", ignoreCase = true) -> 8.0 + (stats.packageName.hashCode() % 6)
+                        
+                        // Browsers
+                        stats.packageName.contains("browser", ignoreCase = true) ||
+                        stats.packageName.contains("chrome", ignoreCase = true) -> 10.0 + (stats.packageName.hashCode() % 7)
+                        
+                        // System apps (typically lower drain)
+                        stats.packageName.startsWith("com.android") ||
+                        stats.packageName.startsWith("android") -> 3.0 + (stats.packageName.hashCode() % 4)
+                        
+                        // Default for other apps with some variation
+                        else -> 6.0 + (stats.packageName.hashCode() % 8)
+                    }
+                    
+                    val hoursForeground = stats.totalTimeInForeground / (1000.0 * 3600.0)
+                    val power = if (hoursForeground > 0) baseDrainRateMahPerHour * hoursForeground else 0.0
+                    Pair(power, baseDrainRateMahPerHour)
+                }
 
                 AppUsageData(
                     packageName = stats.packageName,

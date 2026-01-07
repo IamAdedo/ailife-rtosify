@@ -322,14 +322,25 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
     }
 
     private fun updateChart(history: List<BatteryHistoryPoint>) {
-        val entries = history.mapIndexed { index, point ->
-            Entry(index.toFloat(), point.level.toFloat())
+        if (history.isEmpty()) return
+        
+        val entries = mutableListOf<Entry>()
+        
+        // Add boundary point at start with same level as first data point
+        entries.add(Entry(0f, history.first().level.toFloat()))
+        
+        // Add actual data points
+        history.forEachIndexed { index, point ->
+            entries.add(Entry((index + 1).toFloat(), point.level.toFloat()))
         }
+        
+        // Add boundary point at end with same level as last data point
+        entries.add(Entry((history.size + 1).toFloat(), history.last().level.toFloat()))
 
         val dataSet = LineDataSet(entries, "Battery Level")
         dataSet.color = android.graphics.Color.parseColor("#00E676")
         dataSet.setDrawCircles(false)
-        dataSet.setDrawValues(true)
+        dataSet.setDrawValues(false)
         dataSet.valueTextColor = android.graphics.Color.WHITE
         dataSet.lineWidth = 2f
         dataSet.mode = LineDataSet.Mode.CUBIC_BEZIER

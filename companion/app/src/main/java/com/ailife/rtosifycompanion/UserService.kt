@@ -74,6 +74,20 @@ class UserService : IUserService.Stub() {
             e.printStackTrace()
         }
     }
+    
+    override fun executeCommand(command: String): String {
+        Log.d(TAG, "executeCommand called with: $command")
+        return try {
+            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
+            val exitCode = process.waitFor()
+            Log.d(TAG, "Command executed with exit code: $exitCode")
+            exitCode.toString()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error executing command: ${e.message}")
+            e.printStackTrace()
+            "-1"
+        }
+    }
 
     override fun destroy() {
         Log.d(TAG, "UserService destroy called")

@@ -33,6 +33,32 @@ class PermissionActivity : AppCompatActivity() {
     private lateinit var btnFinish: View
     private var fromSetup = false
 
+    // Shizuku UserService for Shell commands
+    private var userService: IUserService? = null
+    private var userServiceConnection: Shizuku.UserServiceArgs? = null
+    
+    private val userServiceArgs by lazy {
+        Shizuku.UserServiceArgs(android.content.ComponentName(BuildConfig.APPLICATION_ID, UserService::class.java.name))
+            .daemon(false)
+            .processNameSuffix("user_service")
+            .debuggable(BuildConfig.DEBUG)
+            .version(1)
+    }
+    
+    private val userServiceConn = object : android.content.ServiceConnection {
+        override fun onServiceConnected(name: android.content.ComponentName?, binder: android.os.IBinder?) {
+            if (binder != null && binder.pingBinder()) {
+                userService = IUserService.Stub.asInterface(binder)
+                android.util.Log.i("PermissionActivity", "UserService connected successfully")
+            }
+        }
+
+        override fun onServiceDisconnected(name: android.content.ComponentName?) {
+            userService = null
+            android.util.Log.w("PermissionActivity", "UserService disconnected")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_permission)
@@ -61,6 +87,16 @@ class PermissionActivity : AppCompatActivity() {
 
         Shizuku.addBinderReceivedListener {
             updatePermissionList()
+        }
+        
+        // Bind UserService if Shizuku is available
+        if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+            try {
+                Shizuku.bindUserService(userServiceArgs, userServiceConn)
+                userServiceConnection = userServiceArgs
+            } catch (e: Exception) {
+                android.util.Log.e("PermissionActivity", "Failed to bind UserService: ${e.message}")
+            }
         }
     }
 
@@ -157,6 +193,14 @@ class PermissionActivity : AppCompatActivity() {
         val hasUsageStats = mode == AppOpsManager.MODE_ALLOWED
         perms.add(PermissionItem("USAGE_STATS", getString(R.string.perm_usage_stats), getString(R.string.perm_usage_stats_desc), hasUsageStats))
         
+        // 17. Battery Stats (Real per-app battery data)
+        val hasBatteryStats = try {
+            packageManager.checkPermission("android.permission.BATTERY_STATS", packageName) == PackageManager.PERMISSION_GRANTED
+        } catch (e: Exception) {
+            false
+        }
+        perms.add(PermissionItem("BATTERY_STATS", "Battery Stats", "Access real per-app battery consumption data (Android 12+)", hasBatteryStats))
+        
         adapter.updateList(perms)
     }
 
@@ -241,6 +285,7 @@ class PermissionActivity : AppCompatActivity() {
                 }
             }
             "USAGE_STATS" -> startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+            "BATTERY_STATS" -> showBatteryStatsDialog()
         }
     }
 
@@ -255,6 +300,95 @@ class PermissionActivity : AppCompatActivity() {
             contentResolver.persistedUriPermissions.any { it.uri == uri && it.isWritePermission }
         } else {
             checkPerm(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
+    }
+
+    private fun showBatteryStatsDialog() {
+        val adbCommand = "adb shell appops set $packageName GET_USAGE_STATS allow"
+        
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("Battery Stats Permission")
+            .setMessage("This permission allows access to real per-app battery consumption data.\n\nChoose activation method:")
+            .setPositiveButton("Copy ADB Command") { _, _ ->
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("ADB Command", adbCommand)
+                clipboard.setPrimaryClip(clip)
+                android.widget.Toast.makeText(this, "Command copied! Run it on your computer with watch connected via ADB", android.widget.Toast.LENGTH_LONG).show()
+            }
+            .setNeutralButton("Activate with Shizuku") { _, _ ->
+                activateBatteryStatsWithShizuku()
+            }
+            .setNegativeButton("Cancel", null)
+            .create()
+        dialog.show()
+    }
+
+    private fun activateBatteryStatsWithShizuku() {
+        android.util.Log.d("PermissionActivity", "activateBatteryStatsWithShizuku called")
+        
+        try {
+            // Check if root is available (Shizuku or libsu)
+            val hasRoot = Shell.isAppGrantedRoot() == true
+            val hasShizuku = Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+            
+            android.util.Log.d("PermissionActivity", "hasRoot: $hasRoot, hasShizuku: $hasShizuku")
+            
+            if (!hasRoot && !hasShizuku) {
+                android.widget.Toast.makeText(this, "Root or Shizuku required. Please grant Shizuku permission or use ADB method.", android.widget.Toast.LENGTH_LONG).show()
+                return
+            }
+
+            android.widget.Toast.makeText(this, "Granting permission...", android.widget.Toast.LENGTH_SHORT).show()
+
+            // Bind UserService if using Shizuku and not already bound
+            if (hasShizuku && userService == null) {
+                try {
+                    Shizuku.bindUserService(userServiceArgs, userServiceConn)
+                    userServiceConnection = userServiceArgs
+                    // Wait a bit for service to connect
+                    Thread.sleep(500)
+                } catch (e: Exception) {
+                    android.util.Log.e("PermissionActivity", "Failed to bind UserService: ${e.message}")
+                }
+            }
+
+            // Use UserService to execute command via Shizuku
+            Thread {
+                try {
+                    if (userService == null) {
+                        android.util.Log.e("PermissionActivity", "UserService not connected")
+                        runOnUiThread {
+                            android.widget.Toast.makeText(this, "UserService not connected. Please wait and try again.", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                        return@Thread
+                    }
+                    
+                    val command = "pm grant $packageName android.permission.BATTERY_STATS"
+                    android.util.Log.d("PermissionActivity", "Executing via UserService: $command")
+                    
+                    val exitCodeStr = userService?.executeCommand(command)
+                    val exitCode = exitCodeStr?.toIntOrNull() ?: -1
+                    
+                    android.util.Log.d("PermissionActivity", "Exit code: $exitCode")
+                    
+                    runOnUiThread {
+                        if (exitCode == 0) {
+                            android.widget.Toast.makeText(this, "Battery Stats permission granted!", android.widget.Toast.LENGTH_SHORT).show()
+                            updatePermissionList()
+                        } else {
+                            android.widget.Toast.makeText(this, "Failed with exit code: $exitCode\nTry ADB method instead.", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("PermissionActivity", "Exception: ${e.message}", e)
+                    runOnUiThread {
+                        android.widget.Toast.makeText(this, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }.start()
+        } catch (e: Exception) {
+            android.util.Log.e("PermissionActivity", "Outer exception: ${e.message}", e)
+            android.widget.Toast.makeText(this, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 

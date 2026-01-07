@@ -17,7 +17,7 @@ class AppUsageAdapter : RecyclerView.Adapter<AppUsageAdapter.ViewHolder>() {
     }
 
     private val items = mutableListOf<AppUsageData>()
-    private var maxUsage = 0L
+    private var maxUsage = 0.0
     private var currentSortOrder = SortOrder.TIME
 
     fun updateData(newItems: List<AppUsageData>, sortOrder: SortOrder = currentSortOrder) {
@@ -29,7 +29,11 @@ class AppUsageAdapter : RecyclerView.Adapter<AppUsageAdapter.ViewHolder>() {
             SortOrder.SPEED -> newItems.sortedByDescending { it.drainSpeed ?: 0.0 }
         }
         items.addAll(sorted)
-        maxUsage = items.maxOfOrNull { it.usageTimeMillis } ?: 0L
+        maxUsage = when (sortOrder) {
+            SortOrder.TIME -> items.maxOfOrNull { it.usageTimeMillis }?.toDouble() ?: 0.0
+            SortOrder.POWER -> items.maxOfOrNull { it.batteryPowerMah ?: 0.0 } ?: 0.0
+            SortOrder.SPEED -> items.maxOfOrNull { it.drainSpeed ?: 0.0 } ?: 0.0
+        }
         notifyDataSetChanged()
     }
 
@@ -50,7 +54,7 @@ class AppUsageAdapter : RecyclerView.Adapter<AppUsageAdapter.ViewHolder>() {
         private val pbUsage: ProgressBar = itemView.findViewById(R.id.pbUsage)
         private val tvUsageDetail: TextView = itemView.findViewById(R.id.tvUsageDetail)
 
-        fun bind(item: AppUsageData, maxUsage: Long, sortOrder: SortOrder) {
+        fun bind(item: AppUsageData, maxUsage: Double, sortOrder: SortOrder) {
             tvAppName.text = item.name ?: item.packageName
             
             val detailText = when (sortOrder) {
@@ -65,7 +69,12 @@ class AppUsageAdapter : RecyclerView.Adapter<AppUsageAdapter.ViewHolder>() {
             
             if (maxUsage > 0) {
                 pbUsage.max = 100
-                pbUsage.progress = ((item.usageTimeMillis.toFloat() / maxUsage) * 100).toInt()
+                val currentValue = when (sortOrder) {
+                    SortOrder.TIME -> item.usageTimeMillis.toDouble()
+                    SortOrder.POWER -> item.batteryPowerMah ?: 0.0
+                    SortOrder.SPEED -> item.drainSpeed ?: 0.0
+                }
+                pbUsage.progress = ((currentValue / maxUsage) * 100).toInt()
             } else {
                 pbUsage.progress = 0
             }
