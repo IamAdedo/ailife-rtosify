@@ -3927,8 +3927,44 @@ class BluetoothService : Service() {
         }
     }
 
+    private fun getForegroundApp(): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return null
+        
+        try {
+            val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
+            val endTime = System.currentTimeMillis()
+            val startTime = endTime - 5 * 60 * 1000 // Last 5 minutes
+            
+            val events = usageStatsManager.queryEvents(startTime, endTime)
+            val event = android.app.usage.UsageEvents.Event()
+            
+            var lastPackage: String? = null
+            var lastTime: Long = 0
+            
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                if (event.eventType == android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                    if (event.timeStamp > lastTime) {
+                        lastTime = event.timeStamp
+                        lastPackage = event.packageName
+                    }
+                }
+            }
+            return lastPackage
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting foreground app: ${e.message}")
+            return null
+        }
+    }
+
     private fun startBatteryHistoryTracking() {
         batteryHistoryJob?.cancel()
+        
+        val detailedEnabled = prefs.getBoolean("batt_detailed_log", false)
+        val interval = if (detailedEnabled) 2 * 60 * 1000L else 30 * 60 * 1000L // 2 min vs 30 min
+        
+        Log.d(TAG, "Starting battery history tracking. Detailed: $detailedEnabled, Interval: ${interval}ms")
+        
         batteryHistoryJob = serviceScope.launch(Dispatchers.IO) {
             while (isActive) {
                 try {
@@ -3936,7 +3972,7 @@ class BluetoothService : Service() {
                 } catch (e: Exception) {
                     Log.e(TAG, "Error saving battery history: ${e.message}")
                 }
-                delay(30 * 60 * 1000) // 30 minutes
+                delay(interval)
             }
         }
     }
@@ -3950,7 +3986,9 @@ class BluetoothService : Service() {
         }
         val voltage = batteryStatus?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) ?: 0
         
-        val newPoint = BatteryHistoryPoint(System.currentTimeMillis(), level, voltage, current)
+        val packageName = getForegroundApp()
+        
+        val newPoint = BatteryHistoryPoint(System.currentTimeMillis(), level, voltage, current, packageName)
         
         val currentHistoryJson = prefs.getString("battery_history", "[]")
         val type = object : TypeToken<MutableList<BatteryHistoryPoint>>() {}.type
@@ -3958,8 +3996,8 @@ class BluetoothService : Service() {
         
         history.add(newPoint)
         
-        // Keep last 48 points (24 hours)
-        if (history.size > 48) {
+        // Keep last 1000 points (approx 33 hours at 2-min interval, or 20 days at 30-min interval)
+        if (history.size > 1000) {
             history.removeAt(0)
         }
         
@@ -4379,11 +4417,15 @@ class BluetoothService : Service() {
 
     private fun handleUpdateBatterySettings(message: ProtocolMessage) {
         val settings = ProtocolHelper.extractData<BatterySettingsData>(message)
-        prefs.edit().apply {
-            putBoolean("batt_notify_full", settings.notifyFull)
-            putBoolean("batt_notify_low", settings.notifyLow)
-            putInt("batt_low_threshold", settings.lowThreshold)
-        }.apply()
+            prefs.edit().apply {
+                putBoolean("batt_notify_full", settings.notifyFull)
+                putBoolean("batt_notify_low", settings.notifyLow)
+                putInt("batt_low_threshold", settings.lowThreshold)
+                putBoolean("batt_detailed_log", settings.detailedLogEnabled)
+            }.apply()
+            
+            // Restart tracking with new settings (interval might change)
+            startBatteryHistoryTracking()
         
         // Trigger an immediate check
         checkBatteryStateForNotification()

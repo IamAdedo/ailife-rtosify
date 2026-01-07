@@ -39,6 +39,8 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
     private lateinit var chartBattery: LineChart
     private lateinit var switchNotifyFull: SwitchMaterial
     private lateinit var switchNotifyLow: SwitchMaterial
+    private lateinit var switchDetailedLog: SwitchMaterial // New Switch
+    private lateinit var chartCurrent: LineChart // New Chart
     private lateinit var tvLowThresholdTitle: TextView
     private lateinit var seekbarLowThreshold: SeekBar
     private lateinit var tvUsageEmpty: TextView
@@ -138,7 +140,15 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         
         switchNotifyFull = findViewById(R.id.switchNotifyFull)
         switchNotifyLow = findViewById(R.id.switchNotifyLow)
+        switchNotifyFull = findViewById(R.id.switchNotifyFull)
+        switchNotifyLow = findViewById(R.id.switchNotifyLow)
+        switchDetailedLog = findViewById(R.id.switchDetailedLog) // Init New Switch
         tvLowThresholdTitle = findViewById(R.id.tvLowThresholdTitle)
+        seekbarLowThreshold = findViewById(R.id.seekbarLowThreshold)
+        tvUsageEmpty = findViewById(R.id.tvUsageEmpty)
+        
+        chartCurrent = findViewById(R.id.chartCurrent) // Init New Chart
+        setupChart(chartCurrent, "Current (mA)")
         seekbarLowThreshold = findViewById(R.id.seekbarLowThreshold)
         tvUsageEmpty = findViewById(R.id.tvUsageEmpty)
         
@@ -148,23 +158,27 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         rvAppUsage.adapter = appUsageAdapter
         
         // Chart Styling
-        chartBattery.description.isEnabled = false
-        chartBattery.setTouchEnabled(false)
-        chartBattery.setNoDataText("No battery history available")
-        chartBattery.setNoDataTextColor(android.graphics.Color.GRAY)
+        setupChart(chartBattery, "Battery Level")
+    }
+
+    private fun setupChart(chart: LineChart, label: String) {
+        chart.description.isEnabled = false
+        chart.setTouchEnabled(false)
+        chart.setNoDataText("No history available")
+        chart.setNoDataTextColor(android.graphics.Color.GRAY)
 
         val textColor = android.graphics.Color.WHITE
         val gridColor = android.graphics.Color.parseColor("#333333")
 
-        chartBattery.axisLeft.textColor = textColor
-        chartBattery.axisLeft.gridColor = gridColor
-        chartBattery.axisRight.isEnabled = false
+        chart.axisLeft.textColor = textColor
+        chart.axisLeft.gridColor = gridColor
+        chart.axisRight.isEnabled = false
         
-        chartBattery.xAxis.isEnabled = true
-        chartBattery.xAxis.textColor = textColor
-        chartBattery.xAxis.gridColor = gridColor
-        chartBattery.xAxis.position = com.github.mikephil.charting.components.XAxis.XAxisPosition.BOTTOM
-        chartBattery.xAxis.valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
+        chart.xAxis.isEnabled = true
+        chart.xAxis.textColor = textColor
+        chart.xAxis.gridColor = gridColor
+        chart.xAxis.position = com.github.mikephil.charting.components.XAxis.XAxisPosition.BOTTOM
+        chart.xAxis.valueFormatter = object : com.github.mikephil.charting.formatter.ValueFormatter() {
             override fun getFormattedValue(value: Float): String {
                 // value is (timestamp - chartBaseTime)
                 val diffMillis = (chartBaseTime + value).toLong() - System.currentTimeMillis()
@@ -180,7 +194,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
             }
         }
         
-        chartBattery.legend.isEnabled = false
+        chart.legend.isEnabled = false
     }
 
     private fun setupListeners() {
@@ -189,6 +203,10 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         }
 
         switchNotifyLow.setOnCheckedChangeListener { _, isChecked ->
+            saveAndSendSettings()
+        }
+
+        switchDetailedLog.setOnCheckedChangeListener { _, _ ->
             saveAndSendSettings()
         }
 
@@ -212,10 +230,12 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
         val notifyFull = prefs.getBoolean("batt_notify_full", false)
         val notifyLow = prefs.getBoolean("batt_notify_low", false)
+        val detailedLog = prefs.getBoolean("batt_detailed_log", false)
         val lowThreshold = prefs.getInt("batt_low_threshold", 15)
 
         switchNotifyFull.isChecked = notifyFull
         switchNotifyLow.isChecked = notifyLow
+        switchDetailedLog.isChecked = detailedLog
         seekbarLowThreshold.progress = lowThreshold
         tvLowThresholdTitle.text = "Notify below $lowThreshold%"
     }
@@ -223,6 +243,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
     private fun saveAndSendSettings() {
         val notifyFull = switchNotifyFull.isChecked
         val notifyLow = switchNotifyLow.isChecked
+        val detailedLog = switchDetailedLog.isChecked
         var lowThreshold = seekbarLowThreshold.progress
         if (lowThreshold < 5) lowThreshold = 5
 
@@ -230,11 +251,12 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         prefs.edit().apply {
             putBoolean("batt_notify_full", notifyFull)
             putBoolean("batt_notify_low", notifyLow)
+            putBoolean("batt_detailed_log", detailedLog)
             putInt("batt_low_threshold", lowThreshold)
         }.apply()
 
         bluetoothService?.sendMessage(ProtocolHelper.createUpdateBatterySettings(
-            BatterySettingsData(notifyFull, notifyLow, lowThreshold)
+            BatterySettingsData(notifyFull, notifyLow, lowThreshold, detailedLog)
         ))
     }
 
@@ -289,17 +311,21 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
             tvCurrentNow.text = String.format("%.1f mA", displayCurrent)
             tvVoltage.text = "${mergedData.voltage} mV"
 
-            if (mergedData.appUsage.isNotEmpty()) {
-                appUsageAdapter.updateData(mergedData.appUsage)
+            if (mergedData.history.isNotEmpty()) {
+                updateChart(mergedData.history)
+                updateCurrentChart(mergedData.history)
+            }
+            
+            // Re-calc drain speeds if possible
+            val processedAppUsage = calculateAndMergeDrainSpeed(mergedData.appUsage, mergedData.history)
+
+            if (processedAppUsage.isNotEmpty()) {
+                appUsageAdapter.updateData(processedAppUsage)
                 rvAppUsage.visibility = View.VISIBLE
                 tvUsageEmpty.visibility = View.GONE
             } else {
                 rvAppUsage.visibility = View.GONE
                 tvUsageEmpty.visibility = View.VISIBLE
-            }
-
-            if (mergedData.history.isNotEmpty()) {
-                updateChart(mergedData.history)
             }
         }
     }
@@ -360,6 +386,110 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
 
         chartBattery.data = LineData(dataSet)
         chartBattery.invalidate()
+    }
+    
+    private fun updateCurrentChart(history: List<BatteryHistoryPoint>) {
+        if (history.isEmpty()) return
+        
+        val entries = mutableListOf<Entry>()
+        val sortedHistory = history.sortedBy { it.timestamp }
+        
+        // chartBaseTime is set in updateChart, reusing it
+        
+        sortedHistory.forEach { point ->
+            val relTime = (point.timestamp - chartBaseTime).toFloat()
+            // Convert to mA for display, microamps -> milliamps
+            // Assuming current is in microamperes (as per BatteryManager default)
+            // But check if it's large value
+            val currentMa = if (Math.abs(point.current) > 5000) point.current / 1000f else point.current.toFloat()
+            entries.add(Entry(relTime, currentMa))
+        }
+
+        val dataSet = LineDataSet(entries, "Current (mA)")
+        dataSet.color = android.graphics.Color.parseColor("#2196F3") // Blue
+        dataSet.setDrawCircles(false)
+        dataSet.setDrawValues(false)
+        dataSet.lineWidth = 2f
+        dataSet.mode = LineDataSet.Mode.CUBIC_BEZIER
+        dataSet.setDrawFilled(true)
+        dataSet.fillColor = android.graphics.Color.parseColor("#2196F3")
+        dataSet.fillAlpha = 50
+
+        // Configure Axis
+        chartCurrent.xAxis.axisMinimum = -(24 * 3600 * 1000).toFloat()
+        chartCurrent.xAxis.axisMaximum = 0f
+        chartCurrent.xAxis.labelCount = 5
+        
+        // Dynamic Y axis for current
+        var minCurrent = entries.minOfOrNull { it.y } ?: 0f
+        var maxCurrent = entries.maxOfOrNull { it.y } ?: 0f
+        // Add some padding
+        val range = maxCurrent - minCurrent
+        chartCurrent.axisLeft.axisMinimum = minCurrent - (range * 0.1f)
+        chartCurrent.axisLeft.axisMaximum = maxCurrent + (range * 0.1f)
+
+        chartCurrent.data = LineData(dataSet)
+        chartCurrent.invalidate()
+    }
+
+    private fun calculateAndMergeDrainSpeed(
+        originalAppUsage: List<AppUsageData>,
+        history: List<BatteryHistoryPoint>
+    ): List<AppUsageData> {
+        if (history.isEmpty()) return originalAppUsage
+        
+        // Group history by package
+        val packageCurrents = mutableMapOf<String, MutableList<Float>>()
+        
+        history.forEach { point ->
+            val pkg = point.packageName
+            if (!pkg.isNullOrEmpty()) {
+                // Converting to mA. Discharge is negative usually, but we want magnitude of consumption.
+                // However, drain speed implies consumption rate.
+                // Protocol says currentNow: microamperes.
+                // If negative (discharging): -100mA. We want 100mA drain speed.
+                
+                var currentMa = if (Math.abs(point.current) > 5000) point.current / 1000f else point.current.toFloat()
+                
+                // Only consider DISCHARGING for drain speed (negative current)
+                // Or if it's positive, it means charging, which is 0 drain.
+                // Let's filter for negative currents (discharge) to calculate "Drain Speed".
+                if (currentMa < 0) {
+                     packageCurrents.getOrPut(pkg) { mutableListOf() }.add(Math.abs(currentMa))
+                }
+            }
+        }
+        
+        val calculatedSpeeds = packageCurrents.mapValues { (_, currents) ->
+            if (currents.isEmpty()) 0.0 else currents.average()
+        }
+        
+        // Merge with originalAppUsage
+        // If app exists in usage, update drainSpeed.
+        // If app exists in history but not usage, CREATE new entry if we have valid drain speed.
+        
+        val mergedMap = originalAppUsage.associateBy { it.packageName }.toMutableMap()
+        
+        calculatedSpeeds.forEach { (pkg, speed) ->
+             if (mergedMap.containsKey(pkg)) {
+                 val original = mergedMap[pkg]!!
+                 mergedMap[pkg] = original.copy(drainSpeed = speed)
+             } else {
+                 // Try to find a name for this package if possible, or use pkg name
+                 // Since we don't have icon/name easily here without PackageManager (which is on companion side for watch apps),
+                 // we just use package name.
+                 // NOTE: This might show ugly package names for apps not in the usage stats list.
+                 // But typically if it's in foreground it SHOULD be in usage stats.
+                 mergedMap[pkg] = AppUsageData(
+                     packageName = pkg, 
+                     name = pkg, // Fallbck
+                     usageTimeMillis = 0, // Unknown
+                     drainSpeed = speed
+                 )
+             }
+        }
+        
+        return mergedMap.values.toList()
     }
     
     // Stub other callbacks

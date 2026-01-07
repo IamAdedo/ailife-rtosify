@@ -309,7 +309,8 @@ data class BatteryHistoryPoint(
     val timestamp: Long,
     val level: Int,
     val voltage: Int,
-    val current: Int
+    val current: Int,
+    val packageName: String? = null
 )
 
 data class BatteryDetailData(
@@ -330,7 +331,8 @@ data class BatteryDetailData(
 data class BatterySettingsData(
     val notifyFull: Boolean,
     val notifyLow: Boolean,
-    val lowThreshold: Int
+    val lowThreshold: Int,
+    val detailedLogEnabled: Boolean = false
 )
 
 // Helper functions to create messages
