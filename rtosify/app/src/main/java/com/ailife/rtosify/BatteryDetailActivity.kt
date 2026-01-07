@@ -268,8 +268,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         } else {
             data
         }
-        currentBatteryData = mergedData
-
+        
         runOnUiThread {
             tvBatteryPercentLarge.text = "${mergedData.batteryLevel}%"
             progressBattery.progress = mergedData.batteryLevel
@@ -319,6 +318,10 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
             // Re-calc drain speeds if possible
             val processedAppUsage = calculateAndMergeDrainSpeed(mergedData.appUsage, mergedData.history)
 
+            // Update currentBatteryData with the merged/calculated list so sorting works
+            val finalData = mergedData.copy(appUsage = processedAppUsage)
+            currentBatteryData = finalData
+
             if (processedAppUsage.isNotEmpty()) {
                 appUsageAdapter.updateData(processedAppUsage)
                 rvAppUsage.visibility = View.VISIBLE
@@ -334,13 +337,13 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         val popup = android.widget.PopupMenu(this, btnSortUsage)
         popup.menu.add("Usage Time")
         popup.menu.add("Battery Used (mAh)")
-        popup.menu.add("Drain Speed (mAh/h)")
+        popup.menu.add("Drain Speed (mA)")
         
         popup.setOnMenuItemClickListener { item ->
             val order = when (item.title) {
                 "Usage Time" -> AppUsageAdapter.SortOrder.TIME
                 "Battery Used (mAh)" -> AppUsageAdapter.SortOrder.POWER
-                "Drain Speed (mAh/h)" -> AppUsageAdapter.SortOrder.SPEED
+                "Drain Speed (mA)" -> AppUsageAdapter.SortOrder.SPEED
                 else -> AppUsageAdapter.SortOrder.TIME
             }
             btnSortUsage.text = "Sort by ${item.title}"
@@ -398,10 +401,9 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         
         sortedHistory.forEach { point ->
             val relTime = (point.timestamp - chartBaseTime).toFloat()
-            // Convert to mA for display, microamps -> milliamps
-            // Assuming current is in microamperes (as per BatteryManager default)
-            // But check if it's large value
-            val currentMa = if (Math.abs(point.current) > 5000) point.current / 1000f else point.current.toFloat()
+            // Heuristic: If > 5000, likely uA -> convert to mA. Else likely mA.
+            val raw = point.current
+            val currentMa = if (Math.abs(raw) > 5000) raw / 1000f else raw.toFloat()
             entries.add(Entry(relTime, currentMa))
         }
 
@@ -438,22 +440,14 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
     ): List<AppUsageData> {
         if (history.isEmpty()) return originalAppUsage
         
-        // Group history by package
+        // 1. Calculate Average Drain Speed
         val packageCurrents = mutableMapOf<String, MutableList<Float>>()
         
         history.forEach { point ->
             val pkg = point.packageName
             if (!pkg.isNullOrEmpty()) {
-                // Converting to mA. Discharge is negative usually, but we want magnitude of consumption.
-                // However, drain speed implies consumption rate.
-                // Protocol says currentNow: microamperes.
-                // If negative (discharging): -100mA. We want 100mA drain speed.
-                
-                var currentMa = if (Math.abs(point.current) > 5000) point.current / 1000f else point.current.toFloat()
-                
-                // Only consider DISCHARGING for drain speed (negative current)
-                // Or if it's positive, it means charging, which is 0 drain.
-                // Let's filter for negative currents (discharge) to calculate "Drain Speed".
+                val raw = point.current
+                val currentMa = if (Math.abs(raw) > 5000) raw / 1000f else raw.toFloat()
                 if (currentMa < 0) {
                      packageCurrents.getOrPut(pkg) { mutableListOf() }.add(Math.abs(currentMa))
                 }
@@ -464,29 +458,80 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
             if (currents.isEmpty()) 0.0 else currents.average()
         }
         
-        // Merge with originalAppUsage
-        // If app exists in usage, update drainSpeed.
-        // If app exists in history but not usage, CREATE new entry if we have valid drain speed.
+        // 2. Calculate Total Consumed Power (mAh) via Integration
+        val packageMah = mutableMapOf<String, Double>()
+        val packageTime = mutableMapOf<String, Long>()
+        val sortedHistory = history.sortedBy { it.timestamp }
         
+        if (sortedHistory.size > 1) {
+            for (i in 1 until sortedHistory.size) {
+                val pPrev = sortedHistory[i-1]
+                val pCurr = sortedHistory[i]
+                
+                // Duration of this interval (ms)
+                val durationMs = pCurr.timestamp - pPrev.timestamp
+                
+                // Skip unrealistic intervals (e.g., > 2 hours gap indicating service off)
+                if (durationMs > 2 * 60 * 60 * 1000) continue
+                
+                // Which package gets attributed? pCurr.packageName (captured at end of interval)
+                val pkg = pCurr.packageName
+                if (!pkg.isNullOrEmpty()) {
+                     val raw = pCurr.current
+                     val currentMa = if (Math.abs(raw) > 5000) raw / 1000f else raw.toFloat()
+                     
+                     // We only care about DISCHARGE for consumption
+                     if (currentMa < 0) {
+                         val absCurrent = Math.abs(currentMa)
+                         // mAh = mA * hours
+                         val durationHours = durationMs / (1000.0 * 3600.0)
+                         val mah = absCurrent * durationHours
+                         
+                         packageMah[pkg] = (packageMah[pkg] ?: 0.0) + mah
+                         packageTime[pkg] = (packageTime[pkg] ?: 0L) + durationMs
+                     }
+                }
+            }
+        }
+
+        // Merge everything
         val mergedMap = originalAppUsage.associateBy { it.packageName }.toMutableMap()
         
-        calculatedSpeeds.forEach { (pkg, speed) ->
-             if (mergedMap.containsKey(pkg)) {
-                 val original = mergedMap[pkg]!!
-                 mergedMap[pkg] = original.copy(drainSpeed = speed)
-             } else {
-                 // Try to find a name for this package if possible, or use pkg name
-                 // Since we don't have icon/name easily here without PackageManager (which is on companion side for watch apps),
-                 // we just use package name.
-                 // NOTE: This might show ugly package names for apps not in the usage stats list.
-                 // But typically if it's in foreground it SHOULD be in usage stats.
+        // Update existing or create new ones
+        // We defer to our calculated values if we have them
+        
+        // Union of all packages we know about
+        val allPackages = mergedMap.keys + calculatedSpeeds.keys + packageMah.keys
+        
+        allPackages.forEach { pkg ->
+            val speed = calculatedSpeeds[pkg]
+            val mah = packageMah[pkg]
+            val time = packageTime[pkg]
+            
+            if (mergedMap.containsKey(pkg)) {
+                val original = mergedMap[pkg]!!
+                // Only update if we have data. If we don't have calculated data (mah/speed), keep original?
+                // User said original mAh is wrong. If we calculated it, USE OURS.
+                // If we didn't calculate it (e.g. app not in recent history but in system stats), keep system stats.
+                
+                var updated = original
+                if (speed != null) updated = updated.copy(drainSpeed = speed)
+                if (mah != null) updated = updated.copy(batteryPowerMah = mah)
+                // Optionally update time? System time might be more accurate for tracking... 
+                // but if mAh is based on our time, maybe consistent to show our time?
+                // Let's stick to updating power/speed as requested.
+                
+                mergedMap[pkg] = updated
+            } else {
+                 // New entry from our history
                  mergedMap[pkg] = AppUsageData(
                      packageName = pkg, 
-                     name = pkg, // Fallbck
-                     usageTimeMillis = 0, // Unknown
-                     drainSpeed = speed
+                     name = pkg, 
+                     usageTimeMillis = time ?: 0L, 
+                     drainSpeed = speed,
+                     batteryPowerMah = mah
                  )
-             }
+            }
         }
         
         return mergedMap.values.toList()

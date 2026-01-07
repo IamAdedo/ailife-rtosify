@@ -69,8 +69,9 @@ class AppUsageAdapter : RecyclerView.Adapter<AppUsageAdapter.ViewHolder>() {
                 }
                 SortOrder.SPEED -> {
                     val raw = item.drainSpeed ?: 0.0
-                     if (raw > 0 && raw < 0.1) String.format("%.3f mAh/h", raw)
-                    else String.format("%.1f mAh/h", raw)
+                    // If < 1 mA, show more precision (e.g. 0.567 mA)
+                    if (raw < 1.0) String.format("%.3f mA", raw)
+                    else String.format("%.1f mA", raw)
                 }
             }
             tvUsageDetail.text = detailText
