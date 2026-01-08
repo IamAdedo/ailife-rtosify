@@ -80,6 +80,16 @@
                     android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
                     android:textColor="?android:attr/colorError" />
 
+                <TextView
+                    android:id="@+id/tvLocalBtNameWatch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="BT: ---"
+                    android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
+                    android:textColor="?android:attr/textColorSecondary"
+                    android:layout_marginTop="4dp"
+                    android:visibility="visible"/>
+
                 <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/switchServiceWatch"
                     android:layout_width="wrap_content"
@@ -129,6 +139,16 @@
                         android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
                         android:textStyle="bold"
                         android:textColor="?android:attr/textColorPrimary"/>
+
+                    <TextView
+                        android:id="@+id/tvLocalBtName"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="BT: ---"
+                        android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:layout_marginTop="2dp"
+                        android:visibility="visible"/>
 
                     <TextView
                         android:id="@+id/tvHeaderStatus"

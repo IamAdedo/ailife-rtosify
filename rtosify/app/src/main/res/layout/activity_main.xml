@@ -52,66 +52,236 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- HEADER CONEXÃO -->
-            <LinearLayout
+            <!-- HEADER CONEXÃO E INFORMAÇÕES DO DISPOSITIVO -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:padding="16dp">
+                android:layout_margin="16dp"
+                app:cardBackgroundColor="?attr/colorSurfaceContainer"
+                app:cardCornerRadius="16dp"
+                app:strokeWidth="0dp">
 
-                <!-- Ícone Smartwatch -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="56dp"
-                    android:layout_height="56dp"
-                    app:cardCornerRadius="28dp"
-                    app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
-                    app:strokeWidth="0dp"
-                    android:layout_marginEnd="16dp">
-                    <ImageView
-                        android:layout_width="28dp"
-                        android:layout_height="28dp"
-                        android:src="@drawable/ic_smartwatch"
-                        app:tint="?android:attr/textColorPrimary"
-                        android:layout_gravity="center"/>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- Infos -->
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <!-- Ícone Smartwatch -->
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="56dp"
+                            android:layout_height="56dp"
+                            app:cardCornerRadius="28dp"
+                            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+                            app:strokeWidth="0dp"
+                            android:layout_marginEnd="16dp">
+                            <ImageView
+                                android:layout_width="28dp"
+                                android:layout_height="28dp"
+                                android:src="@drawable/ic_smartwatch"
+                                app:tint="?android:attr/textColorPrimary"
+                                android:layout_gravity="center"/>
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <!-- Infos -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvHeaderDeviceName"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/status_searching"
+                                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:id="@+id/tvHeaderStatus"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/status_disconnected"
+                                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                                android:textColor="?android:attr/textColorSecondary"/>
+                        </LinearLayout>
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switchService"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="true"
+                            android:text="On"
+                            android:layout_gravity="center_vertical"/>
+                    </LinearLayout>
+
+                    <!-- Divider -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="?android:attr/dividerVertical"
+                        android:layout_marginVertical="16dp"
+                        android:alpha="0.2"/>
+
+                    <!-- Device Info Area (Received from Watch) -->
                     <TextView
-                        android:id="@+id/tvHeaderDeviceName"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/status_searching"
-                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                        android:textStyle="bold"
-                        android:textColor="?android:attr/textColorPrimary"/>
+                        android:text="@string/device_info_title"
+                        android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:layout_marginBottom="12dp"/>
 
-                    <TextView
-                        android:id="@+id/tvHeaderStatus"
-                        android:layout_width="wrap_content"
+                    <GridLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/status_disconnected"
-                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                        android:textColor="?android:attr/textColorSecondary"/> <!-- Cor padrão para evitar erro -->
+                        android:columnCount="2"
+                        android:rowCount="3">
+
+                        <!-- Model -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_columnWeight="1"
+                            android:orientation="vertical"
+                            android:padding="4dp">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/device_info_model"
+                                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                                android:textColor="?android:attr/textColorSecondary"/>
+                            <TextView
+                                android:id="@+id/tvDeviceInfoModel"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/device_info_loading"
+                                android:textAppearance="@style/TextAppearance.Material3.BodySmall"/>
+                        </LinearLayout>
+
+                        <!-- Android Version -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_columnWeight="1"
+                            android:orientation="vertical"
+                            android:padding="4dp">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/device_info_android"
+                                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                                android:textColor="?android:attr/textColorSecondary"/>
+                            <TextView
+                                android:id="@+id/tvDeviceInfoAndroid"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/device_info_loading"
+                                android:textAppearance="@style/TextAppearance.Material3.BodySmall"/>
+                        </LinearLayout>
+
+                        <!-- RAM Usage -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_columnWeight="1"
+                            android:orientation="vertical"
+                            android:padding="4dp"
+                            android:layout_marginTop="8dp">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/device_info_ram"
+                                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                                android:textColor="?android:attr/textColorSecondary"/>
+                            <TextView
+                                android:id="@+id/tvDeviceInfoRam"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/device_info_loading"
+                                android:textAppearance="@style/TextAppearance.Material3.BodySmall"/>
+                        </LinearLayout>
+
+                        <!-- Storage Usage -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_columnWeight="1"
+                            android:orientation="vertical"
+                            android:padding="4dp"
+                            android:layout_marginTop="8dp">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/device_info_storage"
+                                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                                android:textColor="?android:attr/textColorSecondary"/>
+                            <TextView
+                                android:id="@+id/tvDeviceInfoStorage"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/device_info_loading"
+                                android:textAppearance="@style/TextAppearance.Material3.BodySmall"/>
+                        </LinearLayout>
+
+                        <!-- Processor -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_columnWeight="1"
+                            android:orientation="vertical"
+                            android:padding="4dp"
+                            android:layout_marginTop="8dp">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/device_info_processor"
+                                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                                android:textColor="?android:attr/textColorSecondary"/>
+                            <TextView
+                                android:id="@+id/tvDeviceInfoProcessor"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/device_info_loading"
+                                android:textAppearance="@style/TextAppearance.Material3.BodySmall"/>
+                        </LinearLayout>
+
+                        <!-- CPU Usage -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_columnWeight="1"
+                            android:orientation="vertical"
+                            android:padding="4dp"
+                            android:layout_marginTop="8dp">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/device_info_cpu_usage"
+                                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                                android:textColor="?android:attr/textColorSecondary"/>
+                            <TextView
+                                android:id="@+id/tvDeviceInfoCpu"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/device_info_loading"
+                                android:textAppearance="@style/TextAppearance.Material3.BodySmall"/>
+                        </LinearLayout>
+
+                    </GridLayout>
                 </LinearLayout>
-
-                <com.google.android.material.materialswitch.MaterialSwitch
-                    android:id="@+id/switchService"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:text="Turn Service On"
-                    android:layout_gravity="center_vertical"/>
-            </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- STATUS DO WATCH: BATERIA, WIFI, DND -->
-            <!-- Layout Linear com pesos iguais para alinhamento perfeito -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardWatchStatus"
                 android:layout_width="match_parent"
@@ -206,7 +376,7 @@
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:src="@drawable/ic_do_not_disturb"
-                            app:tint="?android:attr/textColorPrimary"/> <!-- Tint fixo do tema -->
+                            app:tint="?android:attr/textColorPrimary"/>
 
                         <TextView
                             android:id="@+id/tvDndStatus"

@@ -20,6 +20,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import com.ailife.rtosify.BluetoothService
 import com.ailife.rtosify.FileTransferData
+import com.ailife.rtosify.DeviceInfoData
 import com.ailife.rtosify.R
 import com.google.android.material.tabs.TabLayout
 import java.io.File
@@ -163,7 +164,8 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
     }
 
     fun transferWatchFace(file: File) {
-        if (bluetoothService?.isConnected != true) {
+        val service = bluetoothService
+        if (service == null || !service.isConnected) {
             Toast.makeText(this, R.string.toast_watch_not_connected, Toast.LENGTH_SHORT).show()
             return
         }
@@ -171,7 +173,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
         showProgressDialog("Transferring ${file.name}...")
         // Specify remote restricted path
         val remotePath = "Android/data/com.ailife.ClockSkinCoco/files/ClockSkin/${file.name}"
-        bluetoothService?.sendFile(file, FileTransferData.TYPE_WATCHFACE, remotePath)
+        service.sendFile(file, FileTransferData.TYPE_WATCHFACE, remotePath)
     }
 
     private fun showProgressDialog(message: String) {
@@ -330,4 +332,6 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
         dismissProgressDialog()
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
+
+    override fun onDeviceInfoReceived(info: DeviceInfoData) {}
 }

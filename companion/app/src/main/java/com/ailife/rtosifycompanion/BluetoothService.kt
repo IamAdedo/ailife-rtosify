@@ -101,6 +101,8 @@ class BluetoothService : Service() {
     private lateinit var healthDataCollector: HealthDataCollector
     private var liveMeasurementJob: Job? = null
     private var batteryHistoryJob: Job? = null
+    private var deviceInfoUpdateJob: Job? = null
+    private lateinit var deviceInfoManager: DeviceInfoManager
 
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothSocket: BluetoothSocket? = null
@@ -359,6 +361,8 @@ class BluetoothService : Service() {
 
         // Start battery history tracking
         startBatteryHistoryTracking()
+
+        deviceInfoManager = DeviceInfoManager(this)
 
         Log.d(TAG, "BluetoothService created")
 
@@ -806,6 +810,7 @@ class BluetoothService : Service() {
         val deviceType = prefs.getString("device_type", "PHONE")
         if (deviceType == "WATCH") {
             startWatchStatusSender()
+            startDeviceInfoSender()
             // Health data is now request-based, not continuous
         }
 
@@ -1250,6 +1255,7 @@ class BluetoothService : Service() {
         } catch (_: Exception) {}
 
         statusUpdateJob?.cancel()
+        deviceInfoUpdateJob?.cancel()
         liveMeasurementJob?.cancel()
     }
 
@@ -1300,6 +1306,21 @@ class BluetoothService : Service() {
                     Log.e(TAG, "Erro ao enviar status: ${e.message}")
                 }
                 delay(5000)
+            }
+        }
+    }
+
+    private fun startDeviceInfoSender() {
+        deviceInfoUpdateJob?.cancel()
+        deviceInfoUpdateJob = serviceScope.launch(Dispatchers.IO) {
+            while (isActive && isConnected) {
+                try {
+                    val info = deviceInfoManager.getDeviceInfo()
+                    sendMessage(ProtocolHelper.createDeviceInfoUpdate(info))
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error sending device info: ${e.message}")
+                }
+                delay(3000)
             }
         }
     }

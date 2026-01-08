@@ -174,6 +174,7 @@ class BluetoothService : Service() {
         fun onPreviewReceived(path: String, imageBase64: String?) {}
         fun onWifiScanResultsReceived(results: List<WifiScanResultData>) {}
         fun onBatteryDetailReceived(data: BatteryDetailData) {}
+        fun onDeviceInfoReceived(info: DeviceInfoData) {}
     }
 
     var callback: ServiceCallback? = null
@@ -711,6 +712,7 @@ class BluetoothService : Service() {
                     MessageType.WIFI_SCAN_RESULTS -> handleWifiScanResults(message)
                     MessageType.CLIPBOARD_SYNC -> handleClipboardReceived(message)
                     MessageType.BATTERY_DETAIL_UPDATE -> handleBatteryDetailUpdate(message)
+                    MessageType.DEVICE_INFO_UPDATE -> handleDeviceInfoUpdate(message)
                 }
             }
         } catch (_: IOException) {
@@ -1122,7 +1124,7 @@ class BluetoothService : Service() {
 
             // Send automation settings to watch (watch will handle the logic)
             sendAutomationSettings()
-
+        }
             // Auto BT Tether: Enable phone BT tethering + watch internet
         if (prefs.getBoolean("auto_bt_tether_enabled", false)) {
             try {
@@ -1135,7 +1137,17 @@ class BluetoothService : Service() {
             sendMessage(ProtocolHelper.createEnableBluetoothInternet(true))
         }
     }
-}
+
+    private suspend fun handleDeviceInfoUpdate(message: ProtocolMessage) {
+        try {
+            val data = ProtocolHelper.extractData<DeviceInfoData>(message)
+            withContext(Dispatchers.Main) {
+                callback?.onDeviceInfoReceived(data)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling device info update: ${e.message}")
+        }
+    }
 
     private fun onConnectionLost() {
         serviceScope.launch(Dispatchers.IO) {

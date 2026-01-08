@@ -14,6 +14,8 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.os.Bundle
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.IBinder
 import android.text.InputType
 import android.widget.EditText
@@ -47,6 +49,16 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var appBarLayout: AppBarLayout
     private lateinit var mainContentScrollView: NestedScrollView
     private lateinit var switchService: com.google.android.material.materialswitch.MaterialSwitch
+
+    // Device Info UI
+    private lateinit var cardHeader: MaterialCardView
+    private lateinit var tvDeviceInfoModel: TextView
+    private lateinit var tvDeviceInfoAndroid: TextView
+    private lateinit var tvDeviceInfoRam: TextView
+    private lateinit var tvDeviceInfoStorage: TextView
+    private lateinit var tvDeviceInfoProcessor: TextView
+    private lateinit var tvDeviceInfoCpu: TextView
+
 
     // Watch Status UI
     private lateinit var cardWatchStatus: MaterialCardView
@@ -171,13 +183,15 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     override fun onResume() {
         super.onResume()
-        // Quando a atividade volta ao foco, é crucial se registrar novamente como o callback
-        // e atualizar a UI com o estado mais recente do serviço.
         if (isBound) {
             bluetoothService?.callback = this
             // Força a atualização da UI com os dados atuais do serviço
             updateStatusUI(bluetoothService?.currentStatus ?: getString(R.string.status_verifying), bluetoothService?.isConnected == true)
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
     }
 
     private fun hasMissingPermissions(): Boolean {
@@ -231,6 +245,15 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         imgWatchStatus = findViewById(R.id.imgWatchStatus)
         tvWatchStatusBig = findViewById(R.id.tvWatchStatusBig)
         switchService = findViewById(R.id.switchService)
+
+        // Device Info Views
+        cardHeader = findViewById(R.id.cardHeader)
+        tvDeviceInfoModel = findViewById(R.id.tvDeviceInfoModel)
+        tvDeviceInfoAndroid = findViewById(R.id.tvDeviceInfoAndroid)
+        tvDeviceInfoRam = findViewById(R.id.tvDeviceInfoRam)
+        tvDeviceInfoStorage = findViewById(R.id.tvDeviceInfoStorage)
+        tvDeviceInfoProcessor = findViewById(R.id.tvDeviceInfoProcessor)
+        tvDeviceInfoCpu = findViewById(R.id.tvDeviceInfoCpu)
     }
 
     private fun setupLayoutMode() {
@@ -927,6 +950,15 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         finish()
     }
 
+    private fun updateDeviceInfoUI(info: DeviceInfoData) {
+        tvDeviceInfoModel.text = info.model
+        tvDeviceInfoAndroid.text = info.androidVersion
+        tvDeviceInfoRam.text = info.ramUsage
+        tvDeviceInfoStorage.text = info.storageUsage
+        tvDeviceInfoProcessor.text = info.processor
+        tvDeviceInfoCpu.text = getString(R.string.device_info_usage_format, info.cpuUsage)
+    }
+
     private fun confirmApkUpload(uri: Uri) {
         AlertDialog.Builder(this)
             .setTitle(getString(R.string.dialog_upload_apk_title))
@@ -1146,9 +1178,14 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     override fun onHealthDataUpdated(healthData: HealthDataUpdate) {
-        android.util.Log.d("MainActivity", "Health data received: steps=${healthData.steps}, cal=${healthData.calories}, hr=${healthData.heartRate}")
         runOnUiThread {
             updateHealthDataCard(healthData)
+        }
+    }
+
+    override fun onDeviceInfoReceived(info: DeviceInfoData) {
+        runOnUiThread {
+            updateDeviceInfoUI(info)
         }
     }
 

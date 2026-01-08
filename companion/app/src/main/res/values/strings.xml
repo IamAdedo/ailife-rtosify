@@ -180,4 +180,6 @@
 
     <string name="perm_restricted_title">Restricted Setting</string>
     <string name="perm_restricted_desc">This setting is restricted by Android for security. You need to enable it manually using ADB.\n\nCommand copied to clipboard.</string>
+
+    <string name="bt_name_format">BT: %s</string>
 </resources>

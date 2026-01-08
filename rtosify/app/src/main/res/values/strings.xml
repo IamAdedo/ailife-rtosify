@@ -336,4 +336,17 @@
 
     <string name="perm_restricted_title">Restricted Setting</string>
     <string name="perm_restricted_desc">This setting is restricted by Android for security. You need to enable it manually using ADB.\n\nCommand copied to clipboard.</string>
+
+    <!-- Device Information -->
+    <string name="device_info_title">Device Information</string>
+    <string name="device_info_model">Model</string>
+    <string name="device_info_android">Android</string>
+    <string name="device_info_ram">RAM</string>
+    <string name="device_info_storage">Storage</string>
+    <string name="device_info_processor">Processor</string>
+    <string name="device_info_cpu_usage">CPU Usage</string>
+    <string name="device_info_loading">Loading…</string>
+    <string name="device_info_usage_format">%d%%</string>
+    <string name="device_info_storage_format">%1$s / %2$s</string>
+    <string name="device_info_ram_format">%1$s / %2$s</string>
 </resources>

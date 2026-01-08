@@ -103,6 +103,7 @@ object MessageType {
     const val REQUEST_BATTERY_STATIC = "request_battery_static"
     const val REQUEST_BATTERY_LIVE = "request_battery_live"
     const val BATTERY_DETAIL_UPDATE = "battery_detail_update"
+    const val DEVICE_INFO_UPDATE = "device_info_update"
 }
 
 // Data classes for specific message types
@@ -303,6 +304,16 @@ data class AppUsageData(
     val icon: String? = null, // Base64
     val batteryPowerMah: Double? = null,
     val drainSpeed: Double? = null // mAh/h
+)
+
+data class DeviceInfoData(
+    val model: String,
+    val androidVersion: String,
+    val ramUsage: String,
+    val storageUsage: String,
+    val processor: String,
+    val cpuUsage: Int,
+    val btRssi: Int? = null
 )
 
 data class BatteryHistoryPoint(
@@ -690,5 +701,10 @@ object ProtocolHelper {
 
     fun createRequestBatteryLive(): ProtocolMessage {
         return ProtocolMessage(type = MessageType.REQUEST_BATTERY_LIVE)
+    }
+
+    fun createDeviceInfoUpdate(info: DeviceInfoData): ProtocolMessage {
+        val data = gson.toJsonTree(info).asJsonObject
+        return ProtocolMessage(type = MessageType.DEVICE_INFO_UPDATE, data = data)
     }
 }

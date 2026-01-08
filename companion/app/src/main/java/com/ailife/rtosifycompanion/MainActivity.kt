@@ -38,6 +38,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     // UI References
     private lateinit var tvHeaderDeviceName: TextView
+    private lateinit var tvLocalBtName: TextView
+    private lateinit var tvLocalBtNameWatch: TextView
     private lateinit var tvHeaderStatus: TextView
     private lateinit var progressBarMain: ProgressBar
     private lateinit var recyclerViewMenu: RecyclerView
@@ -142,6 +144,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         super.onResume()
         // Quando a atividade volta ao foco, é crucial se registrar novamente como o callback
         // e atualizar a UI com o estado mais recente do serviço.
+        updateLocalBtName()
         if (isBound) {
             bluetoothService?.callback = this
             // Força a atualização da UI com os dados atuais do serviço
@@ -164,6 +167,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         mainContentScrollView = findViewById(R.id.mainContentScrollView)
 
         tvHeaderDeviceName = findViewById(R.id.tvHeaderDeviceName)
+        tvLocalBtName = findViewById(R.id.tvLocalBtName)
+        tvLocalBtNameWatch = findViewById(R.id.tvLocalBtNameWatch)
         tvHeaderStatus = findViewById(R.id.tvHeaderStatus)
         progressBarMain = findViewById(R.id.progressBarMain)
         recyclerViewMenu = findViewById(R.id.recyclerViewMenu)
@@ -184,6 +189,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         tvWatchStatusBig = findViewById(R.id.tvWatchStatusBig)
         switchService = findViewById(R.id.switchService)
         switchServiceWatch = findViewById(R.id.switchServiceWatch)
+        updateLocalBtName()
     }
 
     private fun setupLayoutMode() {
@@ -486,6 +492,10 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         tvHeaderDeviceName.text = if (isConnected) deviceName else getString(R.string.status_waiting)
         tvHeaderStatus.text = if (isConnected) getString(R.string.status_connected) else status
         tvHeaderStatus.setTextColor(if (isConnected) Color.GREEN else Color.RED)
+        
+        // Update local BT name
+        updateLocalBtName()
+
         progressBarMain.visibility = if (!isConnected && status.contains("Conectando")) View.VISIBLE else View.INVISIBLE
 
         if (isPhoneMode && isConnected) {
@@ -610,6 +620,23 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private fun dismissUploadDialog() {
         uploadDialog?.dismiss()
         uploadDialog = null
+    }
+
+    private fun updateLocalBtName() {
+        try {
+            val btAdapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+            val name = btAdapter?.name ?: "Unknown"
+            val text = getString(R.string.bt_name_format, name)
+            
+            tvLocalBtName.text = text
+            tvLocalBtName.visibility = View.VISIBLE
+            
+            tvLocalBtNameWatch.text = text
+            tvLocalBtNameWatch.visibility = View.VISIBLE
+        } catch (e: Exception) {
+            tvLocalBtName.visibility = View.GONE
+            tvLocalBtNameWatch.visibility = View.GONE
+        }
     }
 
     override fun onStatusChanged(status: String) {
