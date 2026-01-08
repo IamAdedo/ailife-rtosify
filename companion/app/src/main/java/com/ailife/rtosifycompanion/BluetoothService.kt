@@ -103,6 +103,7 @@ class BluetoothService : Service() {
     private var batteryHistoryJob: Job? = null
     private var deviceInfoUpdateJob: Job? = null
     private lateinit var deviceInfoManager: DeviceInfoManager
+    private lateinit var watchAlarmManager: WatchAlarmManager
 
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothSocket: BluetoothSocket? = null
@@ -363,6 +364,9 @@ class BluetoothService : Service() {
         startBatteryHistoryTracking()
 
         deviceInfoManager = DeviceInfoManager(this)
+
+        // Initialize alarm manager
+        watchAlarmManager = WatchAlarmManager(this)
 
         Log.d(TAG, "BluetoothService created")
 
@@ -870,8 +874,13 @@ class BluetoothService : Service() {
                     MessageType.REQUEST_BATTERY_LIVE -> handleRequestBatteryLive()
                     MessageType.REQUEST_BATTERY_STATIC -> handleRequestBatteryStatic()
                     MessageType.UPDATE_BATTERY_SETTINGS -> handleUpdateBatterySettings(message)
-                    MessageType.CLIPBOARD_SYNC -> handleClipboardReceived(message)
+                    MessageType.CLIPBOARD_SYNC -> handleClipboardSync(message)
                     MessageType.ENABLE_BT_INTERNET -> handleEnableBluetoothInternet(message)
+                    MessageType.REQUEST_ALARMS -> handleRequestAlarms()
+                    MessageType.ADD_ALARM -> handleAddAlarm(message)
+                    MessageType.UPDATE_ALARM -> handleUpdateAlarm(message)
+                    MessageType.DELETE_ALARM -> handleDeleteAlarm(message)
+                    else -> Log.w(TAG, "Unknown message type: ${message.type}")
                 }
             }
         } catch (_: IOException) {
@@ -1055,6 +1064,87 @@ class BluetoothService : Service() {
             Log.d(TAG, "Clipboard changed (polling): $text")
             if (isConnected) {
                 sendMessage(ProtocolHelper.createClipboardSync(text))
+            }
+        }
+    }
+
+    private fun handleClipboardSync(message: ProtocolMessage) {
+        val text = ProtocolHelper.extractStringField(message, "text") ?: return
+        Log.d(TAG, "Received clipboard text from phone: ${text.take(50)}...")
+        
+        mainHandler.post {
+            try {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("rtosify_clipboard", text)
+                clipboard.setPrimaryClip(clip)
+                lastClipboardText = text
+                Log.d(TAG, "✅ Clipboard updated on watch")
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ Failed to update clipboard: ${e.message}")
+            }
+        }
+    }
+
+    // Alarm management handlers
+    private fun handleRequestAlarms() {
+        serviceScope.launch {
+            try {
+                val alarms = watchAlarmManager.getAllAlarms()
+                sendMessage(ProtocolHelper.createResponseAlarms(alarms))
+                Log.d(TAG, "Sent ${alarms.size} alarms to phone")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling REQUEST_ALARMS: ${e.message}")
+            }
+        }
+    }
+
+    private fun handleAddAlarm(message: ProtocolMessage) {
+        serviceScope.launch {
+            try {
+                val alarm = ProtocolHelper.extractData<AlarmData>(message)
+                val addedAlarm = watchAlarmManager.addAlarm(alarm)
+                
+                //  Send updated alarm list back to phone
+                val alarms = watchAlarmManager.getAllAlarms()
+                sendMessage(ProtocolHelper.createResponseAlarms(alarms))
+                
+                Log.d(TAG, "Added alarm: ${addedAlarm.hour}:${addedAlarm.minute}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling ADD_ALARM: ${e.message}")
+            }
+        }
+    }
+
+    private fun handleUpdateAlarm(message: ProtocolMessage) {
+        serviceScope.launch {
+            try {
+                val alarm = ProtocolHelper.extractData<AlarmData>(message)
+                watchAlarmManager.updateAlarm(alarm)
+                
+                // Send updated alarm list back to phone
+                val alarms = watchAlarmManager.getAllAlarms()
+                sendMessage(ProtocolHelper.createResponseAlarms(alarms))
+                
+                Log.d(TAG, "Updated alarm: ${alarm.id}, enabled: ${alarm.enabled}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling UPDATE_ALARM: ${e.message}")
+            }
+        }
+    }
+
+    private fun handleDeleteAlarm(message: ProtocolMessage) {
+        serviceScope.launch {
+            try {
+                val alarmId = ProtocolHelper.extractStringField(message, "alarmId") ?: return@launch
+                watchAlarmManager.deleteAlarm(alarmId)
+                
+                // Send updated alarm list back to phone
+                val alarms = watchAlarmManager.getAllAlarms()
+                sendMessage(ProtocolHelper.createResponseAlarms(alarms))
+                
+                Log.d(TAG, "Deleted alarm: $alarmId")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling DELETE_ALARM: ${e.message}")
             }
         }
     }

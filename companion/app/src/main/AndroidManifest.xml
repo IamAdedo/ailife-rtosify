@@ -159,6 +159,17 @@
             </intent-filter>
         </receiver>
 
+        <!-- Alarm Receiver -->
+        <receiver
+            android:name=".AlarmReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.ailife.rtosifycompanion.ALARM_TRIGGER" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
         <activity
             android:name=".FindDeviceActivity"
             android:exported="false"
@@ -185,6 +196,14 @@
 
         <activity
             android:name=".CallActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Smartwatch" />
+
+        <activity
+            android:name=".AlarmRingingActivity"
             android:exported="false"
             android:launchMode="singleTop"
             android:showWhenLocked="true"

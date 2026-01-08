@@ -177,7 +177,12 @@ class BluetoothService : Service() {
         fun onDeviceInfoReceived(info: DeviceInfoData) {}
     }
 
+    interface AlarmCallback {
+        fun onAlarmsReceived(alarms: List<AlarmData>)
+    }
+
     var callback: ServiceCallback? = null
+    var alarmCallback: AlarmCallback? = null
 
     @Volatile
     var currentStatus: String = "" // Will be initialized in onCreate
@@ -714,6 +719,7 @@ class BluetoothService : Service() {
                     MessageType.BATTERY_DETAIL_UPDATE -> handleBatteryDetailUpdate(message)
                     MessageType.DEVICE_INFO_UPDATE -> handleDeviceInfoUpdate(message)
                     MessageType.BATTERY_ALERT -> handleBatteryAlert(message)
+                    MessageType.RESPONSE_ALARMS -> handleResponseAlarms(message)
                 }
             }
         } catch (_: IOException) {
@@ -2344,5 +2350,44 @@ class BluetoothService : Service() {
             .setContentIntent(pendingIntent)
 
         nm.notify(123456, builder.build())
+    }
+
+    // Alarm management methods
+    private fun handleResponseAlarms(message: ProtocolMessage) {
+        serviceScope.launch {
+            try {
+                val jsonArray = message.data.getAsJsonArray("alarms")
+                val alarms = ProtocolHelper.gson.fromJson<List<AlarmData>>(
+                    jsonArray,
+                    object : TypeToken<List<AlarmData>>() {}.type
+                )
+                withContext(Dispatchers.Main) {
+                    alarmCallback?.onAlarmsReceived(alarms)
+                }
+                Log.d(TAG, "Received ${alarms.size} alarms from watch")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling RESPONSE_ALARMS: ${e.message}")
+            }
+        }
+    }
+
+    fun requestAlarms() {
+        sendMessage(ProtocolHelper.createRequestAlarms())
+        Log.d(TAG, "Requested alarms from watch")
+    }
+
+    fun addAlarm(alarm: AlarmData) {
+        sendMessage(ProtocolHelper.createAddAlarm(alarm))
+        Log.d(TAG, "Sent ADD_ALARM: ${alarm.hour}:${alarm.minute}")
+    }
+
+    fun updateAlarm(alarm: AlarmData) {
+        sendMessage(ProtocolHelper.createUpdateAlarm(alarm))
+        Log.d(TAG, "Sent UPDATE_ALARM: ${alarm.id}")
+    }
+
+    fun deleteAlarm(alarmId: String) {
+        sendMessage(ProtocolHelper.createDeleteAlarm(alarmId))
+        Log.d(TAG, "Sent DELETE_ALARM: $alarmId")
     }
 }

@@ -805,6 +805,18 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 { runIfConnected { startActivity(Intent(this, AppListActivity::class.java)) } }
             ),
             MenuOption(
+                getString(R.string.menu_health),
+                "Monitor health metrics",
+                android.R.drawable.ic_menu_compass,
+                { runIfConnected { startActivity(Intent(this, HealthDetailActivity::class.java)) } }
+            ),
+            MenuOption(
+                "Alarms",
+                "Manage watch alarms",
+                android.R.drawable.ic_lock_idle_alarm,
+                { runIfConnected { startActivity(Intent(this, AlarmManagementActivity::class.java)) } }
+            ),
+            MenuOption(
                 getString(R.string.menu_watchface),
                 getString(R.string.wf_title),
                 android.R.drawable.ic_menu_gallery,

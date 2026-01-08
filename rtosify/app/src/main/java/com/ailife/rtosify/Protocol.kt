@@ -105,6 +105,11 @@ object MessageType {
     const val BATTERY_DETAIL_UPDATE = "battery_detail_update"
     const val DEVICE_INFO_UPDATE = "device_info_update"
     const val BATTERY_ALERT = "battery_alert"
+    const val REQUEST_ALARMS = "request_alarms"
+    const val RESPONSE_ALARMS = "response_alarms"
+    const val ADD_ALARM = "add_alarm"
+    const val UPDATE_ALARM = "update_alarm"
+    const val DELETE_ALARM = "delete_alarm"
 }
 
 // Data classes for specific message types
@@ -351,6 +356,15 @@ data class BatterySettingsData(
 data class BatteryAlertData(
     val alertType: String, // "FULL" or "LOW"
     val level: Int
+)
+
+data class AlarmData(
+    val id: String,              // Unique alarm identifier
+    val hour: Int,               // Hour (0-23)
+    val minute: Int,             // Minute (0-59)
+    val enabled: Boolean,        // Whether alarm is active
+    val daysOfWeek: List<Int>,   // Days of week (1=Monday, 7=Sunday), empty = once
+    val label: String = ""       // Optional alarm label
 )
 
 // Helper functions to create messages
@@ -720,5 +734,31 @@ object ProtocolHelper {
         data.addProperty("alertType", alertType)
         data.addProperty("level", level)
         return ProtocolMessage(type = MessageType.BATTERY_ALERT, data = data)
+    }
+
+    fun createRequestAlarms(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.REQUEST_ALARMS)
+    }
+
+    fun createResponseAlarms(alarms: List<AlarmData>): ProtocolMessage {
+        val data = JsonObject()
+        data.add("alarms", gson.toJsonTree(alarms))
+        return ProtocolMessage(type = MessageType.RESPONSE_ALARMS, data = data)
+    }
+
+    fun createAddAlarm(alarm: AlarmData): ProtocolMessage {
+        val data = gson.toJsonTree(alarm).asJsonObject
+        return ProtocolMessage(type = MessageType.ADD_ALARM, data = data)
+    }
+
+    fun createUpdateAlarm(alarm: AlarmData): ProtocolMessage {
+        val data = gson.toJsonTree(alarm).asJsonObject
+        return ProtocolMessage(type = MessageType.UPDATE_ALARM, data = data)
+    }
+
+    fun createDeleteAlarm(alarmId: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("alarmId", alarmId)
+        return ProtocolMessage(type = MessageType.DELETE_ALARM, data = data)
     }
 }
