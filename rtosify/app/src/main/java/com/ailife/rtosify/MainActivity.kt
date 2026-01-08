@@ -957,9 +957,16 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
 
     private fun resetApp() {
-        bluetoothService?.resetApp()
-        startActivity(Intent(this, WelcomeActivity::class.java))
-        finish()
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.dialog_reset_all_title))
+            .setMessage(getString(R.string.dialog_reset_all_message))
+            .setPositiveButton(getString(R.string.dialog_reset_all_confirm)) { _, _ ->
+                bluetoothService?.resetApp()
+                startActivity(Intent(this, WelcomeActivity::class.java))
+                finish()
+            }
+            .setNegativeButton(getString(R.string.dialog_reset_all_cancel), null)
+            .show()
     }
 
     private fun updateDeviceInfoUI(info: DeviceInfoData) {

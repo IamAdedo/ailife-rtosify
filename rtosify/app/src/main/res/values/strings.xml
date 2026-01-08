@@ -89,6 +89,10 @@
     <string name="menu_connect_desc">Start service and connect</string>
     <string name="menu_reset_all">Reset All</string>
     <string name="menu_reset_all_desc">Clear settings and return to start</string>
+    <string name="dialog_reset_all_title">Reset All Settings?</string>
+    <string name="dialog_reset_all_message">This will clear all settings and return to the start screen. Do you want to continue?</string>
+    <string name="dialog_reset_all_confirm">Reset All</string>
+    <string name="dialog_reset_all_cancel">Cancel</string>
 
     <!-- Watch Automations -->
     <string name="watch_automations_title">Watch Automations</string>
