@@ -104,6 +104,7 @@ object MessageType {
     const val REQUEST_BATTERY_LIVE = "request_battery_live"
     const val BATTERY_DETAIL_UPDATE = "battery_detail_update"
     const val DEVICE_INFO_UPDATE = "device_info_update"
+    const val BATTERY_ALERT = "battery_alert"
 }
 
 // Data classes for specific message types
@@ -333,6 +334,7 @@ data class BatteryDetailData(
     val chargeCounter: Int, // microampere-hours
     val energyCounter: Long, // nanowatt-hours
     val capacity: Double, // mAh
+    val temperature: Int = 0, // tenths of a degree Celsius
     val timestamp: Long = System.currentTimeMillis(),
     val appUsage: List<AppUsageData> = emptyList(),
     val history: List<BatteryHistoryPoint> = emptyList(),
@@ -344,6 +346,11 @@ data class BatterySettingsData(
     val notifyLow: Boolean,
     val lowThreshold: Int,
     val detailedLogEnabled: Boolean = false
+)
+
+data class BatteryAlertData(
+    val alertType: String, // "FULL" or "LOW"
+    val level: Int
 )
 
 // Helper functions to create messages
@@ -714,5 +721,12 @@ object ProtocolHelper {
     fun createDeviceInfoUpdate(info: DeviceInfoData): ProtocolMessage {
         val data = gson.toJsonTree(info).asJsonObject
         return ProtocolMessage(type = MessageType.DEVICE_INFO_UPDATE, data = data)
+    }
+
+    fun createBatteryAlert(alertType: String, level: Int): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("alertType", alertType)
+        data.addProperty("level", level)
+        return ProtocolMessage(type = MessageType.BATTERY_ALERT, data = data)
     }
 }

@@ -4083,7 +4083,8 @@ class BluetoothService : Service() {
                     voltage = voltage,
                     chargeCounter = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER).toInt(),
                     energyCounter = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER),
-                    capacity = 0.0,
+                    capacity = getBatteryCapacity(),
+                    temperature = batteryStatus?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) ?: 0,
                     remainingTimeMillis = remainingTimeMillis
                 )
                 
@@ -4114,7 +4115,7 @@ class BluetoothService : Service() {
                     voltage = 0,
                     chargeCounter = 0,
                     energyCounter = 0L,
-                    capacity = 0.0,
+                    capacity = getBatteryCapacity(),
                     appUsage = appUsage,
                     history = history
                 )
@@ -4471,6 +4472,7 @@ class BluetoothService : Service() {
         
         val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
         val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+        val temperature = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0)
 
         if (batteryPct != lastBatteryLevel || isCharging != lastChargingState) {
             lastBatteryLevel = batteryPct
@@ -4482,28 +4484,42 @@ class BluetoothService : Service() {
             val lowThreshold = prefs.getInt("batt_low_threshold", 20)
             
             if (notifyFull && batteryPct >= 100 && isCharging) {
-                postLocalNotification("Battery Full", "Watch is fully charged!")
+                if (isConnected) {
+                    sendMessage(ProtocolHelper.createBatteryAlert("FULL", batteryPct))
+                }
             } else if (notifyLow && batteryPct <= lowThreshold && !isCharging) {
-                postLocalNotification("Battery Low", "Watch battery is at $batteryPct%.")
+                if (isConnected) {
+                    sendMessage(ProtocolHelper.createBatteryAlert("LOW", batteryPct))
+                }
             }
         }
     }
 
-    private fun postLocalNotification(title: String, text: String) {
-        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = "battery_alerts"
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            nm.createNotificationChannel(NotificationChannel(channelId, "Battery Alerts", NotificationManager.IMPORTANCE_HIGH))
+    private fun getBatteryCapacity(): Double {
+        try {
+            val powerProfileClass = "com.android.internal.os.PowerProfile"
+            val mPowerProfile = Class.forName(powerProfileClass)
+                .getConstructor(Context::class.java)
+                .newInstance(this)
+            val batteryCapacity = Class.forName(powerProfileClass)
+                .getMethod("getBatteryCapacity")
+                .invoke(mPowerProfile) as Double
+            if (batteryCapacity > 0) return batteryCapacity
+        } catch (e: Exception) {
+            Log.w(TAG, "Error getting capacity via PowerProfile: ${e.message}")
         }
         
-        val builder = NotificationCompat.Builder(this, channelId)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_low_battery)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            
-        nm.notify(12345, builder.build())
+        try {
+            val id = resources.getIdentifier("config_batteryCapacity", "dimen", "android")
+            if (id > 0) {
+                val capacity = resources.getDimension(id).toDouble()
+                if (capacity > 0) return capacity
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error getting capacity via dimensions: ${e.message}")
+        }
+        
+        return 0.0
     }
 
     private fun handleIncomingCall(message: ProtocolMessage) {

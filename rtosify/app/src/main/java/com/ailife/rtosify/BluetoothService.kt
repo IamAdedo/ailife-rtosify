@@ -713,6 +713,7 @@ class BluetoothService : Service() {
                     MessageType.CLIPBOARD_SYNC -> handleClipboardReceived(message)
                     MessageType.BATTERY_DETAIL_UPDATE -> handleBatteryDetailUpdate(message)
                     MessageType.DEVICE_INFO_UPDATE -> handleDeviceInfoUpdate(message)
+                    MessageType.BATTERY_ALERT -> handleBatteryAlert(message)
                 }
             }
         } catch (_: IOException) {
@@ -2306,5 +2307,42 @@ class BluetoothService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error handling battery detail update: ${e.message}")
         }
+    }
+
+    private fun handleBatteryAlert(message: ProtocolMessage) {
+        try {
+            val alertType = message.data.get("alertType").asString
+            val level = message.data.get("level").asInt
+            
+            postBatteryNotification(alertType, level)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling battery alert: ${e.message}")
+        }
+    }
+
+    private fun postBatteryNotification(alertType: String, level: Int) {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "battery_alerts"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            nm.createNotificationChannel(NotificationChannel(channelId, "Battery Alerts", NotificationManager.IMPORTANCE_HIGH))
+        }
+
+        val title = if (alertType == "FULL") "Watch Battery Full" else "Watch Battery Low"
+        val text = if (alertType == "FULL") "Watch is fully charged!" else "Watch battery is at $level%."
+
+        val intent = Intent(this, MainActivity::class.java).apply {
+            putExtra("open_battery_detail", true)
+        }
+        val pendingIntent = PendingIntent.getActivity(this, 1234, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+        val builder = NotificationCompat.Builder(this, channelId)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(android.R.drawable.ic_lock_idle_low_battery)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+
+        nm.notify(123456, builder.build())
     }
 }

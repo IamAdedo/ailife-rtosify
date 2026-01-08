@@ -35,6 +35,8 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
     private lateinit var progressBattery: ProgressBar
     private lateinit var tvCurrentNow: TextView
     private lateinit var tvVoltage: TextView
+    private lateinit var tvTemperature: TextView
+    private lateinit var tvCapacity: TextView
     private lateinit var tvRemainingTime: TextView
     private lateinit var chartBattery: LineChart
     private lateinit var switchNotifyFull: SwitchMaterial
@@ -50,6 +52,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
 
     private var currentBatteryData: BatteryDetailData? = null
     private val timeHistory = mutableListOf<Long>()
+    private var lastIsCharging: Boolean? = null
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -133,6 +136,8 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         progressBattery = findViewById(R.id.progressBattery)
         tvCurrentNow = findViewById(R.id.tvCurrentNow)
         tvVoltage = findViewById(R.id.tvVoltage)
+        tvTemperature = findViewById(R.id.tvTemperature)
+        tvCapacity = findViewById(R.id.tvCapacity)
         tvRemainingTime = findViewById(R.id.tvRemainingTime)
         chartBattery = findViewById(R.id.chartBattery)
         btnSortUsage = findViewById(R.id.btnSortUsage)
@@ -280,6 +285,12 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
             }
             tvChargingStatus.text = statusText
 
+            // Reset estimation if charging state changes
+            if (lastIsCharging != null && lastIsCharging != mergedData.isCharging) {
+                timeHistory.clear()
+            }
+            lastIsCharging = mergedData.isCharging
+
             mergedData.remainingTimeMillis?.let { millis ->
                 timeHistory.add(millis)
                 if (timeHistory.size > 10) timeHistory.removeAt(0)
@@ -309,6 +320,19 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
             }
             tvCurrentNow.text = String.format("%.1f mA", displayCurrent)
             tvVoltage.text = "${mergedData.voltage} mV"
+
+            if (mergedData.temperature != 0) {
+                val tempC = mergedData.temperature / 10.0
+                tvTemperature.text = String.format("%.1f °C", tempC)
+            } else {
+                tvTemperature.text = "-- °C"
+            }
+            
+            if (mergedData.capacity > 0) {
+                tvCapacity.text = getString(R.string.battery_capacity_unit, mergedData.capacity.toInt().toString())
+            } else {
+                tvCapacity.text = "-- mAh"
+            }
 
             if (mergedData.history.isNotEmpty()) {
                 updateChart(mergedData.history)

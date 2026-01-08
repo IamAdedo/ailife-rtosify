@@ -44,6 +44,8 @@
 
     <!-- Battery -->
     <string name="battery_placeholder">—%</string>
+    <string name="battery_capacity_label">Capacity</string>
+    <string name="battery_capacity_unit">%s mAh</string>
 
     <!-- Wi-Fi -->
     <string name="wifi_verifying">Verifying</string>
