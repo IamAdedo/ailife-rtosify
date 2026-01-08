@@ -32,4 +32,5 @@ interface IUserService {
     void enableBluetoothPan(boolean enabled) = 22;
     String getPrimaryClipText() = 23;
     void setPrimaryClipText(String text) = 24;
+    String executeCommand(String command) = 25;
 }

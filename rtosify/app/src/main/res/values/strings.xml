@@ -333,4 +333,7 @@
     <string name="perm_nearby_wifi">Nearby WiFi Devices</string>
     <string name="perm_nearby_wifi_desc">Required to scan for WiFi networks on Android 13+.</string>
     <string name="wifi_scanning">Scanning WiFi on watch…</string>
+
+    <string name="perm_restricted_title">Restricted Setting</string>
+    <string name="perm_restricted_desc">This setting is restricted by Android for security. You need to enable it manually using ADB.\n\nCommand copied to clipboard.</string>
 </resources>

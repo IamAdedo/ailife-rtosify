@@ -200,7 +200,7 @@ class PermissionActivity : AppCompatActivity() {
             false
         }
         perms.add(PermissionItem("BATTERY_STATS", "Battery Stats", "Access real per-app battery consumption data (Android 12+)", hasBatteryStats))
-        
+
         // 18. Dump Permission (Direct Dumpsys)
         val hasDump = try {
             packageManager.checkPermission("android.permission.DUMP", packageName) == PackageManager.PERMISSION_GRANTED
@@ -209,6 +209,13 @@ class PermissionActivity : AppCompatActivity() {
         }
         perms.add(PermissionItem("DUMP", "System Dump", "Directly access system stats for robust data (Method 2)", hasDump))
         
+        // 19. Battery Optimization
+        val powerManager = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+        val isIgnoring = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            powerManager.isIgnoringBatteryOptimizations(packageName)
+        } else true
+        perms.add(PermissionItem("BATTERY", getString(R.string.perm_battery), getString(R.string.perm_battery_desc), isIgnoring))
+
         adapter.updateList(perms)
     }
 
@@ -226,6 +233,14 @@ class PermissionActivity : AppCompatActivity() {
             "INSTALL" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                }
+            }
+            "BATTERY" -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
                 }
             }
             "SHIZUKU" -> {
@@ -276,7 +291,14 @@ class PermissionActivity : AppCompatActivity() {
             "CALENDAR" -> requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR), 111)
             "CONTACTS" -> requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS, Manifest.permission.WRITE_CONTACTS), 112)
             "WATCHFACE" -> handleWatchFacePermissionClick()
-            "ACCESSIBILITY" -> startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            "ACCESSIBILITY" -> {
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                if (isRestrictedSettingsAllowed()) {
+                    startActivity(intent)
+                } else {
+                    showRestrictedSettingsDialog(intent)
+                }
+            }
             "NEARBY_WIFI" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     requestPermissions(arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES), 115)
@@ -498,6 +520,76 @@ class PermissionActivity : AppCompatActivity() {
 
                 itemView.setOnClickListener { onClick(item) }
             }
+        }
+    }
+    private fun isRestrictedSettingsAllowed(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        return try {
+            val mode = appOps.checkOpNoThrow("android:access_restricted_settings", android.os.Process.myUid(), packageName)
+            android.util.Log.d("PermissionActivity", "Restricted Mode Check: $mode (Allowed=${AppOpsManager.MODE_ALLOWED})")
+            mode == AppOpsManager.MODE_ALLOWED
+        } catch (e: Exception) {
+            android.util.Log.e("PermissionActivity", "Restricted Check Error", e)
+            false
+        }
+    }
+
+    private fun showRestrictedSettingsDialog(intent: Intent) {
+        val adbCommand = "adb shell appops set $packageName ACCESS_RESTRICTED_SETTINGS allow"
+        
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.perm_restricted_title)
+            .setMessage(R.string.perm_restricted_desc)
+            .setPositiveButton("Copy ADB Command") { _, _ ->
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("ADB Command", adbCommand)
+                clipboard.setPrimaryClip(clip)
+                android.widget.Toast.makeText(this, "Command copied! Run it on your computer.", android.widget.Toast.LENGTH_LONG).show()
+            }
+            .setNeutralButton("Open Settings") { _, _ ->
+                startActivity(intent)
+            }
+            .setNegativeButton("Activate with Shizuku") { _, _ ->
+                grantRestrictedSettingsWithShizuku()
+            }
+            .show()
+    }
+
+    private fun grantRestrictedSettingsWithShizuku() {
+        try {
+            val hasRoot = Shell.isAppGrantedRoot() == true
+            val hasShizuku = Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+            
+            if (!hasRoot && !hasShizuku) {
+                android.widget.Toast.makeText(this, "Root or Shizuku required.", android.widget.Toast.LENGTH_SHORT).show()
+                return
+            }
+            
+            android.widget.Toast.makeText(this, "Granting restricted settings...", android.widget.Toast.LENGTH_SHORT).show()
+            
+            Thread {
+                try {
+                    val command = "appops set $packageName ACCESS_RESTRICTED_SETTINGS allow"
+                    val exitCodeStr = userService?.executeCommand(command) ?: Shell.cmd(command).exec().code.toString()
+                    val exitCode = exitCodeStr.toIntOrNull() ?: -1
+                    
+                    runOnUiThread {
+                        if (exitCode == 0) {
+                            android.widget.Toast.makeText(this, "Permission granted!", android.widget.Toast.LENGTH_SHORT).show()
+                            updatePermissionList()
+                        } else {
+                            android.widget.Toast.makeText(this, "Failed (Code: $exitCode). Try ADB.", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                     runOnUiThread {
+                         android.widget.Toast.makeText(this, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                     }
+                }
+            }.start()
+        } catch (e: Exception) {
+             android.widget.Toast.makeText(this, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 }

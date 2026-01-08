@@ -33,6 +33,32 @@ class PermissionActivity : AppCompatActivity() {
     private lateinit var btnFinish: View
     private var fromSetup = false
 
+    // Shizuku UserService for Shell commands
+    private var userService: IUserService? = null
+    private var userServiceConnection: Shizuku.UserServiceArgs? = null
+    
+    private val userServiceArgs by lazy {
+        Shizuku.UserServiceArgs(ComponentName(BuildConfig.APPLICATION_ID, UserService::class.java.name))
+            .daemon(false)
+            .processNameSuffix("user_service")
+            .debuggable(BuildConfig.DEBUG)
+            .version(1)
+    }
+    
+    private val userServiceConn = object : android.content.ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, binder: android.os.IBinder?) {
+            if (binder != null && binder.pingBinder()) {
+                userService = IUserService.Stub.asInterface(binder)
+                android.util.Log.i("PermissionActivity", "UserService connected successfully")
+            }
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            userService = null
+            android.util.Log.w("PermissionActivity", "UserService disconnected")
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_permission)
@@ -62,6 +88,16 @@ class PermissionActivity : AppCompatActivity() {
         // Listener para quando o Shizuku conectar
         Shizuku.addBinderReceivedListener {
             updatePermissionList()
+        }
+        
+        // Bind UserService if Shizuku is available
+        if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+            try {
+                Shizuku.bindUserService(userServiceArgs, userServiceConn)
+                userServiceConnection = userServiceArgs
+            } catch (e: Exception) {
+                android.util.Log.e("PermissionActivity", "Failed to bind UserService: ${e.message}")
+            }
         }
     }
 
@@ -193,7 +229,14 @@ class PermissionActivity : AppCompatActivity() {
                     requestPermissions(arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE), 101)
                 }
             }
-            "NOTIF" -> startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            "NOTIF" -> {
+                val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                if (isRestrictedSettingsAllowed()) {
+                    startActivity(intent)
+                } else {
+                    showRestrictedSettingsDialog(intent)
+                }
+            }
             "INSTALL" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
@@ -201,7 +244,10 @@ class PermissionActivity : AppCompatActivity() {
             }
             "BATTERY" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
                 }
             }
             "SHIZUKU" -> {
@@ -260,12 +306,130 @@ class PermissionActivity : AppCompatActivity() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) p.add(Manifest.permission.ANSWER_PHONE_CALLS)
                 requestPermissions(p.toTypedArray(), 111)
             }
-            "ACCESSIBILITY" -> startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            "ACCESSIBILITY" -> {
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                if (isRestrictedSettingsAllowed()) {
+                    startActivity(intent)
+                } else {
+                    showRestrictedSettingsDialog(intent)
+                }
+            }
             "NEARBY_WIFI" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     requestPermissions(arrayOf(Manifest.permission.NEARBY_WIFI_DEVICES), 115)
                 }
             }
+        }
+    }
+
+    private fun isRestrictedSettingsAllowed(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        val appOps = getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+        return try {
+            val mode = appOps.checkOpNoThrow("android:access_restricted_settings", android.os.Process.myUid(), packageName)
+            android.util.Log.d("PermissionActivity", "Restricted Mode Check: $mode (Allowed=${android.app.AppOpsManager.MODE_ALLOWED})")
+            mode == android.app.AppOpsManager.MODE_ALLOWED
+        } catch (e: Exception) {
+            android.util.Log.e("PermissionActivity", "Restricted Check Error", e)
+            false
+        }
+    }
+    
+    private fun checkRestrictedSettingsWithShizuku(): Boolean {
+        try {
+            if (userService != null) {
+                // Use bound service
+                val output = userService?.executeCommand("appops get $packageName ACCESS_RESTRICTED_SETTINGS") ?: ""
+                android.util.Log.d("PermissionActivity", "Shizuku check output: $output")
+                return output.contains("ALLOW", ignoreCase = true)
+            } else if (Shell.isAppGrantedRoot() == true) {
+                // Use root
+                val result = Shell.cmd("appops get $packageName ACCESS_RESTRICTED_SETTINGS").exec()
+                val output = result.out.joinToString("\n")
+                android.util.Log.d("PermissionActivity", "Root check output: $output")
+                return output.contains("ALLOW", ignoreCase = true)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("PermissionActivity", "Shizuku/Root check error: ${e.message}")
+        }
+        return false // Default to false if we can't verify
+    }
+
+    private fun showRestrictedSettingsDialog(intent: Intent) {
+        val adbCommand = "appops set $packageName ACCESS_RESTRICTED_SETTINGS allow"
+        
+        android.app.AlertDialog.Builder(this)
+            .setTitle(R.string.perm_restricted_title)
+            .setMessage(R.string.perm_restricted_desc)
+            .setPositiveButton("Copy ADB Command") { _, _ ->
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("ADB Command", adbCommand)
+                clipboard.setPrimaryClip(clip)
+                android.widget.Toast.makeText(this, "Command copied!", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            .setNeutralButton("Open Settings") { _, _ ->
+                startActivity(intent)
+            }
+            .setNegativeButton("Activate with Shizuku") { _, _ ->
+                grantRestrictedSettingsWithShizuku()
+            }
+            .show()
+    }
+
+    private fun grantRestrictedSettingsWithShizuku() {
+        try {
+            // Check if root is available (Shizuku or libsu)
+            val hasRoot = Shell.isAppGrantedRoot() == true
+            val hasShizuku = Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+            
+            if (!hasRoot && !hasShizuku) {
+                android.widget.Toast.makeText(this, "Root or Shizuku required.", android.widget.Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            android.widget.Toast.makeText(this, "Granting restricted settings...", android.widget.Toast.LENGTH_SHORT).show()
+
+            // Bind UserService if using Shizuku and not already bound
+            if (hasShizuku && userService == null) {
+                try {
+                    Shizuku.bindUserService(userServiceArgs, userServiceConn)
+                    userServiceConnection = userServiceArgs
+                    Thread.sleep(500)
+                } catch (e: Exception) {
+                    android.util.Log.e("PermissionActivity", "Failed to bind UserService: ${e.message}")
+                }
+            }
+
+            // Use UserService to execute command via Shizuku
+            Thread {
+                try {
+                    if (userService == null && hasShizuku) {
+                        runOnUiThread {
+                            android.widget.Toast.makeText(this, "UserService not connected. Try again.", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                        return@Thread
+                    }
+                    
+                    val command = "appops set $packageName ACCESS_RESTRICTED_SETTINGS allow"
+                    val exitCodeStr = userService?.executeCommand(command) ?: Shell.cmd(command).exec().code.toString()
+                    val exitCode = exitCodeStr.toIntOrNull() ?: -1
+                    
+                    runOnUiThread {
+                        if (exitCode == 0) {
+                            android.widget.Toast.makeText(this, "Permission granted!", android.widget.Toast.LENGTH_SHORT).show()
+                            updatePermissionList()
+                        } else {
+                            android.widget.Toast.makeText(this, "Failed (Code: $exitCode). Try ADB.", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                         android.widget.Toast.makeText(this, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }.start()
+        } catch (e: Exception) {
+             android.widget.Toast.makeText(this, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 

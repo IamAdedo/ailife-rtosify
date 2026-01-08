@@ -174,4 +174,10 @@
 
     <string name="perm_usage_stats">Usage Access</string>
     <string name="perm_usage_stats_desc">Required to show app battery usage.</string>
+
+    <string name="perm_battery">Battery Optimization</string>
+    <string name="perm_battery_desc">Disable optimization for background stability.</string>
+
+    <string name="perm_restricted_title">Restricted Setting</string>
+    <string name="perm_restricted_desc">This setting is restricted by Android for security. You need to enable it manually using ADB.\n\nCommand copied to clipboard.</string>
 </resources>
