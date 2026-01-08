@@ -435,9 +435,12 @@ class WelcomeActivity : AppCompatActivity() {
     private fun checkAndRequestPermissions() {
         val permissions = mutableListOf<String>()
 
-        // Solicita permissões básicas (Foreground)
-        permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
-        permissions.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        // Solicita permissões de localização apenas em versões onde é obrigatório para pairing/scan (Android 11-)
+        // No Android 12+ usamos o flag 'neverForLocation' no manifesto, então localização é opcional para o setup inicial.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
+            permissions.add(Manifest.permission.ACCESS_COARSE_LOCATION)
+        }
 
         // Permissões de Bluetooth específicas do Android 12+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
