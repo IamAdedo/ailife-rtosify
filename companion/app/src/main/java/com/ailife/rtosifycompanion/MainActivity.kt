@@ -270,7 +270,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         if (bluetoothService?.isConnected == true) {
             action()
         } else {
-            Toast.makeText(this, getString(R.string.toast_watch_not_connected), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Phone not connected", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -316,6 +316,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 "Control phone playback",
                 android.R.drawable.ic_media_play, // Using a standard system drawable
                 { runIfConnected { startActivity(Intent(this, MediaControlActivity::class.java)) } }
+            ),
+            MenuOption(
+                "Alarms",
+                "Manage alarms",
+                android.R.drawable.ic_lock_idle_alarm,
+                { startActivity(Intent(this, AlarmManagementActivity::class.java)) }
             ),
             MenuOption(
                 "Camera",
@@ -412,6 +418,14 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     "Control phone playback",
                     android.R.drawable.ic_media_play,
                     { runIfConnected { startActivity(Intent(this, MediaControlActivity::class.java)) } }
+                )
+            )
+            options.add(
+                MenuOption(
+                    "Alarms",
+                    "Manage alarms",
+                    android.R.drawable.ic_lock_idle_alarm,
+                    { startActivity(Intent(this, AlarmManagementActivity::class.java)) }
                 )
             )
             options.add(

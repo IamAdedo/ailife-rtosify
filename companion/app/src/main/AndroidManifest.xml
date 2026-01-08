@@ -210,6 +210,11 @@
             android:turnScreenOn="true"
             android:theme="@style/Theme.Smartwatch" />
 
+        <activity
+            android:name=".AlarmManagementActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Smartwatch" />
+
 
             
         <!-- FileProvider (for APK installation) -->
