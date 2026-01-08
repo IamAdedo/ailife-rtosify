@@ -223,6 +223,7 @@ class BluetoothService : Service() {
 
     private val internalReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            Log.d(TAG, "internalReceiver triggered: action=${intent?.action}, connected=$isConnected")
             if (!isConnected) return
             when (intent?.action) {
                 ACTION_SEND_NOTIF_TO_WATCH -> {
@@ -245,12 +246,24 @@ class BluetoothService : Service() {
                     val action = intent.getIntExtra("action", -1)
                     val x = intent.getFloatExtra("x", 0f)
                     val y = intent.getFloatExtra("y", 0f)
+                    Log.d(TAG, "Sending remote input: action=$action, x=$x, y=$y")
                     if (action != -1) {
                         sendMessage(ProtocolMessage(type = MessageType.REMOTE_INPUT, data = com.google.gson.JsonObject().apply {
                             addProperty("action", action)
                             addProperty("x", x)
                             addProperty("y", y)
                         }))
+                    }
+                }
+                "com.ailife.rtosifycompanion.SEND_MIRROR_STOP" -> {
+                    Log.d(TAG, "Sending mirror stop command to phone")
+                    sendMessage(ProtocolMessage(type = MessageType.SCREEN_MIRROR_STOP, data = com.google.gson.JsonObject()))
+                }
+                "com.ailife.rtosifycompanion.UPDATE_REMOTE_RESOLUTION" -> {
+                    val reset = intent.getBooleanExtra("reset", false)
+                    if (reset) {
+                        Log.d(TAG, "Sending resolution reset to phone")
+                        sendMessage(ProtocolHelper.createUpdateResolution(0, 0, 0, true))
                     }
                 }
             }
@@ -347,6 +360,9 @@ class BluetoothService : Service() {
         val filterInternal = IntentFilter().apply {
             addAction(ACTION_SEND_NOTIF_TO_WATCH)
             addAction(ACTION_SEND_REMOVE_TO_WATCH)
+            addAction(ACTION_SEND_REMOTE_INPUT) // For touch events from MirrorActivity
+            addAction("com.ailife.rtosifycompanion.SEND_MIRROR_STOP") // For stopping mirroring
+            addAction("com.ailife.rtosifycompanion.UPDATE_REMOTE_RESOLUTION") // For resolution reset
         }
         val filterWatch = IntentFilter(ACTION_WATCH_DISMISSED_LOCAL)
         val filterWifi = IntentFilter().apply {
@@ -1337,7 +1353,7 @@ class BluetoothService : Service() {
     @Throws(IOException::class)
     private fun readMessage(inputStream: DataInputStream): ProtocolMessage {
         val length = inputStream.readInt()
-        if (length !in 0..10_000_000) throw IOException("Invalid message size: $length")
+        if (length !in 0..15_000_000) throw IOException("Invalid message size: $length")
         val buffer = ByteArray(length)
         inputStream.readFully(buffer)
         val json = String(buffer, Charsets.UTF_8)
@@ -1378,7 +1394,8 @@ class BluetoothService : Service() {
                     out.write(jsonBytes)
                     out.flush()
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send message type=${message.type}, size=${message.toBytes().size}: ${e.message}")
                 forceDisconnect()
             }
         }
@@ -4723,6 +4740,7 @@ class BluetoothService : Service() {
 
     private fun handleMirrorData(message: ProtocolMessage) {
         val data = ProtocolHelper.extractData<MirrorData>(message)
+        Log.d(TAG, "Received mirror frame: size=${data.data.length}B, keyframe=${data.isKeyFrame}")
         val intent = Intent(ACTION_SCREEN_DATA_RECEIVED)
         intent.putExtra("data", data.data)
         intent.putExtra("isKeyFrame", data.isKeyFrame)

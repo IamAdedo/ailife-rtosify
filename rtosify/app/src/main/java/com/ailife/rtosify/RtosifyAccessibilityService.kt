@@ -2,8 +2,10 @@ package com.ailife.rtosify
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Path
 import android.os.Build
 import android.os.Handler
@@ -29,7 +31,8 @@ class RtosifyAccessibilityService : AccessibilityService() {
         }
 
         fun dispatchRemoteInput(action: Int, xPercentage: Float, yPercentage: Float) {
-            instance?.performRemoteInput(action, xPercentage, yPercentage)
+            Log.d(TAG, "dispatchRemoteInput called: action=$action, x=$xPercentage, y=$yPercentage, instance=$instance")
+            instance?.performRemoteInput(action, xPercentage, yPercentage) ?: Log.e(TAG, "Accessibility service instance is null!")
         }
     }
 
@@ -39,6 +42,14 @@ class RtosifyAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         Log.d(TAG, "Accessibility service connected")
+        
+        // Register receiver for remote input commands from main process
+        val filter = IntentFilter("com.ailife.rtosify.DISPATCH_REMOTE_INPUT")
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            androidx.core.content.ContextCompat.registerReceiver(this, remoteInputReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(remoteInputReceiver, filter)
+        }
     }
     
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -50,6 +61,20 @@ class RtosifyAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         instance = null
+        try { unregisterReceiver(remoteInputReceiver) } catch (_: Exception) {}
+    }
+
+    private val remoteInputReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "com.ailife.rtosify.DISPATCH_REMOTE_INPUT") {
+                val action = intent.getIntExtra("action", -1)
+                val x = intent.getFloatExtra("x", 0f)
+                val y = intent.getFloatExtra("y", 0f)
+                if (action != -1) {
+                    performRemoteInput(action, x, y)
+                }
+            }
+        }
     }
 
 
@@ -257,6 +282,11 @@ class RtosifyAccessibilityService : AccessibilityService() {
                node.isCheckable
     }
 
+    // Touch state tracking for swipe/drag gestures
+    private var gestureStartTime: Long = 0
+    private val gesturePath = android.graphics.Path()
+    private var isGestureActive = false
+
     private fun performRemoteInput(action: Int, xP: Float, yP: Float) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return
         
@@ -264,16 +294,45 @@ class RtosifyAccessibilityService : AccessibilityService() {
         val x = xP * displayMetrics.widthPixels
         val y = yP * displayMetrics.heightPixels
 
-        val path = android.graphics.Path()
-        path.moveTo(x, y)
-        
-        // Simple tap/click implementation for now
-        // A real remote control would handle drag/swipe by maintaining path state
-        val gesture = android.accessibilityservice.GestureDescription.Builder()
-            .addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 100))
-            .build()
-        
-        dispatchGesture(gesture, null, null)
+        Log.d(TAG, "performRemoteInput: action=$action, x=$x, y=$y")
+
+        when (action) {
+            android.view.MotionEvent.ACTION_DOWN -> {
+                // Start new gesture
+                gesturePath.reset()
+                gesturePath.moveTo(x, y)
+                gestureStartTime = System.currentTimeMillis()
+                isGestureActive = true
+            }
+            android.view.MotionEvent.ACTION_MOVE -> {
+                // Add to gesture path
+                if (isGestureActive) {
+                    gesturePath.lineTo(x, y)
+                }
+            }
+            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                // Complete and dispatch gesture
+                if (isGestureActive) {
+                    gesturePath.lineTo(x, y)
+                    val duration = (System.currentTimeMillis() - gestureStartTime).coerceAtLeast(1).coerceAtMost(1000)
+                    
+                    val gesture = android.accessibilityservice.GestureDescription.Builder()
+                        .addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(gesturePath, 0, duration))
+                        .build()
+                    
+                    dispatchGesture(gesture, object : android.accessibilityservice.AccessibilityService.GestureResultCallback() {
+                        override fun onCompleted(gestureDescription: android.accessibilityservice.GestureDescription?) {
+                            Log.d(TAG, "Gesture completed: duration=${duration}ms")
+                        }
+                        override fun onCancelled(gestureDescription: android.accessibilityservice.GestureDescription?) {
+                            Log.w(TAG, "Gesture cancelled")
+                        }
+                    }, null)
+                    
+                    isGestureActive = false
+                }
+            }
+        }
     }
 
     private fun findSwitchInChildren(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {

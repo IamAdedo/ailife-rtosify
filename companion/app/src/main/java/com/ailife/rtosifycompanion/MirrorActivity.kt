@@ -84,20 +84,33 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     override fun onDestroy() {
         super.onDestroy()
+        
+        // Send stop command to phone's MirroringService
+        val stopIntent = Intent("com.ailife.rtosifycompanion.SEND_MIRROR_STOP")
+        stopIntent.setPackage(packageName)
+        sendBroadcast(stopIntent)
+        
+        // Reset resolution if matching was enabled
         val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
         if (prefs.getBoolean("mirror_res_matching", false)) {
-            val intent = Intent("com.ailife.rtosify.UPDATE_REMOTE_RESOLUTION")
-            intent.putExtra("reset", true)
-            sendBroadcast(intent)
+            val resetIntent = Intent("com.ailife.rtosifycompanion.UPDATE_REMOTE_RESOLUTION")
+            resetIntent.setPackage(packageName)
+            resetIntent.putExtra("reset", true)
+            sendBroadcast(resetIntent)
         }
+        
+        releaseDecoder()
     }
 
     private fun handleTouch(event: MotionEvent) {
         val x = event.x / surfaceView.width
         val y = event.y / surfaceView.height
         
+        Log.d(TAG, "Touch event: action=${event.action}, x=$x, y=$y")
+        
         // Send touch to BluetoothService
         val intent = Intent("com.ailife.rtosifycompanion.SEND_REMOTE_INPUT")
+        intent.setPackage(packageName) // Make it explicit for Android 14+
         intent.putExtra("action", event.action)
         intent.putExtra("x", x)
         intent.putExtra("y", y)
@@ -151,7 +164,11 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     private fun releaseDecoder() {
         isCodecReady = false
-        codec?.stop()
+        try {
+            codec?.stop()
+        } catch (e: IllegalStateException) {
+            // Decoder wasn't started or already stopped, ignore
+        }
         codec?.release()
         codec = null
     }

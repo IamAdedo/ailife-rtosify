@@ -3,8 +3,10 @@ package com.ailife.rtosify
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
@@ -93,6 +95,14 @@ class MirroringService : Service() {
         val height = intent?.getIntExtra(EXTRA_HEIGHT, 854) ?: 854
         val dpi = intent?.getIntExtra(EXTRA_DPI, 240) ?: 240
 
+        // Register receiver for stop commands
+        val filter = IntentFilter("com.ailife.rtosify.STOP_MIRROR")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            androidx.core.content.ContextCompat.registerReceiver(this, stopReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(stopReceiver, filter)
+        }
+
         if (resultCode != 0 && data != null) {
             startMirroring(resultCode, data, width, height, dpi)
         } else {
@@ -133,19 +143,25 @@ class MirroringService : Service() {
     private fun setupCodec(width: Int, height: Int) {
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height)
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-        format.setInteger(MediaFormat.KEY_BIT_RATE, 500000) // 500kbps for BT
-        format.setInteger(MediaFormat.KEY_FRAME_RATE, 10)
+        format.setInteger(MediaFormat.KEY_BIT_RATE, 300000) // 300kbps for better BT compatibility
+        format.setInteger(MediaFormat.KEY_FRAME_RATE, 8) // Reduced from 10 to 8fps
         format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2) // 2 seconds between I-frames
 
         codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
         codec?.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+        Log.d(TAG, "Codec configured: ${width}x${height}, 300kbps, 8fps")
     }
 
     private fun drainAndSend() {
+        var frameCount = 0
+        var totalBytes = 0L
         while (isRunning) {
             val outputBufferId = try { 
                 codec?.dequeueOutputBuffer(bufferInfo, 10000) ?: -1 
-            } catch (e: Exception) { -1 }
+            } catch (e: Exception) { 
+                Log.e(TAG, "Error dequeuing output buffer: ${e.message}")
+                -1 
+            }
 
             if (outputBufferId >= 0) {
                 val outputBuffer = codec?.getOutputBuffer(outputBufferId)
@@ -156,21 +172,48 @@ class MirroringService : Service() {
                     val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
                     val isKeyFrame = (bufferInfo.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0
                     
+                    frameCount++
+                    totalBytes += encoded.length
+                    
+                    if (frameCount % 30 == 0) {
+                        val avgSize = totalBytes / frameCount
+                        Log.d(TAG, "Frame stats: count=$frameCount, avg_size=${avgSize}B, last_size=${encoded.length}B, keyframe=$isKeyFrame")
+                    }
+                    
+                    if (encoded.length > 100000) {
+                        Log.w(TAG, "Large frame detected: ${encoded.length}B (keyframe=$isKeyFrame)")
+                    }
+                    
                     // Send to BluetoothService via Broadcast
                     val intent = Intent("com.ailife.rtosify.SCREEN_DATA_AVAILABLE")
+                    intent.setPackage(packageName) // Make it explicit for Android 14+
                     intent.putExtra("data", encoded)
                     intent.putExtra("isKeyFrame", isKeyFrame)
                     sendBroadcast(intent)
                 }
                 codec?.releaseOutputBuffer(outputBufferId, false)
             } else if (outputBufferId == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                // Should handle SPS/PPS if needed, but H.264 usually works without it if we use I-frames
+                Log.d(TAG, "Output format changed")
+            }
+        }
+        Log.d(TAG, "Encoding stopped. Total frames: $frameCount, avg size: ${if (frameCount > 0) totalBytes / frameCount else 0}B")
+    }
+
+    private val stopReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                "com.ailife.rtosify.STOP_MIRROR" -> {
+                    Log.d(TAG, "Received STOP_MIRROR broadcast, stopping service")
+                    stopSelf()
+                }
             }
         }
     }
 
     override fun onDestroy() {
+        Log.d(TAG, "MirroringService onDestroy")
         isRunning = false
+        try { unregisterReceiver(stopReceiver) } catch (_: Exception) {}
         virtualDisplay?.release()
         mediaProjection?.stop()
         codec?.stop()

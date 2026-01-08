@@ -830,7 +830,8 @@ class BluetoothService : Service() {
                     out.write(jsonBytes)
                     out.flush()
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send message type=${message.type}, size=${message.toBytes().size}: ${e.message}")
                 forceDisconnect()
             }
         }
@@ -2412,10 +2413,12 @@ class BluetoothService : Service() {
 
     private val mirroringReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            Log.d(TAG, "mirroringReceiver triggered: action=${intent?.action}")
             when (intent?.action) {
                 ACTION_SCREEN_DATA_AVAILABLE -> {
                     val base64Data = intent.getStringExtra("data") ?: return
                     val isKeyFrame = intent.getBooleanExtra("isKeyFrame", false)
+                    Log.d(TAG, "Forwarding frame: size=${base64Data.length}B, keyframe=$isKeyFrame")
                     sendMessage(ProtocolHelper.createMirrorData(base64Data, isKeyFrame))
                 }
                 ACTION_SEND_REMOTE_INPUT -> {
@@ -2456,7 +2459,9 @@ class BluetoothService : Service() {
     }
 
     private fun handleMirrorStop() {
-        sendBroadcast(Intent("com.ailife.rtosify.STOP_MIRROR"))
+        val intent = Intent("com.ailife.rtosify.STOP_MIRROR")
+        intent.setPackage(packageName)
+        sendBroadcast(intent)
     }
 
     private fun handleMirrorData(message: ProtocolMessage) {
@@ -2469,7 +2474,15 @@ class BluetoothService : Service() {
 
     private fun handleRemoteInput(message: ProtocolMessage) {
         val data = ProtocolHelper.extractData<RemoteInputData>(message)
-        RtosifyAccessibilityService.dispatchRemoteInput(data.action, data.x, data.y)
+        Log.d(TAG, "handleRemoteInput: action=${data.action}, x=${data.x}, y=${data.y}")
+        
+        // Send broadcast to accessibility service (runs in separate process)
+        val intent = Intent("com.ailife.rtosify.DISPATCH_REMOTE_INPUT")
+        intent.setPackage(packageName)
+        intent.putExtra("action", data.action)
+        intent.putExtra("x", data.x)
+        intent.putExtra("y", data.y)
+        sendBroadcast(intent)
     }
 
     private fun handleUpdateResolution(message: ProtocolMessage) {
