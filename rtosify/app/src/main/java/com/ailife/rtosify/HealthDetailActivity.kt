@@ -41,6 +41,7 @@ import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -58,6 +59,11 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     private lateinit var tvCurrentValue: TextView
     private lateinit var tvLastMeasured: TextView
     private lateinit var btnMeasureNow: Button
+    
+    // Date Navigation
+    private lateinit var btnPrevDate: View
+    private lateinit var tvCurrentDateRange: TextView
+    private lateinit var btnNextDate: View
 
     // Total Stats Card (Steps)
     private lateinit var cardTotalStats: MaterialCardView
@@ -89,6 +95,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     private var currentHistoryData: HealthHistoryResponse? = null
     private var currentGoal: Int? = null
     private var lastHealthData: HealthDataUpdate? = null
+    private var viewingDate = Calendar.getInstance()
 
     // Settings Dialog Views (for populating when settings are received)
     private var settingsDialogAge: EditText? = null
@@ -138,6 +145,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         setupSwipeRefresh()
         setupBottomNavigation()
         setupCards()
+        setupDateNavigation()
 
         // FIX: Initialize X-axis formatter on load
         updateChartXAxisFormatter()
@@ -175,6 +183,10 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         tvMinValue = findViewById(R.id.tvMinValue)
         tvAvgValue = findViewById(R.id.tvAvgValue)
         tvMaxValue = findViewById(R.id.tvMaxValue)
+        
+        btnPrevDate = findViewById(R.id.btnPrevDate)
+        tvCurrentDateRange = findViewById(R.id.tvCurrentDateRange)
+        btnNextDate = findViewById(R.id.btnNextDate)
 
         fabMeasureNow = findViewById(R.id.fabMeasureNow)
     }
@@ -267,6 +279,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         }
         chart.xAxis.valueFormatter = formatter
         barChart.xAxis.valueFormatter = formatter
+        updateDateRangeText()
     }
 
     private fun setupPeriodToggle() {
@@ -282,9 +295,88 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
                     else -> Period.DAY
                 }
                 updateChartXAxisFormatter()
+                setupCards() // Update card visibility
                 requestHistoricalData()
             }
         }
+    }
+
+    private fun setupDateNavigation() {
+        btnPrevDate.setOnClickListener {
+            shiftDateRange(-1)
+        }
+        btnNextDate.setOnClickListener {
+            shiftDateRange(1)
+        }
+        updateDateRangeText()
+    }
+
+    private fun shiftDateRange(direction: Int) {
+        if (direction > 0 && isFutureDate()) return
+
+        when (currentPeriod) {
+            Period.DAY -> viewingDate.add(Calendar.DAY_OF_YEAR, direction)
+            Period.WEEK -> viewingDate.add(Calendar.WEEK_OF_YEAR, direction)
+            Period.MONTH -> viewingDate.add(Calendar.MONTH, direction)
+        }
+        updateDateRangeText()
+        updateChartXAxisFormatter()
+        requestHistoricalData()
+    }
+
+    private fun isFutureDate(): Boolean {
+        val now = Calendar.getInstance()
+        val current = viewingDate.clone() as Calendar
+
+        return when (currentPeriod) {
+            Period.DAY -> {
+                // Return true if viewingDate is today or later
+                current.set(Calendar.HOUR_OF_DAY, 0)
+                current.set(Calendar.MINUTE, 0)
+                current.set(Calendar.SECOND, 0)
+                current.set(Calendar.MILLISECOND, 0)
+                
+                now.set(Calendar.HOUR_OF_DAY, 0)
+                now.set(Calendar.MINUTE, 0)
+                now.set(Calendar.SECOND, 0)
+                now.set(Calendar.MILLISECOND, 0)
+
+                !current.before(now)
+            }
+            Period.WEEK -> {
+                // Return true if current week is the current week or later
+                current.set(Calendar.DAY_OF_WEEK, current.firstDayOfWeek)
+                now.set(Calendar.DAY_OF_WEEK, now.firstDayOfWeek)
+                !current.before(now)
+            }
+            Period.MONTH -> {
+                // Return true if current month is the current month or later
+                current.set(Calendar.DAY_OF_MONTH, 1)
+                now.set(Calendar.DAY_OF_MONTH, 1)
+                !current.before(now)
+            }
+        }
+    }
+
+    private fun updateDateRangeText() {
+        val dateFormat = when (currentPeriod) {
+            Period.DAY -> SimpleDateFormat("EEEE, MMM d", Locale.getDefault())
+            Period.WEEK -> {
+                val start = viewingDate.clone() as Calendar
+                start.set(Calendar.DAY_OF_WEEK, start.firstDayOfWeek)
+                val end = start.clone() as Calendar
+                end.add(Calendar.DAY_OF_YEAR, 6)
+                val fmt = SimpleDateFormat("MMM d", Locale.getDefault())
+                return run { tvCurrentDateRange.text = "${fmt.format(start.time)} - ${fmt.format(end.time)}" }
+            }
+            Period.MONTH -> SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+        }
+        tvCurrentDateRange.text = dateFormat.format(viewingDate.time)
+        
+        // Disable "Next" button if we're at the current/future date
+        val isFuture = isFutureDate()
+        btnNextDate.isEnabled = !isFuture
+        btnNextDate.alpha = if (isFuture) 0.3f else 1.0f
     }
 
     private fun setupSwipeRefresh() {
@@ -330,7 +422,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             "STEPS" -> {
                 cardCurrentValue.visibility = View.GONE
                 cardTotalStats.visibility = View.VISIBLE
-                cardGoalProgress.visibility = View.VISIBLE
+                cardGoalProgress.visibility = if (currentPeriod == Period.DAY) View.VISIBLE else View.GONE
                 fabMeasureNow.visibility = View.GONE
             }
             "HEART_RATE", "OXYGEN" -> {
@@ -373,16 +465,39 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     }
 
     private fun getTimeRange(): Pair<Long, Long> {
-        val now = System.currentTimeMillis()
-        val endTime = now / 1000 // Convert to Unix seconds
-
-        val startTime = when (currentPeriod) {
-            Period.DAY -> (now - TimeUnit.HOURS.toMillis(24)) / 1000
-            Period.WEEK -> (now - TimeUnit.DAYS.toMillis(7)) / 1000
-            Period.MONTH -> (now - TimeUnit.DAYS.toMillis(30)) / 1000
+        val cal = viewingDate.clone() as Calendar
+        
+        return when (currentPeriod) {
+            Period.DAY -> {
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                val start = cal.timeInMillis / 1000
+                cal.add(Calendar.DAY_OF_YEAR, 1)
+                val end = cal.timeInMillis / 1000
+                Pair(start, end)
+            }
+            Period.WEEK -> {
+                cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                val start = cal.timeInMillis / 1000
+                cal.add(Calendar.WEEK_OF_YEAR, 1)
+                val end = cal.timeInMillis / 1000
+                Pair(start, end)
+            }
+            Period.MONTH -> {
+                cal.set(Calendar.DAY_OF_MONTH, 1)
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                val start = cal.timeInMillis / 1000
+                cal.add(Calendar.MONTH, 1)
+                val end = cal.timeInMillis / 1000
+                Pair(start, end)
+            }
         }
-
-        return Pair(startTime, endTime)
     }
 
     private fun startLiveMeasurement() {
@@ -423,12 +538,20 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             barChart.visibility = View.GONE
             tvEmptyData.visibility = View.VISIBLE
             layoutStats.visibility = View.GONE
+            
+            // Hide stats and goal cards if no data
+            cardTotalStats.visibility = View.GONE
+            cardGoalProgress.visibility = View.GONE
+            
             tvEmptyData.text = getString(R.string.health_no_data)
             return
         }
 
         tvEmptyData.visibility = View.GONE
         layoutStats.visibility = View.VISIBLE
+        
+        // Restore card visibility based on type and period
+        setupCards()
 
         if (healthType == "STEPS") {
             chart.visibility = View.GONE

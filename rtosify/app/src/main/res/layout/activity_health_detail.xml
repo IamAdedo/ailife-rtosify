@@ -76,6 +76,44 @@
                         android:text="@string/health_period_month" />
                 </com.google.android.material.button.MaterialButtonToggleGroup>
 
+                <!-- Date Navigation -->
+                <LinearLayout
+                    android:id="@+id/layoutDateNav"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageButton
+                        android:id="@+id/btnPrevDate"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Previous"
+                        android:src="@drawable/ic_arrow_back"
+                        app:tint="?android:attr/textColorPrimary" />
+
+                    <TextView
+                        android:id="@+id/tvCurrentDateRange"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                        tools:text="Thursday, Jan 8" />
+
+                    <ImageButton
+                        android:id="@+id/btnNextDate"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Next"
+                        android:rotation="180"
+                        android:src="@drawable/ic_arrow_back"
+                        app:tint="?android:attr/textColorPrimary" />
+                </LinearLayout>
+
                 <!-- Current Value Card (HR/Oxygen) -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardCurrentValue"
