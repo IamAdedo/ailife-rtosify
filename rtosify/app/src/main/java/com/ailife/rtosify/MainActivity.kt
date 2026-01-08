@@ -732,8 +732,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private val screenCaptureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK && result.data != null) {
             val intent = Intent(this, MirroringService::class.java).apply {
-                putExtra("resultCode", result.resultCode)
-                putExtra("data", result.data)
+                putExtra(MirroringService.EXTRA_RESULT_CODE, result.resultCode)
+                putExtra(MirroringService.EXTRA_DATA, result.data)
             }
             ContextCompat.startForegroundService(this, intent)
             

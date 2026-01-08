@@ -76,7 +76,11 @@ class WelcomeActivity : AppCompatActivity() {
 
         // Register pairing receiver
         val filter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
-        registerReceiver(pairingReceiver, filter)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.registerReceiver(this, pairingReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(pairingReceiver, filter)
+        }
 
         checkAndRequestPermissions()
     }

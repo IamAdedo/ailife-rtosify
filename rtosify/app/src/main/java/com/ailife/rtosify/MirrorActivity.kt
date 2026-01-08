@@ -69,7 +69,12 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     override fun onResume() {
         super.onResume()
-        registerReceiver(dataReceiver, IntentFilter(ACTION_SCREEN_DATA))
+        androidx.core.content.ContextCompat.registerReceiver(
+            this,
+            dataReceiver,
+            IntentFilter(ACTION_SCREEN_DATA),
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
     override fun onPause() {

@@ -356,17 +356,15 @@ class BluetoothService : Service() {
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(internalReceiver, filterInternal, RECEIVER_NOT_EXPORTED)
-            registerReceiver(watchDismissReceiver, filterWatch, RECEIVER_NOT_EXPORTED)
-            registerReceiver(wifiStateReceiver, filterWifi, RECEIVER_NOT_EXPORTED)
+            ContextCompat.registerReceiver(this, internalReceiver, filterInternal, ContextCompat.RECEIVER_NOT_EXPORTED)
+            ContextCompat.registerReceiver(this, watchDismissReceiver, filterWatch, ContextCompat.RECEIVER_NOT_EXPORTED)
+            ContextCompat.registerReceiver(this, wifiStateReceiver, filterWifi, ContextCompat.RECEIVER_NOT_EXPORTED)
             registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-
         } else {
             registerReceiver(internalReceiver, filterInternal)
             registerReceiver(watchDismissReceiver, filterWatch)
             registerReceiver(wifiStateReceiver, filterWifi)
             registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-
         }
 
         // Initialize health data collector

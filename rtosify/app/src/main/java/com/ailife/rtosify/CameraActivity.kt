@@ -71,7 +71,7 @@ class CameraActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        registerReceiver(shutterReceiver, IntentFilter(ACTION_TAKE_PICTURE), RECEIVER_NOT_EXPORTED)
+        ContextCompat.registerReceiver(this, shutterReceiver, IntentFilter(ACTION_TAKE_PICTURE), ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     override fun onPause() {

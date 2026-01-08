@@ -348,17 +348,19 @@ class BluetoothService : Service() {
         val filterWatch = IntentFilter(ACTION_WATCH_DISMISSED_LOCAL)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(internalReceiver, filterInternal, RECEIVER_NOT_EXPORTED)
-            registerReceiver(watchDismissReceiver, filterWatch, RECEIVER_NOT_EXPORTED)
-
+            ContextCompat.registerReceiver(this, internalReceiver, filterInternal, ContextCompat.RECEIVER_NOT_EXPORTED)
+            ContextCompat.registerReceiver(this, watchDismissReceiver, filterWatch, ContextCompat.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(internalReceiver, filterInternal)
             registerReceiver(watchDismissReceiver, filterWatch)
-
         }
 
         val filterPhone = IntentFilter(TelephonyManager.ACTION_PHONE_STATE_CHANGED)
-        registerReceiver(phoneStateReceiver, filterPhone)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.registerReceiver(this, phoneStateReceiver, filterPhone, ContextCompat.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(phoneStateReceiver, filterPhone)
+        }
 
         val filterMirror = IntentFilter().apply {
             addAction(ACTION_SCREEN_DATA_AVAILABLE)
@@ -366,7 +368,7 @@ class BluetoothService : Service() {
             addAction("com.ailife.rtosify.UPDATE_REMOTE_RESOLUTION")
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(mirroringReceiver, filterMirror, RECEIVER_NOT_EXPORTED)
+            ContextCompat.registerReceiver(this, mirroringReceiver, filterMirror, ContextCompat.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(mirroringReceiver, filterMirror)
         }

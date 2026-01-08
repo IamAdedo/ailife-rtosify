@@ -4,6 +4,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
+import android.os.Build
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
@@ -14,6 +15,7 @@ import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
+import android.content.pm.ServiceInfo
 import android.os.Binder
 import android.os.Bundle
 import android.os.Handler
@@ -70,6 +72,21 @@ class MirroringService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Android 14+ requires calling startForeground() almost immediately
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Screen Mirroring")
+            .setContentText("Mirroring screen...")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .build()
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+
         val resultCode = intent?.getIntExtra(EXTRA_RESULT_CODE, 0) ?: 0
         val data = intent?.getParcelableExtra<Intent>(EXTRA_DATA)
         val width = intent?.getIntExtra(EXTRA_WIDTH, 480) ?: 480
@@ -86,15 +103,14 @@ class MirroringService : Service() {
     }
 
     private fun startMirroring(resultCode: Int, data: Intent, width: Int, height: Int, dpi: Int) {
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Screen Mirroring")
-            .setContentText("Mirroring screen to phone...")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .build()
-        startForeground(NOTIFICATION_ID, notification)
-
         val projectionManager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         mediaProjection = projectionManager.getMediaProjection(resultCode, data)
+        
+        mediaProjection?.registerCallback(object : MediaProjection.Callback() {
+            override fun onStop() {
+                stopSelf()
+            }
+        }, handler)
 
         setupCodec(width, height)
         
@@ -103,7 +119,7 @@ class MirroringService : Service() {
             "MirroringDisplay",
             width, height, dpi,
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-            surface, null, null
+            surface, null, handler
         )
 
         codec?.start()

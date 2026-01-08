@@ -78,7 +78,12 @@ class CameraRemoteActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        registerReceiver(frameReceiver, IntentFilter(ACTION_FRAME_RECEIVED), RECEIVER_NOT_EXPORTED)
+        androidx.core.content.ContextCompat.registerReceiver(
+            this,
+            frameReceiver,
+            IntentFilter(ACTION_FRAME_RECEIVED),
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
     override fun onPause() {

@@ -306,11 +306,19 @@ class WelcomeActivity : AppCompatActivity() {
             addAction(BluetoothDevice.ACTION_FOUND)
             addAction(android.bluetooth.BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
         }
-        registerReceiver(discoveryReceiver, filter)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.registerReceiver(this, discoveryReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(discoveryReceiver, filter)
+        }
 
         // Also register bond state receiver for pairing
         val bondFilter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
-        registerReceiver(bondStateReceiver, bondFilter)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.registerReceiver(this, bondStateReceiver, bondFilter, ContextCompat.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(bondStateReceiver, bondFilter)
+        }
 
         statusText.text = getString(R.string.welcome_searching_qr)
         progressBar.visibility = android.view.View.VISIBLE
@@ -362,7 +370,11 @@ class WelcomeActivity : AppCompatActivity() {
         // Register receiver if not already
         val filter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
         try {
-            registerReceiver(bondStateReceiver, filter)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.registerReceiver(this, bondStateReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
+            } else {
+                registerReceiver(bondStateReceiver, filter)
+            }
         } catch (_: Exception) {
             // Already registered
         }
