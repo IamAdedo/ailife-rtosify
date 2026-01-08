@@ -83,10 +83,14 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var layoutHeartRateAction: LinearLayout
     private lateinit var layoutOxygenAction: LinearLayout
 
-    // Watch Mode UI
+    private lateinit var tvWatchStatusBig: TextView
+
+    // Remote Monitoring UI
+    private lateinit var btnMirrorPhoneToWatch: com.google.android.material.button.MaterialButton
+    private lateinit var btnControlWatch: com.google.android.material.button.MaterialButton
+    private lateinit var switchResMatching: com.google.android.material.materialswitch.MaterialSwitch
     private lateinit var layoutWatchMode: LinearLayout
     private lateinit var imgWatchStatus: ImageView
-    private lateinit var tvWatchStatusBig: TextView
 
     private lateinit var prefs: SharedPreferences
     private var bluetoothService: BluetoothService? = null
@@ -179,6 +183,19 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         bindToService()
 
         setupServiceToggle()
+        setupRemoteMonitoring()
+
+        if (intent?.getBooleanExtra("request_mirror", false) == true) {
+            startPhoneMirroring()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent?.getBooleanExtra("request_mirror", false) == true) {
+            startPhoneMirroring()
+        }
     }
 
     override fun onResume() {
@@ -254,6 +271,11 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         tvDeviceInfoStorage = findViewById(R.id.tvDeviceInfoStorage)
         tvDeviceInfoProcessor = findViewById(R.id.tvDeviceInfoProcessor)
         tvDeviceInfoCpu = findViewById(R.id.tvDeviceInfoCpu)
+
+        // Remote Monitoring Views
+        btnMirrorPhoneToWatch = findViewById(R.id.btnMirrorPhoneToWatch)
+        btnControlWatch = findViewById(R.id.btnControlWatch)
+        switchResMatching = findViewById(R.id.switchResMatching)
     }
 
     private fun setupLayoutMode() {
@@ -685,6 +707,45 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             }
             refreshMenu()
         }
+    }
+
+    private fun setupRemoteMonitoring() {
+        btnMirrorPhoneToWatch.setOnClickListener {
+            runIfConnected {
+                startPhoneMirroring()
+            }
+        }
+
+        btnControlWatch.setOnClickListener {
+            runIfConnected {
+                // Request mirror start from watch -> phone (0,0,0 means request other side)
+                bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(0, 0, 0))
+            }
+        }
+
+        switchResMatching.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("mirror_res_matching", isChecked).apply()
+        }
+        switchResMatching.isChecked = prefs.getBoolean("mirror_res_matching", false)
+    }
+
+    private val screenCaptureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK && result.data != null) {
+            val intent = Intent(this, MirroringService::class.java).apply {
+                putExtra("resultCode", result.resultCode)
+                putExtra("data", result.data)
+            }
+            ContextCompat.startForegroundService(this, intent)
+            
+            // Send message to watch to open MirrorActivity
+            val metrics = resources.displayMetrics
+            bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(metrics.widthPixels, metrics.heightPixels, metrics.densityDpi))
+        }
+    }
+
+    private fun startPhoneMirroring() {
+        val projectionManager = getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager
+        screenCaptureLauncher.launch(projectionManager.createScreenCaptureIntent())
     }
 
     private fun formatTimeAgo(timestamp: Long): String {

@@ -355,4 +355,13 @@
     <string name="device_info_usage_format">%d%%</string>
     <string name="device_info_storage_format">%1$s / %2$s</string>
     <string name="device_info_ram_format">%1$s / %2$s</string>
+
+    <!-- Remote Monitoring & Control -->
+    <string name="remote_monitor_title">Remote Monitoring &amp; Control</string>
+    <string name="remote_mirror_phone">Mirror Phone to Watch</string>
+    <string name="remote_mirror_phone_desc">Stream this phone\'s screen to your watch</string>
+    <string name="remote_control_watch">Control Watch from Phone</string>
+    <string name="remote_control_watch_desc">View and control your watch screen from this phone</string>
+    <string name="remote_res_matching">Resolution Matching</string>
+    <string name="remote_res_matching_desc">Automatically adjust watch resolution to match phone aspect ratio during control</string>
 </resources>

@@ -110,6 +110,13 @@ object MessageType {
     const val ADD_ALARM = "add_alarm"
     const val UPDATE_ALARM = "update_alarm"
     const val DELETE_ALARM = "delete_alarm"
+    
+    // Screen Mirroring & Remote Control
+    const val SCREEN_MIRROR_START = "mirror_start"
+    const val SCREEN_MIRROR_STOP = "mirror_stop"
+    const val SCREEN_MIRROR_DATA = "mirror_data"
+    const val REMOTE_INPUT = "remote_input"
+    const val UPDATE_RESOLUTION = "update_resolution"
 }
 
 // Data classes for specific message types
@@ -365,6 +372,32 @@ data class AlarmData(
     val enabled: Boolean,        // Whether alarm is active
     val daysOfWeek: List<Int>,   // Days of week (1=Monday, 7=Sunday), empty = once
     val label: String = ""       // Optional alarm label
+)
+
+data class MirrorStartData(
+    val width: Int,
+    val height: Int,
+    val dpi: Int,
+    val bitrate: Int = 500000,
+    val fps: Int = 10
+)
+
+data class MirrorData(
+    val data: String, // Base64 encoded frame/chunk
+    val isKeyFrame: Boolean = false
+)
+
+data class RemoteInputData(
+    val action: Int, // MotionEvent action
+    val x: Float,
+    val y: Float
+)
+
+data class ResolutionData(
+    val width: Int,
+    val height: Int,
+    val density: Int,
+    val reset: Boolean = false
 )
 
 // Helper functions to create messages
@@ -768,5 +801,41 @@ object ProtocolHelper {
         val data = JsonObject()
         data.addProperty("alarmId", alarmId)
         return ProtocolMessage(type = MessageType.DELETE_ALARM, data = data)
+    }
+
+    fun createMirrorStart(width: Int, height: Int, dpi: Int): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("width", width)
+        data.addProperty("height", height)
+        data.addProperty("dpi", dpi)
+        return ProtocolMessage(type = MessageType.SCREEN_MIRROR_START, data = data)
+    }
+
+    fun createMirrorStop(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.SCREEN_MIRROR_STOP)
+    }
+
+    fun createMirrorData(base64Data: String, isKeyFrame: Boolean): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("data", base64Data)
+        data.addProperty("isKeyFrame", isKeyFrame)
+        return ProtocolMessage(type = MessageType.SCREEN_MIRROR_DATA, data = data)
+    }
+
+    fun createRemoteInput(action: Int, x: Float, y: Float): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("action", action)
+        data.addProperty("x", x)
+        data.addProperty("y", y)
+        return ProtocolMessage(type = MessageType.REMOTE_INPUT, data = data)
+    }
+
+    fun createUpdateResolution(width: Int, height: Int, density: Int, reset: Boolean = false): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("width", width)
+        data.addProperty("height", height)
+        data.addProperty("density", density)
+        data.addProperty("reset", reset)
+        return ProtocolMessage(type = MessageType.UPDATE_RESOLUTION, data = data)
     }
 }

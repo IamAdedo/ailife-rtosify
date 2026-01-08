@@ -65,6 +65,11 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var imgWatchStatus: ImageView
     private lateinit var tvWatchStatusBig: TextView
 
+    // Remote Monitoring UI
+    private lateinit var btnMirrorToPhone: com.google.android.material.button.MaterialButton
+    private lateinit var btnControlPhone: com.google.android.material.button.MaterialButton
+    private lateinit var switchResMatching: com.google.android.material.materialswitch.MaterialSwitch
+
     private lateinit var prefs: SharedPreferences
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
@@ -138,6 +143,19 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         bindToService()
         
         setupServiceToggle()
+        setupRemoteMonitoring()
+
+        if (intent?.getBooleanExtra("request_mirror", false) == true) {
+            startWatchMirroring()
+        }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent?.getBooleanExtra("request_mirror", false) == true) {
+            startWatchMirroring()
+        }
     }
 
     override fun onResume() {
@@ -189,6 +207,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         tvWatchStatusBig = findViewById(R.id.tvWatchStatusBig)
         switchService = findViewById(R.id.switchService)
         switchServiceWatch = findViewById(R.id.switchServiceWatch)
+
+        // Remote Monitoring Views
+        btnMirrorToPhone = findViewById(R.id.btnMirrorToPhone)
+        btnControlPhone = findViewById(R.id.btnControlPhone)
+        switchResMatching = findViewById(R.id.switchResMatching)
+
         updateLocalBtName()
     }
 
@@ -262,6 +286,45 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         switchService.setOnCheckedChangeListener(listener)
         switchServiceWatch.setOnCheckedChangeListener(listener)
+    }
+
+    private fun setupRemoteMonitoring() {
+        btnMirrorToPhone.setOnClickListener {
+            runIfConnected {
+                startWatchMirroring()
+            }
+        }
+
+        btnControlPhone.setOnClickListener {
+            runIfConnected {
+                // Request mirror start from phone -> watch
+                bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(0, 0, 0))
+            }
+        }
+
+        switchResMatching.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("mirror_res_matching", isChecked).apply()
+        }
+        switchResMatching.isChecked = prefs.getBoolean("mirror_res_matching", false)
+    }
+
+    private val screenCaptureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == RESULT_OK && result.data != null) {
+            val intent = Intent(this, MirroringService::class.java).apply {
+                putExtra("resultCode", result.resultCode)
+                putExtra("data", result.data)
+            }
+            ContextCompat.startForegroundService(this, intent)
+            
+            // Send message to phone to open MirrorActivity
+            val metrics = resources.displayMetrics
+            bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(metrics.widthPixels, metrics.heightPixels, metrics.densityDpi))
+        }
+    }
+
+    private fun startWatchMirroring() {
+        val projectionManager = getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager
+        screenCaptureLauncher.launch(projectionManager.createScreenCaptureIntent())
     }
 
     // --- NOVA FUNÇÃO DE SEGURANÇA ---

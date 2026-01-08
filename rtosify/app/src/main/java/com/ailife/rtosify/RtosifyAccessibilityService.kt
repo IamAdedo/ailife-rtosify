@@ -1,8 +1,11 @@
 package com.ailife.rtosify
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.GestureDescription
 import android.content.Context
 import android.content.Intent
+import android.graphics.Path
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
@@ -23,6 +26,10 @@ class RtosifyAccessibilityService : AccessibilityService() {
 
         fun enableBluetoothTethering() {
             instance?.performBluetoothTetheringEnable()
+        }
+
+        fun dispatchRemoteInput(action: Int, xPercentage: Float, yPercentage: Float) {
+            instance?.performRemoteInput(action, xPercentage, yPercentage)
         }
     }
 
@@ -248,6 +255,25 @@ class RtosifyAccessibilityService : AccessibilityService() {
                className.contains("CheckBox", ignoreCase = true) || 
                className.contains("ToggleButton", ignoreCase = true) || 
                node.isCheckable
+    }
+
+    private fun performRemoteInput(action: Int, xP: Float, yP: Float) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return
+        
+        val displayMetrics = resources.displayMetrics
+        val x = xP * displayMetrics.widthPixels
+        val y = yP * displayMetrics.heightPixels
+
+        val path = android.graphics.Path()
+        path.moveTo(x, y)
+        
+        // Simple tap/click implementation for now
+        // A real remote control would handle drag/swipe by maintaining path state
+        val gesture = android.accessibilityservice.GestureDescription.Builder()
+            .addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 100))
+            .build()
+        
+        dispatchGesture(gesture, null, null)
     }
 
     private fun findSwitchInChildren(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {

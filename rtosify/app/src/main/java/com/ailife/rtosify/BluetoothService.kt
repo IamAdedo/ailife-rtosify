@@ -265,6 +265,10 @@ class BluetoothService : Service() {
         const val MIRRORED_CHANNEL_ID = "mirrored_notifications"
 
         const val ACTION_STOP_SERVICE = "ACTION_STOP_SERVICE"
+        
+        const val ACTION_SCREEN_DATA_AVAILABLE = "com.ailife.rtosify.SCREEN_DATA_AVAILABLE"
+        const val ACTION_SEND_REMOTE_INPUT = "com.ailife.rtosify.SEND_REMOTE_INPUT"
+        const val ACTION_SCREEN_DATA_RECEIVED = "com.ailife.rtosify.SCREEN_DATA_RECEIVED"
 
         private const val TAG = "BluetoothService"
         private const val DEBUG_NOTIFICATIONS = false // Ative para debug
@@ -355,6 +359,17 @@ class BluetoothService : Service() {
 
         val filterPhone = IntentFilter(TelephonyManager.ACTION_PHONE_STATE_CHANGED)
         registerReceiver(phoneStateReceiver, filterPhone)
+
+        val filterMirror = IntentFilter().apply {
+            addAction(ACTION_SCREEN_DATA_AVAILABLE)
+            addAction(ACTION_SEND_REMOTE_INPUT)
+            addAction("com.ailife.rtosify.UPDATE_REMOTE_RESOLUTION")
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mirroringReceiver, filterMirror, RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(mirroringReceiver, filterMirror)
+        }
 
         // Bind to Shizuku UserService if available (for Android 10+ clipboard)
         bindUserServiceIfNeeded()
@@ -720,6 +735,11 @@ class BluetoothService : Service() {
                     MessageType.DEVICE_INFO_UPDATE -> handleDeviceInfoUpdate(message)
                     MessageType.BATTERY_ALERT -> handleBatteryAlert(message)
                     MessageType.RESPONSE_ALARMS -> handleResponseAlarms(message)
+                    MessageType.SCREEN_MIRROR_START -> handleMirrorStart(message)
+                    MessageType.SCREEN_MIRROR_STOP -> handleMirrorStop()
+                    MessageType.SCREEN_MIRROR_DATA -> handleMirrorData(message)
+                    MessageType.REMOTE_INPUT -> handleRemoteInput(message)
+                    MessageType.UPDATE_RESOLUTION -> handleUpdateResolution(message)
                 }
             }
         } catch (_: IOException) {
@@ -1145,16 +1165,13 @@ class BluetoothService : Service() {
         }
     }
 
-    private suspend fun handleDeviceInfoUpdate(message: ProtocolMessage) {
-        try {
-            val data = ProtocolHelper.extractData<DeviceInfoData>(message)
-            withContext(Dispatchers.Main) {
-                callback?.onDeviceInfoReceived(data)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error handling device info update: ${e.message}")
+    private fun handleDeviceInfoUpdate(message: ProtocolMessage) {
+        val info = ProtocolHelper.extractData<DeviceInfoData>(message)
+        serviceScope.launch(Dispatchers.Main) {
+            callback?.onDeviceInfoReceived(info)
         }
     }
+
 
     private fun onConnectionLost() {
         serviceScope.launch(Dispatchers.IO) {
@@ -2389,5 +2406,86 @@ class BluetoothService : Service() {
     fun deleteAlarm(alarmId: String) {
         sendMessage(ProtocolHelper.createDeleteAlarm(alarmId))
         Log.d(TAG, "Sent DELETE_ALARM: $alarmId")
+    }
+
+    private val mirroringReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                ACTION_SCREEN_DATA_AVAILABLE -> {
+                    val base64Data = intent.getStringExtra("data") ?: return
+                    val isKeyFrame = intent.getBooleanExtra("isKeyFrame", false)
+                    sendMessage(ProtocolHelper.createMirrorData(base64Data, isKeyFrame))
+                }
+                ACTION_SEND_REMOTE_INPUT -> {
+                    val action = intent.getIntExtra("action", 0)
+                    val x = intent.getFloatExtra("x", 0f)
+                    val y = intent.getFloatExtra("y", 0f)
+                    sendMessage(ProtocolHelper.createRemoteInput(action, x, y))
+                }
+                "com.ailife.rtosify.UPDATE_REMOTE_RESOLUTION" -> {
+                    val width = intent.getIntExtra("width", 0)
+                    val height = intent.getIntExtra("height", 0)
+                    val density = intent.getIntExtra("density", 0)
+                    val reset = intent.getBooleanExtra("reset", false)
+                    sendMessage(ProtocolHelper.createUpdateResolution(width, height, density, reset))
+                }
+            }
+        }
+    }
+
+    private fun handleMirrorStart(message: ProtocolMessage) {
+        val data = ProtocolHelper.extractData<MirrorStartData>(message)
+        if (data.width == 0 && data.height == 0) {
+            // Other device wants to view US. Ask for permission.
+            val intent = Intent(this, MainActivity::class.java).apply {
+                putExtra("request_mirror", true)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            startActivity(intent)
+        } else {
+            // Other device is streaming TO us. Open MirrorActivity.
+            val intent = Intent(this, MirrorActivity::class.java).apply {
+                putExtra("width", data.width)
+                putExtra("height", data.height)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        }
+    }
+
+    private fun handleMirrorStop() {
+        sendBroadcast(Intent("com.ailife.rtosify.STOP_MIRROR"))
+    }
+
+    private fun handleMirrorData(message: ProtocolMessage) {
+        val data = ProtocolHelper.extractData<MirrorData>(message)
+        val intent = Intent(ACTION_SCREEN_DATA_RECEIVED)
+        intent.putExtra("data", data.data)
+        intent.putExtra("isKeyFrame", data.isKeyFrame)
+        sendBroadcast(intent)
+    }
+
+    private fun handleRemoteInput(message: ProtocolMessage) {
+        val data = ProtocolHelper.extractData<RemoteInputData>(message)
+        RtosifyAccessibilityService.dispatchRemoteInput(data.action, data.x, data.y)
+    }
+
+    private fun handleUpdateResolution(message: ProtocolMessage) {
+        val data = ProtocolHelper.extractData<ResolutionData>(message)
+        serviceScope.launch {
+            try {
+                if (data.reset) {
+                    userService?.executeCommand("wm size reset")
+                    userService?.executeCommand("wm density reset")
+                } else if (data.width > 0 && data.height > 0) {
+                    userService?.executeCommand("wm size ${data.width}x${data.height}")
+                    if (data.density > 0) {
+                        userService?.executeCommand("wm density ${data.density}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to update resolution: ${e.message}")
+            }
+        }
     }
 }

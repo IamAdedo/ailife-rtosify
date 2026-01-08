@@ -24,6 +24,10 @@ class RtosifyAccessibilityService : android.accessibilityservice.AccessibilitySe
         fun enableBluetoothTethering(deviceName: String?) {
             instance?.performBluetoothTetheringEnable(deviceName)
         }
+
+        fun dispatchRemoteInput(action: Int, xPercentage: Float, yPercentage: Float) {
+            instance?.performRemoteInput(action, xPercentage, yPercentage)
+        }
     }
     
     override fun onServiceConnected() {
@@ -227,6 +231,23 @@ class RtosifyAccessibilityService : android.accessibilityservice.AccessibilitySe
                className.contains("CheckBox", ignoreCase = true) || 
                className.contains("ToggleButton", ignoreCase = true) || 
                node.isCheckable
+    }
+
+    private fun performRemoteInput(action: Int, xP: Float, yP: Float) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.N) return
+        
+        val displayMetrics = resources.displayMetrics
+        val x = xP * displayMetrics.widthPixels
+        val y = yP * displayMetrics.heightPixels
+
+        val path = android.graphics.Path()
+        path.moveTo(x, y)
+        
+        val gesture = android.accessibilityservice.GestureDescription.Builder()
+            .addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 100))
+            .build()
+        
+        dispatchGesture(gesture, null, null)
     }
 
     private fun performControlledBackSequence() {

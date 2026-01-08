@@ -186,4 +186,13 @@
     <string name="perm_restricted_desc">This setting is restricted by Android for security. You need to enable it manually using ADB.\n\nCommand copied to clipboard.</string>
 
     <string name="bt_name_format">BT: %s</string>
+
+    <!-- Remote Monitoring & Control -->
+    <string name="remote_monitor_title">Remote Monitoring &amp; Control</string>
+    <string name="remote_mirror_phone">Mirror Watch to Phone</string>
+    <string name="remote_mirror_phone_desc">Stream this watch\'s screen to your phone</string>
+    <string name="remote_control_watch">Control Phone from Watch</string>
+    <string name="remote_control_watch_desc">View and control your phone screen from this watch</string>
+    <string name="remote_res_matching">Resolution Matching</string>
+    <string name="remote_res_matching_desc">Automatically adjust phone resolution to match watch aspect ratio during control</string>
 </resources>
