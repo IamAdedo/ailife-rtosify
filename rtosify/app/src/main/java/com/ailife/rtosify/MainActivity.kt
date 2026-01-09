@@ -85,10 +85,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     private lateinit var tvWatchStatusBig: TextView
 
-    // Remote Monitoring UI
-    private lateinit var btnMirrorPhoneToWatch: com.google.android.material.button.MaterialButton
-    private lateinit var btnControlWatch: com.google.android.material.button.MaterialButton
-    private lateinit var switchResMatching: com.google.android.material.materialswitch.MaterialSwitch
     private lateinit var layoutWatchMode: LinearLayout
     private lateinit var imgWatchStatus: ImageView
 
@@ -183,7 +179,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         bindToService()
 
         setupServiceToggle()
-        setupRemoteMonitoring()
 
         if (intent?.getBooleanExtra("request_mirror", false) == true) {
             startPhoneMirroring()
@@ -272,10 +267,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         tvDeviceInfoProcessor = findViewById(R.id.tvDeviceInfoProcessor)
         tvDeviceInfoCpu = findViewById(R.id.tvDeviceInfoCpu)
 
-        // Remote Monitoring Views
-        btnMirrorPhoneToWatch = findViewById(R.id.btnMirrorPhoneToWatch)
-        btnControlWatch = findViewById(R.id.btnControlWatch)
-        switchResMatching = findViewById(R.id.switchResMatching)
     }
 
     private fun setupLayoutMode() {
@@ -709,25 +700,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         }
     }
 
-    private fun setupRemoteMonitoring() {
-        btnMirrorPhoneToWatch.setOnClickListener {
-            runIfConnected {
-                startPhoneMirroring()
-            }
-        }
-
-        btnControlWatch.setOnClickListener {
-            runIfConnected {
-                // Request mirror start from watch -> phone (0,0,0 means request other side)
-                bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(0, 0, 0))
-            }
-        }
-
-        switchResMatching.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("mirror_res_matching", isChecked).apply()
-        }
-        switchResMatching.isChecked = prefs.getBoolean("mirror_res_matching", false)
-    }
 
     private val screenCaptureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK && result.data != null) {
@@ -813,6 +785,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 { runIfConnected { showDeviceManagementMenu() } }
             ),
             MenuOption(
+                getString(R.string.menu_mirroring),
+                getString(R.string.menu_mirroring_desc),
+                R.drawable.ic_cast,
+                { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
+            ),
+            MenuOption(
                 getString(R.string.menu_sync_calendar),
                 getString(R.string.menu_sync_calendar_desc),
                 android.R.drawable.ic_menu_today,
@@ -870,6 +848,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 "Monitor health metrics",
                 android.R.drawable.ic_menu_compass,
                 { runIfConnected { startActivity(Intent(this, HealthDetailActivity::class.java)) } }
+            ),
+            MenuOption(
+                getString(R.string.menu_mirroring),
+                getString(R.string.menu_mirroring_desc),
+                R.drawable.ic_cast,
+                { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
             ),
             MenuOption(
                 "Alarms",

@@ -65,10 +65,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var imgWatchStatus: ImageView
     private lateinit var tvWatchStatusBig: TextView
 
-    // Remote Monitoring UI
-    private lateinit var btnMirrorToPhone: com.google.android.material.button.MaterialButton
-    private lateinit var btnControlPhone: com.google.android.material.button.MaterialButton
-    private lateinit var switchResMatching: com.google.android.material.materialswitch.MaterialSwitch
 
     private lateinit var prefs: SharedPreferences
     private var bluetoothService: BluetoothService? = null
@@ -143,7 +139,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         bindToService()
         
         setupServiceToggle()
-        setupRemoteMonitoring()
 
         if (intent?.getBooleanExtra("request_mirror", false) == true) {
             startWatchMirroring()
@@ -208,10 +203,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         switchService = findViewById(R.id.switchService)
         switchServiceWatch = findViewById(R.id.switchServiceWatch)
 
-        // Remote Monitoring Views
-        btnMirrorToPhone = findViewById(R.id.btnMirrorToPhone)
-        btnControlPhone = findViewById(R.id.btnControlPhone)
-        switchResMatching = findViewById(R.id.switchResMatching)
 
         updateLocalBtName()
     }
@@ -288,25 +279,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         switchServiceWatch.setOnCheckedChangeListener(listener)
     }
 
-    private fun setupRemoteMonitoring() {
-        btnMirrorToPhone.setOnClickListener {
-            runIfConnected {
-                startWatchMirroring()
-            }
-        }
-
-        btnControlPhone.setOnClickListener {
-            runIfConnected {
-                // Request mirror start from phone -> watch
-                bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(0, 0, 0))
-            }
-        }
-
-        switchResMatching.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("mirror_res_matching", isChecked).apply()
-        }
-        switchResMatching.isChecked = prefs.getBoolean("mirror_res_matching", false)
-    }
 
     private val screenCaptureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK && result.data != null) {
@@ -379,6 +351,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 "Control phone playback",
                 android.R.drawable.ic_media_play, // Using a standard system drawable
                 { runIfConnected { startActivity(Intent(this, MediaControlActivity::class.java)) } }
+            ),
+            MenuOption(
+                getString(R.string.menu_mirroring),
+                getString(R.string.menu_mirroring_desc),
+                R.drawable.ic_cast,
+                { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
             ),
             MenuOption(
                 "Alarms",
@@ -481,6 +459,14 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     "Control phone playback",
                     android.R.drawable.ic_media_play,
                     { runIfConnected { startActivity(Intent(this, MediaControlActivity::class.java)) } }
+                )
+            )
+            options.add(
+                MenuOption(
+                    getString(R.string.menu_mirroring),
+                    getString(R.string.menu_mirroring_desc),
+                    R.drawable.ic_cast,
+                    { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
                 )
             )
             options.add(
@@ -762,9 +748,11 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     override fun onUploadProgress(progress: Int) {
         runOnUiThread { if (uploadDialog?.isShowing == true) updateUploadProgress(progress) }
     }
+    override fun onDownloadProgress(progress: Int) {}
+    override fun onFileListReceived(path: String, filesJson: String) {}
     override fun onAppListReceived(appsJson: String) {}
 
-    override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, dndEnabled: Boolean) {
+    override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean) {
         runOnUiThread {
             updateWatchStatusCard(batteryLevel, isCharging, wifiSsid, dndEnabled)
         }

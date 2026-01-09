@@ -40,6 +40,10 @@ class MirroringService : Service() {
         const val EXTRA_WIDTH = "width"
         const val EXTRA_HEIGHT = "height"
         const val EXTRA_DPI = "dpi"
+        const val ACTION_MIRROR_STATE_CHANGED = "com.ailife.rtosify.MIRROR_STATE_CHANGED"
+        
+        var isRunning = false
+            private set
     }
 
     private var mediaProjection: MediaProjection? = null
@@ -133,7 +137,8 @@ class MirroringService : Service() {
         )
 
         codec?.start()
-        isRunning = true
+        MirroringService.isRunning = true
+        sendBroadcast(Intent(ACTION_MIRROR_STATE_CHANGED).setPackage(packageName))
         
         Thread {
             drainAndSend()
@@ -155,7 +160,7 @@ class MirroringService : Service() {
     private fun drainAndSend() {
         var frameCount = 0
         var totalBytes = 0L
-        while (isRunning) {
+        while (MirroringService.isRunning) {
             val outputBufferId = try { 
                 codec?.dequeueOutputBuffer(bufferInfo, 10000) ?: -1 
             } catch (e: Exception) { 
@@ -212,7 +217,8 @@ class MirroringService : Service() {
 
     override fun onDestroy() {
         Log.d(TAG, "MirroringService onDestroy")
-        isRunning = false
+        MirroringService.isRunning = false
+        sendBroadcast(Intent(ACTION_MIRROR_STATE_CHANGED).setPackage(packageName))
         try { unregisterReceiver(stopReceiver) } catch (_: Exception) {}
         virtualDisplay?.release()
         mediaProjection?.stop()

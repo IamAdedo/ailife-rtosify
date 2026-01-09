@@ -36,6 +36,8 @@
     <string name="menu_disconnect_desc">Stop Bluetooth service</string>
     <string name="menu_connect">Connect</string>
     <string name="menu_connect_desc">Start service and connect</string>
+    <string name="menu_mirroring">Screen Mirroring</string>
+    <string name="menu_mirroring_desc">Stream screen and control remotely</string>
     <string name="menu_reset_all">Reset All</string>
     <string name="menu_reset_all_desc">Clear settings and return to start</string>
     <string name="dialog_reset_all_title">Reset All Settings?</string>

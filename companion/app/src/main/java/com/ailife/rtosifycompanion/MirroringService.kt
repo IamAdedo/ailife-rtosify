@@ -40,6 +40,10 @@ class MirroringService : Service() {
         const val EXTRA_WIDTH = "width"
         const val EXTRA_HEIGHT = "height"
         const val EXTRA_DPI = "dpi"
+        const val ACTION_MIRROR_STATE_CHANGED = "com.ailife.rtosifycompanion.MIRROR_STATE_CHANGED"
+        
+        var isRunning = false
+            private set
     }
 
     private var mediaProjection: MediaProjection? = null
@@ -133,7 +137,8 @@ class MirroringService : Service() {
         )
 
         codec?.start()
-        isRunning = true
+        MirroringService.isRunning = true
+        sendBroadcast(Intent(ACTION_MIRROR_STATE_CHANGED).setPackage(packageName))
         
         Log.d(TAG, "Starting encoding thread, codec started")
         Thread {
@@ -163,7 +168,7 @@ class MirroringService : Service() {
     private fun drainAndSend() {
         Log.d(TAG, "drainAndSend: Starting encoding loop, isRunning=$isRunning")
         var frameCount = 0
-        while (isRunning) {
+        while (MirroringService.isRunning) {
             val outputBufferId = try { 
                 codec?.dequeueOutputBuffer(bufferInfo, 10000) ?: -1 
             } catch (e: Exception) { 
@@ -210,8 +215,8 @@ class MirroringService : Service() {
     }
 
     override fun onDestroy() {
-        Log.d(TAG, "MirroringService onDestroy")
-        isRunning = false
+        MirroringService.isRunning = false
+        sendBroadcast(Intent(ACTION_MIRROR_STATE_CHANGED).setPackage(packageName))
         try { unregisterReceiver(stopReceiver) } catch (_: Exception) {}
         virtualDisplay?.release()
         mediaProjection?.stop()
