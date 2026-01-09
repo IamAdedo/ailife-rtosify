@@ -117,6 +117,7 @@ object MessageType {
     const val SCREEN_MIRROR_DATA = "mirror_data"
     const val REMOTE_INPUT = "remote_input"
     const val UPDATE_RESOLUTION = "update_resolution"
+    const val MIRROR_RES_CHANGE = "mirror_res_change"
 }
 
 // Data classes for specific message types
@@ -379,7 +380,9 @@ data class MirrorStartData(
     val height: Int,
     val dpi: Int,
     val bitrate: Int = 500000,
-    val fps: Int = 10
+    val fps: Int = 10,
+    val isRequest: Boolean = false,
+    val mode: Int = 1
 )
 
 data class MirrorData(
@@ -403,8 +406,14 @@ data class ResolutionData(
     val width: Int,
     val height: Int,
     val density: Int,
-    val reset: Boolean = false
-)
+    val reset: Boolean = false,
+    val mode: Int = 1 // 1=Resolution, 2=Aspect
+) {
+    companion object {
+        const val MODE_RESOLUTION = 1
+        const val MODE_ASPECT = 2
+    }
+}
 
 // Helper functions to create messages
 object ProtocolHelper {
@@ -801,12 +810,22 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.DELETE_ALARM, data = data)
     }
 
-    fun createMirrorStart(width: Int, height: Int, dpi: Int): ProtocolMessage {
+    fun createMirrorStart(width: Int, height: Int, dpi: Int, isRequest: Boolean = false, mode: Int = 1): ProtocolMessage {
         val data = JsonObject()
         data.addProperty("width", width)
         data.addProperty("height", height)
         data.addProperty("dpi", dpi)
+        data.addProperty("isRequest", isRequest)
+        data.addProperty("mode", mode)
         return ProtocolMessage(type = MessageType.SCREEN_MIRROR_START, data = data)
+    }
+
+    fun createMirrorResChange(width: Int, height: Int, density: Int): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("width", width)
+        data.addProperty("height", height)
+        data.addProperty("density", density)
+        return ProtocolMessage(type = MessageType.MIRROR_RES_CHANGE, data = data)
     }
 
     fun createMirrorStop(): ProtocolMessage {
@@ -828,12 +847,13 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.REMOTE_INPUT, data = data)
     }
 
-    fun createUpdateResolution(width: Int, height: Int, density: Int, reset: Boolean = false): ProtocolMessage {
+    fun createUpdateResolution(width: Int, height: Int, density: Int, reset: Boolean = false, mode: Int = 1): ProtocolMessage {
         val data = JsonObject()
         data.addProperty("width", width)
         data.addProperty("height", height)
         data.addProperty("density", density)
         data.addProperty("reset", reset)
+        data.addProperty("mode", mode)
         return ProtocolMessage(type = MessageType.UPDATE_RESOLUTION, data = data)
     }
 }

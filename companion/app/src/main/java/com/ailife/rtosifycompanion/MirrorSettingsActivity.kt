@@ -23,6 +23,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
     private lateinit var btnControlPhone: MaterialButton
     private lateinit var switchEnableTouch: MaterialSwitch
     private lateinit var switchResMatching: MaterialSwitch
+    private lateinit var switchAspectMatching: MaterialSwitch
 
     private lateinit var prefs: SharedPreferences
     private var bluetoothService: BluetoothService? = null
@@ -75,8 +76,10 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
         btnControlPhone = findViewById(R.id.btnControlPhone)
         switchEnableTouch = findViewById(R.id.switchEnableTouch)
         switchResMatching = findViewById(R.id.switchResMatching)
+        switchAspectMatching = findViewById(R.id.switchAspectMatching)
 
         switchResMatching.isChecked = prefs.getBoolean("mirror_res_matching", false)
+        switchAspectMatching.isChecked = prefs.getBoolean("mirror_aspect_matching", false)
         switchEnableTouch.isChecked = prefs.getBoolean("mirror_enable_touch", true)
     }
 
@@ -93,14 +96,38 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
 
         btnControlPhone.setOnClickListener {
             runIfConnected {
-                // Request mirror start from phone -> watch (0,0,0 means request other side)
-                bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(0, 0, 0))
+                val resMatching = prefs.getBoolean("mirror_res_matching", false)
+                val aspectMatching = prefs.getBoolean("mirror_aspect_matching", false)
+                
+                if (resMatching || aspectMatching) {
+                    val metrics = resources.displayMetrics
+                    val mode = if (resMatching) ResolutionData.MODE_RESOLUTION else ResolutionData.MODE_ASPECT
+                    bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(
+                        metrics.widthPixels, 
+                        metrics.heightPixels, 
+                        metrics.densityDpi, 
+                        isRequest = true, 
+                        mode = mode
+                    ))
+                } else {
+                    bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(0, 0, 0, isRequest = true))
+                }
                 Toast.makeText(this, "Requesting phone screen...", Toast.LENGTH_SHORT).show()
             }
         }
 
         switchResMatching.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("mirror_res_matching", isChecked).apply()
+            if (isChecked) {
+                switchAspectMatching.isChecked = false
+            }
+        }
+
+        switchAspectMatching.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("mirror_aspect_matching", isChecked).apply()
+            if (isChecked) {
+                switchResMatching.isChecked = false
+            }
         }
 
         switchEnableTouch.setOnCheckedChangeListener { _, isChecked ->

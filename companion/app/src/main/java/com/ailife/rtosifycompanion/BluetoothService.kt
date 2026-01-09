@@ -272,11 +272,12 @@ class BluetoothService : Service() {
                     sendMessage(ProtocolMessage(type = MessageType.SCREEN_MIRROR_STOP, data = com.google.gson.JsonObject()))
                 }
                 "com.ailife.rtosifycompanion.UPDATE_REMOTE_RESOLUTION" -> {
+                    val width = intent.getIntExtra("width", 0)
+                    val height = intent.getIntExtra("height", 0)
+                    val density = intent.getIntExtra("density", 0)
                     val reset = intent.getBooleanExtra("reset", false)
-                    if (reset) {
-                        Log.d(TAG, "Sending resolution reset to phone")
-                        sendMessage(ProtocolHelper.createUpdateResolution(0, 0, 0, true))
-                    }
+                    val mode = intent.getIntExtra("mode", ResolutionData.MODE_RESOLUTION)
+                    sendMessage(ProtocolHelper.createUpdateResolution(width, height, density, reset, mode))
                 }
             }
         }
@@ -1325,8 +1326,15 @@ class BluetoothService : Service() {
         }
     }
 
-    // Connection state automation - called on disconnection
     private fun onConnectionLost() {
+        Log.d(TAG, "onConnectionLost: Cleaning up. Mirroring running: ${MirroringService.isRunning}")
+
+        if (MirroringService.isRunning) {
+            Log.d(TAG, "onConnectionLost: Stopping MirroringService")
+            val stopIntent = Intent(this, MirroringService::class.java)
+            stopService(stopIntent)
+        }
+
         serviceScope.launch(Dispatchers.IO) {
             stopClipboardMonitoring()
 
@@ -1387,6 +1395,13 @@ class BluetoothService : Service() {
     }
 
     private fun forceDisconnect() {
+        Log.d(TAG, "forceDisconnect: Closing socket and ensuring mirroring stopped.")
+        if (MirroringService.isRunning) {
+            Log.d(TAG, "forceDisconnect: Mirroring is active, stopping it.")
+            val stopIntent = Intent(this, MirroringService::class.java)
+            stopService(stopIntent)
+        }
+        
         try {
             bluetoothSocket?.close()
         } catch (_: Exception) {}
@@ -3882,6 +3897,13 @@ class BluetoothService : Service() {
 
         try { unregisterReceiver(wifiStateReceiver) } catch(_:Exception){}
         try { unregisterReceiver(batteryReceiver) } catch(_:Exception){}
+    
+        if (MirroringService.isRunning) {
+            Log.d(TAG, "onDestroy: Mirroring is active, stopping it.")
+            val stopIntent = Intent(this, MirroringService::class.java)
+            stopService(stopIntent)
+        }
+
         mainHandler.removeCallbacksAndMessages(null)
         serviceScope.cancel()
         forceDisconnect()
@@ -4738,15 +4760,32 @@ class BluetoothService : Service() {
 
     private fun handleMirrorStart(message: ProtocolMessage) {
         val data = ProtocolHelper.extractData<MirrorStartData>(message)
-        if (data.width == 0 && data.height == 0) {
-            // Other device wants to view US. Ask for permission.
+        if (data.isRequest) {
+            // Other device wants to view US.
+            Log.d(TAG, "Mirror request received: ${data.width}x${data.height} mode=${data.mode}")
+            
+            // Apply resolution first if matching is requested
+            if (data.width > 0 && data.height > 0) {
+                // Construct temporary resolution message
+                val resData = JsonObject()
+                resData.addProperty("width", data.width)
+                resData.addProperty("height", data.height)
+                resData.addProperty("density", data.dpi)
+                resData.addProperty("reset", false)
+                resData.addProperty("mode", data.mode)
+                
+                val resMessage = ProtocolMessage(type = MessageType.UPDATE_RESOLUTION, data = resData)
+                handleUpdateResolution(resMessage)
+            }
+
             val intent = Intent(this, MainActivity::class.java).apply {
                 putExtra("request_mirror", true)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
             startActivity(intent)
         } else {
             // Other device is streaming TO us. Open MirrorActivity.
+            Log.d(TAG, "Incoming mirror stream: ${data.width}x${data.height}")
             val intent = Intent(this, MirrorActivity::class.java).apply {
                 putExtra("width", data.width)
                 putExtra("height", data.height)
@@ -4786,13 +4825,61 @@ class BluetoothService : Service() {
         serviceScope.launch {
             try {
                 if (data.reset) {
+                    Log.d(TAG, "Resetting resolution to default")
                     userService?.executeCommand("wm size reset")
                     userService?.executeCommand("wm density reset")
-                } else if (data.width > 0 && data.height > 0) {
-                    userService?.executeCommand("wm size ${data.width}x${data.height}")
-                    if (data.density > 0) {
-                        userService?.executeCommand("wm density ${data.density}")
+                } else {
+                    var targetW = data.width
+                    var targetH = data.height
+                    var targetD = data.density
+
+                    if (data.mode == ResolutionData.MODE_ASPECT) {
+                        // Calculate aspect ratio matching (Watch mode: expand short axis)
+                        val metrics = android.util.DisplayMetrics()
+                        val windowManager = getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+                        windowManager.defaultDisplay.getRealMetrics(metrics)
+                        
+                        val physW = metrics.widthPixels
+                        val physH = metrics.heightPixels
+                        val targetAspect = data.width.toFloat() / data.height.toFloat()
+                        
+                        Log.d(TAG, "Aspect Matching: Physical=${physW}x${physH}, TargetAspect=$targetAspect")
+                        
+                        // For watch, we "expand the axis that is short"
+                        // If current aspect is wider than target aspect, height is relatively short -> expand height
+                        if (physW.toFloat() / physH.toFloat() > targetAspect) {
+                            // Expand height: H' = W / targetAspect
+                            targetW = physW
+                            targetH = (physW / targetAspect).toInt()
+                        } else {
+                            // Expand width: W' = H * targetAspect
+                            targetW = (physH * targetAspect).toInt()
+                            targetH = physH
+                        }
+                        targetD = metrics.densityDpi
                     }
+
+                    if (targetW > 0 && targetH > 0) {
+                        Log.d(TAG, "Setting resolution to ${targetW}x${targetH} (mode=${data.mode})")
+                        userService?.executeCommand("wm size ${targetW}x${targetH}")
+                        if (targetD > 0) {
+                            userService?.executeCommand("wm density $targetD")
+                        }
+                    }
+                }
+                
+                // If mirroring is running, we MUST refresh it to apply new resolution
+                if (MirroringService.isRunning) {
+                    Log.d(TAG, "Mirroring is running, sending refresh signal")
+                    val refreshIntent = Intent("com.ailife.rtosifycompanion.REFRESH_MIRROR")
+                    refreshIntent.setPackage(packageName)
+                    sendBroadcast(refreshIntent)
+                }
+
+                // Notify the remote device (viewer) about actual resolution change
+                if (!data.reset) {
+                    val metrics = resources.displayMetrics
+                    sendMessage(ProtocolHelper.createMirrorResChange(metrics.widthPixels, metrics.heightPixels, metrics.densityDpi))
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to update resolution: ${e.message}")

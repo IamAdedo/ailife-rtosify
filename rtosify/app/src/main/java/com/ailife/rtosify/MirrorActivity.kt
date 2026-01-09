@@ -63,6 +63,37 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
         }
 
         checkResolutionMatching()
+        
+        surfaceView.post {
+            adjustSurfaceSize()
+        }
+    }
+
+    private fun adjustSurfaceSize() {
+        val parent = surfaceView.parent as android.view.View
+        val viewWidth = parent.width
+        val viewHeight = parent.height
+        
+        if (viewWidth == 0 || viewHeight == 0) {
+            surfaceView.post { adjustSurfaceSize() }
+            return
+        }
+
+        val videoRatio = targetWidth.toFloat() / targetHeight.toFloat()
+        val viewRatio = viewWidth.toFloat() / viewHeight.toFloat()
+
+        val params = surfaceView.layoutParams
+        if (videoRatio > viewRatio) {
+            // Video is wider than parent (letterbox top/bottom)
+            params.width = viewWidth
+            params.height = (viewWidth / videoRatio).toInt()
+        } else {
+            // Video is taller than parent (pillarbox sides)
+            params.height = viewHeight
+            params.width = (viewHeight * videoRatio).toInt()
+        }
+        surfaceView.layoutParams = params
+        Log.d(TAG, "Adjusted SurfaceView size: ${params.width}x${params.height} for video ${targetWidth}x${targetHeight}")
     }
 
     private fun sendRemoteNavigation(navAction: Int) {
@@ -77,13 +108,19 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     private fun checkResolutionMatching() {
         val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
-        if (prefs.getBoolean("mirror_res_matching", false)) {
+        val resMatching = prefs.getBoolean("mirror_res_matching", false)
+        val aspectMatching = prefs.getBoolean("mirror_aspect_matching", false)
+
+        if (resMatching || aspectMatching) {
             val metrics = resources.displayMetrics
             val intent = Intent("com.ailife.rtosify.UPDATE_REMOTE_RESOLUTION")
+            intent.setPackage(packageName)
             intent.putExtra("width", metrics.widthPixels)
             intent.putExtra("height", metrics.heightPixels)
             intent.putExtra("density", metrics.densityDpi)
+            intent.putExtra("mode", if (resMatching) ResolutionData.MODE_RESOLUTION else ResolutionData.MODE_ASPECT)
             sendBroadcast(intent)
+            Log.d(TAG, "Requested remote resolution update: mode=${if (resMatching) "RES" else "ASPECT"}")
         }
     }
 

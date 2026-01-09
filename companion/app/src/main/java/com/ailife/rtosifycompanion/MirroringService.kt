@@ -44,6 +44,10 @@ class MirroringService : Service() {
         
         var isRunning = false
             private set
+
+        private var lastResultCode: Int = 0
+        private var lastData: Intent? = null
+        private var lastDpi: Int = 240
     }
 
     private var mediaProjection: MediaProjection? = null
@@ -108,12 +112,86 @@ class MirroringService : Service() {
         }
 
         if (resultCode != 0 && data != null) {
+            lastResultCode = resultCode
+            lastData = data
+            lastDpi = dpi
             startMirroring(resultCode, data, width, height, dpi)
         } else {
             stopSelf()
         }
 
+        // Add refresh receiver
+        val refreshFilter = IntentFilter("com.ailife.rtosifycompanion.REFRESH_MIRROR")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            androidx.core.content.ContextCompat.registerReceiver(this, refreshReceiver, refreshFilter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(refreshReceiver, refreshFilter)
+        }
+
         return START_NOT_STICKY
+    }
+
+    private val refreshReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            Log.d(TAG, "Received REFRESH_MIRROR, re-initializing with current screen size")
+            if (lastResultCode != 0 && lastData != null) {
+                val metrics = resources.displayMetrics
+                val newW = metrics.widthPixels
+                val newH = metrics.heightPixels
+                
+                Log.d(TAG, "Re-starting mirroring with new resolution: ${newW}x${newH}")
+                
+                // Signal current loop to stop
+                isRunning = false
+                
+                // Wait a bit for the loop to actually exit
+                handler.postDelayed({
+                    // Cleanup virtual display and codec, but keep mediaProjection
+                    try {
+                        virtualDisplay?.release()
+                        virtualDisplay = null
+                        codec?.stop()
+                        codec?.release()
+                        codec = null
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error during partial cleanup: ${e.message}")
+                    }
+                    
+                    // Re-setup codec and virtual display
+                    setupCodec(newW, newH)
+                    val surface = codec?.createInputSurface()
+                    virtualDisplay = mediaProjection?.createVirtualDisplay(
+                        "MirroringDisplay",
+                        newW, newH, lastDpi,
+                        DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                        surface, null, handler
+                    )
+                    
+                    codec?.start()
+                    isRunning = true
+                    
+                    Thread {
+                        drainAndSend()
+                    }.start()
+                    
+                    Log.d(TAG, "Mirroring refreshed with new resolution: ${newW}x${newH}")
+                }, 200)
+            }
+        }
+    }
+
+    private fun clearMirroring() {
+        try {
+            virtualDisplay?.release()
+            virtualDisplay = null
+            codec?.stop()
+            codec?.release()
+            codec = null
+            mediaProjection?.stop()
+            mediaProjection = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error clearing mirroring: ${e.message}")
+        }
     }
 
     private fun startMirroring(resultCode: Int, data: Intent, width: Int, height: Int, dpi: Int) {
@@ -215,13 +293,16 @@ class MirroringService : Service() {
     }
 
     override fun onDestroy() {
-        MirroringService.isRunning = false
-        sendBroadcast(Intent(ACTION_MIRROR_STATE_CHANGED).setPackage(packageName))
-        try { unregisterReceiver(stopReceiver) } catch (_: Exception) {}
-        virtualDisplay?.release()
-        mediaProjection?.stop()
-        codec?.stop()
-        codec?.release()
         super.onDestroy()
+        Log.d(TAG, "onDestroy")
+        unregisterReceiver(stopReceiver)
+        try { unregisterReceiver(refreshReceiver) } catch(_: Exception) {}
+        
+        clearMirroring()
+        
+        MirroringService.isRunning = false
+        val intent = Intent(ACTION_MIRROR_STATE_CHANGED)
+        intent.setPackage(packageName)
+        sendBroadcast(intent)
     }
 }
