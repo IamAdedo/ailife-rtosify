@@ -290,6 +290,22 @@ class RtosifyAccessibilityService : AccessibilityService() {
     private fun performRemoteInput(action: Int, xP: Float, yP: Float) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return
         
+        // Handle global navigation actions first
+        when (action) {
+            RemoteInputData.ACTION_NAV_BACK -> {
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                return
+            }
+            RemoteInputData.ACTION_NAV_HOME -> {
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                return
+            }
+            RemoteInputData.ACTION_NAV_RECENTS -> {
+                performGlobalAction(GLOBAL_ACTION_RECENTS)
+                return
+            }
+        }
+
         val displayMetrics = resources.displayMetrics
         val x = xP * displayMetrics.widthPixels
         val y = yP * displayMetrics.heightPixels

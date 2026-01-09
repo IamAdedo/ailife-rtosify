@@ -388,10 +388,16 @@ data class MirrorData(
 )
 
 data class RemoteInputData(
-    val action: Int, // MotionEvent action
+    val action: Int, // MotionEvent action or custom navigation actions
     val x: Float,
     val y: Float
-)
+) {
+    companion object {
+        const val ACTION_NAV_BACK = -10
+        const val ACTION_NAV_HOME = -11
+        const val ACTION_NAV_RECENTS = -12
+    }
+}
 
 data class ResolutionData(
     val width: Int,

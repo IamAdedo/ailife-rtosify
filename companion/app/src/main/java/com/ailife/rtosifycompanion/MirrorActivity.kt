@@ -40,8 +40,10 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        surfaceView = SurfaceView(this)
-        setContentView(surfaceView)
+        setContentView(R.layout.activity_mirror)
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
+        surfaceView = findViewById(R.id.surfaceView)
         surfaceView.holder.addCallback(this)
         
         targetWidth = intent.getIntExtra("width", 480)
@@ -52,7 +54,25 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
             true
         }
 
+        findViewById<android.widget.ImageButton>(R.id.btnRemoteBack).setOnClickListener {
+            sendRemoteNavigation(RemoteInputData.ACTION_NAV_BACK)
+        }
+
+        findViewById<android.widget.ImageButton>(R.id.btnRemoteHome).setOnClickListener {
+            sendRemoteNavigation(RemoteInputData.ACTION_NAV_HOME)
+        }
+
         checkResolutionMatching()
+    }
+
+    private fun sendRemoteNavigation(navAction: Int) {
+        val intent = Intent("com.ailife.rtosifycompanion.SEND_REMOTE_INPUT")
+        intent.setPackage(packageName)
+        intent.putExtra("action", navAction)
+        intent.putExtra("x", 0f)
+        intent.putExtra("y", 0f)
+        sendBroadcast(intent)
+        Log.d(TAG, "Sent remote navigation action: $navAction")
     }
 
     private fun checkResolutionMatching() {
@@ -128,6 +148,9 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
     }
 
     private fun handleTouch(event: MotionEvent) {
+        val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+        if (!prefs.getBoolean("mirror_enable_touch", true)) return
+
         val viewWidth = surfaceView.width.toFloat()
         val viewHeight = surfaceView.height.toFloat()
         val videoRatio = targetWidth.toFloat() / targetHeight
