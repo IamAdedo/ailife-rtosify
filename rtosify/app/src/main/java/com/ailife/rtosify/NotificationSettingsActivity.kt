@@ -7,8 +7,13 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.MenuItem
 import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.SeekBar
+import android.widget.Spinner
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
@@ -27,10 +32,14 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var cardMasterSwitch: View
     private lateinit var cardGeneralSettings: View
     private lateinit var cardNotificationBehavior: View
+    private lateinit var cardDynamicIsland: View
     private lateinit var layoutPermissionWarning: LinearLayout
     private lateinit var cardManageApps: View
     private lateinit var cardManageRules: View
     private lateinit var btnOpenSettings: Button
+    private lateinit var spinnerNotificationStyle: Spinner
+    private lateinit var seekBarTimeout: SeekBar
+    private lateinit var tvTimeoutValue: TextView
 
     private lateinit var devicePrefManager: DevicePrefManager
     private lateinit var globalPrefs: SharedPreferences
@@ -58,6 +67,8 @@ class NotificationSettingsActivity : AppCompatActivity() {
         setupWakeScreenSwitch()
         setupVibrateSwitch()
         setupVibrateSilentSwitch()
+        setupNotificationStyleSpinner()
+        setupTimeoutSeekBar()
         setupCardClickListeners()
     }
 
@@ -74,10 +85,14 @@ class NotificationSettingsActivity : AppCompatActivity() {
         cardMasterSwitch = findViewById(R.id.cardMasterSwitch)
         cardGeneralSettings = findViewById(R.id.cardGeneralSettings)
         cardNotificationBehavior = findViewById(R.id.cardNotificationBehavior)
+        cardDynamicIsland = findViewById(R.id.cardDynamicIsland)
         layoutPermissionWarning = findViewById(R.id.layoutPermissionWarning)
         cardManageApps = findViewById(R.id.cardManageApps)
         cardManageRules = findViewById(R.id.cardManageRules)
         btnOpenSettings = findViewById(R.id.btnOpenSettings)
+        spinnerNotificationStyle = findViewById(R.id.spinnerNotificationStyle)
+        seekBarTimeout = findViewById(R.id.seekBarTimeout)
+        tvTimeoutValue = findViewById(R.id.tvTimeoutValue)
     }
 
     private fun setupCardClickListeners() {
@@ -165,6 +180,47 @@ class NotificationSettingsActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupNotificationStyleSpinner() {
+        val styles = arrayOf("Android Notification", "Dynamic Island")
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, styles)
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerNotificationStyle.adapter = adapter
+
+        // Load saved preference
+        val currentStyle = activePrefs.getString("notification_style", "android") ?: "android"
+        spinnerNotificationStyle.setSelection(if (currentStyle == "dynamic_island") 1 else 0)
+
+        spinnerNotificationStyle.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val style = if (position == 0) "android" else "dynamic_island"
+                activePrefs.edit().putString("notification_style", style).apply()
+                syncSettings()
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+    }
+
+    private fun setupTimeoutSeekBar() {
+        // Load saved timeout (default 5 seconds)
+        val timeout = activePrefs.getInt("dynamic_island_timeout", 5)
+        seekBarTimeout.progress = timeout - 2 // Offset by 2 since min is 2
+        tvTimeoutValue.text = "$timeout seconds"
+
+        seekBarTimeout.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                // Minimum timeout is 2 seconds, max is 10 seconds
+                val timeoutSeconds = progress + 2
+                tvTimeoutValue.text = "$timeoutSeconds seconds"
+                activePrefs.edit().putInt("dynamic_island_timeout", timeoutSeconds).apply()
+                syncSettings()
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+    }
+
     private fun syncSettings() {
         // Sync with service if connected
         val intent = Intent("com.ailife.rtosify.ACTION_UPDATE_SETTINGS")
@@ -226,6 +282,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
                     listOf(
                             cardGeneralSettings,
                             cardNotificationBehavior,
+                            cardDynamicIsland,
                             cardManageApps,
                             cardManageRules
                     )
@@ -265,6 +322,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
                 listOf(
                         cardGeneralSettings,
                         cardNotificationBehavior,
+                        cardDynamicIsland,
                         cardManageApps,
                         cardManageRules
                 )

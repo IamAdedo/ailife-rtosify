@@ -230,7 +230,10 @@ data class SettingsUpdateData(
     val autoBtTetherEnabled: Boolean? = null,
     val wakeScreenEnabled: Boolean? = null,
     val vibrateEnabled: Boolean? = null,
-    val vibrateInSilentEnabled: Boolean? = null
+    val vibrateInSilentEnabled: Boolean? = null,
+    // Dynamic Island settings
+    val notificationStyle: String? = null,  // "android" or "dynamic_island"
+    val dynamicIslandTimeout: Int? = null   // timeout in seconds (2-10)
 )
 
 data class HealthDataUpdate(

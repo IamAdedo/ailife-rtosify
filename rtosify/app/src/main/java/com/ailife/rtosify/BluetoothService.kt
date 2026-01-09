@@ -911,11 +911,13 @@ class BluetoothService : Service() {
                         wakeScreenEnabled = activePrefs.getBoolean("wake_screen_enabled", false),
                         vibrateEnabled = activePrefs.getBoolean("vibrate_enabled", false),
                         vibrateInSilentEnabled =
-                                activePrefs.getBoolean("vibrate_silent_enabled", false)
+                                activePrefs.getBoolean("vibrate_silent_enabled", false),
+                        notificationStyle = activePrefs.getString("notification_style", "android"),
+                        dynamicIslandTimeout = activePrefs.getInt("dynamic_island_timeout", 5)
                 )
         Log.d(
                 TAG,
-                "Syncing settings to watch: mirroring=${settings.notificationMirroringEnabled}, skipScreenOn=${settings.skipScreenOnEnabled}, ongoing=${settings.forwardOngoingEnabled}, silent=${settings.forwardSilentEnabled}, notifyOnDisconnect=${settings.notifyOnDisconnect}, clipboard=${settings.clipboardSyncEnabled}, wifi=${settings.autoWifiEnabled}, data=${settings.autoDataEnabled}, btTether=${settings.autoBtTetherEnabled}"
+                "Syncing settings to watch: mirroring=${settings.notificationMirroringEnabled}, skipScreenOn=${settings.skipScreenOnEnabled}, ongoing=${settings.forwardOngoingEnabled}, silent=${settings.forwardSilentEnabled}, notifyOnDisconnect=${settings.notifyOnDisconnect}, clipboard=${settings.clipboardSyncEnabled}, wifi=${settings.autoWifiEnabled}, data=${settings.autoDataEnabled}, btTether=${settings.autoBtTetherEnabled}, notifStyle=${settings.notificationStyle}, diTimeout=${settings.dynamicIslandTimeout}"
         )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
     }

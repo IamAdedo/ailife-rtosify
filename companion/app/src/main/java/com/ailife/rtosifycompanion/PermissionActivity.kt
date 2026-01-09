@@ -187,13 +187,19 @@ class PermissionActivity : AppCompatActivity() {
         } else true
         perms.add(PermissionItem("WRITE_SETTINGS", "Write System Settings", "Required for immediate WiFi connection", hasWriteSettings))
 
-        // 16. Usage Stats (App Battery Usage)
+        // 16. System Alert Window (for Dynamic Island overlay)
+        val hasOverlay = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(this)
+        } else true
+        perms.add(PermissionItem("OVERLAY", "Display over other apps", "Required for Dynamic Island notification overlay", hasOverlay))
+
+        // 17. Usage Stats (App Battery Usage)
         val appOps = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
         val mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), packageName)
         val hasUsageStats = mode == AppOpsManager.MODE_ALLOWED
         perms.add(PermissionItem("USAGE_STATS", getString(R.string.perm_usage_stats), getString(R.string.perm_usage_stats_desc), hasUsageStats))
-        
-        // 17. Battery Stats (Real per-app battery data)
+
+        // 18. Battery Stats (Real per-app battery data)
         val hasBatteryStats = try {
             packageManager.checkPermission("android.permission.BATTERY_STATS", packageName) == PackageManager.PERMISSION_GRANTED
         } catch (e: Exception) {
@@ -201,15 +207,15 @@ class PermissionActivity : AppCompatActivity() {
         }
         perms.add(PermissionItem("BATTERY_STATS", "Battery Stats", "Access real per-app battery consumption data (Android 12+)", hasBatteryStats))
 
-        // 18. Dump Permission (Direct Dumpsys)
+        // 19. Dump Permission (Direct Dumpsys)
         val hasDump = try {
             packageManager.checkPermission("android.permission.DUMP", packageName) == PackageManager.PERMISSION_GRANTED
         } catch (e: Exception) {
             false
         }
         perms.add(PermissionItem("DUMP", "System Dump", "Directly access system stats for robust data (Method 2)", hasDump))
-        
-        // 19. Battery Optimization
+
+        // 20. Battery Optimization
         val powerManager = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
         val isIgnoring = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             powerManager.isIgnoringBatteryOptimizations(packageName)
@@ -308,6 +314,16 @@ class PermissionActivity : AppCompatActivity() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     if (!Settings.System.canWrite(this)) {
                         val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                            data = Uri.parse("package:$packageName")
+                        }
+                        startActivity(intent)
+                    }
+                }
+            }
+            "OVERLAY" -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    if (!Settings.canDrawOverlays(this)) {
+                        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
                             data = Uri.parse("package:$packageName")
                         }
                         startActivity(intent)

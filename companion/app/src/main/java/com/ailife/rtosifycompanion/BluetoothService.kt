@@ -189,6 +189,9 @@ class BluetoothService : Service() {
         const val ACTION_STOP_MIRROR = "com.ailife.rtosifycompanion.STOP_MIRROR"
         const val ACTION_SEND_REMOTE_INPUT = "com.ailife.rtosifycompanion.SEND_REMOTE_INPUT"
         const val ACTION_SCREEN_DATA_AVAILABLE = "com.ailife.rtosifycompanion.SCREEN_DATA_AVAILABLE"
+        const val ACTION_UPDATE_DI_TIMEOUT = "com.ailife.rtosifycompanion.UPDATE_DI_TIMEOUT"
+        const val ACTION_SHOW_IN_DYNAMIC_ISLAND = "com.ailife.rtosifycompanion.SHOW_IN_DI"
+        const val ACTION_DISMISS_FROM_DYNAMIC_ISLAND = "com.ailife.rtosifycompanion.DISMISS_FROM_DI"
 
         const val EXTRA_NOTIF_JSON = "extra_notif_json"
         const val EXTRA_NOTIF_KEY = "extra_notif_key"
@@ -983,6 +986,12 @@ class BluetoothService : Service() {
         // Atualiza status E notificação simultaneamente
         updateStatus(getString(R.string.status_connected_to, deviceName))
 
+        // Notify Dynamic Island of connection state
+        sendBroadcast(Intent("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED").apply {
+            putExtra("connected", true)
+            setPackage(packageName)
+        })
+
         // Notifica callback
         withContext(Dispatchers.Main) { callback?.onDeviceConnected(deviceName) }
 
@@ -1078,6 +1087,12 @@ class BluetoothService : Service() {
             isConnected = false
             currentDeviceName = null
 
+            // Notify Dynamic Island of disconnection
+            sendBroadcast(Intent("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED").apply {
+                putExtra("connected", false)
+                setPackage(packageName)
+            })
+
             if (wasConnected) {
                 updateStatus(getString(R.string.status_disconnected))
 
@@ -1157,6 +1172,27 @@ class BluetoothService : Service() {
             settings.vibrateInSilentEnabled?.let {
                 prefs.edit().putBoolean("vibrate_silent_enabled", it).apply()
                 Log.d(TAG, "Vibrate in Silent setting updated: $it")
+            }
+            settings.notificationStyle?.let {
+                prefs.edit().putString("notification_style", it).apply()
+                Log.d(TAG, "Notification Style setting updated: $it")
+
+                // Start or stop Dynamic Island service based on style
+                if (it == "dynamic_island") {
+                    startDynamicIslandService()
+                } else {
+                    stopDynamicIslandService()
+                }
+            }
+            settings.dynamicIslandTimeout?.let {
+                prefs.edit().putInt("dynamic_island_timeout", it).apply()
+                Log.d(TAG, "Dynamic Island timeout updated: $it seconds")
+
+                // Notify DynamicIslandService of timeout change
+                sendBroadcast(Intent(ACTION_UPDATE_DI_TIMEOUT).apply {
+                    putExtra("timeout", it)
+                    setPackage(packageName)
+                })
             }
 
             Log.d(TAG, "Automation settings updated from phone")
@@ -3644,6 +3680,22 @@ class BluetoothService : Service() {
     private fun showMirroredNotification(message: ProtocolMessage) {
         try {
             val notif = ProtocolHelper.extractData<NotificationData>(message)
+
+            // Check notification style preference
+            val notificationStyle = prefs.getString("notification_style", "android") ?: "android"
+
+            if (notificationStyle == "dynamic_island") {
+                // Route to Dynamic Island
+                val intent = Intent(ACTION_SHOW_IN_DYNAMIC_ISLAND).apply {
+                    putExtra(EXTRA_NOTIF_JSON, Gson().toJson(notif))
+                    setPackage(packageName)
+                }
+                sendBroadcast(intent)
+                Log.d(TAG, "Notification sent to Dynamic Island: ${notif.title}")
+                return
+            }
+
+            // Otherwise show as Android notification (existing code)
             val title = notif.title
             val text = notif.text
             val pkg = notif.packageName
@@ -3938,11 +3990,20 @@ class BluetoothService : Service() {
 
     private fun dismissLocalNotification(message: ProtocolMessage) {
         val key = ProtocolHelper.extractStringField(message, "key") ?: return
+
+        // Dismiss from Android notification if present
         notificationMap[key]?.let { id ->
             notificationManager.cancel(id)
             notificationMap.remove(key)
             notificationDataMap.remove(key)
         }
+
+        // Also dismiss from Dynamic Island if it's running
+        val intent = Intent(ACTION_DISMISS_FROM_DYNAMIC_ISLAND).apply {
+            putExtra(EXTRA_NOTIF_KEY, key)
+            setPackage(packageName)
+        }
+        sendBroadcast(intent)
     }
 
     private fun requestDismissOnPhone(message: ProtocolMessage) {
@@ -4031,6 +4092,12 @@ class BluetoothService : Service() {
         isConnected = false
         currentDeviceName = null
         bluetoothSocket = null
+
+        // Notify Dynamic Island of disconnection
+        sendBroadcast(Intent("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED").apply {
+            putExtra("connected", false)
+            setPackage(packageName)
+        })
 
         if (wasConnected || currentNotificationStatus != getString(R.string.status_stopped)) {
             updateStatus(getString(R.string.status_stopped))
@@ -5643,5 +5710,41 @@ class BluetoothService : Service() {
         intent.putExtra("height", data.height)
         intent.putExtra("density", data.density)
         sendBroadcast(intent)
+    }
+
+    private fun startDynamicIslandService() {
+        try {
+            // Check for overlay permission
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (!Settings.canDrawOverlays(this)) {
+                    Log.w(TAG, "Cannot start DynamicIslandService: Overlay permission not granted")
+                    return
+                }
+            }
+
+            if (!DynamicIslandService.isRunning) {
+                val intent = Intent(this, DynamicIslandService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(intent)
+                } else {
+                    startService(intent)
+                }
+                Log.d(TAG, "Started DynamicIslandService")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start DynamicIslandService: ${e.message}")
+        }
+    }
+
+    private fun stopDynamicIslandService() {
+        try {
+            if (DynamicIslandService.isRunning) {
+                val intent = Intent(this, DynamicIslandService::class.java)
+                stopService(intent)
+                Log.d(TAG, "Stopped DynamicIslandService")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to stop DynamicIslandService: ${e.message}")
+        }
     }
 }
