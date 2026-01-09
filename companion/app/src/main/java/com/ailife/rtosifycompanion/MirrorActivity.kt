@@ -19,6 +19,7 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
     companion object {
         private const val TAG = "MirrorActivity"
         const val ACTION_SCREEN_DATA = "com.ailife.rtosifycompanion.SCREEN_DATA_RECEIVED"
+        const val ACTION_MIRROR_RES_CHANGE = "com.ailife.rtosifycompanion.MIRROR_RES_CHANGE"
     }
 
     private lateinit var surfaceView: SurfaceView
@@ -30,10 +31,27 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     private val dataReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == ACTION_SCREEN_DATA) {
-                val base64Data = intent.getStringExtra("data") ?: return
-                val data = Base64.decode(base64Data, Base64.DEFAULT)
-                decodeFrame(data)
+            when (intent?.action) {
+                ACTION_SCREEN_DATA -> {
+                    val base64Data = intent.getStringExtra("data") ?: return
+                    val data = Base64.decode(base64Data, Base64.DEFAULT)
+                    decodeFrame(data)
+                }
+                ACTION_MIRROR_RES_CHANGE -> {
+                    val newW = intent.getIntExtra("width", targetWidth)
+                    val newH = intent.getIntExtra("height", targetHeight)
+                    Log.d(TAG, "Handling remote resolution change: ${newW}x${newH}")
+                    
+                    targetWidth = newW
+                    targetHeight = newH
+                    
+                    // Update UI size
+                    adjustSurfaceSize()
+                    
+                    // Reset decoder for new dimensions
+                    releaseDecoder()
+                    setupDecoder(surfaceView.holder)
+                }
             }
         }
     }
@@ -62,7 +80,7 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
             sendRemoteNavigation(RemoteInputData.ACTION_NAV_HOME)
         }
 
-        checkResolutionMatching()
+        // checkResolutionMatching() - Removed to avoid redundant handshake, handled by source
         
         surfaceView.post {
             adjustSurfaceSize()
@@ -151,10 +169,14 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     override fun onResume() {
         super.onResume()
+        val filter = IntentFilter().apply {
+            addAction(ACTION_SCREEN_DATA)
+            addAction(ACTION_MIRROR_RES_CHANGE)
+        }
         androidx.core.content.ContextCompat.registerReceiver(
             this,
             dataReceiver,
-            IntentFilter(ACTION_SCREEN_DATA),
+            filter,
             androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
         )
     }

@@ -79,6 +79,7 @@ import rikka.shizuku.Shizuku
 import org.json.JSONArray
 import org.json.JSONObject
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import androidx.core.graphics.drawable.toBitmap
 import java.io.ByteArrayOutputStream
@@ -928,6 +929,7 @@ class BluetoothService : Service() {
                     MessageType.SCREEN_MIRROR_DATA -> handleMirrorData(message)
                     MessageType.REMOTE_INPUT -> handleRemoteInput(message)
                     MessageType.UPDATE_RESOLUTION -> handleUpdateResolution(message)
+                    MessageType.MIRROR_RES_CHANGE -> handleMirrorResChange(message)
                     else -> Log.w(TAG, "Unknown message type: ${message.type}")
                 }
             }
@@ -4760,6 +4762,8 @@ class BluetoothService : Service() {
 
     private fun handleMirrorStart(message: ProtocolMessage) {
         val data = ProtocolHelper.extractData<MirrorStartData>(message)
+        Log.d(TAG, "handleMirrorStart: isRequest=${data.isRequest}, width=${data.width}, height=${data.height}, mode=${data.mode}")
+        
         if (data.isRequest) {
             // Other device wants to view US.
             Log.d(TAG, "Mirror request received: ${data.width}x${data.height} mode=${data.mode}")
@@ -4778,7 +4782,7 @@ class BluetoothService : Service() {
                 handleUpdateResolution(resMessage)
             }
 
-            val intent = Intent(this, MainActivity::class.java).apply {
+            val intent = Intent(this, MirrorSettingsActivity::class.java).apply {
                 putExtra("request_mirror", true)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
@@ -4887,4 +4891,15 @@ class BluetoothService : Service() {
         }
     }
 
+    private fun handleMirrorResChange(message: ProtocolMessage) {
+        val data = ProtocolHelper.extractData<ResolutionData>(message)
+        Log.d(TAG, "Received remote resolution change: ${data.width}x${data.height}")
+        
+        val intent = Intent("com.ailife.rtosifycompanion.MIRROR_RES_CHANGE")
+        intent.setPackage(packageName)
+        intent.putExtra("width", data.width)
+        intent.putExtra("height", data.height)
+        intent.putExtra("density", data.density)
+        sendBroadcast(intent)
+    }
 }

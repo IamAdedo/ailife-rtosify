@@ -49,6 +49,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toBitmap
@@ -2470,6 +2471,8 @@ class BluetoothService : Service() {
 
     private fun handleMirrorStart(message: ProtocolMessage) {
         val data = ProtocolHelper.extractData<MirrorStartData>(message)
+        Log.d(TAG, "handleMirrorStart: isRequest=${data.isRequest}, width=${data.width}, height=${data.height}, mode=${data.mode}")
+        
         if (data.isRequest) {
             // Other device wants to view US.
             Log.d(TAG, "Mirror request received: ${data.width}x${data.height} mode=${data.mode}")
@@ -2596,5 +2599,17 @@ class BluetoothService : Service() {
                 Log.e(TAG, "Failed to update resolution: ${e.message}")
             }
         }
+    }
+
+    private fun handleMirrorResChange(message: ProtocolMessage) {
+        val data = ProtocolHelper.extractData<ResolutionData>(message)
+        Log.d(TAG, "Received remote resolution change: ${data.width}x${data.height}")
+        
+        val intent = Intent("com.ailife.rtosify.MIRROR_RES_CHANGE")
+        intent.setPackage(packageName)
+        intent.putExtra("width", data.width)
+        intent.putExtra("height", data.height)
+        intent.putExtra("density", data.density)
+        sendBroadcast(intent)
     }
 }

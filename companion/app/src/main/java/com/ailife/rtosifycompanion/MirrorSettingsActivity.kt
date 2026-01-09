@@ -7,6 +7,7 @@ import android.content.ServiceConnection
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.IBinder
+import android.util.Log
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
@@ -68,6 +69,15 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
         initViews()
         setupListeners()
         bindToService()
+
+        if (intent.getBooleanExtra("request_mirror", false)) {
+            Log.d("MirrorSettingsActivity", "Received mirror request, delaying projection permission by 1s for stability")
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                if (!MirroringService.isRunning) {
+                    startWatchMirroring()
+                }
+            }, 1000)
+        }
     }
 
     private fun initViews() {
