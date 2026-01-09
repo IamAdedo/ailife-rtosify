@@ -78,10 +78,12 @@ class RtosifyAccessibilityService : android.accessibilityservice.AccessibilitySe
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.N) return
         
         val displayMetrics = resources.displayMetrics
-        val x = xP * displayMetrics.widthPixels
-        val y = yP * displayMetrics.heightPixels
+        val width = displayMetrics.widthPixels
+        val height = displayMetrics.heightPixels
+        val x = xP * width
+        val y = yP * height
 
-        Log.d(TAG, "performRemoteInput: action=$action, x=$x, y=$y")
+        Log.d(TAG, "performRemoteInput: action=$action, percentages=($xP, $yP), screen=(${width}x${height}), target=($x, $y)")
 
         when (action) {
             android.view.MotionEvent.ACTION_DOWN -> {

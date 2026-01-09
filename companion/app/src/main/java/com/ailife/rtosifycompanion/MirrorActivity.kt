@@ -103,10 +103,32 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
     }
 
     private fun handleTouch(event: MotionEvent) {
-        val x = event.x / surfaceView.width
-        val y = event.y / surfaceView.height
+        val viewWidth = surfaceView.width.toFloat()
+        val viewHeight = surfaceView.height.toFloat()
+        val videoRatio = targetWidth.toFloat() / targetHeight
+        val viewRatio = viewWidth / viewHeight
+
+        var displayedWidth: Float
+        var displayedHeight: Float
+        var offsetX = 0f
+        var offsetY = 0f
+
+        if (videoRatio > viewRatio) {
+            // Video is wider than view (letterboxed top/bottom)
+            displayedWidth = viewWidth
+            displayedHeight = viewWidth / videoRatio
+            offsetY = (viewHeight - displayedHeight) / 2f
+        } else {
+            // Video is taller than view (pillarboxed left/right)
+            displayedHeight = viewHeight
+            displayedWidth = viewHeight * videoRatio
+            offsetX = (viewWidth - displayedWidth) / 2f
+        }
+
+        val x = ((event.x - offsetX) / displayedWidth).coerceIn(0f, 1f)
+        val y = ((event.y - offsetY) / displayedHeight).coerceIn(0f, 1f)
         
-        Log.d(TAG, "Touch event: action=${event.action}, x=$x, y=$y")
+        Log.d(TAG, "Touch event: action=${event.action}, x=$x, y=$y (view: ${viewWidth}x${viewHeight}, video: ${targetWidth}x${targetHeight})")
         
         // Send touch to BluetoothService
         val intent = Intent("com.ailife.rtosifycompanion.SEND_REMOTE_INPUT")
