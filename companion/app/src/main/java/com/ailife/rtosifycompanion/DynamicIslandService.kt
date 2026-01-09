@@ -224,14 +224,15 @@ class DynamicIslandService : Service() {
                 currentNotification != null -> {
                     // Showing a notification - already handled by expand/collapse logic
                 }
+                notificationQueue.isNotEmpty() -> {
+                    // Notifications take priority over connection/charging states
+                    overlayView.collapseToIcons(notificationQueue)
+                }
                 isCharging -> {
                     overlayView.showChargingState(batteryPercent)
                 }
                 !isBluetoothConnected -> {
                     overlayView.showDisconnectedState()
-                }
-                notificationQueue.isNotEmpty() -> {
-                    overlayView.collapseToIcons(notificationQueue)
                 }
                 else -> {
                     // Just show the pill

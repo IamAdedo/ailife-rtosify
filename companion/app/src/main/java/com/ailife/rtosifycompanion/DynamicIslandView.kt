@@ -22,7 +22,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
     companion object {
         private const val TAG = "DynamicIslandView"
-        private const val PILL_HEIGHT_DP = 40
+        private const val PILL_HEIGHT_COLLAPSED_DP = 40
+        private const val PILL_HEIGHT_EXPANDED_DP = 80
         private const val PILL_WIDTH_COLLAPSED_DP = 150
         private const val PILL_WIDTH_EXPANDED_DP = 380
         private const val ICON_SIZE_DP = 36
@@ -56,18 +57,22 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             LayoutParams.MATCH_PARENT,
             LayoutParams.WRAP_CONTENT
         )
+        clipChildren = false
+        clipToPadding = false
 
         // Main pill container
         pillContainer = FrameLayout(context).apply {
             layoutParams = LayoutParams(
                 dpToPx(PILL_WIDTH_COLLAPSED_DP),
-                dpToPx(PILL_HEIGHT_DP)
+                dpToPx(PILL_HEIGHT_COLLAPSED_DP)
             ).apply {
                 gravity = Gravity.CENTER_HORIZONTAL
                 topMargin = dpToPx(8)
             }
             background = createPillBackground()
             elevation = dpToPx(8).toFloat()
+            clipChildren = false
+            clipToPadding = false
         }
 
         // Content container (for text/icons)
@@ -131,10 +136,12 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         if (currentState == State.IDLE) return
         currentState = State.IDLE
 
+        expandedContainer.visibility = GONE
+        pillContainer.alpha = 1f
+
         animateToCollapsed {
             contentContainer.removeAllViews()
             iconContainer.visibility = GONE
-            expandedContainer.visibility = GONE
         }
     }
 
@@ -142,22 +149,25 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         if (currentState == State.DISCONNECTED) return
         currentState = State.DISCONNECTED
 
-        animateToCollapsed {
-            contentContainer.removeAllViews()
-            iconContainer.visibility = GONE
-            expandedContainer.visibility = GONE
+        expandedContainer.visibility = GONE
+        pillContainer.alpha = 1f
+        contentContainer.visibility = VISIBLE
 
-            // Show bluetooth disconnected icon
-            val icon = ImageView(context).apply {
-                layoutParams = LayoutParams(
-                    dpToPx(ICON_SIZE_DP),
-                    dpToPx(ICON_SIZE_DP)
-                )
-                setImageResource(android.R.drawable.stat_sys_data_bluetooth)
-                setColorFilter(Color.parseColor("#FF453A")) // Red color
-            }
-            contentContainer.addView(icon)
+        contentContainer.removeAllViews()
+        iconContainer.visibility = GONE
+
+        // Show bluetooth disconnected icon
+        val icon = ImageView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                dpToPx(ICON_SIZE_DP),
+                dpToPx(ICON_SIZE_DP)
+            )
+            setImageResource(android.R.drawable.stat_sys_data_bluetooth)
+            setColorFilter(Color.parseColor("#FF453A")) // Red color
         }
+        contentContainer.addView(icon)
+
+        animateToCollapsed {}
     }
 
     fun showChargingState(batteryPercent: Int) {
@@ -168,29 +178,32 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         }
         currentState = State.CHARGING
 
-        animateToCollapsed {
-            contentContainer.removeAllViews()
-            iconContainer.visibility = GONE
-            expandedContainer.visibility = GONE
+        expandedContainer.visibility = GONE
+        pillContainer.alpha = 1f
+        contentContainer.visibility = VISIBLE
 
-            // Battery percentage text
-            val percentText = TextView(context).apply {
-                layoutParams = LayoutParams(
-                    LayoutParams.WRAP_CONTENT,
-                    LayoutParams.WRAP_CONTENT
-                )
-                text = "$batteryPercent%"
-                textSize = 16f
-                setTextColor(Color.WHITE)
-                tag = "percent_text"
-            }
+        contentContainer.removeAllViews()
+        iconContainer.visibility = GONE
 
-            // Circular progress (simplified - using a colored view)
-            val progressRing = createCircularProgress(batteryPercent)
+        // Circular progress (simplified - using a colored view)
+        val progressRing = createCircularProgress(batteryPercent)
 
-            contentContainer.addView(progressRing)
-            contentContainer.addView(percentText)
+        // Battery percentage text
+        val percentText = TextView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LayoutParams.WRAP_CONTENT,
+                LayoutParams.WRAP_CONTENT
+            )
+            text = "$batteryPercent%"
+            textSize = 16f
+            setTextColor(Color.WHITE)
+            tag = "percent_text"
         }
+
+        contentContainer.addView(progressRing)
+        contentContainer.addView(percentText)
+
+        animateToCollapsed {}
     }
 
     private fun updateChargingDisplay(batteryPercent: Int) {
@@ -220,14 +233,15 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
         expandedContainer.visibility = GONE
         iconContainer.visibility = GONE
+        contentContainer.visibility = VISIBLE
+        contentContainer.removeAllViews()
 
-        animateToExpanded {
-            contentContainer.removeAllViews()
+        // Create notification content layout BEFORE animation
+        val notifLayout = createNotificationExpandedLayout(notif)
+        contentContainer.addView(notifLayout)
 
-            // Create notification content layout
-            val notifLayout = createNotificationExpandedLayout(notif)
-            contentContainer.addView(notifLayout)
-        }
+        // Now animate to show it
+        animateToExpanded {}
     }
 
     private fun createNotificationExpandedLayout(notif: NotificationData): View {
@@ -238,7 +252,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             )
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dpToPx(12))
+            setPadding(dpToPx(16), dpToPx(8), dpToPx(16), dpToPx(8))
 
             // Sender/App icon on the left
             val iconFrame = FrameLayout(context).apply {
@@ -318,6 +332,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 textSize = 14f
                 setTextColor(Color.WHITE)
                 maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
                 // Slide animation from center
                 alpha = 0f
                 translationX = 50f
@@ -338,6 +353,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 textSize = 12f
                 setTextColor(Color.parseColor("#AAAAAA"))
                 maxLines = 2
+                ellipsize = android.text.TextUtils.TruncateAt.END
                 // Slide animation from center
                 alpha = 0f
                 translationX = 50f
@@ -358,18 +374,19 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     fun collapseToIcons(notifications: List<NotificationData>) {
         currentState = State.NOTIFICATION_COLLAPSED
 
-        animateToCollapsed {
-            contentContainer.removeAllViews()
-            contentContainer.visibility = GONE
-            expandedContainer.visibility = GONE
-            iconContainer.visibility = VISIBLE
-            iconContainer.removeAllViews()
+        expandedContainer.visibility = GONE
+        pillContainer.alpha = 1f
 
-            // Show up to 3 stacked icons, then "+N"
-            val maxIcons = 3
-            val iconsToShow = notifications.take(maxIcons)
+        contentContainer.removeAllViews()
+        contentContainer.visibility = GONE
+        iconContainer.visibility = VISIBLE
+        iconContainer.removeAllViews()
 
-            iconsToShow.forEachIndexed { index, notif ->
+        // Show up to 3 stacked icons, then "+N"
+        val maxIcons = 3
+        val iconsToShow = notifications.take(maxIcons)
+
+        iconsToShow.forEachIndexed { index, notif ->
                 val icon = ImageView(context).apply {
                     layoutParams = LinearLayout.LayoutParams(
                         dpToPx(STACKED_ICON_SIZE_DP),
@@ -425,16 +442,21 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 }
                 iconContainer.addView(moreText)
             }
-        }
+
+        animateToCollapsed {}
     }
 
     fun expandToList(notifications: List<NotificationData>) {
         currentState = State.LIST_EXPANDED
 
-        // Expand pill height to show list
-        animateHeight(pillContainer, dpToPx(PILL_HEIGHT_DP), dpToPx(400)) {
-            contentContainer.visibility = GONE
-            iconContainer.visibility = GONE
+        // Hide pill content and show list instead
+        contentContainer.visibility = GONE
+        iconContainer.visibility = GONE
+
+        // Collapse pill back to small size
+        animateToCollapsed {
+            // Once pill is small, hide it and show the list
+            pillContainer.alpha = 0f
             expandedContainer.visibility = VISIBLE
             expandedList.removeAllViews()
 
@@ -640,12 +662,45 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     private fun animateToCollapsed(onEnd: () -> Unit) {
         contentContainer.visibility = VISIBLE
         val targetWidth = dpToPx(PILL_WIDTH_COLLAPSED_DP)
-        animateWidth(pillContainer, pillContainer.width, targetWidth, onEnd)
+        val targetHeight = dpToPx(PILL_HEIGHT_COLLAPSED_DP)
+        animateSize(pillContainer, pillContainer.width, targetWidth, pillContainer.height, targetHeight, onEnd)
     }
 
     private fun animateToExpanded(onEnd: () -> Unit) {
         val targetWidth = dpToPx(PILL_WIDTH_EXPANDED_DP)
-        animateWidth(pillContainer, pillContainer.width, targetWidth, onEnd)
+        val targetHeight = dpToPx(PILL_HEIGHT_EXPANDED_DP)
+        animateSize(pillContainer, pillContainer.width, targetWidth, pillContainer.height, targetHeight, onEnd)
+    }
+
+    private fun animateSize(view: View, fromWidth: Int, toWidth: Int, fromHeight: Int, toHeight: Int, onEnd: () -> Unit = {}) {
+        val widthAnimator = ValueAnimator.ofInt(fromWidth, toWidth)
+        val heightAnimator = ValueAnimator.ofInt(fromHeight, toHeight)
+
+        widthAnimator.addUpdateListener { animation ->
+            val lp = view.layoutParams
+            lp.width = animation.animatedValue as Int
+            view.layoutParams = lp
+        }
+
+        heightAnimator.addUpdateListener { animation ->
+            val lp = view.layoutParams
+            lp.height = animation.animatedValue as Int
+            view.layoutParams = lp
+        }
+
+        val animatorSet = AnimatorSet()
+        animatorSet.playTogether(widthAnimator, heightAnimator)
+        animatorSet.duration = 300
+        animatorSet.interpolator = DecelerateInterpolator()
+        animatorSet.addListener(object : android.animation.Animator.AnimatorListener {
+            override fun onAnimationEnd(animation: android.animation.Animator) {
+                onEnd()
+            }
+            override fun onAnimationStart(animation: android.animation.Animator) {}
+            override fun onAnimationCancel(animation: android.animation.Animator) {}
+            override fun onAnimationRepeat(animation: android.animation.Animator) {}
+        })
+        animatorSet.start()
     }
 
     private fun animateWidth(view: View, from: Int, to: Int, onEnd: () -> Unit = {}) {
