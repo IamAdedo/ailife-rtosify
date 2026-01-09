@@ -222,6 +222,8 @@ class DynamicIslandService : Service() {
 
     private fun updateState() {
         handler.post {
+            if (isExpanded) return@post
+
             when {
                 currentNotification != null -> {
                     // Showing a notification - already handled by expand/collapse logic

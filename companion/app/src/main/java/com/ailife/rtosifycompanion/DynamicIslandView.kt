@@ -116,8 +116,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                     layoutParams =
                             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
                                     .apply {
-                                        topMargin = dpToPx(48)
-                                    } // Pill height (40dp) + spacing
+                                        topMargin = dpToPx(60)
+                                    } // Pill height (40dp) + extra spacing (20dp)
                     visibility = GONE
                     addView(expandedList)
                 }
@@ -453,91 +453,105 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     fun collapseToIcons(notifications: List<NotificationData>) {
         currentState = State.NOTIFICATION_COLLAPSED
 
-        expandedContainer.visibility = GONE
-        pillContainer.alpha = 1f
+        // Animate list out before hiding
+        expandedContainer
+                .animate()
+                .alpha(0f)
+                .translationY(-dpToPx(20).toFloat())
+                .setDuration(300)
+                .withEndAction {
+                    expandedContainer.visibility = GONE
+                    pillContainer.alpha = 1f
 
-        contentContainer.removeAllViews()
-        contentContainer.visibility = GONE
-        iconContainer.visibility = VISIBLE
-        iconContainer.removeAllViews()
+                    contentContainer.removeAllViews()
+                    contentContainer.visibility = GONE
+                    iconContainer.visibility = VISIBLE
+                    iconContainer.removeAllViews()
 
-        // Show up to 3 stacked icons, then "+N"
-        val maxIcons = 3
-        val iconsToShow = notifications.take(maxIcons)
+                    // Show up to 3 stacked icons, then "+N"
+                    val maxIcons = 3
+                    val iconsToShow = notifications.take(maxIcons)
 
-        iconsToShow.forEachIndexed { index, notif ->
-            val icon =
-                    ImageView(context).apply {
-                        layoutParams =
-                                LinearLayout.LayoutParams(
-                                                dpToPx(STACKED_ICON_SIZE_DP),
-                                                dpToPx(STACKED_ICON_SIZE_DP)
-                                        )
-                                        .apply {
-                                            // First icon gets centered margin
-                                            if (index == 0) {
-                                                // Center first icon: (pill height - icon height) /
-                                                // 2
-                                                marginStart =
-                                                        (dpToPx(PILL_HEIGHT_COLLAPSED_DP) -
-                                                                dpToPx(STACKED_ICON_SIZE_DP)) / 2
-                                            } else {
-                                                // Overlap icons by 50%
-                                                marginStart = -dpToPx(STACKED_ICON_SIZE_DP / 2)
+                    iconsToShow.forEachIndexed { index, notif ->
+                        val icon =
+                                ImageView(context).apply {
+                                    layoutParams =
+                                            LinearLayout.LayoutParams(
+                                                            dpToPx(STACKED_ICON_SIZE_DP),
+                                                            dpToPx(STACKED_ICON_SIZE_DP)
+                                                    )
+                                                    .apply {
+                                                        if (index == 0) {
+                                                            marginStart =
+                                                                    (dpToPx(
+                                                                            PILL_HEIGHT_COLLAPSED_DP
+                                                                    ) -
+                                                                            dpToPx(
+                                                                                    STACKED_ICON_SIZE_DP
+                                                                            )) / 2
+                                                        } else {
+                                                            marginStart =
+                                                                    -dpToPx(
+                                                                            STACKED_ICON_SIZE_DP / 2
+                                                                    )
+                                                        }
+                                                    }
+                                    scaleType = ImageView.ScaleType.CENTER_CROP
+                                    elevation = (maxIcons - index).toFloat() * dpToPx(2)
+
+                                    val iconBitmap =
+                                            when {
+                                                notif.largeIcon != null ->
+                                                        decodeBase64ToBitmap(notif.largeIcon)
+                                                notif.smallIcon != null ->
+                                                        decodeBase64ToBitmap(notif.smallIcon)
+                                                else -> null
                                             }
-                                        }
-                        scaleType = ImageView.ScaleType.CENTER_CROP
-                        elevation = (maxIcons - index).toFloat() * dpToPx(2)
 
-                        // Prioritize full color app icon (largeIcon) over smallIcon
-                        val iconBitmap =
-                                when {
-                                    notif.largeIcon != null -> decodeBase64ToBitmap(notif.largeIcon)
-                                    notif.smallIcon != null -> decodeBase64ToBitmap(notif.smallIcon)
-                                    else -> null
+                                    if (iconBitmap != null) {
+                                        setImageBitmap(getCircularBitmap(iconBitmap))
+                                    } else {
+                                        setImageResource(android.R.drawable.ic_dialog_info)
+                                    }
+
+                                    background =
+                                            GradientDrawable().apply {
+                                                shape = GradientDrawable.OVAL
+                                                setStroke(dpToPx(2), Color.WHITE)
+                                            }
                                 }
-
-                        if (iconBitmap != null) {
-                            setImageBitmap(getCircularBitmap(iconBitmap))
-                        } else {
-                            setImageResource(android.R.drawable.ic_dialog_info)
-                        }
-
-                        // Add white border
-                        background =
-                                GradientDrawable().apply {
-                                    shape = GradientDrawable.OVAL
-                                    setStroke(dpToPx(2), Color.WHITE)
-                                }
+                        iconContainer.addView(icon)
                     }
-            iconContainer.addView(icon)
-        }
 
-        // Show "+N" if more than maxIcons
-        if (notifications.size > maxIcons) {
-            val moreText =
-                    TextView(context).apply {
-                        layoutParams =
-                                LinearLayout.LayoutParams(
-                                                dpToPx(STACKED_ICON_SIZE_DP),
-                                                dpToPx(STACKED_ICON_SIZE_DP)
-                                        )
-                                        .apply { marginStart = -dpToPx(STACKED_ICON_SIZE_DP / 2) }
-                        text = "+${notifications.size - maxIcons}"
-                        textSize = 11f
-                        setTextColor(Color.WHITE)
-                        gravity = Gravity.CENTER
-                        background =
-                                GradientDrawable().apply {
-                                    shape = GradientDrawable.OVAL
-                                    setColor(Color.parseColor("#FF9500")) // Orange
-                                    setStroke(dpToPx(2), Color.WHITE)
+                    if (notifications.size > maxIcons) {
+                        val moreText =
+                                TextView(context).apply {
+                                    layoutParams =
+                                            LinearLayout.LayoutParams(
+                                                            dpToPx(STACKED_ICON_SIZE_DP),
+                                                            dpToPx(STACKED_ICON_SIZE_DP)
+                                                    )
+                                                    .apply {
+                                                        marginStart =
+                                                                -dpToPx(STACKED_ICON_SIZE_DP / 2)
+                                                    }
+                                    text = "+${notifications.size - maxIcons}"
+                                    textSize = 11f
+                                    setTextColor(Color.WHITE)
+                                    gravity = Gravity.CENTER
+                                    background =
+                                            GradientDrawable().apply {
+                                                shape = GradientDrawable.OVAL
+                                                setColor(Color.parseColor("#FF9500"))
+                                                setStroke(dpToPx(2), Color.WHITE)
+                                            }
                                 }
+                        iconContainer.addView(moreText)
                     }
-            iconContainer.addView(moreText)
-        }
 
-        animateToCollapsed {}
+                    animateToCollapsed {}
+                }
+                .start()
     }
 
     fun expandToList(notifications: List<NotificationData>) {
@@ -559,8 +573,9 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
         // Collapse pill back to small size
         animateToCollapsed {
-            // Once pill is small, hide it and show the list
-            // Keep pill visible so user can click to collapse
+            // Once pill is small, show the list with animation
+            expandedContainer.alpha = 0f
+            expandedContainer.translationY = -dpToPx(20).toFloat()
             expandedContainer.visibility = VISIBLE
             expandedList.removeAllViews()
 
@@ -568,6 +583,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 val itemView = createNotificationListItem(notif)
                 expandedList.addView(itemView)
             }
+
+            expandedContainer.animate().alpha(1f).translationY(0f).setDuration(300).start()
         }
     }
 
