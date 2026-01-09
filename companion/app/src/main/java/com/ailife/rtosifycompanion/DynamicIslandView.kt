@@ -4,12 +4,14 @@ import android.animation.AnimatorSet
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.*
+import android.graphics.Outline
 import android.graphics.drawable.GradientDrawable
 import android.text.InputType
 import android.util.Base64
 import android.util.Log
 import android.view.Gravity
 import android.view.View
+import android.view.ViewOutlineProvider
 import android.view.animation.DecelerateInterpolator
 import android.widget.*
 import androidx.core.view.setPadding
@@ -73,7 +75,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                     clipToPadding = false
                     setOnClickListener {
                         if (currentState == State.NOTIFICATION_COLLAPSED ||
-                                        currentState == State.NOTIFICATION_EXPANDED
+                                        currentState == State.NOTIFICATION_EXPANDED ||
+                                        currentState == State.LIST_EXPANDED
                         ) {
                             onPillClick?.invoke()
                         }
@@ -112,34 +115,11 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 ScrollView(context).apply {
                     layoutParams =
                             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
-                                    .apply { topMargin = dpToPx(8) }
+                                    .apply {
+                                        topMargin = dpToPx(48)
+                                    } // Pill height (40dp) + spacing
                     visibility = GONE
                     addView(expandedList)
-
-                    // Add swipe gesture detection
-                    setOnTouchListener { v, event ->
-                        when (event.action) {
-                            android.view.MotionEvent.ACTION_DOWN -> {
-                                startY = event.y
-                                false
-                            }
-                            android.view.MotionEvent.ACTION_UP -> {
-                                val endY = event.y
-                                val deltaY = startY - endY
-                                // Swipe up to collapse - only if at top of scroll and swiped far
-                                // enough
-                                val scrollView = v as? ScrollView
-                                val isAtTop = scrollView?.scrollY == 0
-                                if (deltaY > 50 && isAtTop && currentState == State.LIST_EXPANDED) {
-                                    onPillClick?.invoke() // This will trigger collapse
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
-                            else -> false
-                        }
-                    }
                 }
 
         pillContainer.addView(contentContainer)
@@ -580,7 +560,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         // Collapse pill back to small size
         animateToCollapsed {
             // Once pill is small, hide it and show the list
-            pillContainer.alpha = 0f
+            // Keep pill visible so user can click to collapse
             expandedContainer.visibility = VISIBLE
             expandedList.removeAllViews()
 
@@ -636,6 +616,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
                         val iconBitmap =
                                 when {
+                                    notif.largeIcon != null -> decodeBase64ToBitmap(notif.largeIcon)
+                                    notif.groupIcon != null -> decodeBase64ToBitmap(notif.groupIcon)
                                     notif.senderIcon != null ->
                                             decodeBase64ToBitmap(notif.senderIcon)
                                     notif.smallIcon != null -> decodeBase64ToBitmap(notif.smallIcon)
@@ -677,6 +659,105 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                         maxLines = 3
                     }
             addView(content)
+
+            // Big Picture
+            notif.bigPicture?.let { base64Image ->
+                decodeBase64ToBitmap(base64Image)?.let { bitmap ->
+                    val bigPictureView =
+                            ImageView(context).apply {
+                                layoutParams =
+                                        LinearLayout.LayoutParams(
+                                                        LayoutParams.MATCH_PARENT,
+                                                        dpToPx(120)
+                                                )
+                                                .apply { topMargin = dpToPx(8) }
+                                scaleType = ImageView.ScaleType.CENTER_CROP
+                                setImageBitmap(bitmap)
+                                clipToOutline = true
+                                outlineProvider =
+                                        object : ViewOutlineProvider() {
+                                            override fun getOutline(view: View, outline: Outline) {
+                                                outline.setRoundRect(
+                                                        0,
+                                                        0,
+                                                        view.width,
+                                                        view.height,
+                                                        dpToPx(8).toFloat()
+                                                )
+                                            }
+                                        }
+                            }
+                    addView(bigPictureView)
+                }
+            }
+
+            // Chat messages
+            if (notif.messages.isNotEmpty()) {
+                val messagesContainer =
+                        LinearLayout(context).apply {
+                            layoutParams =
+                                    LinearLayout.LayoutParams(
+                                                    LayoutParams.MATCH_PARENT,
+                                                    LayoutParams.WRAP_CONTENT
+                                            )
+                                            .apply { topMargin = dpToPx(8) }
+                            orientation = LinearLayout.VERTICAL
+                        }
+
+                notif.messages.takeLast(2).forEach { message ->
+                    val messageLayout =
+                            LinearLayout(context).apply {
+                                layoutParams =
+                                        LinearLayout.LayoutParams(
+                                                        LayoutParams.MATCH_PARENT,
+                                                        LayoutParams.WRAP_CONTENT
+                                                )
+                                                .apply { bottomMargin = dpToPx(4) }
+                                orientation = LinearLayout.HORIZONTAL
+                                gravity = Gravity.CENTER_VERTICAL
+                            }
+
+                    message.senderIcon?.let { base64SenderIcon ->
+                        decodeBase64ToBitmap(base64SenderIcon)?.let { senderBitmap ->
+                            val senderIconView =
+                                    ImageView(context).apply {
+                                        layoutParams =
+                                                LinearLayout.LayoutParams(dpToPx(24), dpToPx(24))
+                                                        .apply { marginEnd = dpToPx(8) }
+                                        scaleType = ImageView.ScaleType.CENTER_CROP
+                                        setImageBitmap(getCircularBitmap(senderBitmap))
+                                    }
+                            messageLayout.addView(senderIconView)
+                        }
+                    }
+
+                    val messageTextView =
+                            TextView(context).apply {
+                                layoutParams =
+                                        LinearLayout.LayoutParams(
+                                                LayoutParams.WRAP_CONTENT,
+                                                LayoutParams.WRAP_CONTENT
+                                        )
+                                text =
+                                        if (message.senderName != null)
+                                                "${message.senderName}: ${message.text}"
+                                        else message.text
+                                textSize = 11f
+                                setTextColor(Color.parseColor("#CCCCCC"))
+                                maxLines = 2
+                                ellipsize = android.text.TextUtils.TruncateAt.END
+                                background =
+                                        GradientDrawable().apply {
+                                            cornerRadius = dpToPx(8).toFloat()
+                                            setColor(Color.parseColor("#3A3A3C"))
+                                        }
+                                setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4))
+                            }
+                    messageLayout.addView(messageTextView)
+                    messagesContainer.addView(messageLayout)
+                }
+                addView(messagesContainer)
+            }
 
             // Action buttons
             if (notif.actions.isNotEmpty()) {
@@ -768,51 +849,59 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
                         // Determine if horizontal or vertical swipe
                         if (kotlin.math.abs(deltaX) > kotlin.math.abs(deltaY) &&
-                                        kotlin.math.abs(deltaX) > 10
+                                        kotlin.math.abs(deltaX) > 20
                         ) {
-                            // Horizontal swipe - prevent parent from intercepting
+                            // Horizontal swipe confirmed - prevent parent from intercepting
                             parent.requestDisallowInterceptTouchEvent(true)
 
                             // Only allow swiping right (positive deltaX)
                             if (deltaX > 0) {
                                 translationX = deltaX
-                                alpha = 1f - (deltaX / width.toFloat()) * 0.5f
+                                val safeWidth = if (v.width > 0) v.width else dpToPx(300)
+                                alpha = 1f - (deltaX / safeWidth.toFloat()) * 0.5f
                             }
                             true
                         } else {
-                            // Vertical or small movement - let parent handle it
+                            // Not a clear horizontal swipe - let parent (ScrollView) handle it
                             false
                         }
                     }
                     android.view.MotionEvent.ACTION_UP -> {
                         val deltaX = event.x - startX
                         val duration = System.currentTimeMillis() - startXTime
+                        val safeWidth = if (v.width > 0) v.width else dpToPx(300)
 
                         // Allow parent to intercept again
                         parent.requestDisallowInterceptTouchEvent(false)
 
-                        // Dismiss if swiped more than 40% of width or fast swipe
-                        val shouldDismiss =
-                                deltaX > width * 0.4f || (deltaX > 100 && duration < 300)
-
-                        if (shouldDismiss) {
-                            // Animate out and dismiss
-                            animate()
-                                    .translationX(width.toFloat())
-                                    .alpha(0f)
-                                    .setDuration(200)
-                                    .withEndAction { onNotificationDismiss?.invoke(notif) }
-                                    .start()
+                        // If it's a click (minimal move), trigger v.performClick()
+                        if (kotlin.math.abs(deltaX) < 15 && kotlin.math.abs(event.y - startY) < 15
+                        ) {
+                            translationX = 0f
+                            alpha = 1f
+                            v.performClick()
+                            true
                         } else {
-                            // Snap back
-                            animate().translationX(0f).alpha(1f).setDuration(200).start()
+                            // Was it a dismiss swipe?
+                            val shouldDismiss =
+                                    deltaX > safeWidth * 0.4f || (deltaX > 100 && duration < 300)
+
+                            if (shouldDismiss) {
+                                animate()
+                                        .translationX(safeWidth.toFloat())
+                                        .alpha(0f)
+                                        .setDuration(200)
+                                        .withEndAction { onNotificationDismiss?.invoke(notif) }
+                                        .start()
+                            } else {
+                                // Snap back
+                                animate().translationX(0f).alpha(1f).setDuration(200).start()
+                            }
+                            true
                         }
-                        true
                     }
                     android.view.MotionEvent.ACTION_CANCEL -> {
-                        // Allow parent to intercept again
                         parent.requestDisallowInterceptTouchEvent(false)
-                        // Snap back on cancel
                         animate().translationX(0f).alpha(1f).setDuration(200).start()
                         true
                     }
