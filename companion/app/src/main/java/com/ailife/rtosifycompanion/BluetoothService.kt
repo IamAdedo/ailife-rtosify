@@ -2,9 +2,9 @@ package com.ailife.rtosifycompanion
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.AlarmManager
 import android.app.PendingIntent
 import android.app.Service
 import android.bluetooth.BluetoothAdapter
@@ -13,30 +13,25 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothServerSocket
 import android.bluetooth.BluetoothSocket
 import android.content.BroadcastReceiver
+import android.content.ComponentName
+import android.content.ContentProviderOperation
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
-import android.content.ComponentName
-import android.content.ServiceConnection
-import android.media.AudioManager
-import android.media.MediaPlayer
-import android.media.Ringtone
-import android.media.RingtoneManager
-import com.ailife.rtosifycompanion.R
 import android.content.IntentFilter
+import android.content.ServiceConnection
 import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
+import android.media.AudioManager
+import android.media.Ringtone
+import android.media.RingtoneManager
 import android.net.Uri
 import android.net.wifi.SupplicantState
 import android.net.wifi.WifiManager
 import android.net.wifi.WifiNetworkSuggestion
-import android.net.NetworkRequest
-import android.os.PowerManager
 import android.os.BatteryManager
 import android.os.Binder
 import android.os.Build
@@ -44,11 +39,10 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.ParcelFileDescriptor
-import android.provider.Settings
+import android.os.PowerManager
 import android.provider.CalendarContract
 import android.provider.ContactsContract
-import android.content.ContentValues
-import android.content.ContentProviderOperation
+import android.provider.Settings
 import android.util.Base64
 import android.util.Log
 import android.widget.Toast
@@ -57,9 +51,21 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
-import androidx.core.graphics.createBitmap
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.scale
 import androidx.core.net.toUri
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.google.gson.reflect.TypeToken
+import com.topjohnwu.superuser.Shell
+import java.io.ByteArrayOutputStream
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -74,22 +80,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import com.topjohnwu.superuser.Shell
-import rikka.shizuku.Shizuku
 import org.json.JSONArray
 import org.json.JSONObject
-import com.google.gson.Gson
-import com.google.gson.JsonObject
-import com.google.gson.reflect.TypeToken
-import androidx.core.graphics.drawable.toBitmap
-import java.io.ByteArrayOutputStream
-import java.io.DataInputStream
-import java.io.DataOutputStream
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
+import rikka.shizuku.Shizuku
 
 class BluetoothService : Service() {
 
@@ -121,16 +114,15 @@ class BluetoothService : Service() {
 
     // Clipboard monitoring
     private var clipboardManager: android.content.ClipboardManager? = null
-    private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
+    private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? =
+            null
     private var lastClipboardText: String? = null
     private val clipboardPollingHandler = Handler(Looper.getMainLooper())
     private var clipboardPollingRunnable: Runnable? = null
 
-    @Volatile
-    private var lastMessageTime: Long = 0L
+    @Volatile private var lastMessageTime: Long = 0L
 
-    @Volatile
-    private var isTransferring: Boolean = false
+    @Volatile private var isTransferring: Boolean = false
 
     // Variáveis de Recepção de Arquivo
     private var receiveFile: File? = null
@@ -145,8 +137,7 @@ class BluetoothService : Service() {
     private val notificationDataMap = ConcurrentHashMap<String, NotificationData>()
 
     // REFATORAÇÃO: Controle mais robusto de notificações
-    @Volatile
-    private var currentNotificationStatus: String = ""
+    @Volatile private var currentNotificationStatus: String = ""
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -157,8 +148,7 @@ class BluetoothService : Service() {
     private var panManager: BluetoothPanManager? = null
     private var currentDevice: BluetoothDevice? = null
 
-    @Volatile
-    private var isStopping = false
+    @Volatile private var isStopping = false
 
     interface ServiceCallback {
         fun onStatusChanged(status: String)
@@ -170,17 +160,20 @@ class BluetoothService : Service() {
         fun onUploadProgress(progress: Int)
         fun onDownloadProgress(progress: Int)
         fun onFileListReceived(path: String, filesJson: String)
-        fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean) {}
+        fun onWatchStatusUpdated(
+                batteryLevel: Int,
+                isCharging: Boolean,
+                wifiSsid: String,
+                wifiEnabled: Boolean,
+                dndEnabled: Boolean
+        ) {}
     }
 
     var callback: ServiceCallback? = null
 
-    @Volatile
-    var currentStatus: String = "" // Will be initialized in onCreate
-    @Volatile
-    var currentDeviceName: String? = null
-    @Volatile
-    var isConnected: Boolean = false
+    @Volatile var currentStatus: String = "" // Will be initialized in onCreate
+    @Volatile var currentDeviceName: String? = null
+    @Volatile var isConnected: Boolean = false
 
     // JSON Protocol - message types defined in Protocol.kt
 
@@ -206,7 +199,7 @@ class BluetoothService : Service() {
         const val NOTIFICATION_ID_WAITING = 10
         const val NOTIFICATION_ID_CONNECTED = 11
         const val NOTIFICATION_ID_DISCONNECTED = 12
-        const val NOTIFICATION_ID_DISCONNECTION_ALERT = 13  // Alert shown when phone disconnects
+        const val NOTIFICATION_ID_DISCONNECTION_ALERT = 13 // Alert shown when phone disconnects
 
         const val INSTALL_NOTIFICATION_ID = 2
         const val MIRRORED_NOTIFICATION_ID_START = 1000
@@ -225,135 +218,172 @@ class BluetoothService : Service() {
         private const val DEBUG_NOTIFICATIONS = false // Ative para debug
     }
 
-    private val internalReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            Log.d(TAG, "internalReceiver triggered: action=${intent?.action}, connected=$isConnected")
-            if (!isConnected) return
-            when (intent?.action) {
-                ACTION_SEND_NOTIF_TO_WATCH -> {
-                    val jsonString = intent.getStringExtra(EXTRA_NOTIF_JSON)
-                    if (jsonString != null) {
-                        try {
-                            val gson = com.google.gson.Gson()
-                            val notifData = gson.fromJson(jsonString, NotificationData::class.java)
-                            sendMessage(ProtocolHelper.createNotificationPosted(notifData))
-                        } catch (_: Exception) {}
+    private val internalReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    Log.d(
+                            TAG,
+                            "internalReceiver triggered: action=${intent?.action}, connected=$isConnected"
+                    )
+                    if (!isConnected) return
+                    when (intent?.action) {
+                        ACTION_SEND_NOTIF_TO_WATCH -> {
+                            val jsonString = intent.getStringExtra(EXTRA_NOTIF_JSON)
+                            if (jsonString != null) {
+                                try {
+                                    val gson = com.google.gson.Gson()
+                                    val notifData =
+                                            gson.fromJson(jsonString, NotificationData::class.java)
+                                    sendMessage(ProtocolHelper.createNotificationPosted(notifData))
+                                } catch (_: Exception) {}
+                            }
+                        }
+                        ACTION_SEND_REMOVE_TO_WATCH -> {
+                            val key = intent.getStringExtra(EXTRA_NOTIF_KEY)
+                            if (key != null) {
+                                sendMessage(ProtocolHelper.createNotificationRemoved(key))
+                            }
+                        }
+                        ACTION_SEND_REMOTE_INPUT -> {
+                            val action = intent.getIntExtra("action", -1)
+                            val x = intent.getFloatExtra("x", 0f)
+                            val y = intent.getFloatExtra("y", 0f)
+                            Log.d(TAG, "Sending remote input: action=$action, x=$x, y=$y")
+                            if (action != -1) {
+                                sendMessage(
+                                        ProtocolMessage(
+                                                type = MessageType.REMOTE_INPUT,
+                                                data =
+                                                        com.google.gson.JsonObject().apply {
+                                                            addProperty("action", action)
+                                                            addProperty("x", x)
+                                                            addProperty("y", y)
+                                                        }
+                                        )
+                                )
+                            }
+                        }
+                        ACTION_SCREEN_DATA_AVAILABLE -> {
+                            val base64Data = intent.getStringExtra("data") ?: return
+                            val isKeyFrame = intent.getBooleanExtra("isKeyFrame", false)
+                            Log.d(
+                                    TAG,
+                                    "Forwarding frame: size=${base64Data.length}B, keyframe=$isKeyFrame"
+                            )
+                            val msg = ProtocolHelper.createMirrorData(base64Data, isKeyFrame)
+                            Log.d(
+                                    TAG,
+                                    "Calling sendMessage for mirror_data, isConnected=$isConnected"
+                            )
+                            sendMessage(msg)
+                            Log.d(TAG, "sendMessage returned")
+                        }
+                        "com.ailife.rtosifycompanion.SEND_MIRROR_STOP" -> {
+                            Log.d(TAG, "Sending mirror stop command to phone")
+                            sendMessage(
+                                    ProtocolMessage(
+                                            type = MessageType.SCREEN_MIRROR_STOP,
+                                            data = com.google.gson.JsonObject()
+                                    )
+                            )
+                        }
+                        "com.ailife.rtosifycompanion.UPDATE_REMOTE_RESOLUTION" -> {
+                            val width = intent.getIntExtra("width", 0)
+                            val height = intent.getIntExtra("height", 0)
+                            val density = intent.getIntExtra("density", 0)
+                            val reset = intent.getBooleanExtra("reset", false)
+                            val mode = intent.getIntExtra("mode", ResolutionData.MODE_RESOLUTION)
+                            sendMessage(
+                                    ProtocolHelper.createUpdateResolution(
+                                            width,
+                                            height,
+                                            density,
+                                            reset,
+                                            mode
+                                    )
+                            )
+                        }
                     }
                 }
-                ACTION_SEND_REMOVE_TO_WATCH -> {
-                    val key = intent.getStringExtra(EXTRA_NOTIF_KEY)
-                    if (key != null) {
-                        sendMessage(ProtocolHelper.createNotificationRemoved(key))
+            }
+
+    private val watchDismissReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (intent?.action == ACTION_WATCH_DISMISSED_LOCAL) {
+                        val key = intent.getStringExtra(EXTRA_NOTIF_KEY)
+                        if (key != null && isConnected) {
+                            sendMessage(ProtocolHelper.createDismissNotification(key))
+                            notificationMap.remove(key)
+                        }
                     }
                 }
-                ACTION_SEND_REMOTE_INPUT -> {
-                    val action = intent.getIntExtra("action", -1)
-                    val x = intent.getFloatExtra("x", 0f)
-                    val y = intent.getFloatExtra("y", 0f)
-                    Log.d(TAG, "Sending remote input: action=$action, x=$x, y=$y")
-                    if (action != -1) {
-                        sendMessage(ProtocolMessage(type = MessageType.REMOTE_INPUT, data = com.google.gson.JsonObject().apply {
-                            addProperty("action", action)
-                            addProperty("x", x)
-                            addProperty("y", y)
-                        }))
+            }
+
+    private val batteryReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (intent?.action == Intent.ACTION_BATTERY_CHANGED) {
+                        handleBatteryChanged(intent)
                     }
                 }
-                ACTION_SCREEN_DATA_AVAILABLE -> {
-                    val base64Data = intent.getStringExtra("data") ?: return
-                    val isKeyFrame = intent.getBooleanExtra("isKeyFrame", false)
-                    Log.d(TAG, "Forwarding frame: size=${base64Data.length}B, keyframe=$isKeyFrame")
-                    val msg = ProtocolHelper.createMirrorData(base64Data, isKeyFrame)
-                    Log.d(TAG, "Calling sendMessage for mirror_data, isConnected=$isConnected")
-                    sendMessage(msg)
-                    Log.d(TAG, "sendMessage returned")
-                }
-                "com.ailife.rtosifycompanion.SEND_MIRROR_STOP" -> {
-                    Log.d(TAG, "Sending mirror stop command to phone")
-                    sendMessage(ProtocolMessage(type = MessageType.SCREEN_MIRROR_STOP, data = com.google.gson.JsonObject()))
-                }
-                "com.ailife.rtosifycompanion.UPDATE_REMOTE_RESOLUTION" -> {
-                    val width = intent.getIntExtra("width", 0)
-                    val height = intent.getIntExtra("height", 0)
-                    val density = intent.getIntExtra("density", 0)
-                    val reset = intent.getBooleanExtra("reset", false)
-                    val mode = intent.getIntExtra("mode", ResolutionData.MODE_RESOLUTION)
-                    sendMessage(ProtocolHelper.createUpdateResolution(width, height, density, reset, mode))
-                }
             }
-        }
-    }
 
-    private val watchDismissReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == ACTION_WATCH_DISMISSED_LOCAL) {
-                val key = intent.getStringExtra(EXTRA_NOTIF_KEY)
-                if (key != null && isConnected) {
-                    sendMessage(ProtocolHelper.createDismissNotification(key))
-                    notificationMap.remove(key)
-                }
-            }
-        }
-    }
-
-
-
-    private val batteryReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Intent.ACTION_BATTERY_CHANGED) {
-                handleBatteryChanged(intent)
-            }
-        }
-    }
-
-    private val wifiStateReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            when (intent?.action) {
-                WifiManager.WIFI_STATE_CHANGED_ACTION,
-                WifiManager.NETWORK_STATE_CHANGED_ACTION,
-                WifiManager.SUPPLICANT_STATE_CHANGED_ACTION -> {
-                    Log.d(TAG, "WiFi state changed: ${intent.action}, sending status update")
-                    // Send updated status to phone when WiFi state changes
-                    serviceScope.launch {
-                        delay(500) // Small delay to let the state settle
-                        if (isConnected) {
-                            try {
-                                val status = collectWatchStatus()
-                                sendMessage(ProtocolHelper.createStatusUpdate(status))
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Error sending WiFi status update: ${e.message}")
+    private val wifiStateReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    when (intent?.action) {
+                        WifiManager.WIFI_STATE_CHANGED_ACTION,
+                        WifiManager.NETWORK_STATE_CHANGED_ACTION,
+                        WifiManager.SUPPLICANT_STATE_CHANGED_ACTION -> {
+                            Log.d(
+                                    TAG,
+                                    "WiFi state changed: ${intent.action}, sending status update"
+                            )
+                            // Send updated status to phone when WiFi state changes
+                            serviceScope.launch {
+                                delay(500) // Small delay to let the state settle
+                                if (isConnected) {
+                                    try {
+                                        val status = collectWatchStatus()
+                                        sendMessage(ProtocolHelper.createStatusUpdate(status))
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error sending WiFi status update: ${e.message}")
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-        }
-    }
 
     private var userServiceConnection: Shizuku.UserServiceArgs? = null
     private var userService: IUserService? = null
-    
+
     private val userServiceArgs by lazy {
-        Shizuku.UserServiceArgs(ComponentName(BuildConfig.APPLICATION_ID, UserService::class.java.name))
-            .daemon(false)
-            .processNameSuffix("user_service")
-            .debuggable(BuildConfig.DEBUG)
-            .version(1)
+        Shizuku.UserServiceArgs(
+                        ComponentName(BuildConfig.APPLICATION_ID, UserService::class.java.name)
+                )
+                .daemon(false)
+                .processNameSuffix("user_service")
+                .debuggable(BuildConfig.DEBUG)
+                .version(1)
     }
 
-    private val userServiceConn = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            if (binder != null && binder.pingBinder()) {
-                userService = IUserService.Stub.asInterface(binder)
-                Log.i(TAG, "UserService connected successfully")
+    private val userServiceConn =
+            object : ServiceConnection {
+                override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                    if (binder != null && binder.pingBinder()) {
+                        userService = IUserService.Stub.asInterface(binder)
+                        Log.i(TAG, "UserService connected successfully")
+                    }
+                }
+
+                override fun onServiceDisconnected(name: ComponentName?) {
+                    userService = null
+                    Log.w(TAG, "UserService disconnected")
+                }
             }
-        }
-
-        override fun onServiceDisconnected(name: ComponentName?) {
-            userService = null
-            Log.w(TAG, "UserService disconnected")
-        }
-    }
 
     inner class LocalBinder : Binder() {
         fun getService(): BluetoothService = this@BluetoothService
@@ -371,25 +401,48 @@ class BluetoothService : Service() {
         bluetoothAdapter = btManager.adapter
         createNotificationChannel()
 
-        val filterInternal = IntentFilter().apply {
-            addAction(ACTION_SEND_NOTIF_TO_WATCH)
-            addAction(ACTION_SEND_REMOVE_TO_WATCH)
-            addAction(ACTION_SEND_REMOTE_INPUT) // For touch events from MirrorActivity
-            addAction(ACTION_SCREEN_DATA_AVAILABLE) // For video frames from MirroringService
-            addAction("com.ailife.rtosifycompanion.SEND_MIRROR_STOP") // For stopping mirroring
-            addAction("com.ailife.rtosifycompanion.UPDATE_REMOTE_RESOLUTION") // For resolution reset
-        }
+        val filterInternal =
+                IntentFilter().apply {
+                    addAction(ACTION_SEND_NOTIF_TO_WATCH)
+                    addAction(ACTION_SEND_REMOVE_TO_WATCH)
+                    addAction(ACTION_SEND_REMOTE_INPUT) // For touch events from MirrorActivity
+                    addAction(
+                            ACTION_SCREEN_DATA_AVAILABLE
+                    ) // For video frames from MirroringService
+                    addAction(
+                            "com.ailife.rtosifycompanion.SEND_MIRROR_STOP"
+                    ) // For stopping mirroring
+                    addAction(
+                            "com.ailife.rtosifycompanion.UPDATE_REMOTE_RESOLUTION"
+                    ) // For resolution reset
+                }
         val filterWatch = IntentFilter(ACTION_WATCH_DISMISSED_LOCAL)
-        val filterWifi = IntentFilter().apply {
-            addAction(WifiManager.WIFI_STATE_CHANGED_ACTION)
-            addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION)
-            addAction(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION)
-        }
+        val filterWifi =
+                IntentFilter().apply {
+                    addAction(WifiManager.WIFI_STATE_CHANGED_ACTION)
+                    addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION)
+                    addAction(WifiManager.SUPPLICANT_STATE_CHANGED_ACTION)
+                }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.registerReceiver(this, internalReceiver, filterInternal, ContextCompat.RECEIVER_NOT_EXPORTED)
-            ContextCompat.registerReceiver(this, watchDismissReceiver, filterWatch, ContextCompat.RECEIVER_NOT_EXPORTED)
-            ContextCompat.registerReceiver(this, wifiStateReceiver, filterWifi, ContextCompat.RECEIVER_NOT_EXPORTED)
+            ContextCompat.registerReceiver(
+                    this,
+                    internalReceiver,
+                    filterInternal,
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+            ContextCompat.registerReceiver(
+                    this,
+                    watchDismissReceiver,
+                    filterWatch,
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+            ContextCompat.registerReceiver(
+                    this,
+                    wifiStateReceiver,
+                    filterWifi,
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+            )
             registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         } else {
             registerReceiver(internalReceiver, filterInternal)
@@ -400,7 +453,7 @@ class BluetoothService : Service() {
 
         // Initialize health data collector
         healthDataCollector = HealthDataCollector(this)
-        
+
         // Initialize PAN manager
         panManager = BluetoothPanManager(this)
 
@@ -417,10 +470,12 @@ class BluetoothService : Service() {
         // Bind to Shizuku UserService if available
         bindUserServiceIfNeeded()
     }
-    
+
     private fun bindUserServiceIfNeeded() {
         try {
-            if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+            if (Shizuku.pingBinder() &&
+                            Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+            ) {
                 Log.i(TAG, "✅ Binding to Shizuku UserService")
                 Shizuku.bindUserService(userServiceArgs, userServiceConn)
                 userServiceConnection = userServiceArgs
@@ -434,13 +489,13 @@ class BluetoothService : Service() {
 
         if (DEBUG_NOTIFICATIONS) Log.d(TAG, "onCreate: Service created")
     }
-    
+
     private suspend fun ensureUserServiceBound() {
         if (userService == null) {
             synchronized(shizukuLock) {
                 if (userService == null) {
                     Log.d(TAG, "UserService is null, attempting to bind...")
-                    
+
                     // Check if Shizuku is even available
                     try {
                         if (!Shizuku.pingBinder()) {
@@ -455,22 +510,26 @@ class BluetoothService : Service() {
                         Log.e(TAG, "Error checking Shizuku availability: ${e.message}")
                         return
                     }
-                    
+
                     // Try to bind (this is not suspend)
                     bindUserServiceIfNeeded()
                 }
             }
 
             // Wait for binding to complete (up to 3 seconds)
-            // We wait OUTSIDE the synchronized block to avoid deadlocking if onServiceConnected needs it (though it shouldn't)
+            // We wait OUTSIDE the synchronized block to avoid deadlocking if onServiceConnected
+            // needs it (though it shouldn't)
             val maxWaitTime = 3000L
             val startTime = System.currentTimeMillis()
             while (userService == null && (System.currentTimeMillis() - startTime) < maxWaitTime) {
                 delay(100)
             }
-            
+
             if (userService != null) {
-                Log.i(TAG, "✅ UserService bound successfully after ${System.currentTimeMillis() - startTime}ms")
+                Log.i(
+                        TAG,
+                        "✅ UserService bound successfully after ${System.currentTimeMillis() - startTime}ms"
+                )
             } else {
                 Log.w(TAG, "❌ UserService binding timed out after ${maxWaitTime}ms")
             }
@@ -482,11 +541,13 @@ class BluetoothService : Service() {
             val settings = ProtocolHelper.extractData<DndSettingsData>(message)
             Log.d(TAG, "Received DND settings update: $settings")
 
-            prefs.edit().apply {
-                putBoolean("dnd_schedule_enabled", settings.scheduleEnabled)
-                putString("dnd_start_time", settings.startTime)
-                putString("dnd_end_time", settings.endTime)
-            }.apply()
+            prefs.edit()
+                    .apply {
+                        putBoolean("dnd_schedule_enabled", settings.scheduleEnabled)
+                        putString("dnd_start_time", settings.startTime)
+                        putString("dnd_end_time", settings.endTime)
+                    }
+                    .apply()
 
             if (settings.scheduleEnabled) {
                 setupDndSchedule(settings.startTime, settings.endTime)
@@ -495,10 +556,7 @@ class BluetoothService : Service() {
             }
 
             // Quick duration
-            settings.quickDurationMinutes?.let { minutes ->
-                enableQuickDnd(minutes)
-            }
-
+            settings.quickDurationMinutes?.let { minutes -> enableQuickDnd(minutes) }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling DND settings update: ${e.message}")
         }
@@ -509,31 +567,63 @@ class BluetoothService : Service() {
         cancelDndSchedule()
 
         val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        
+
         // Start alarm
-        val startIntent = Intent(this, DndReceiver::class.java).apply { action = DndReceiver.ACTION_DND_ON }
-        val startPI = PendingIntent.getBroadcast(this, 101, startIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        
+        val startIntent =
+                Intent(this, DndReceiver::class.java).apply { action = DndReceiver.ACTION_DND_ON }
+        val startPI =
+                PendingIntent.getBroadcast(
+                        this,
+                        101,
+                        startIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+
         // End alarm
-        val endIntent = Intent(this, DndReceiver::class.java).apply { action = DndReceiver.ACTION_DND_OFF }
-        val endPI = PendingIntent.getBroadcast(this, 102, endIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val endIntent =
+                Intent(this, DndReceiver::class.java).apply { action = DndReceiver.ACTION_DND_OFF }
+        val endPI =
+                PendingIntent.getBroadcast(
+                        this,
+                        102,
+                        endIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
 
         val startTime = parseTimeToMillis(start)
         val endTime = parseTimeToMillis(end)
 
         am.setRepeating(AlarmManager.RTC_WAKEUP, startTime, AlarmManager.INTERVAL_DAY, startPI)
         am.setRepeating(AlarmManager.RTC_WAKEUP, endTime, AlarmManager.INTERVAL_DAY, endPI)
-        
+
         Log.d(TAG, "DND Alarms set: Start $start, End $end")
     }
 
     private fun cancelDndSchedule() {
         val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val startPI = PendingIntent.getBroadcast(this, 101, Intent(this, DndReceiver::class.java), PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)
-        val endPI = PendingIntent.getBroadcast(this, 102, Intent(this, DndReceiver::class.java), PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)
-        
-        startPI?.let { am.cancel(it); it.cancel() }
-        endPI?.let { am.cancel(it); it.cancel() }
+        val startPI =
+                PendingIntent.getBroadcast(
+                        this,
+                        101,
+                        Intent(this, DndReceiver::class.java),
+                        PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+                )
+        val endPI =
+                PendingIntent.getBroadcast(
+                        this,
+                        102,
+                        Intent(this, DndReceiver::class.java),
+                        PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+                )
+
+        startPI?.let {
+            am.cancel(it)
+            it.cancel()
+        }
+        endPI?.let {
+            am.cancel(it)
+            it.cancel()
+        }
         Log.d(TAG, "DND Schedule alarms cancelled")
     }
 
@@ -544,8 +634,17 @@ class BluetoothService : Service() {
             nm.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_PRIORITY)
 
             val am = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            val intent = Intent(this, DndReceiver::class.java).apply { action = DndReceiver.ACTION_DND_OFF }
-            val pi = PendingIntent.getBroadcast(this, 103, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            val intent =
+                    Intent(this, DndReceiver::class.java).apply {
+                        action = DndReceiver.ACTION_DND_OFF
+                    }
+            val pi =
+                    PendingIntent.getBroadcast(
+                            this,
+                            103,
+                            intent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
 
             val triggerAt = System.currentTimeMillis() + (minutes * 60 * 1000L)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -554,7 +653,7 @@ class BluetoothService : Service() {
                 am.setExact(AlarmManager.RTC_WAKEUP, triggerAt, pi)
             }
             Log.d(TAG, "Quick DND enabled for $minutes minutes")
-            
+
             // Notify phone immediately
             serviceScope.launch {
                 delay(500)
@@ -568,14 +667,15 @@ class BluetoothService : Service() {
         val parts = time.split(":")
         val hour = parts[0].toInt()
         val minute = parts[1].toInt()
-        
-        val calendar = java.util.Calendar.getInstance().apply {
-            set(java.util.Calendar.HOUR_OF_DAY, hour)
-            set(java.util.Calendar.MINUTE, minute)
-            set(java.util.Calendar.SECOND, 0)
-            set(java.util.Calendar.MILLISECOND, 0)
-        }
-        
+
+        val calendar =
+                java.util.Calendar.getInstance().apply {
+                    set(java.util.Calendar.HOUR_OF_DAY, hour)
+                    set(java.util.Calendar.MINUTE, minute)
+                    set(java.util.Calendar.SECOND, 0)
+                    set(java.util.Calendar.MILLISECOND, 0)
+                }
+
         if (calendar.timeInMillis < System.currentTimeMillis()) {
             calendar.add(java.util.Calendar.DAY_OF_YEAR, 1)
         }
@@ -587,7 +687,7 @@ class BluetoothService : Service() {
             stopServiceCompletely()
             return START_NOT_STICKY
         }
-        
+
         if (intent?.action == ACTION_DND_UPDATED) {
             val enabled = intent.getBooleanExtra("enabled", false)
             Log.d(TAG, "DND state updated via Receiver: $enabled")
@@ -621,8 +721,10 @@ class BluetoothService : Service() {
             val actionKey = intent.getStringExtra(EXTRA_ACTION_KEY)
             val replyText = intent.getStringExtra(EXTRA_REPLY_TEXT)
             if (notifKey != null && actionKey != null && replyText != null) {
-                sendMessage(ProtocolHelper.createSendNotificationReply(notifKey, actionKey, replyText))
-                
+                sendMessage(
+                        ProtocolHelper.createSendNotificationReply(notifKey, actionKey, replyText)
+                )
+
                 // CRITICAL: Refresh the notification locally to stop the "spinning" indicator
                 // and show the reply in history immediately
                 refreshNotification(notifKey, replyText)
@@ -630,7 +732,8 @@ class BluetoothService : Service() {
             return START_NOT_STICKY
         }
 
-        // CRÍTICO: Chamar startForeground imediatamente para cumprir a promessa feita no BootReceiver.
+        // CRÍTICO: Chamar startForeground imediatamente para cumprir a promessa feita no
+        // BootReceiver.
         updateForegroundNotification()
 
         // Inicializa lógica se não estiver conectado
@@ -638,7 +741,8 @@ class BluetoothService : Service() {
             initializeLogicFromPrefs()
         }
 
-        if (DEBUG_NOTIFICATIONS) Log.d(TAG, "onStartCommand: Service started, isConnected=$isConnected")
+        if (DEBUG_NOTIFICATIONS)
+                Log.d(TAG, "onStartCommand: Service started, isConnected=$isConnected")
 
         isStopping = false // Reset on start
         return START_STICKY
@@ -681,7 +785,7 @@ class BluetoothService : Service() {
                 Log.e(TAG, "Could not start enable bluetooth intent: ${e.message}")
             }
         }
-        
+
         return false
     }
 
@@ -701,48 +805,60 @@ class BluetoothService : Service() {
     fun startScanForDevices() {
         updateStatus(getString(R.string.status_searching))
         connectionJob?.cancel()
-        connectionJob = serviceScope.launch {
-            // Loop while Bluetooth is disabled
-            while (isActive && !checkAndEnableBluetooth()) {
-                delay(3000)
-            }
-            if (!isActive) return@launch
+        connectionJob =
+                serviceScope.launch {
+                    // Loop while Bluetooth is disabled
+                    while (isActive && !checkAndEnableBluetooth()) {
+                        delay(3000)
+                    }
+                    if (!isActive) return@launch
 
-            updateStatus(getString(R.string.status_searching))
-            
-            // Wait a bit if we just enabled extensions
-            if (bluetoothAdapter?.state == BluetoothAdapter.STATE_TURNING_ON) {
-                 delay(2000)
-            }
+                    updateStatus(getString(R.string.status_searching))
 
-            val pairedDevices = bluetoothAdapter?.bondedDevices ?: emptySet()
-            val successfulConnections = mutableListOf<Pair<BluetoothDevice, BluetoothSocket>>()
-            supervisorScope {
-                val jobs = pairedDevices.map { device ->
-                    async {
-                        try {
-                            val socket = device.createRfcommSocketToServiceRecord(APP_UUID)
-                            socket.connect()
-                            device to socket
-                        } catch (_: IOException) { null }
+                    // Wait a bit if we just enabled extensions
+                    if (bluetoothAdapter?.state == BluetoothAdapter.STATE_TURNING_ON) {
+                        delay(2000)
+                    }
+
+                    val pairedDevices = bluetoothAdapter?.bondedDevices ?: emptySet()
+                    val successfulConnections =
+                            mutableListOf<Pair<BluetoothDevice, BluetoothSocket>>()
+                    supervisorScope {
+                        val jobs =
+                                pairedDevices.map { device ->
+                                    async {
+                                        try {
+                                            val socket =
+                                                    device.createRfcommSocketToServiceRecord(
+                                                            APP_UUID
+                                                    )
+                                            socket.connect()
+                                            device to socket
+                                        } catch (_: IOException) {
+                                            null
+                                        }
+                                    }
+                                }
+                        jobs.awaitAll().filterNotNull().forEach { successfulConnections.add(it) }
+                    }
+                    withContext(Dispatchers.Main) {
+                        if (successfulConnections.isEmpty()) {
+                            updateStatus(getString(R.string.status_no_phone_found))
+                            callback?.onError(getString(R.string.status_open_app_phone))
+                        } else if (successfulConnections.size == 1) {
+                            val (device, socket) = successfulConnections[0]
+                            savePreference("last_mac", device.address)
+                            startAutoReconnectLoop(device, socket)
+                        } else {
+                            successfulConnections.forEach {
+                                try {
+                                    it.second.close()
+                                } catch (_: Exception) {}
+                            }
+                            callback?.onScanResult(successfulConnections.map { it.first })
+                        }
                     }
                 }
-                jobs.awaitAll().filterNotNull().forEach { successfulConnections.add(it) }
-            }
-            withContext(Dispatchers.Main) {
-                if (successfulConnections.isEmpty()) {
-                    updateStatus(getString(R.string.status_no_phone_found))
-                    callback?.onError(getString(R.string.status_open_app_phone))
-                } else if (successfulConnections.size == 1) {
-                    val (device, socket) = successfulConnections[0]
-                    savePreference("last_mac", device.address)
-                    startAutoReconnectLoop(device, socket)
-                } else {
-                    successfulConnections.forEach { try { it.second.close() } catch (_: Exception){} }
-                    callback?.onScanResult(successfulConnections.map { it.first })
-                }
-            }
-        }
     }
 
     @SuppressLint("MissingPermission")
@@ -752,85 +868,104 @@ class BluetoothService : Service() {
     }
 
     @SuppressLint("MissingPermission")
-    private fun startAutoReconnectLoop(device: BluetoothDevice, initialSocket: BluetoothSocket? = null) {
+    private fun startAutoReconnectLoop(
+            device: BluetoothDevice,
+            initialSocket: BluetoothSocket? = null
+    ) {
         connectionJob?.cancel()
-        connectionJob = serviceScope.launch {
-            var socketToUse = initialSocket
-            while (isActive) {
-                // Check if BT is enabled
-                if (!checkAndEnableBluetooth()) {
-                    delay(3000)
-                    continue
-                }
+        connectionJob =
+                serviceScope.launch {
+                    var socketToUse = initialSocket
+                    while (isActive) {
+                        // Check if BT is enabled
+                        if (!checkAndEnableBluetooth()) {
+                            delay(3000)
+                            continue
+                        }
 
-                try {
-                    if (socketToUse == null) {
-                        updateStatus(getString(R.string.status_connecting_to, device.name))
-                        socketToUse = device.createRfcommSocketToServiceRecord(APP_UUID)
-                        socketToUse!!.connect()
+                        try {
+                            if (socketToUse == null) {
+                                updateStatus(getString(R.string.status_connecting_to, device.name))
+                                socketToUse = device.createRfcommSocketToServiceRecord(APP_UUID)
+                                socketToUse!!.connect()
+                            }
+                            handleConnectedSocket(socketToUse, device.name)
+                            socketToUse = null
+                            if (isActive) {
+                                updateStatus(getString(R.string.status_starting))
+                                delay(3000)
+                            }
+                        } catch (_: IOException) {
+                            socketToUse = null
+                            if (isActive) {
+                                updateStatus(getString(R.string.status_starting))
+                                delay(5000)
+                            }
+                        }
                     }
-                    handleConnectedSocket(socketToUse, device.name)
-                    socketToUse = null
-                    if (isActive) { updateStatus(getString(R.string.status_starting)); delay(3000) }
-                } catch (_: IOException) {
-                    socketToUse = null
-                    if (isActive) { updateStatus(getString(R.string.status_starting)); delay(5000) }
                 }
-            }
-        }
     }
 
     @SuppressLint("MissingPermission")
     fun startWatchLogic() {
         if (serverJob?.isActive == true) return
         serverJob?.cancel()
-        serverJob = serviceScope.launch {
-            updateStatus(getString(R.string.status_waiting))
-            while (isActive) {
-                if (!checkAndEnableBluetooth()) {
-                    delay(3000)
-                    continue
-                }
-                
-                updateStatus(getString(R.string.status_waiting))
+        serverJob =
+                serviceScope.launch {
+                    updateStatus(getString(R.string.status_waiting))
+                    while (isActive) {
+                        if (!checkAndEnableBluetooth()) {
+                            delay(3000)
+                            continue
+                        }
 
-                var serverSocket: BluetoothServerSocket?
-                try {
-                    serverSocket = bluetoothAdapter?.listenUsingRfcommWithServiceRecord(APP_NAME, APP_UUID)
-                } catch (_: IOException) {
-                    delay(3000)
-                    continue
-                }
-
-                var socket: BluetoothSocket? = null
-                while (socket == null && isActive) {
-                    // Check BT again inside the waiting loop
-                    if (bluetoothAdapter?.isEnabled != true) {
-                        try { serverSocket?.close() } catch(e:Exception){}
-                        serverSocket = null
-                        break 
-                    }
-                    
-                    try {
-                        socket = serverSocket?.accept(5000)
-                    } catch (_: IOException) {
-                    }
-                }
-                
-                if (serverSocket == null && socket == null) continue
-
-                if (socket != null) {
-                    try {
-                        serverSocket?.close()
-                    } catch (_: Exception) {
-                    }
-                    handleConnectedSocket(socket, socket.remoteDevice?.name ?: getString(R.string.device_name_default))
-                    if (isActive) {
                         updateStatus(getString(R.string.status_waiting))
+
+                        var serverSocket: BluetoothServerSocket?
+                        try {
+                            serverSocket =
+                                    bluetoothAdapter?.listenUsingRfcommWithServiceRecord(
+                                            APP_NAME,
+                                            APP_UUID
+                                    )
+                        } catch (_: IOException) {
+                            delay(3000)
+                            continue
+                        }
+
+                        var socket: BluetoothSocket? = null
+                        while (socket == null && isActive) {
+                            // Check BT again inside the waiting loop
+                            if (bluetoothAdapter?.isEnabled != true) {
+                                try {
+                                    serverSocket?.close()
+                                } catch (e: Exception) {}
+                                serverSocket = null
+                                break
+                            }
+
+                            try {
+                                socket = serverSocket?.accept(5000)
+                            } catch (_: IOException) {}
+                        }
+
+                        if (serverSocket == null && socket == null) continue
+
+                        if (socket != null) {
+                            try {
+                                serverSocket?.close()
+                            } catch (_: Exception) {}
+                            handleConnectedSocket(
+                                    socket,
+                                    socket.remoteDevice?.name
+                                            ?: getString(R.string.device_name_default)
+                            )
+                            if (isActive) {
+                                updateStatus(getString(R.string.status_waiting))
+                            }
+                        }
                     }
                 }
-            }
-        }
     }
 
     private suspend fun handleConnectedSocket(socket: BluetoothSocket, deviceName: String) {
@@ -849,9 +984,7 @@ class BluetoothService : Service() {
         updateStatus(getString(R.string.status_connected_to, deviceName))
 
         // Notifica callback
-        withContext(Dispatchers.Main) {
-            callback?.onDeviceConnected(deviceName)
-        }
+        withContext(Dispatchers.Main) { callback?.onDeviceConnected(deviceName) }
 
         serviceScope.launch { heartbeatLoop() }
 
@@ -869,17 +1002,20 @@ class BluetoothService : Service() {
             while (currentCoroutineContext().isActive) {
                 val message = readMessage(inputStream)
                 lastMessageTime = System.currentTimeMillis()
-                
+
                 Log.d(TAG, "📩 Received message type: ${message.type}")
 
                 when (message.type) {
-                    MessageType.HEARTBEAT -> { /* IGNORE */ }
+                    MessageType.HEARTBEAT -> {
+                        /* IGNORE */
+                    }
                     MessageType.REQUEST_APPS -> handleRequestApps()
                     MessageType.RESPONSE_APPS -> handleResponseApps(message)
                     MessageType.NOTIFICATION_POSTED -> showMirroredNotification(message)
                     MessageType.NOTIFICATION_REMOVED -> dismissLocalNotification(message)
                     MessageType.DISMISS_NOTIFICATION -> requestDismissOnPhone(message)
-                    MessageType.EXECUTE_NOTIFICATION_ACTION -> handleExecuteNotificationAction(message)
+                    MessageType.EXECUTE_NOTIFICATION_ACTION ->
+                            handleExecuteNotificationAction(message)
                     MessageType.SEND_NOTIFICATION_REPLY -> handleSendNotificationReply(message)
                     MessageType.FILE_TRANSFER_START -> handleFileTransferStart(message)
                     MessageType.FILE_CHUNK -> handleFileChunk(message)
@@ -944,10 +1080,10 @@ class BluetoothService : Service() {
 
             if (wasConnected) {
                 updateStatus(getString(R.string.status_disconnected))
-                
+
                 val shouldNotify = prefs.getBoolean("notify_on_disconnect", false)
                 Log.d(TAG, "Device disconnected. shouldNotify on disconnect: $shouldNotify")
-                
+
                 // Show disconnection alert if enabled
                 if (shouldNotify) {
                     showDisconnectionNotification()
@@ -957,16 +1093,17 @@ class BluetoothService : Service() {
                 onConnectionLost()
             }
 
-            withContext(Dispatchers.Main) {
-                callback?.onDeviceDisconnected()
-            }
+            withContext(Dispatchers.Main) { callback?.onDeviceDisconnected() }
         }
     }
 
     private fun handleUpdateSettings(message: ProtocolMessage) {
         try {
             val settings = ProtocolHelper.extractData<SettingsUpdateData>(message)
-            Log.d(TAG, "Received settings update: notifyOnDisconnect=${settings.notifyOnDisconnect}, clipboard=${settings.clipboardSyncEnabled}, wifi=${settings.autoWifiEnabled}, data=${settings.autoDataEnabled}, btTether=${settings.autoBtTetherEnabled}")
+            Log.d(
+                    TAG,
+                    "Received settings update: notifyOnDisconnect=${settings.notifyOnDisconnect}, clipboard=${settings.clipboardSyncEnabled}, wifi=${settings.autoWifiEnabled}, data=${settings.autoDataEnabled}, btTether=${settings.autoBtTetherEnabled}"
+            )
 
             // Store all automation preferences
             settings.notifyOnDisconnect?.let {
@@ -987,7 +1124,7 @@ class BluetoothService : Service() {
             settings.clipboardSyncEnabled?.let {
                 val wasEnabled = prefs.getBoolean("clipboard_sync_enabled", false)
                 prefs.edit().putBoolean("clipboard_sync_enabled", it).apply()
-                
+
                 // Start/stop clipboard monitoring based on change
                 if (it && !wasEnabled) {
                     startClipboardMonitoring()
@@ -1040,75 +1177,78 @@ class BluetoothService : Service() {
                 startClipboardPolling(3000)
                 Log.d(TAG, "Clipboard monitoring started (Shizuku mode)")
             } else {
-                Log.w(TAG, "Shizuku UserService not available, clipboard sync disabled on Android 10+")
+                Log.w(
+                        TAG,
+                        "Shizuku UserService not available, clipboard sync disabled on Android 10+"
+                )
             }
         }
     }
 
     private fun stopClipboardMonitoring() {
         Log.d(TAG, "Stopping clipboard monitoring")
-        
+
         // Stop listener (Android 9-)
-        clipboardListener?.let {
-            clipboardManager?.removePrimaryClipChangedListener(it)
-        }
+        clipboardListener?.let { clipboardManager?.removePrimaryClipChangedListener(it) }
         clipboardListener = null
-        
+
         // Stop polling
-        clipboardPollingRunnable?.let {
-            clipboardPollingHandler.removeCallbacks(it)
-        }
+        clipboardPollingRunnable?.let { clipboardPollingHandler.removeCallbacks(it) }
         clipboardPollingRunnable = null
     }
-    
+
     private fun startStandardClipboardListener() {
         if (clipboardManager == null) {
-            clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+            clipboardManager =
+                    getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
         }
-        
-        clipboardListener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
-            val clip = clipboardManager?.primaryClip
-            if (clip != null && clip.itemCount > 0) {
-                val text = clip.getItemAt(0).text?.toString()
-                if (text != null && text != lastClipboardText) {
-                    lastClipboardText = text
-                    Log.d(TAG, "Clipboard changed (listener): $text")
-                    if (isConnected) {
-                        sendMessage(ProtocolHelper.createClipboardSync(text))
+
+        clipboardListener =
+                android.content.ClipboardManager.OnPrimaryClipChangedListener {
+                    val clip = clipboardManager?.primaryClip
+                    if (clip != null && clip.itemCount > 0) {
+                        val text = clip.getItemAt(0).text?.toString()
+                        if (text != null && text != lastClipboardText) {
+                            lastClipboardText = text
+                            Log.d(TAG, "Clipboard changed (listener): $text")
+                            if (isConnected) {
+                                sendMessage(ProtocolHelper.createClipboardSync(text))
+                            }
+                        }
                     }
                 }
-            }
-        }
         clipboardManager?.addPrimaryClipChangedListener(clipboardListener)
     }
-    
+
     private fun startClipboardPolling(intervalMs: Long) {
-        clipboardPollingRunnable = object : Runnable {
-            override fun run() {
-                checkClipboard()
-                clipboardPollingHandler.postDelayed(this, intervalMs)
-            }
-        }
+        clipboardPollingRunnable =
+                object : Runnable {
+                    override fun run() {
+                        checkClipboard()
+                        clipboardPollingHandler.postDelayed(this, intervalMs)
+                    }
+                }
         clipboardPollingHandler.postDelayed(clipboardPollingRunnable!!, intervalMs)
     }
-    
+
     private fun checkClipboard() {
-        val text = if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-            // Android 9-: Use standard ClipboardManager
-            val clip = clipboardManager?.primaryClip
-            if (clip != null && clip.itemCount > 0) {
-                clip.getItemAt(0).text?.toString()
-            } else null
-        } else {
-            // Android 10+: Use Shizuku UserService
-            try {
-                userService?.primaryClipText
-            } catch (e: Exception) {
-                Log.e(TAG, "Error reading clipboard via Shizuku: ${e.message}")
-                null
-            }
-        }
-        
+        val text =
+                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                    // Android 9-: Use standard ClipboardManager
+                    val clip = clipboardManager?.primaryClip
+                    if (clip != null && clip.itemCount > 0) {
+                        clip.getItemAt(0).text?.toString()
+                    } else null
+                } else {
+                    // Android 10+: Use Shizuku UserService
+                    try {
+                        userService?.primaryClipText
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error reading clipboard via Shizuku: ${e.message}")
+                        null
+                    }
+                }
+
         if (text != null && text != lastClipboardText) {
             lastClipboardText = text
             Log.d(TAG, "Clipboard changed (polling): $text")
@@ -1121,10 +1261,12 @@ class BluetoothService : Service() {
     private fun handleClipboardSync(message: ProtocolMessage) {
         val text = ProtocolHelper.extractStringField(message, "text") ?: return
         Log.d(TAG, "Received clipboard text from phone: ${text.take(50)}...")
-        
+
         mainHandler.post {
             try {
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clipboard =
+                        getSystemService(Context.CLIPBOARD_SERVICE) as
+                                android.content.ClipboardManager
                 val clip = android.content.ClipData.newPlainText("rtosify_clipboard", text)
                 clipboard.setPrimaryClip(clip)
                 lastClipboardText = text
@@ -1153,11 +1295,11 @@ class BluetoothService : Service() {
             try {
                 val alarm = ProtocolHelper.extractData<AlarmData>(message)
                 val addedAlarm = watchAlarmManager.addAlarm(alarm)
-                
+
                 //  Send updated alarm list back to phone
                 val alarms = watchAlarmManager.getAllAlarms()
                 sendMessage(ProtocolHelper.createResponseAlarms(alarms))
-                
+
                 Log.d(TAG, "Added alarm: ${addedAlarm.hour}:${addedAlarm.minute}")
             } catch (e: Exception) {
                 Log.e(TAG, "Error handling ADD_ALARM: ${e.message}")
@@ -1170,11 +1312,11 @@ class BluetoothService : Service() {
             try {
                 val alarm = ProtocolHelper.extractData<AlarmData>(message)
                 watchAlarmManager.updateAlarm(alarm)
-                
+
                 // Send updated alarm list back to phone
                 val alarms = watchAlarmManager.getAllAlarms()
                 sendMessage(ProtocolHelper.createResponseAlarms(alarms))
-                
+
                 Log.d(TAG, "Updated alarm: ${alarm.id}, enabled: ${alarm.enabled}")
             } catch (e: Exception) {
                 Log.e(TAG, "Error handling UPDATE_ALARM: ${e.message}")
@@ -1187,11 +1329,11 @@ class BluetoothService : Service() {
             try {
                 val alarmId = ProtocolHelper.extractStringField(message, "alarmId") ?: return@launch
                 watchAlarmManager.deleteAlarm(alarmId)
-                
+
                 // Send updated alarm list back to phone
                 val alarms = watchAlarmManager.getAllAlarms()
                 sendMessage(ProtocolHelper.createResponseAlarms(alarms))
-                
+
                 Log.d(TAG, "Deleted alarm: $alarmId")
             } catch (e: Exception) {
                 Log.e(TAG, "Error handling DELETE_ALARM: ${e.message}")
@@ -1201,13 +1343,13 @@ class BluetoothService : Service() {
 
     private suspend fun handleClipboardReceived(message: ProtocolMessage) {
         val text = ProtocolHelper.extractStringField(message, "text") ?: return
-        
+
         if (text == lastClipboardText) return
         lastClipboardText = text
-        
+
         withContext(Dispatchers.Main) {
             Log.d(TAG, "Setting clipboard text: $text")
-            
+
             if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
                 // Android 9-: Use standard ClipboardManager
                 val clip = android.content.ClipData.newPlainText("RTOSify", text)
@@ -1285,12 +1427,18 @@ class BluetoothService : Service() {
             if (enabled) {
                 Log.d(TAG, "🔵 Bluetooth Internet Access enable requested via accessibility...")
                 currentDevice?.let { device ->
-                    RtosifyAccessibilityService.enableBluetoothTethering(device.name ?: device.address)
-                } ?: run {
-                    RtosifyAccessibilityService.enableBluetoothTethering(currentDeviceName)
+                    RtosifyAccessibilityService.enableBluetoothTethering(
+                            device.name ?: device.address
+                    )
                 }
+                        ?: run {
+                            RtosifyAccessibilityService.enableBluetoothTethering(currentDeviceName)
+                        }
             } else {
-                Log.d(TAG, "🔵 Bluetooth Internet Access disable not implemented (disconnect BT to disable)")
+                Log.d(
+                        TAG,
+                        "🔵 Bluetooth Internet Access disable not implemented (disconnect BT to disable)"
+                )
                 // Disabling is automatic when Bluetooth disconnects
             }
         } catch (e: Exception) {
@@ -1319,7 +1467,7 @@ class BluetoothService : Service() {
             }
 
             // Auto BT Tether: Enable Bluetooth PAN when connected
-            // NOTE: We don't trigger it here anymore because the phone sends an explicit 
+            // NOTE: We don't trigger it here anymore because the phone sends an explicit
             // 'enable_bt_internet' message after it has enabled its own tethering toggle,
             // which ensures the sequence is correct.
             if (prefs.getBoolean("auto_bt_tether_enabled", false)) {
@@ -1329,7 +1477,10 @@ class BluetoothService : Service() {
     }
 
     private fun onConnectionLost() {
-        Log.d(TAG, "onConnectionLost: Cleaning up. Mirroring running: ${MirroringService.isRunning}")
+        Log.d(
+                TAG,
+                "onConnectionLost: Cleaning up. Mirroring running: ${MirroringService.isRunning}"
+        )
 
         if (MirroringService.isRunning) {
             Log.d(TAG, "onConnectionLost: Stopping MirroringService")
@@ -1360,15 +1511,16 @@ class BluetoothService : Service() {
         val title = getString(R.string.notification_phone_disconnected_title)
         val text = getString(R.string.notification_phone_disconnected_text)
 
-        val notification = NotificationCompat.Builder(this, CHANNEL_ID_DISCONNECTION_ALERT)
-            .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setAutoCancel(true)
-            .setVibrate(longArrayOf(0, 500, 200, 500))
-            .build()
+        val notification =
+                NotificationCompat.Builder(this, CHANNEL_ID_DISCONNECTION_ALERT)
+                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                        .setContentTitle(title)
+                        .setContentText(text)
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setCategory(NotificationCompat.CATEGORY_ALARM)
+                        .setAutoCancel(true)
+                        .setVibrate(longArrayOf(0, 500, 200, 500))
+                        .build()
 
         notificationManager.notify(NOTIFICATION_ID_DISCONNECTION_ALERT, notification)
     }
@@ -1391,8 +1543,11 @@ class BluetoothService : Service() {
                 forceDisconnect()
                 break
             }
-            try { sendMessage(ProtocolHelper.createHeartbeat()) }
-            catch (_: Exception) { break }
+            try {
+                sendMessage(ProtocolHelper.createHeartbeat())
+            } catch (_: Exception) {
+                break
+            }
         }
     }
 
@@ -1403,7 +1558,7 @@ class BluetoothService : Service() {
             val stopIntent = Intent(this, MirroringService::class.java)
             stopService(stopIntent)
         }
-        
+
         try {
             bluetoothSocket?.close()
         } catch (_: Exception) {}
@@ -1419,10 +1574,15 @@ class BluetoothService : Service() {
                 Log.w(TAG, "sendMessage: not connected, dropping message type=${message.type}")
                 return@launch
             }
-            val out = globalOutputStream ?: run {
-                Log.w(TAG, "sendMessage: globalOutputStream is null, dropping message type=${message.type}")
-                return@launch
-            }
+            val out =
+                    globalOutputStream
+                            ?: run {
+                                Log.w(
+                                        TAG,
+                                        "sendMessage: globalOutputStream is null, dropping message type=${message.type}"
+                                )
+                                return@launch
+                            }
             try {
                 val jsonBytes = message.toBytes()
                 Log.d(TAG, "sendMessage: type=${message.type}, size=${jsonBytes.size} bytes")
@@ -1433,7 +1593,10 @@ class BluetoothService : Service() {
                 }
                 Log.d(TAG, "sendMessage: successfully sent type=${message.type}")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to send message type=${message.type}, size=${message.toBytes().size}: ${e.message}")
+                Log.e(
+                        TAG,
+                        "Failed to send message type=${message.type}, size=${message.toBytes().size}: ${e.message}"
+                )
                 e.printStackTrace()
                 forceDisconnect()
             }
@@ -1461,32 +1624,34 @@ class BluetoothService : Service() {
 
     private fun startWatchStatusSender() {
         statusUpdateJob?.cancel()
-        statusUpdateJob = serviceScope.launch(Dispatchers.IO) {
-            while (isActive && isConnected) {
-                try {
-                    val status = collectWatchStatus()
-                    sendMessage(ProtocolHelper.createStatusUpdate(status))
-                } catch (e: Exception) {
-                    Log.e(TAG, "Erro ao enviar status: ${e.message}")
+        statusUpdateJob =
+                serviceScope.launch(Dispatchers.IO) {
+                    while (isActive && isConnected) {
+                        try {
+                            val status = collectWatchStatus()
+                            sendMessage(ProtocolHelper.createStatusUpdate(status))
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Erro ao enviar status: ${e.message}")
+                        }
+                        delay(5000)
+                    }
                 }
-                delay(5000)
-            }
-        }
     }
 
     private fun startDeviceInfoSender() {
         deviceInfoUpdateJob?.cancel()
-        deviceInfoUpdateJob = serviceScope.launch(Dispatchers.IO) {
-            while (isActive && isConnected) {
-                try {
-                    val info = deviceInfoManager.getDeviceInfo()
-                    sendMessage(ProtocolHelper.createDeviceInfoUpdate(info))
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error sending device info: ${e.message}")
+        deviceInfoUpdateJob =
+                serviceScope.launch(Dispatchers.IO) {
+                    while (isActive && isConnected) {
+                        try {
+                            val info = deviceInfoManager.getDeviceInfo(userService)
+                            sendMessage(ProtocolHelper.createDeviceInfoUpdate(info))
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error sending device info: ${e.message}")
+                        }
+                        delay(3000)
+                    }
                 }
-                delay(3000)
-            }
-        }
     }
 
     @SuppressLint("MissingPermission")
@@ -1503,8 +1668,12 @@ class BluetoothService : Service() {
         try {
             val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
             wifiEnabled = wm.isWifiEnabled
-            
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+
+            if (ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED
+            ) {
                 if (wifiEnabled) {
                     val info = wm.connectionInfo
 
@@ -1512,9 +1681,7 @@ class BluetoothService : Service() {
                         val rawSsid = info.ssid
 
                         if (rawSsid == "<unknown ssid>" || rawSsid.isEmpty()) {
-                            wifiSsid = lastValidWifiSsid.ifEmpty {
-                                "Connected"
-                            }
+                            wifiSsid = lastValidWifiSsid.ifEmpty { "Connected" }
                         } else {
                             val cleanSsid = rawSsid.replace("\"", "")
                             if (cleanSsid != "<unknown ssid>") {
@@ -1542,11 +1709,11 @@ class BluetoothService : Service() {
         }
 
         return StatusUpdateData(
-            battery = batteryLevel,
-            charging = isCharging,
-            dnd = dndEnabled,
-            wifi = wifiSsid,
-            wifiEnabled = wifiEnabled
+                battery = batteryLevel,
+                charging = isCharging,
+                dnd = dndEnabled,
+                wifi = wifiSsid,
+                wifiEnabled = wifiEnabled
         )
     }
 
@@ -1559,7 +1726,10 @@ class BluetoothService : Service() {
             Log.d(TAG, "Received REQUEST_HEALTH_DATA, collecting data...")
             // Collect health data once when requested (not continuously)
             val healthData = healthDataCollector.collectCurrentHealthData()
-            Log.d(TAG, "Collected health data: steps=${healthData.steps}, cal=${healthData.calories}, hr=${healthData.heartRate}")
+            Log.d(
+                    TAG,
+                    "Collected health data: steps=${healthData.steps}, cal=${healthData.calories}, hr=${healthData.heartRate}"
+            )
             sendMessage(ProtocolHelper.createHealthDataUpdate(healthData))
             Log.d(TAG, "Sent health data update to phone")
         } catch (e: Exception) {
@@ -1569,41 +1739,58 @@ class BluetoothService : Service() {
 
     private fun startLiveMeasurementMode(type: String) {
         liveMeasurementJob?.cancel()
-        liveMeasurementJob = serviceScope.launch(Dispatchers.IO) {
-            try {
-                // Perform one high-priority measurement (can take up to 60s)
-                val healthData = healthDataCollector.measureNow(type) { instantValue ->
-                    // Send instant update to phone
-                    sendMessage(ProtocolHelper.createHealthDataUpdate(
-                        HealthDataUpdate(
-                            steps = 0,
-                            distance = 0f,
-                            calories = 0,
-                            heartRate = if (type == "HR") instantValue else null,
-                            heartRateTimestamp = System.currentTimeMillis(),
-                            bloodOxygen = if (type == "OXYGEN") instantValue else null,
-                            oxygenTimestamp = System.currentTimeMillis(),
-                            isInstant = true
-                        )
-                    ))
+        liveMeasurementJob =
+                serviceScope.launch(Dispatchers.IO) {
+                    try {
+                        // Perform one high-priority measurement (can take up to 60s)
+                        val healthData =
+                                healthDataCollector.measureNow(type) { instantValue ->
+                                    // Send instant update to phone
+                                    sendMessage(
+                                            ProtocolHelper.createHealthDataUpdate(
+                                                    HealthDataUpdate(
+                                                            steps = 0,
+                                                            distance = 0f,
+                                                            calories = 0,
+                                                            heartRate =
+                                                                    if (type == "HR") instantValue
+                                                                    else null,
+                                                            heartRateTimestamp =
+                                                                    System.currentTimeMillis(),
+                                                            bloodOxygen =
+                                                                    if (type == "OXYGEN")
+                                                                            instantValue
+                                                                    else null,
+                                                            oxygenTimestamp =
+                                                                    System.currentTimeMillis(),
+                                                            isInstant = true
+                                                    )
+                                            )
+                                    )
+                                }
+                        sendMessage(ProtocolHelper.createHealthDataUpdate(healthData))
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in live measurement: ${e.message}")
+                    } finally {
+                        liveMeasurementJob = null
+                    }
                 }
-                sendMessage(ProtocolHelper.createHealthDataUpdate(healthData))
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in live measurement: ${e.message}")
-            } finally {
-                liveMeasurementJob = null
-            }
-        }
     }
 
     private suspend fun handleRequestHealthHistory(message: ProtocolMessage) {
         try {
             val request = ProtocolHelper.extractData<HealthHistoryRequest>(message)
-            Log.d(TAG, "Health history request: ${request.type}, ${request.startTime}-${request.endTime}")
-
-            val response = healthDataCollector.queryHistoricalData(
-                request.type, request.startTime, request.endTime
+            Log.d(
+                    TAG,
+                    "Health history request: ${request.type}, ${request.startTime}-${request.endTime}"
             )
+
+            val response =
+                    healthDataCollector.queryHistoricalData(
+                            request.type,
+                            request.startTime,
+                            request.endTime
+                    )
             sendMessage(ProtocolHelper.createResponseHealthHistory(response))
         } catch (e: Exception) {
             Log.e(TAG, "Error handling health history request: ${e.message}")
@@ -1651,7 +1838,13 @@ class BluetoothService : Service() {
         try {
             val status = ProtocolHelper.extractData<StatusUpdateData>(message)
             withContext(Dispatchers.Main) {
-                callback?.onWatchStatusUpdated(status.battery, status.charging, status.wifi, status.wifiEnabled, status.dnd)
+                callback?.onWatchStatusUpdated(
+                        status.battery,
+                        status.charging,
+                        status.wifi,
+                        status.wifiEnabled,
+                        status.dnd
+                )
             }
         } catch (e: Exception) {
             Log.e(TAG, "Erro parser status: ${e.message}")
@@ -1661,7 +1854,7 @@ class BluetoothService : Service() {
     private suspend fun handleRequestWifiScan() {
         Log.d(TAG, "Solicitando scan de WiFi...")
         val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
-        
+
         // Trigger a fresh scan if possible
         try {
             wm.startScan()
@@ -1675,27 +1868,40 @@ class BluetoothService : Service() {
         Log.d(TAG, "Aguardando 4 segundos para o hardware encontrar redes...")
         delay(4000)
 
-        val hasPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ActivityCompat.checkSelfPermission(this, Manifest.permission.NEARBY_WIFI_DEVICES) == PackageManager.PERMISSION_GRANTED
-        } else {
-            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        }
+        val hasPermission =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.NEARBY_WIFI_DEVICES
+                    ) == PackageManager.PERMISSION_GRANTED
+                } else {
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED
+                }
 
-        var results = if (hasPermission) {
-            wm.scanResults.map {
-                WifiScanResultData(
-                    ssid = it.SSID,
-                    bssid = it.BSSID,
-                    signalLevel = WifiManager.calculateSignalLevel(it.level, 5),
-                    isSecure = it.capabilities.contains("WPA") || it.capabilities.contains("WEP") || it.capabilities.contains("SAE")
-                )
-            }.filter { it.ssid.isNotEmpty() }
-             .distinctBy { it.ssid }
-             .sortedByDescending { it.signalLevel }
-        } else {
-            Log.e(TAG, "Sem permissão (Location/Nearby) para scan WiFi")
-            emptyList()
-        }
+        var results =
+                if (hasPermission) {
+                    wm.scanResults
+                            .map {
+                                WifiScanResultData(
+                                        ssid = it.SSID,
+                                        bssid = it.BSSID,
+                                        signalLevel = WifiManager.calculateSignalLevel(it.level, 5),
+                                        isSecure =
+                                                it.capabilities.contains("WPA") ||
+                                                        it.capabilities.contains("WEP") ||
+                                                        it.capabilities.contains("SAE")
+                                )
+                            }
+                            .filter { it.ssid.isNotEmpty() }
+                            .distinctBy { it.ssid }
+                            .sortedByDescending { it.signalLevel }
+                } else {
+                    Log.e(TAG, "Sem permissão (Location/Nearby) para scan WiFi")
+                    emptyList()
+                }
 
         // Fallback to privileged service if results are empty
         if (results.isEmpty()) {
@@ -1703,7 +1909,11 @@ class BluetoothService : Service() {
             try {
                 val privilegedJson = userService?.getWifiScanResults()
                 if (privilegedJson != null) {
-                    val lines = Gson().fromJson<List<String>>(privilegedJson, object : TypeToken<List<String>>() {}.type)
+                    val lines =
+                            Gson().fromJson<List<String>>(
+                                            privilegedJson,
+                                            object : TypeToken<List<String>>() {}.type
+                                    )
                     Log.d(TAG, "Privileged scan returned ${lines.size} lines")
                     if (lines.size > 1) { // Header + at least one result
                         results = parseWifiScanResults(lines)
@@ -1715,7 +1925,7 @@ class BluetoothService : Service() {
                 Log.e(TAG, "Fail in privileged scan fallback: ${e.message}")
             }
         }
-        
+
         Log.d(TAG, "Enviando ${results.size} resultados de scan WiFi")
         sendMessage(ProtocolHelper.createWifiScanResults(results))
     }
@@ -1723,17 +1933,18 @@ class BluetoothService : Service() {
     private fun parseWifiScanResults(lines: List<String>): List<WifiScanResultData> {
         val results = mutableListOf<WifiScanResultData>()
         if (lines.isEmpty()) return results
-        
+
         // Header example: BSSID              Frequency  Signal  Flags             SSID
-        // OR: BSSID              Frequency      RSSI           Age(sec)     SSID                                 Flags
+        // OR: BSSID              Frequency      RSSI           Age(sec)     SSID
+        //              Flags
         val header = lines[0]
         Log.d(TAG, "Parsing WiFi header: $header")
-        
+
         val ssidIndex = header.indexOf("SSID")
         var signalIndex = header.indexOf("Signal")
         if (signalIndex == -1) signalIndex = header.indexOf("RSSI")
         if (signalIndex == -1) signalIndex = header.indexOf("Level")
-        
+
         val bssidIndex = header.indexOf("BSSID")
         val flagsIndex = header.indexOf("Flags")
 
@@ -1746,7 +1957,7 @@ class BluetoothService : Service() {
         for (i in 1 until lines.size) {
             val line = lines[i]
             if (line.isBlank()) continue
-            
+
             try {
                 val parts = line.trim().split(Regex("\\s+"))
                 if (parts.size < 3) continue
@@ -1763,7 +1974,8 @@ class BluetoothService : Service() {
                         ssid = line.substring(ssidIndex, flagsIndex).trim()
                         flags = line.substring(flagsIndex).trim()
                     } else {
-                        // Flags before SSID (standard `cmd wifi list-scan-results` output often has SSID last)
+                        // Flags before SSID (standard `cmd wifi list-scan-results` output often has
+                        // SSID last)
                         flags = line.substring(flagsIndex, ssidIndex).trim()
                         ssid = line.substring(ssidIndex).trim()
                     }
@@ -1786,17 +1998,23 @@ class BluetoothService : Service() {
 
                 if (ssid.isEmpty() || ssid == "<unknown ssid>") {
                     // Fallback to parts if substring fails
-                    ssid = parts.last() 
+                    ssid = parts.last()
                 }
 
                 if (ssid.isEmpty() || ssid == "<unknown ssid>") continue
 
-                results.add(WifiScanResultData(
-                    ssid = ssid,
-                    bssid = bssid,
-                    signalLevel = WifiManager.calculateSignalLevel(level, 5),
-                    isSecure = flags.contains("WPA") || flags.contains("WEP") || flags.contains("SAE") || flags.contains("EAP")
-                ))
+                results.add(
+                        WifiScanResultData(
+                                ssid = ssid,
+                                bssid = bssid,
+                                signalLevel = WifiManager.calculateSignalLevel(level, 5),
+                                isSecure =
+                                        flags.contains("WPA") ||
+                                                flags.contains("WEP") ||
+                                                flags.contains("SAE") ||
+                                                flags.contains("EAP")
+                        )
+                )
             } catch (e: Exception) {
                 Log.e(TAG, "Error parsing wifi line: $line - ${e.message}")
             }
@@ -1813,7 +2031,8 @@ class BluetoothService : Service() {
 
         Log.d(TAG, "Connecting to WiFi: $ssid (password: ${!password.isNullOrEmpty()})")
 
-        // For Android 10+: Use combination of Suggestion (for saving) + Specifier (for immediate connection)
+        // For Android 10+: Use combination of Suggestion (for saving) + Specifier (for immediate
+        // connection)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             connectWifiModern(ssid, password)
         }
@@ -1847,10 +2066,13 @@ class BluetoothService : Service() {
                 }
 
                 // Build network suggestion with new highest priority
-                val suggestionBuilder = WifiNetworkSuggestion.Builder()
-                    .setSsid(ssid)
-                    .setPriority(currentPriority) // Newest selection gets current timestamp as priority
-                    .setIsInitialAutojoinEnabled(true)
+                val suggestionBuilder =
+                        WifiNetworkSuggestion.Builder()
+                                .setSsid(ssid)
+                                .setPriority(
+                                        currentPriority
+                                ) // Newest selection gets current timestamp as priority
+                                .setIsInitialAutojoinEnabled(true)
 
                 if (!password.isNullOrEmpty()) {
                     suggestionBuilder.setWpa2Passphrase(password)
@@ -1861,7 +2083,10 @@ class BluetoothService : Service() {
 
                 when (status) {
                     WifiManager.STATUS_NETWORK_SUGGESTIONS_SUCCESS -> {
-                        Log.i(TAG, "✓ Network suggestion added with priority $currentPriority: $ssid")
+                        Log.i(
+                                TAG,
+                                "✓ Network suggestion added with priority $currentPriority: $ssid"
+                        )
                         Log.i(TAG, "  Old networks kept with lower priorities for auto-connect")
                         wm.startScan()
                     }
@@ -1873,7 +2098,6 @@ class BluetoothService : Service() {
                         Log.e(TAG, "✗ Failed to add suggestion: status=$status")
                     }
                 }
-
             } else {
                 // Android 10: No priority support, just add/update
                 val suggestionBuilder = WifiNetworkSuggestion.Builder().setSsid(ssid)
@@ -1896,7 +2120,6 @@ class BluetoothService : Service() {
                 val status = collectWatchStatus()
                 sendMessage(ProtocolHelper.createStatusUpdate(status))
             }
-
         } catch (e: SecurityException) {
             Log.e(TAG, "✗ Security exception: ${e.message}")
         } catch (e: Exception) {
@@ -1908,19 +2131,19 @@ class BluetoothService : Service() {
     private fun connectWifiLegacy(ssid: String, password: String?) {
         val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
         if (!wm.isWifiEnabled) wm.isWifiEnabled = true
-        
+
         @Suppress("DEPRECATION")
-        val wifiConfig = android.net.wifi.WifiConfiguration().apply {
-            SSID = "\"$ssid\""
-            if (password != null) {
-                preSharedKey = "\"$password\""
-            } else {
-                allowedKeyManagement.set(android.net.wifi.WifiConfiguration.KeyMgmt.NONE)
-            }
-        }
-        
-        @Suppress("DEPRECATION")
-        val netId = wm.addNetwork(wifiConfig)
+        val wifiConfig =
+                android.net.wifi.WifiConfiguration().apply {
+                    SSID = "\"$ssid\""
+                    if (password != null) {
+                        preSharedKey = "\"$password\""
+                    } else {
+                        allowedKeyManagement.set(android.net.wifi.WifiConfiguration.KeyMgmt.NONE)
+                    }
+                }
+
+        @Suppress("DEPRECATION") val netId = wm.addNetwork(wifiConfig)
         if (netId != -1) {
             wm.disconnect()
             wm.enableNetwork(netId, true)
@@ -1969,7 +2192,7 @@ class BluetoothService : Service() {
     private fun handleSetWifiCommand(message: ProtocolMessage) {
         val enable = ProtocolHelper.extractBooleanField(message, "enabled")
         Log.i(TAG, "Handling SET_WIFI: $enable")
-        
+
         // Try UserService (Shizuku) first as it's more reliable on Android 10+
         if (userService != null) {
             try {
@@ -1981,13 +2204,12 @@ class BluetoothService : Service() {
             // Standard API fallback
             try {
                 val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
-                @Suppress("DEPRECATION")
-                wm.isWifiEnabled = enable
+                @Suppress("DEPRECATION") wm.isWifiEnabled = enable
             } catch (e: Exception) {
                 Log.e(TAG, "Error setting WiFi via WifiManager: ${e.message}")
             }
         }
-        
+
         // Update status and notify phone
         serviceScope.launch {
             delay(1000) // Give it a second to change state
@@ -2024,7 +2246,10 @@ class BluetoothService : Service() {
     private suspend fun handleFileTransferStart(message: ProtocolMessage) {
         try {
             val fileData = ProtocolHelper.extractData<FileTransferData>(message)
-            android.util.Log.d(TAG, "File transfer starting: ${fileData.name}, ${fileData.size} bytes, path: ${fileData.path}")
+            android.util.Log.d(
+                    TAG,
+                    "File transfer starting: ${fileData.name}, ${fileData.size} bytes, path: ${fileData.path}"
+            )
 
             val root = android.os.Environment.getExternalStorageDirectory()
             var targetFile: File
@@ -2033,9 +2258,12 @@ class BluetoothService : Service() {
             if (fileData.path != null) {
                 val absolutePath = toAbsolutePath(fileData.path)
                 val isRestricted = absolutePath.contains("Android/data", ignoreCase = true)
-                
+
                 if (isRestricted) {
-                    android.util.Log.d(TAG, "Target path is restricted, using temp file in externalCacheDir")
+                    android.util.Log.d(
+                            TAG,
+                            "Target path is restricted, using temp file in externalCacheDir"
+                    )
                     // Use externalCacheDir so Shizuku/Shell has read access for move later
                     val cacheDirToUse = externalCacheDir ?: cacheDir
                     targetFile = File(cacheDirToUse, fileData.name)
@@ -2064,7 +2292,6 @@ class BluetoothService : Service() {
             expectedChecksum = fileData.checksum
             receivingFileType = fileData.type
             receivedChunks.clear()
-
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error starting file transfer: ${e.message}")
         }
@@ -2084,8 +2311,10 @@ class BluetoothService : Service() {
             }
             receivedFileSize += chunkBytes.size
 
-            android.util.Log.d(TAG, "Received chunk ${chunkData.chunkNumber}/${chunkData.totalChunks} at offset ${chunkData.offset}")
-
+            android.util.Log.d(
+                    TAG,
+                    "Received chunk ${chunkData.chunkNumber}/${chunkData.totalChunks} at offset ${chunkData.offset}"
+            )
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error handling chunk: ${e.message}")
         }
@@ -2128,11 +2357,19 @@ class BluetoothService : Service() {
             if (expectedChecksum.isNotEmpty()) {
                 val actualChecksum = calculateMd5(file)
                 if (actualChecksum != expectedChecksum) {
-                    android.util.Log.e(TAG, "Checksum mismatch! Expected: $expectedChecksum, Got: $actualChecksum")
+                    android.util.Log.e(
+                            TAG,
+                            "Checksum mismatch! Expected: $expectedChecksum, Got: $actualChecksum"
+                    )
                     file.delete()
                     cleanupFileTransfer()
                     // Send failure acknowledgment
-                    sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = "Checksum mismatch"))
+                    sendMessage(
+                            ProtocolHelper.createFileTransferEnd(
+                                    success = false,
+                                    error = "Checksum mismatch"
+                            )
+                    )
                     return
                 }
             }
@@ -2150,16 +2387,23 @@ class BluetoothService : Service() {
                 val successMove = moveFileDispatcher(file.absolutePath, finalPath)
                 if (!successMove) {
                     android.util.Log.e(TAG, "Failed to move file to restricted destination")
-                    sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = "Failed to move file to restricted destination"))
+                    sendMessage(
+                            ProtocolHelper.createFileTransferEnd(
+                                    success = false,
+                                    error = "Failed to move file to restricted destination"
+                            )
+                    )
                     cleanupFileTransfer()
                     return
                 }
                 // Update file reference for further processing (like APK install)
-                // Note: File install might fail if it's in a restricted area even with Shizuku move, 
+                // Note: File install might fail if it's in a restricted area even with Shizuku
+                // move,
                 // but we can try.
             }
 
-            // Show install dialog ONLY if type is "APK" (sent from app install section, not file manager)
+            // Show install dialog ONLY if type is "APK" (sent from app install section, not file
+            // manager)
             if (receivingFileType == "APK") {
                 val installFile = if (finalPath != null) File(finalPath) else file
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
@@ -2174,16 +2418,23 @@ class BluetoothService : Service() {
                 val wfFile = if (finalPath != null) File(finalPath) else file
                 handleWatchFaceReceived(wfFile)
             } else {
-                android.util.Log.d(TAG, "Regular file received (type=$receivingFileType), no install dialog needed.")
+                android.util.Log.d(
+                        TAG,
+                        "Regular file received (type=$receivingFileType), no install dialog needed."
+                )
             }
 
             cleanupFileTransfer()
-
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error finalizing file transfer: ${e.message}")
             cleanupFileTransfer()
             // Send failure acknowledgment
-            sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = e.message ?: "Unknown error"))
+            sendMessage(
+                    ProtocolHelper.createFileTransferEnd(
+                            success = false,
+                            error = e.message ?: "Unknown error"
+                    )
+            )
         }
     }
 
@@ -2211,7 +2462,8 @@ class BluetoothService : Service() {
         // Prefer /sdcard for root operations as it proved more reliable for 'ls' on some devices
         return when {
             path.startsWith(root) -> path.replaceFirst(root, "/sdcard")
-            path.startsWith("/storage/emulated/0") -> path.replaceFirst("/storage/emulated/0", "/sdcard")
+            path.startsWith("/storage/emulated/0") ->
+                    path.replaceFirst("/storage/emulated/0", "/sdcard")
             path.startsWith("/data/media/0") -> path.replaceFirst("/data/media/0", "/sdcard")
             else -> path
         }
@@ -2222,7 +2474,10 @@ class BluetoothService : Service() {
         return when {
             path == "/" || path.isEmpty() -> root
             path.startsWith("/") -> {
-                if (path.startsWith("/storage/") || path.startsWith("/sdcard/") || path.startsWith("/data/")) {
+                if (path.startsWith("/storage/") ||
+                                path.startsWith("/sdcard/") ||
+                                path.startsWith("/data/")
+                ) {
                     path
                 } else {
                     File(root, path.substring(1)).absolutePath
@@ -2235,10 +2490,10 @@ class BluetoothService : Service() {
     private suspend fun handleRequestFileList(message: ProtocolMessage) {
         val path = ProtocolHelper.extractStringField(message, "path") ?: "/"
         val absolutePath = toAbsolutePath(path)
-        
+
         // 1. Try Dispatcher (Shizuku -> Root -> Standard)
         var files: MutableList<FileInfo>? = listFilesDispatcher(absolutePath)?.toMutableList()
-        
+
         // 2. Fallback to SAF for the specific watch face path if dispatcher fails or returns null
         if (files == null) {
             val watchFaceRelPath = "Android/data/com.ailife.ClockSkinCoco"
@@ -2259,19 +2514,31 @@ class BluetoothService : Service() {
         if (files == null) {
             val targetDir = File(absolutePath)
             if (targetDir.exists() && targetDir.isDirectory) {
-                files = targetDir.listFiles()?.map {
-                    FileInfo(it.name, it.length(), it.isDirectory, it.lastModified())
-                }?.toMutableList()
+                files =
+                        targetDir
+                                .listFiles()
+                                ?.map {
+                                    FileInfo(
+                                            it.name,
+                                            it.length(),
+                                            it.isDirectory,
+                                            it.lastModified()
+                                    )
+                                }
+                                ?.toMutableList()
             }
         }
 
         val resultFiles = files ?: mutableListOf()
 
-        // 4. Inject "com.ailife.ClockSkinCoco" if we are in Android/data and it's missing (hidden by Android 11+)
+        // 4. Inject "com.ailife.ClockSkinCoco" if we are in Android/data and it's missing (hidden
+        // by Android 11+)
         val storageRoot = android.os.Environment.getExternalStorageDirectory().absolutePath
         if (absolutePath == File(storageRoot, "Android/data").absolutePath) {
             if (resultFiles.none { it.name == "com.ailife.ClockSkinCoco" }) {
-                resultFiles.add(FileInfo("com.ailife.ClockSkinCoco", 0, true, System.currentTimeMillis()))
+                resultFiles.add(
+                        FileInfo("com.ailife.ClockSkinCoco", 0, true, System.currentTimeMillis())
+                )
             }
         }
 
@@ -2283,10 +2550,10 @@ class BluetoothService : Service() {
             val doc = getDocumentFileForPath(path, false)
             doc?.listFiles()?.map {
                 FileInfo(
-                    name = it.name ?: "unknown",
-                    size = it.length(),
-                    isDirectory = it.isDirectory,
-                    lastModified = it.lastModified()
+                        name = it.name ?: "unknown",
+                        size = it.length(),
+                        isDirectory = it.isDirectory,
+                        lastModified = it.lastModified()
                 )
             }
         } catch (e: Exception) {
@@ -2305,17 +2572,17 @@ class BluetoothService : Service() {
 
         if (!file.exists() || !file.canRead()) {
             android.util.Log.d(TAG, "File restricted or not found, trying copy via Shizuku/Root...")
-             // Use externalCacheDir so Shizuku/Shell has write access
+            // Use externalCacheDir so Shizuku/Shell has write access
             val cacheDirToUse = externalCacheDir ?: cacheDir
             val tempFile = File(cacheDirToUse, "download_temp_${System.currentTimeMillis()}")
-            
+
             // Try Shizuku copy
             var copied = false
             if (isUsingShizuku()) {
                 ensureUserServiceBound()
                 copied = userService?.copyFile(absPath, tempFile.absolutePath) ?: false
             }
-            
+
             // Try Root copy
             if (!copied && Shell.getShell().isRoot) {
                 val rootSrc = translatePathForRoot(absPath)
@@ -2334,9 +2601,7 @@ class BluetoothService : Service() {
                     if (doc != null && doc.exists() && doc.isFile) {
                         try {
                             contentResolver.openInputStream(doc.uri)?.use { input ->
-                                tempFile.outputStream().use { output ->
-                                    input.copyTo(output)
-                                }
+                                tempFile.outputStream().use { output -> input.copyTo(output) }
                             }
                             if (tempFile.exists()) {
                                 copied = true
@@ -2359,24 +2624,32 @@ class BluetoothService : Service() {
             val originalName = absPath.substringAfterLast("/")
             sendFile(file, "REGULAR", null, originalName)
             if (isRestricted) {
-                // We keep it in cacheDir for now, sendFile is async and we don't want to delete it too early
-                // cleanupFileTransfer will handle its own temp files, but this is a manual download temp.
+                // We keep it in cacheDir for now, sendFile is async and we don't want to delete it
+                // too early
+                // cleanupFileTransfer will handle its own temp files, but this is a manual download
+                // temp.
             }
         } else {
-            sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = "File not found or inaccessible"))
+            sendMessage(
+                    ProtocolHelper.createFileTransferEnd(
+                            success = false,
+                            error = "File not found or inaccessible"
+                    )
+            )
         }
     }
 
     private suspend fun handleDeleteFile(message: ProtocolMessage) {
         val path = ProtocolHelper.extractStringField(message, "path") ?: return
         val absolutePath = toAbsolutePath(path)
-        
+
         android.util.Log.d(TAG, "Delete requested: $path -> $absolutePath")
-        
+
         val success = deleteFileDispatcher(absolutePath)
 
         if (success) {
-            val parentPath = if (path.lastIndexOf('/') > 0) path.substring(0, path.lastIndexOf('/')) else "/"
+            val parentPath =
+                    if (path.lastIndexOf('/') > 0) path.substring(0, path.lastIndexOf('/')) else "/"
             handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
         }
     }
@@ -2384,16 +2657,18 @@ class BluetoothService : Service() {
     private suspend fun handleRenameFile(message: ProtocolMessage) {
         val oldPath = message.data.get("oldPath")?.asString ?: return
         val newPath = message.data.get("newPath")?.asString ?: return
-        
+
         val absOld = toAbsolutePath(oldPath)
         val absNew = toAbsolutePath(newPath)
 
         android.util.Log.d(TAG, "Rename requested: $absOld -> $absNew")
-        
+
         val success = renameFileDispatcher(absOld, absNew)
 
         if (success) {
-            val parentPath = if (newPath.lastIndexOf('/') > 0) newPath.substring(0, newPath.lastIndexOf('/')) else "/"
+            val parentPath =
+                    if (newPath.lastIndexOf('/') > 0) newPath.substring(0, newPath.lastIndexOf('/'))
+                    else "/"
             handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
         }
     }
@@ -2401,16 +2676,18 @@ class BluetoothService : Service() {
     private suspend fun handleMoveFile(message: ProtocolMessage) {
         val srcPath = message.data.get("srcPath")?.asString ?: return
         val dstPath = message.data.get("dstPath")?.asString ?: return
-        
+
         val absSrc = toAbsolutePath(srcPath)
         val absDst = toAbsolutePath(dstPath)
 
         android.util.Log.d(TAG, "Move requested: $absSrc -> $absDst")
-        
+
         val success = moveFileDispatcher(absSrc, absDst)
 
         if (success) {
-            val parentPath = if (dstPath.lastIndexOf('/') > 0) dstPath.substring(0, dstPath.lastIndexOf('/')) else "/"
+            val parentPath =
+                    if (dstPath.lastIndexOf('/') > 0) dstPath.substring(0, dstPath.lastIndexOf('/'))
+                    else "/"
             handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
         }
     }
@@ -2418,13 +2695,14 @@ class BluetoothService : Service() {
     private suspend fun handleCreateFolder(message: ProtocolMessage) {
         val path = message.data.get("path")?.asString ?: return
         val absPath = toAbsolutePath(path)
-        
+
         android.util.Log.d(TAG, "Create folder requested: $absPath")
 
         val success = createFolderDispatcher(absPath)
 
         if (success) {
-            val parentPath = if (path.lastIndexOf('/') > 0) path.substring(0, path.lastIndexOf('/')) else "/"
+            val parentPath =
+                    if (path.lastIndexOf('/') > 0) path.substring(0, path.lastIndexOf('/')) else "/"
             handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
         }
     }
@@ -2437,9 +2715,10 @@ class BluetoothService : Service() {
         val intent = Intent("com.android.watchengine.changeface")
         intent.putExtra("faceName", facePath)
         sendBroadcast(intent)
-        
+
         withContext(Dispatchers.Main) {
-            Toast.makeText(this@BluetoothService, "Watch face set: $facePath", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@BluetoothService, "Watch face set: $facePath", Toast.LENGTH_SHORT)
+                    .show()
         }
     }
 
@@ -2455,7 +2734,11 @@ class BluetoothService : Service() {
                 val json = userService?.listFiles(path)
                 if (json != null && json != "[]") {
                     Log.d(TAG, "Shizuku listFiles success for $path")
-                    return Gson().fromJson(json, object : com.google.gson.reflect.TypeToken<List<FileInfo>>() {}.type)
+                    return Gson().fromJson(
+                                    json,
+                                    object : com.google.gson.reflect.TypeToken<List<FileInfo>>() {}
+                                            .type
+                            )
                 }
                 Log.d(TAG, "Shizuku listFiles returned empty or null for $path")
             } catch (e: Exception) {
@@ -2476,10 +2759,13 @@ class BluetoothService : Service() {
                         // ls -F markers: / folder, @ link, * executable, | FIFO, = socket, > door
                         val isDir = line.endsWith("/")
                         val cleanName = line.trimEnd('/', '@', '*', '|', '=', '>')
-                        FileInfo(cleanName, 0, isDir, System.currentTimeMillis()) 
+                        FileInfo(cleanName, 0, isDir, System.currentTimeMillis())
                     }
                 } else if (!result.isSuccess) {
-                    Log.e(TAG, "Root ls failed for $rootPath: code=${result.code}, err=${result.err}")
+                    Log.e(
+                            TAG,
+                            "Root ls failed for $rootPath: code=${result.code}, err=${result.err}"
+                    )
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Root listFiles failed: ${e.message}")
@@ -2505,7 +2791,9 @@ class BluetoothService : Service() {
             try {
                 ensureUserServiceBound()
                 if (userService?.deleteFile(path) == true) return true
-            } catch (e: Exception) { Log.e(TAG, "Shizuku deleteFile failed: ${e.message}") }
+            } catch (e: Exception) {
+                Log.e(TAG, "Shizuku deleteFile failed: ${e.message}")
+            }
         }
 
         if (Shell.getShell().isRoot) {
@@ -2531,7 +2819,9 @@ class BluetoothService : Service() {
             try {
                 ensureUserServiceBound()
                 if (userService?.renameFile(oldPath, newPath) == true) return true
-            } catch (e: Exception) { Log.e(TAG, "Shizuku renameFile failed: ${e.message}") }
+            } catch (e: Exception) {
+                Log.e(TAG, "Shizuku renameFile failed: ${e.message}")
+            }
         }
 
         if (Shell.getShell().isRoot) {
@@ -2566,7 +2856,9 @@ class BluetoothService : Service() {
             try {
                 ensureUserServiceBound()
                 if (userService?.moveFile(src, dst) == true) return true
-            } catch (e: Exception) { Log.e(TAG, "Shizuku moveFile failed: ${e.message}") }
+            } catch (e: Exception) {
+                Log.e(TAG, "Shizuku moveFile failed: ${e.message}")
+            }
         }
 
         if (Shell.getShell().isRoot) {
@@ -2580,12 +2872,14 @@ class BluetoothService : Service() {
         val srcFile = File(src)
         val dstFile = File(dst)
         if (srcFile.renameTo(dstFile)) return true
-        
+
         return try {
             srcFile.copyRecursively(dstFile, true)
             srcFile.deleteRecursively()
             true
-        } catch (e: Exception) { false }
+        } catch (e: Exception) {
+            false
+        }
     }
 
     private suspend fun createFolderDispatcher(path: String): Boolean {
@@ -2594,7 +2888,9 @@ class BluetoothService : Service() {
             try {
                 ensureUserServiceBound()
                 if (userService?.makeDirectory(path) == true) return true
-            } catch (e: Exception) { Log.e(TAG, "Shizuku makeDirectory failed: ${e.message}") }
+            } catch (e: Exception) {
+                Log.e(TAG, "Shizuku makeDirectory failed: ${e.message}")
+            }
         }
 
         // 2. Try Root
@@ -2617,36 +2913,47 @@ class BluetoothService : Service() {
     }
 
     // Helper to find or create DocumentFile given a relative path from external storage root
-    // Only works if path is within a granted permission tree (e.g. Android/data/com.ailife.ClockSkinCoco)
-    private fun getDocumentFileForPath(path: String, createIfNotExists: Boolean): androidx.documentfile.provider.DocumentFile? {
-          try {
+    // Only works if path is within a granted permission tree (e.g.
+    // Android/data/com.ailife.ClockSkinCoco)
+    private fun getDocumentFileForPath(
+            path: String,
+            createIfNotExists: Boolean
+    ): androidx.documentfile.provider.DocumentFile? {
+        try {
             val targetFolder = "Android/data/com.ailife.ClockSkinCoco"
-            
-             // Case insensitive check if we are targeting this folder
+
+            // Case insensitive check if we are targeting this folder
             if (!path.startsWith(targetFolder, ignoreCase = true)) return null
 
             // Find permission
-            val perm = contentResolver.persistedUriPermissions.firstOrNull { 
-                val decodedUri = android.net.Uri.decode(it.uri.toString())
-                decodedUri.contains("com.ailife.ClockSkinCoco", ignoreCase = true) && it.isWritePermission 
-            }
-            
+            val perm =
+                    contentResolver.persistedUriPermissions.firstOrNull {
+                        val decodedUri = android.net.Uri.decode(it.uri.toString())
+                        decodedUri.contains("com.ailife.ClockSkinCoco", ignoreCase = true) &&
+                                it.isWritePermission
+                    }
+
             if (perm != null) {
-                var docFile = androidx.documentfile.provider.DocumentFile.fromTreeUri(this, perm.uri) ?: return null
-                
+                var docFile =
+                        androidx.documentfile.provider.DocumentFile.fromTreeUri(this, perm.uri)
+                                ?: return null
+
                 // Determine relative path from the treeUri root to our target path
                 val decodedTreeUri = android.net.Uri.decode(perm.uri.toString())
                 val treePathPart = decodedTreeUri.substringAfterLast(":", "").removePrefix("/")
-                
+
                 val normalizedTarget = path.removePrefix("/").removeSuffix("/")
-                
+
                 if (normalizedTarget.startsWith(treePathPart, ignoreCase = true)) {
                     val subPath = normalizedTarget.substring(treePathPart.length).removePrefix("/")
                     if (subPath.isNotEmpty()) {
                         val parts = subPath.split("/")
                         for (part in parts) {
-                            var nextFile = docFile.listFiles().find { it.name?.equals(part, ignoreCase = true) == true }
-                            
+                            var nextFile =
+                                    docFile.listFiles().find {
+                                        it.name?.equals(part, ignoreCase = true) == true
+                                    }
+
                             if (nextFile == null && createIfNotExists) {
                                 try {
                                     nextFile = docFile.createDirectory(part)
@@ -2655,7 +2962,7 @@ class BluetoothService : Service() {
                                     Log.e(TAG, "SAF: Create dir failed: ${e.message}")
                                 }
                             }
-                            
+
                             if (nextFile != null) {
                                 docFile = nextFile
                             } else {
@@ -2667,10 +2974,10 @@ class BluetoothService : Service() {
                 }
                 return docFile
             }
-          } catch(e: Exception) {
-              Log.e(TAG, "SAF Error for $path: ${e.message}")
-          }
-          return null
+        } catch (e: Exception) {
+            Log.e(TAG, "SAF Error for $path: ${e.message}")
+        }
+        return null
     }
 
     private fun handleWatchFaceReceived(file: File) {
@@ -2679,19 +2986,25 @@ class BluetoothService : Service() {
                 // Define target dir
                 val root = android.os.Environment.getExternalStorageDirectory().absolutePath
                 val clockSkinPath = "$root/Android/data/com.ailife.ClockSkinCoco/files/ClockSkin"
-                
+
                 val targetFile = File(clockSkinPath, file.name)
-                
+
                 // If the file is NOT already in the target directory, move it
                 if (file.absolutePath != targetFile.absolutePath) {
-                    android.util.Log.d(TAG, "Moving watch face to restricted dir: ${targetFile.absolutePath}")
+                    android.util.Log.d(
+                            TAG,
+                            "Moving watch face to restricted dir: ${targetFile.absolutePath}"
+                    )
                     val success = moveFileDispatcher(file.absolutePath, targetFile.absolutePath)
                     if (!success) {
                         android.util.Log.e(TAG, "Failed to move watch face to restricted dir")
                         return@launch
                     }
                 } else {
-                    android.util.Log.d(TAG, "Watch face already in target directory: ${file.absolutePath}")
+                    android.util.Log.d(
+                            TAG,
+                            "Watch face already in target directory: ${file.absolutePath}"
+                    )
                 }
 
                 // Broadcast change face
@@ -2701,9 +3014,15 @@ class BluetoothService : Service() {
                 // Keep "path" with absolute path just in case some engines use it
                 intent.putExtra("path", targetFile.absolutePath)
                 sendBroadcast(intent)
-                android.util.Log.d(TAG, "Broadcasted changeface for: ${file.name} / ${targetFile.absolutePath}")
-                
-                android.util.Log.d(TAG, "Watch face applied successfully: ${targetFile.absolutePath}")
+                android.util.Log.d(
+                        TAG,
+                        "Broadcasted changeface for: ${file.name} / ${targetFile.absolutePath}"
+                )
+
+                android.util.Log.d(
+                        TAG,
+                        "Watch face applied successfully: ${targetFile.absolutePath}"
+                )
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "Error handling watch face: ${e.message}")
             } finally {
@@ -2714,8 +3033,11 @@ class BluetoothService : Service() {
 
     private fun isUsingShizuku(): Boolean {
         return try {
-            Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
-        } catch (_: Exception) { false }
+            Shizuku.pingBinder() &&
+                    Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun calculateMd5(file: File): String {
@@ -2737,11 +3059,21 @@ class BluetoothService : Service() {
         if (isUsingShizuku()) {
             try {
                 ensureUserServiceBound()
-                val pfd = android.os.ParcelFileDescriptor.open(tempFile, android.os.ParcelFileDescriptor.MODE_READ_ONLY)
+                val pfd =
+                        android.os.ParcelFileDescriptor.open(
+                                tempFile,
+                                android.os.ParcelFileDescriptor.MODE_READ_ONLY
+                        )
                 if (userService?.installAppFromPfd(pfd) == true) {
                     Log.i(TAG, "✅ Silent install via Shizuku Succeeded: ${tempFile.name}")
-                    mainHandler.post { 
-                        Toast.makeText(this, getString(R.string.upload_complete_title) + ": ${tempFile.name}", Toast.LENGTH_SHORT).show() 
+                    mainHandler.post {
+                        Toast.makeText(
+                                        this,
+                                        getString(R.string.upload_complete_title) +
+                                                ": ${tempFile.name}",
+                                        Toast.LENGTH_SHORT
+                                )
+                                .show()
                     }
                     tempFile.delete()
                     return
@@ -2757,8 +3089,14 @@ class BluetoothService : Service() {
             val result = Shell.cmd("pm install -r \"$rootPath\"").exec()
             if (result.isSuccess) {
                 Log.i(TAG, "✅ Silent install via Root succeeded: ${tempFile.name}")
-                mainHandler.post { 
-                    Toast.makeText(this, getString(R.string.upload_complete_title) + ": ${tempFile.name}", Toast.LENGTH_SHORT).show() 
+                mainHandler.post {
+                    Toast.makeText(
+                                    this,
+                                    getString(R.string.upload_complete_title) +
+                                            ": ${tempFile.name}",
+                                    Toast.LENGTH_SHORT
+                            )
+                            .show()
                 }
                 tempFile.delete()
                 return
@@ -2780,10 +3118,12 @@ class BluetoothService : Service() {
     private fun executeShellCommand(command: String) {
         serviceScope.launch(Dispatchers.IO) {
             Log.d(TAG, "⚡ Attempting to execute: $command")
-            
+
             // Try Shizuku first (if available)
             try {
-                if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+                if (Shizuku.pingBinder() &&
+                                Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+                ) {
                     Log.d(TAG, "Using Shizuku for execution")
                     executeWithShizuku(command)
                     return@launch
@@ -2793,11 +3133,14 @@ class BluetoothService : Service() {
             } catch (e: Exception) {
                 Log.w(TAG, "Shizuku execution failed: ${e.message}, trying libsu")
             }
-            
+
             // Fallback to libsu (Root)
             try {
                 val result = Shell.cmd(command).exec()
-                Log.i(TAG, "✅ Shell command executed via libsu. Success: ${result.isSuccess}, Code: ${result.code}")
+                Log.i(
+                        TAG,
+                        "✅ Shell command executed via libsu. Success: ${result.isSuccess}, Code: ${result.code}"
+                )
                 result.out.forEach { Log.d(TAG, "OUT: $it") }
                 result.err.forEach { Log.e(TAG, "ERR: $it") }
             } catch (e: Exception) {
@@ -2809,30 +3152,31 @@ class BluetoothService : Service() {
     private fun executeWithShizuku(command: String) {
         try {
             // Parse command to determine action
-            val powerctlValue = when {
-                command.contains("shutdown") -> "shutdown"
-                command.contains("reboot") -> "reboot"
-                else -> {
-                    Log.e(TAG, "Unknown command: $command")
-                    return
-                }
-            }
-            
+            val powerctlValue =
+                    when {
+                        command.contains("shutdown") -> "shutdown"
+                        command.contains("reboot") -> "reboot"
+                        else -> {
+                            Log.e(TAG, "Unknown command: $command")
+                            return
+                        }
+                    }
+
             // Use Shizuku to set system property via shell
             // We need to create a process that runs as shell/root via Shizuku
             val processBuilder = ProcessBuilder("sh")
             val process = processBuilder.start()
-            
+
             // Write command to stdin
             process.outputStream.bufferedWriter().use { writer ->
                 writer.write("setprop sys.powerctl $powerctlValue\n")
                 writer.write("exit\n")
                 writer.flush()
             }
-            
+
             val exitCode = process.waitFor()
             Log.i(TAG, "✅ Shizuku command executed. Exit code: $exitCode")
-            
+
             // Read any output
             process.inputStream.bufferedReader().use { reader ->
                 reader.lineSequence().forEach { Log.d(TAG, "OUT: $it") }
@@ -2851,7 +3195,7 @@ class BluetoothService : Service() {
         mainHandler.post {
             Toast.makeText(this, "Shutdown command received", Toast.LENGTH_SHORT).show()
         }
-        
+
         serviceScope.launch(Dispatchers.IO) {
             try {
                 ensureUserServiceBound()
@@ -2874,7 +3218,7 @@ class BluetoothService : Service() {
         mainHandler.post {
             Toast.makeText(this, "Reboot command received", Toast.LENGTH_SHORT).show()
         }
-        
+
         serviceScope.launch(Dispatchers.IO) {
             try {
                 ensureUserServiceBound()
@@ -2898,10 +3242,15 @@ class BluetoothService : Service() {
             Toast.makeText(this, "Lock command received", Toast.LENGTH_SHORT).show()
         }
         try {
-            val intent = Intent().apply {
-                component = ComponentName("com.ailife.ClockSkinCoco", "com.ailife.ClockSkinCoco.UBSLauncherActivity")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
+            val intent =
+                    Intent().apply {
+                        component =
+                                ComponentName(
+                                        "com.ailife.ClockSkinCoco",
+                                        "com.ailife.ClockSkinCoco.UBSLauncherActivity"
+                                )
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
             startActivity(intent)
         } catch (e: Exception) {
             Log.e(TAG, "Error locking device: ${e.message}")
@@ -2930,22 +3279,24 @@ class BluetoothService : Service() {
             val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
             audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxVolume, 0)
 
-            val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            val alarmUri =
+                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
 
-            findDeviceRingtone = RingtoneManager.getRingtone(this, alarmUri).apply {
-                @Suppress("DEPRECATION")
-                streamType = AudioManager.STREAM_ALARM
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    isLooping = true
-                }
-                play()
-            }
+            findDeviceRingtone =
+                    RingtoneManager.getRingtone(this, alarmUri).apply {
+                        @Suppress("DEPRECATION") streamType = AudioManager.STREAM_ALARM
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            isLooping = true
+                        }
+                        play()
+                    }
 
             // Start activity to allow stopping locally
-            val intent = Intent(this, FindDeviceActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
+            val intent =
+                    Intent(this, FindDeviceActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
             startActivity(intent)
 
             Log.i(TAG, "Alarm started at max volume")
@@ -2977,20 +3328,22 @@ class BluetoothService : Service() {
     }
 
     private suspend fun handleUninstallApp(message: ProtocolMessage) {
-        val pkg = ProtocolHelper.extractStringField(message, "package") ?: run {
-            android.util.Log.e(TAG, "Uninstall failed: package field missing")
-            return
-        }
+        val pkg =
+                ProtocolHelper.extractStringField(message, "package")
+                        ?: run {
+                            android.util.Log.e(TAG, "Uninstall failed: package field missing")
+                            return
+                        }
         android.util.Log.d(TAG, "Requesting uninstall for: $pkg")
-        
+
         // 1. Try Shizuku (UserService)
         if (isUsingShizuku()) {
             try {
                 ensureUserServiceBound()
                 if (userService?.uninstallApp(pkg) == true) {
                     Log.i(TAG, "✅ Silent uninstall via Shizuku succeeded: $pkg")
-                    mainHandler.post { 
-                        Toast.makeText(this, "Uninstalled: $pkg", Toast.LENGTH_SHORT).show() 
+                    mainHandler.post {
+                        Toast.makeText(this, "Uninstalled: $pkg", Toast.LENGTH_SHORT).show()
                     }
                     return
                 }
@@ -3004,24 +3357,23 @@ class BluetoothService : Service() {
             val result = Shell.cmd("pm uninstall $pkg").exec()
             if (result.isSuccess) {
                 Log.i(TAG, "✅ Silent uninstall via Root succeeded: $pkg")
-                mainHandler.post { 
-                    Toast.makeText(this, "Uninstalled: $pkg", Toast.LENGTH_SHORT).show() 
+                mainHandler.post {
+                    Toast.makeText(this, "Uninstalled: $pkg", Toast.LENGTH_SHORT).show()
                 }
                 return
             }
         }
 
         // Fallback to manual intent
-        mainHandler.post {
-            Toast.makeText(this, "Uninstalling: $pkg", Toast.LENGTH_SHORT).show()
-        }
+        mainHandler.post { Toast.makeText(this, "Uninstalling: $pkg", Toast.LENGTH_SHORT).show() }
 
         try {
             // Standard intent to uninstall
-            val intent = Intent(Intent.ACTION_DELETE).apply {
-                data = Uri.parse("package:$pkg")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
+            val intent =
+                    Intent(Intent.ACTION_DELETE).apply {
+                        data = Uri.parse("package:$pkg")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
             startActivity(intent)
             android.util.Log.d(TAG, "Uninstall intent started for: $pkg")
         } catch (e: Exception) {
@@ -3035,18 +3387,21 @@ class BluetoothService : Service() {
     fun sendApkFile(uri: Uri) {
         contentResolver.openInputStream(uri)?.use { inputStream ->
             val tempFile = File(cacheDir, "temp_upload.apk")
-            tempFile.outputStream().use { outputStream ->
-                inputStream.copyTo(outputStream)
-            }
+            tempFile.outputStream().use { outputStream -> inputStream.copyTo(outputStream) }
             sendFile(tempFile, "APK")
         }
     }
 
-    fun sendFile(file: File, type: String = "REGULAR", remotePath: String? = null, preferredName: String? = null) {
+    fun sendFile(
+            file: File,
+            type: String = "REGULAR",
+            remotePath: String? = null,
+            preferredName: String? = null
+    ) {
         serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             if (!isConnected) {
-                withContext(Dispatchers.Main) { 
-                    callback?.onError(getString(R.string.toast_watch_not_connected)) 
+                withContext(Dispatchers.Main) {
+                    callback?.onError(getString(R.string.toast_watch_not_connected))
                 }
                 return@launch
             }
@@ -3058,13 +3413,14 @@ class BluetoothService : Service() {
                 md5.update(fileBytes)
                 val checksum = md5.digest().joinToString("") { "%02x".format(it) }
 
-                val fileData = FileTransferData(
-                    name = preferredName ?: file.name,
-                    size = fileBytes.size.toLong(),
-                    checksum = checksum,
-                    type = type,
-                    path = remotePath
-                )
+                val fileData =
+                        FileTransferData(
+                                name = preferredName ?: file.name,
+                                size = fileBytes.size.toLong(),
+                                checksum = checksum,
+                                type = type,
+                                path = remotePath
+                        )
                 sendMessage(ProtocolHelper.createFileTransferStart(fileData))
                 delay(100)
 
@@ -3076,21 +3432,21 @@ class BluetoothService : Service() {
                 while (offset < fileBytes.size) {
                     val end = minOf(offset + chunkSize, fileBytes.size)
                     val chunk = fileBytes.copyOfRange(offset, end)
-                    val base64Chunk = android.util.Base64.encodeToString(chunk, android.util.Base64.NO_WRAP)
+                    val base64Chunk =
+                            android.util.Base64.encodeToString(chunk, android.util.Base64.NO_WRAP)
 
-                    val chunkData = FileChunkData(
-                        offset = offset.toLong(),
-                        data = base64Chunk,
-                        chunkNumber = chunkNumber,
-                        totalChunks = totalChunks
-                    )
+                    val chunkData =
+                            FileChunkData(
+                                    offset = offset.toLong(),
+                                    data = base64Chunk,
+                                    chunkNumber = chunkNumber,
+                                    totalChunks = totalChunks
+                            )
                     sendMessage(ProtocolHelper.createFileChunk(chunkData))
-                    
+
                     // Report progress
                     val progress = ((chunkNumber + 1) * 95 / totalChunks)
-                    withContext(Dispatchers.Main) {
-                        callback?.onUploadProgress(progress)
-                    }
+                    withContext(Dispatchers.Main) { callback?.onUploadProgress(progress) }
 
                     offset = end
                     chunkNumber++
@@ -3101,13 +3457,14 @@ class BluetoothService : Service() {
                 waitingForFileAck = true
                 sendMessageSync(ProtocolHelper.createFileTransferEnd(success = true))
 
-                val ackReceived = try {
-                    kotlinx.coroutines.withTimeout(15000) {
-                        fileAckDeferred?.await() ?: false
-                    }
-                } catch (_: Exception) {
-                    false
-                }
+                val ackReceived =
+                        try {
+                            kotlinx.coroutines.withTimeout(15000) {
+                                fileAckDeferred?.await() ?: false
+                            }
+                        } catch (_: Exception) {
+                            false
+                        }
 
                 withContext(Dispatchers.Main) {
                     if (ackReceived) {
@@ -3119,7 +3476,12 @@ class BluetoothService : Service() {
                 }
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "Error sending file: ${e.message}")
-                sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = e.message ?: "Unknown error"))
+                sendMessage(
+                        ProtocolHelper.createFileTransferEnd(
+                                success = false,
+                                error = e.message ?: "Unknown error"
+                        )
+                )
                 withContext(Dispatchers.Main) {
                     callback?.onUploadProgress(-1)
                     callback?.onError(getString(R.string.toast_upload_failed) + ": ${e.message}")
@@ -3147,28 +3509,36 @@ class BluetoothService : Service() {
     }
 
     private fun showInstallNotification(tempFile: File) {
-        android.util.Log.d(TAG, "showInstallNotification: Creating notification for ${tempFile.name}")
+        android.util.Log.d(
+                TAG,
+                "showInstallNotification: Creating notification for ${tempFile.name}"
+        )
         try {
             val authority = "${packageName}.fileprovider"
             android.util.Log.d(TAG, "Using FileProvider authority: $authority")
             val installUri = FileProvider.getUriForFile(this, authority, tempFile)
             android.util.Log.d(TAG, "Install URI: $installUri")
-            val installIntent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(installUri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            val pendingIntent = PendingIntent.getActivity(
-                this, 0, installIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            val builder = NotificationCompat.Builder(this, INSTALL_CHANNEL_ID)
-                .setContentTitle(getString(R.string.notification_apk_received_title))
-                .setContentText(getString(R.string.notification_apk_received_text))
-                .setSmallIcon(android.R.drawable.stat_sys_download_done)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setAutoCancel(true)
-                .setContentIntent(pendingIntent)
+            val installIntent =
+                    Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(installUri, "application/vnd.android.package-archive")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+            val pendingIntent =
+                    PendingIntent.getActivity(
+                            this,
+                            0,
+                            installIntent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+            val builder =
+                    NotificationCompat.Builder(this, INSTALL_CHANNEL_ID)
+                            .setContentTitle(getString(R.string.notification_apk_received_title))
+                            .setContentText(getString(R.string.notification_apk_received_text))
+                            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                            .setPriority(NotificationCompat.PRIORITY_HIGH)
+                            .setAutoCancel(true)
+                            .setContentIntent(pendingIntent)
             notificationManager.notify(INSTALL_NOTIFICATION_ID, builder.build())
             android.util.Log.d(TAG, "Notification posted with ID: $INSTALL_NOTIFICATION_ID")
         } catch (e: Exception) {
@@ -3177,31 +3547,37 @@ class BluetoothService : Service() {
     }
 
     private fun showPermissionNotification() {
-        val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-            data = "package:$packageName".toUri()
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val builder = NotificationCompat.Builder(this, INSTALL_CHANNEL_ID)
-            .setContentTitle(getString(R.string.notification_config_required_title))
-            .setContentText(getString(R.string.notification_config_required_text))
-            .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
+        val intent =
+                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                    data = "package:$packageName".toUri()
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+        val pendingIntent =
+                PendingIntent.getActivity(
+                        this,
+                        0,
+                        intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+        val builder =
+                NotificationCompat.Builder(this, INSTALL_CHANNEL_ID)
+                        .setContentTitle(getString(R.string.notification_config_required_title))
+                        .setContentText(getString(R.string.notification_config_required_text))
+                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setAutoCancel(true)
+                        .setContentIntent(pendingIntent)
         notificationManager.notify(INSTALL_NOTIFICATION_ID, builder.build())
     }
 
     private fun showErrorNotification(msg: String) {
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID_DISCONNECTED)
-            .setContentTitle(getString(R.string.notification_error_title))
-            .setContentText(msg)
-            .setSmallIcon(android.R.drawable.stat_notify_error)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
+        val builder =
+                NotificationCompat.Builder(this, CHANNEL_ID_DISCONNECTED)
+                        .setContentTitle(getString(R.string.notification_error_title))
+                        .setContentText(msg)
+                        .setSmallIcon(android.R.drawable.stat_notify_error)
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setAutoCancel(true)
         notificationManager.notify(999, builder.build())
     }
 
@@ -3244,7 +3620,10 @@ class BluetoothService : Service() {
             try {
                 val appInfo = packageInfo.applicationInfo ?: continue
                 // Skip system apps without launch intent to keep list clean
-                if ((appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0 && pm.getLaunchIntentForPackage(packageInfo.packageName) == null) continue
+                if ((appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0 &&
+                                pm.getLaunchIntentForPackage(packageInfo.packageName) == null
+                )
+                        continue
 
                 val appName = appInfo.loadLabel(pm).toString()
                 val packageName = packageInfo.packageName
@@ -3256,16 +3635,11 @@ class BluetoothService : Service() {
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
                 val iconBase64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
 
-                apps.add(AppInfo(
-                    name = appName,
-                    packageName = packageName,
-                    icon = iconBase64
-                ))
+                apps.add(AppInfo(name = appName, packageName = packageName, icon = iconBase64))
             } catch (_: Exception) {}
         }
         return apps
     }
-
 
     private fun showMirroredNotification(message: ProtocolMessage) {
         try {
@@ -3277,23 +3651,38 @@ class BluetoothService : Service() {
             val key = notif.key
 
             val isUpdate = notificationMap.containsKey(key)
-            val notifId = notificationMap.getOrPut(key) { (System.currentTimeMillis() % 10000).toInt() + MIRRORED_NOTIFICATION_ID_START }
-            
+            val notifId =
+                    notificationMap.getOrPut(key) {
+                        (System.currentTimeMillis() % 10000).toInt() +
+                                MIRRORED_NOTIFICATION_ID_START
+                    }
+
             // Store data for local refresh (stops spinning after reply)
             notificationDataMap[key] = notif
 
-            val deleteIntent = Intent(ACTION_WATCH_DISMISSED_LOCAL).apply { putExtra(EXTRA_NOTIF_KEY, key); setPackage(packageName) }
-            val deletePending = PendingIntent.getBroadcast(this, notifId, deleteIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            val deleteIntent =
+                    Intent(ACTION_WATCH_DISMISSED_LOCAL).apply {
+                        putExtra(EXTRA_NOTIF_KEY, key)
+                        setPackage(packageName)
+                    }
+            val deletePending =
+                    PendingIntent.getBroadcast(
+                            this,
+                            notifId,
+                            deleteIntent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
 
             // Use NotificationCompat.Builder (from androidx) for better compatibility and features
-            val builder = NotificationCompat.Builder(this, MIRRORED_CHANNEL_ID)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setSubText(appName)
-                .setOnlyAlertOnce(isUpdate)
-                .setAutoCancel(true)
-                .setDeleteIntent(deletePending)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
+            val builder =
+                    NotificationCompat.Builder(this, MIRRORED_CHANNEL_ID)
+                            .setContentTitle(title)
+                            .setContentText(text)
+                            .setSubText(appName)
+                            .setOnlyAlertOnce(isUpdate)
+                            .setAutoCancel(true)
+                            .setDeleteIntent(deletePending)
+                            .setPriority(NotificationCompat.PRIORITY_HIGH)
 
             val wakeScreen = prefs.getBoolean("wake_screen_enabled", false)
             val vibrate = prefs.getBoolean("vibrate_enabled", false)
@@ -3306,8 +3695,9 @@ class BluetoothService : Service() {
             var defaults = NotificationCompat.DEFAULT_ALL
             if (vibrate) {
                 val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-                val isSilent = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
-                
+                val isSilent =
+                        nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+
                 if (isSilent && !vibrateInSilent) {
                     defaults = defaults and NotificationCompat.DEFAULT_VIBRATE.inv()
                 } else {
@@ -3318,7 +3708,6 @@ class BluetoothService : Service() {
                 defaults = defaults and NotificationCompat.DEFAULT_VIBRATE.inv()
             }
             builder.setDefaults(defaults)
-
 
             // De-base64 all available icons
             val largeIconBitmap = notif.largeIcon?.let { decodeBase64ToBitmap(it) }
@@ -3336,46 +3725,54 @@ class BluetoothService : Service() {
             // 4. Use MessagingStyle if we have messages or it's a group
             if (notif.messages.isNotEmpty() || notif.groupIcon != null) {
                 val userName = getString(R.string.reply_sender_me)
-                
+
                 // Use app small icon as a "default" for the user to avoid wrong fallbacks
                 val userIcon = notif.smallIcon?.let { decodeBase64ToBitmap(it) }
                 val userBuilder = androidx.core.app.Person.Builder().setName(userName)
                 userIcon?.let {
-                    userBuilder.setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(it))
+                    userBuilder.setIcon(
+                            androidx.core.graphics.drawable.IconCompat.createWithBitmap(it)
+                    )
                 }
                 val user = userBuilder.build()
-                
+
                 val style = NotificationCompat.MessagingStyle(user)
-                
+
                 if (notif.groupIcon != null || notif.messages.any { it.senderName != null }) {
                     style.conversationTitle = title
                     style.isGroupConversation = notif.groupIcon != null
                 }
-                
+
                 // Add all messages from the history
                 for (msg in notif.messages) {
                     val msgSenderName = msg.senderName
-                    
-                    // Robust "Me" detection: 
+
+                    // Robust "Me" detection:
                     // 1. Exact name match ("Me")
                     // 2. OR null name (commonly used for 'self' in MessagingStyle history)
                     val isMe = msgSenderName == null || msgSenderName == userName
-                    
+
                     if (isMe) {
-                        // For outgoing/echoed replies, pass null or the user person 
+                        // For outgoing/echoed replies, pass null or the user person
                         // to let the system use the default user icon
                         style.addMessage(msg.text, msg.timestamp, user)
                     } else {
-                        val sender = androidx.core.app.Person.Builder()
-                            .setName(msgSenderName ?: "Sender")
-                            .apply {
-                                msg.senderIcon?.let { 
-                                    decodeBase64ToBitmap(it)?.let { bitmap ->
-                                        setIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(bitmap))
-                                    }
-                                }
-                            }
-                            .build()
+                        val sender =
+                                androidx.core.app.Person.Builder()
+                                        .setName(msgSenderName ?: "Sender")
+                                        .apply {
+                                            msg.senderIcon?.let {
+                                                decodeBase64ToBitmap(it)?.let { bitmap ->
+                                                    setIcon(
+                                                            androidx.core.graphics.drawable
+                                                                    .IconCompat.createWithBitmap(
+                                                                    bitmap
+                                                            )
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        .build()
                         style.addMessage(msg.text, msg.timestamp, sender)
                     }
                 }
@@ -3389,9 +3786,16 @@ class BluetoothService : Service() {
             if (notif.smallIcon != null) {
                 try {
                     val iconBytes = Base64.decode(notif.smallIcon, Base64.NO_WRAP)
-                    val bitmap = android.graphics.BitmapFactory.decodeByteArray(iconBytes, 0, iconBytes.size)
+                    val bitmap =
+                            android.graphics.BitmapFactory.decodeByteArray(
+                                    iconBytes,
+                                    0,
+                                    iconBytes.size
+                            )
                     if (bitmap != null) {
-                        builder.setSmallIcon(androidx.core.graphics.drawable.IconCompat.createWithBitmap(bitmap))
+                        builder.setSmallIcon(
+                                androidx.core.graphics.drawable.IconCompat.createWithBitmap(bitmap)
+                        )
                     } else {
                         // Fallback if bitmap is null
                         builder.setSmallIcon(R.drawable.ic_smartwatch_notification)
@@ -3407,50 +3811,66 @@ class BluetoothService : Service() {
 
             // Add action buttons
             notif.actions.forEachIndexed { index, action ->
-                val actionIntent = if (action.isReplyAction) {
-                    Intent(this, NotificationActionReceiver::class.java).apply {
-                        setAction("${key}_${action.actionKey}_$index")
-                        putExtra(EXTRA_NOTIF_KEY, key)
-                        putExtra(EXTRA_ACTION_KEY, action.actionKey)
-                        putExtra("is_reply", true)
-                    }
-                } else {
-                    Intent(this, NotificationActionReceiver::class.java).apply {
-                        setAction("${key}_${action.actionKey}_$index")
-                        putExtra(EXTRA_NOTIF_KEY, key)
-                        putExtra(EXTRA_ACTION_KEY, action.actionKey)
-                        putExtra("is_reply", false)
-                    }
-                }
+                val actionIntent =
+                        if (action.isReplyAction) {
+                            Intent(this, NotificationActionReceiver::class.java).apply {
+                                setAction("${key}_${action.actionKey}_$index")
+                                putExtra(EXTRA_NOTIF_KEY, key)
+                                putExtra(EXTRA_ACTION_KEY, action.actionKey)
+                                putExtra("is_reply", true)
+                            }
+                        } else {
+                            Intent(this, NotificationActionReceiver::class.java).apply {
+                                setAction("${key}_${action.actionKey}_$index")
+                                putExtra(EXTRA_NOTIF_KEY, key)
+                                putExtra(EXTRA_ACTION_KEY, action.actionKey)
+                                putExtra("is_reply", false)
+                            }
+                        }
 
-                val actionPendingIntent = PendingIntent.getBroadcast(
-                    this,
-                    (notifId + index + 1),
-                    actionIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-                )
+                val actionPendingIntent =
+                        PendingIntent.getBroadcast(
+                                this,
+                                (notifId + index + 1),
+                                actionIntent,
+                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                        )
 
                 if (action.isReplyAction) {
                     // Create reply action with RemoteInput
-                    val remoteInput = androidx.core.app.RemoteInput.Builder(BluetoothService.EXTRA_REPLY_TEXT)
-                        .setLabel(action.title)
-                        .build()
+                    val remoteInput =
+                            androidx.core.app.RemoteInput.Builder(BluetoothService.EXTRA_REPLY_TEXT)
+                                    .setLabel(action.title)
+                                    .build()
 
-                    val replyAction = NotificationCompat.Action.Builder(
-                        androidx.core.graphics.drawable.IconCompat.createWithResource(this, android.R.drawable.ic_menu_send),
-                        action.title,
-                        actionPendingIntent
-                    ).addRemoteInput(remoteInput).build()
+                    val replyAction =
+                            NotificationCompat.Action.Builder(
+                                            androidx.core.graphics.drawable.IconCompat
+                                                    .createWithResource(
+                                                            this,
+                                                            android.R.drawable.ic_menu_send
+                                                    ),
+                                            action.title,
+                                            actionPendingIntent
+                                    )
+                                    .addRemoteInput(remoteInput)
+                                    .build()
 
                     builder.addAction(replyAction)
                 } else {
                     // Regular action button
-                    val regularAction = NotificationCompat.Action.Builder(
-                        androidx.core.graphics.drawable.IconCompat.createWithResource(this, android.R.drawable.ic_menu_view),
-                        action.title,
-                        actionPendingIntent
-                    ).build()
-                    
+                    val regularAction =
+                            NotificationCompat.Action.Builder(
+                                            androidx.core.graphics.drawable.IconCompat
+                                                    .createWithResource(
+                                                            this,
+                                                            android.R.drawable.ic_menu_view
+                                                    ),
+                                            action.title,
+                                            actionPendingIntent
+                                    )
+                                    .build()
+
                     builder.addAction(regularAction)
                 }
             }
@@ -3460,12 +3880,23 @@ class BluetoothService : Service() {
                 try {
                     Log.d(TAG, "Decoding big picture: ${pictureBase64.length} chars")
                     val pictureBytes = Base64.decode(pictureBase64, Base64.NO_WRAP)
-                    val pictureBitmap = android.graphics.BitmapFactory.decodeByteArray(pictureBytes, 0, pictureBytes.size)
+                    val pictureBitmap =
+                            android.graphics.BitmapFactory.decodeByteArray(
+                                    pictureBytes,
+                                    0,
+                                    pictureBytes.size
+                            )
                     if (pictureBitmap != null) {
-                        Log.d(TAG, "Big picture decoded: ${pictureBitmap.width}x${pictureBitmap.height}")
-                        val bigPictureStyle = NotificationCompat.BigPictureStyle()
-                            .bigPicture(pictureBitmap)
-                            .bigLargeIcon(null as Bitmap?) // Hide large icon when expanded
+                        Log.d(
+                                TAG,
+                                "Big picture decoded: ${pictureBitmap.width}x${pictureBitmap.height}"
+                        )
+                        val bigPictureStyle =
+                                NotificationCompat.BigPictureStyle()
+                                        .bigPicture(pictureBitmap)
+                                        .bigLargeIcon(
+                                                null as Bitmap?
+                                        ) // Hide large icon when expanded
                         builder.setStyle(bigPictureStyle)
                     }
                 } catch (e: Exception) {
@@ -3482,22 +3913,24 @@ class BluetoothService : Service() {
 
     private fun refreshNotification(key: String, replyText: String? = null) {
         val data = notificationDataMap[key] ?: return
-        
-        val updatedData = if (replyText != null) {
-            // Append local reply to history for immediate feedback
-            val newMessage = NotificationMessageData(
-                text = replyText,
-                timestamp = System.currentTimeMillis(),
-                senderName = getString(R.string.reply_sender_me)
-            )
-            data.copy(messages = data.messages + newMessage)
-        } else {
-            data
-        }
-        
+
+        val updatedData =
+                if (replyText != null) {
+                    // Append local reply to history for immediate feedback
+                    val newMessage =
+                            NotificationMessageData(
+                                    text = replyText,
+                                    timestamp = System.currentTimeMillis(),
+                                    senderName = getString(R.string.reply_sender_me)
+                            )
+                    data.copy(messages = data.messages + newMessage)
+                } else {
+                    data
+                }
+
         // Update stored data so subsequent refreshes find the new history
         notificationDataMap[key] = updatedData
-        
+
         val message = ProtocolHelper.createNotificationPosted(updatedData)
         showMirroredNotification(message)
         Log.d(TAG, "Notification refreshed locally for key: $key")
@@ -3514,7 +3947,11 @@ class BluetoothService : Service() {
 
     private fun requestDismissOnPhone(message: ProtocolMessage) {
         val key = ProtocolHelper.extractStringField(message, "key") ?: return
-        val intent = Intent(ACTION_CMD_DISMISS_ON_PHONE).apply { putExtra(EXTRA_NOTIF_KEY, key); setPackage(packageName) }
+        val intent =
+                Intent(ACTION_CMD_DISMISS_ON_PHONE).apply {
+                    putExtra(EXTRA_NOTIF_KEY, key)
+                    setPackage(packageName)
+                }
         sendBroadcast(intent)
     }
 
@@ -3524,11 +3961,12 @@ class BluetoothService : Service() {
 
         Log.d(TAG, "Executing notification action: $actionKey for notification: $notifKey")
 
-        val intent = Intent(ACTION_CMD_EXECUTE_ACTION).apply {
-            putExtra(EXTRA_NOTIF_KEY, notifKey)
-            putExtra(EXTRA_ACTION_KEY, actionKey)
-            setPackage(packageName)
-        }
+        val intent =
+                Intent(ACTION_CMD_EXECUTE_ACTION).apply {
+                    putExtra(EXTRA_NOTIF_KEY, notifKey)
+                    putExtra(EXTRA_ACTION_KEY, actionKey)
+                    setPackage(packageName)
+                }
         sendBroadcast(intent)
     }
 
@@ -3536,10 +3974,13 @@ class BluetoothService : Service() {
         try {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
             @Suppress("deprecation")
-            val wakeLock = pm.newWakeLock(
-                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
-                "RTOSify:NotificationWakeLock"
-            )
+            val wakeLock =
+                    pm.newWakeLock(
+                            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+                                    PowerManager.ACQUIRE_CAUSES_WAKEUP or
+                                    PowerManager.ON_AFTER_RELEASE,
+                            "RTOSify:NotificationWakeLock"
+                    )
             wakeLock.acquire(3000)
             Log.d(TAG, "Screen wake requested via SCREEN_BRIGHT_WAKE_LOCK")
         } catch (e: Exception) {
@@ -3554,12 +3995,13 @@ class BluetoothService : Service() {
 
         Log.d(TAG, "Sending notification reply: '$replyText' for notification: $notifKey")
 
-        val intent = Intent(ACTION_CMD_SEND_REPLY).apply {
-            putExtra(EXTRA_NOTIF_KEY, notifKey)
-            putExtra(EXTRA_ACTION_KEY, actionKey)
-            putExtra(EXTRA_REPLY_TEXT, replyText)
-            setPackage(packageName)
-        }
+        val intent =
+                Intent(ACTION_CMD_SEND_REPLY).apply {
+                    putExtra(EXTRA_NOTIF_KEY, notifKey)
+                    putExtra(EXTRA_ACTION_KEY, actionKey)
+                    putExtra(EXTRA_REPLY_TEXT, replyText)
+                    setPackage(packageName)
+                }
         sendBroadcast(intent)
     }
 
@@ -3599,8 +4041,8 @@ class BluetoothService : Service() {
         isStopping = true
         stopConnectionLoopOnly()
         try {
-             stopForeground(STOP_FOREGROUND_REMOVE)
-             notificationManager.cancelAll() // Ensure all are gone
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            notificationManager.cancelAll() // Ensure all are gone
         } catch (_: Exception) {}
         stopSelf()
     }
@@ -3621,14 +4063,14 @@ class BluetoothService : Service() {
     }
 
     /**
-     * CORREÇÃO DEFINITIVA PARA CANAIS BLOQUEADOS:
-     * Ao invés de usar um único ID, usamos um ID diferente para cada estado (Waiting, Connected, etc).
+     * CORREÇÃO DEFINITIVA PARA CANAIS BLOQUEADOS: Ao invés de usar um único ID, usamos um ID
+     * diferente para cada estado (Waiting, Connected, etc).
      * * Lógica:
      * 1. Determinamos o Estado Atual -> Novo ID e Novo Canal.
      * 2. Chamamos startForeground com o NOVO ID. Isso "segura" o serviço e previne crashes.
      * 3. Se o usuário bloqueou esse canal, o Android não mostra nada (correto).
-     * 4. CRUCIAL: Chamamos .cancel() nos IDs dos estados antigos. Isso garante que a notificação "Waiting"
-     * suma visualmente se mudamos para "Connected", mesmo que "Connected" esteja oculto.
+     * 4. CRUCIAL: Chamamos .cancel() nos IDs dos estados antigos. Isso garante que a notificação
+     * "Waiting" suma visualmente se mudamos para "Connected", mesmo que "Connected" esteja oculto.
      */
     private fun updateForegroundNotification() {
         try {
@@ -3637,20 +4079,28 @@ class BluetoothService : Service() {
             val intent = Intent(this, MainActivity::class.java)
             val pending = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
 
-            val notification = NotificationCompat.Builder(this, targetChannel)
-                .setContentTitle(getString(R.string.notification_service_title))
-                .setContentText(targetText)
-                .setSmallIcon(R.drawable.ic_smartwatch_notification)
-                .setContentIntent(pending)
-                .setOngoing(true)
-                .setOnlyAlertOnce(true)
-                .build()
+            val notification =
+                    NotificationCompat.Builder(this, targetChannel)
+                            .setContentTitle(getString(R.string.notification_service_title))
+                            .setContentText(targetText)
+                            .setSmallIcon(R.drawable.ic_smartwatch_notification)
+                            .setContentIntent(pending)
+                            .setOngoing(true)
+                            .setOnlyAlertOnce(true)
+                            .build()
 
             // Inicia/Atualiza o Foreground no ID correto do estado atual
             if (Build.VERSION.SDK_INT >= 34) {
-                val hasLocation = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                val type = if (hasLocation) ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
-                else ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+                val hasLocation =
+                        ContextCompat.checkSelfPermission(
+                                this,
+                                Manifest.permission.ACCESS_FINE_LOCATION
+                        ) == PackageManager.PERMISSION_GRANTED
+                val type =
+                        if (hasLocation)
+                                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE or
+                                        ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                        else ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
                 startForeground(targetId, notification, type)
             } else if (Build.VERSION.SDK_INT >= 29) {
                 var type = 0
@@ -3664,12 +4114,15 @@ class BluetoothService : Service() {
 
             // LIMPEZA: Remove visualmente as notificações dos outros estados.
             // Isso corrige o bug onde "Aguardando" persistia se "Conectado" estivesse bloqueado.
-            if (targetId != NOTIFICATION_ID_WAITING) notificationManager.cancel(NOTIFICATION_ID_WAITING)
-            if (targetId != NOTIFICATION_ID_CONNECTED) notificationManager.cancel(NOTIFICATION_ID_CONNECTED)
-            if (targetId != NOTIFICATION_ID_DISCONNECTED) notificationManager.cancel(NOTIFICATION_ID_DISCONNECTED)
-
+            if (targetId != NOTIFICATION_ID_WAITING)
+                    notificationManager.cancel(NOTIFICATION_ID_WAITING)
+            if (targetId != NOTIFICATION_ID_CONNECTED)
+                    notificationManager.cancel(NOTIFICATION_ID_CONNECTED)
+            if (targetId != NOTIFICATION_ID_DISCONNECTED)
+                    notificationManager.cancel(NOTIFICATION_ID_DISCONNECTED)
         } catch (e: Exception) {
-            if (DEBUG_NOTIFICATIONS) Log.e(TAG, "updateForegroundNotification: Erro: ${e.message}", e)
+            if (DEBUG_NOTIFICATIONS)
+                    Log.e(TAG, "updateForegroundNotification: Erro: ${e.message}", e)
         }
     }
 
@@ -3677,11 +4130,13 @@ class BluetoothService : Service() {
     private fun determineNotificationState(): Triple<Int, String, String> {
         return when {
             isConnected && currentDeviceName != null ->
-                Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, "Conectado a $currentDeviceName")
-
+                    Triple(
+                            NOTIFICATION_ID_CONNECTED,
+                            CHANNEL_ID_CONNECTED,
+                            "Conectado a $currentDeviceName"
+                    )
             isConnected && currentDeviceName == null ->
-                Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, "Conectado")
-
+                    Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, "Conectado")
             currentNotificationStatus.contains("Aguardando", ignoreCase = true) ||
                     currentNotificationStatus.contains("Waiting", ignoreCase = true) ||
                     currentNotificationStatus.contains("Escaneando", ignoreCase = true) ||
@@ -3689,51 +4144,67 @@ class BluetoothService : Service() {
                     currentNotificationStatus.contains("Iniciado", ignoreCase = true) ||
                     currentNotificationStatus.contains("Started", ignoreCase = true) ||
                     currentNotificationStatus.isEmpty() ->
-                Triple(NOTIFICATION_ID_WAITING, CHANNEL_ID_WAITING, currentNotificationStatus.ifEmpty { getString(R.string.status_waiting) })
-
+                    Triple(
+                            NOTIFICATION_ID_WAITING,
+                            CHANNEL_ID_WAITING,
+                            currentNotificationStatus.ifEmpty { getString(R.string.status_waiting) }
+                    )
             else ->
-                Triple(NOTIFICATION_ID_DISCONNECTED, CHANNEL_ID_DISCONNECTED, currentNotificationStatus)
+                    Triple(
+                            NOTIFICATION_ID_DISCONNECTED,
+                            CHANNEL_ID_DISCONNECTED,
+                            currentNotificationStatus
+                    )
         }
     }
 
     private fun createNotificationChannel() {
         notificationManager.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ID_WAITING,
-                "Notificação persistente - aguardando conexão",
-                NotificationManager.IMPORTANCE_LOW
-            )
+                NotificationChannel(
+                        CHANNEL_ID_WAITING,
+                        "Notificação persistente - aguardando conexão",
+                        NotificationManager.IMPORTANCE_LOW
+                )
         )
 
         notificationManager.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ID_CONNECTED,
-                "Notificação persistente - conectado",
-                NotificationManager.IMPORTANCE_LOW
-            )
+                NotificationChannel(
+                        CHANNEL_ID_CONNECTED,
+                        "Notificação persistente - conectado",
+                        NotificationManager.IMPORTANCE_LOW
+                )
         )
 
         notificationManager.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ID_DISCONNECTED,
-                getString(R.string.status_disconnected),
-                NotificationManager.IMPORTANCE_LOW
-            )
+                NotificationChannel(
+                        CHANNEL_ID_DISCONNECTED,
+                        getString(R.string.status_disconnected),
+                        NotificationManager.IMPORTANCE_LOW
+                )
         )
 
         notificationManager.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ID_DISCONNECTION_ALERT,
-                "Alerta de Desconexão",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 500, 200, 500)
-            }
+                NotificationChannel(
+                                CHANNEL_ID_DISCONNECTION_ALERT,
+                                "Alerta de Desconexão",
+                                NotificationManager.IMPORTANCE_HIGH
+                        )
+                        .apply {
+                            enableVibration(true)
+                            vibrationPattern = longArrayOf(0, 500, 200, 500)
+                        }
         )
 
-        notificationManager.createNotificationChannel(NotificationChannel(INSTALL_CHANNEL_ID, "APKs", NotificationManager.IMPORTANCE_HIGH))
-        notificationManager.createNotificationChannel(NotificationChannel(MIRRORED_CHANNEL_ID, "Notificações do celular", NotificationManager.IMPORTANCE_HIGH))
+        notificationManager.createNotificationChannel(
+                NotificationChannel(INSTALL_CHANNEL_ID, "APKs", NotificationManager.IMPORTANCE_HIGH)
+        )
+        notificationManager.createNotificationChannel(
+                NotificationChannel(
+                        MIRRORED_CHANNEL_ID,
+                        "Notificações do celular",
+                        NotificationManager.IMPORTANCE_HIGH
+                )
+        )
     }
 
     private fun savePreference(key: String, value: String) {
@@ -3741,7 +4212,9 @@ class BluetoothService : Service() {
     }
 
     private fun handleSyncCalendar(message: ProtocolMessage) {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CALENDAR) !=
+                        PackageManager.PERMISSION_GRANTED
+        ) {
             android.util.Log.e(TAG, "WRITE_CALENDAR permission not granted")
             return
         }
@@ -3756,14 +4229,17 @@ class BluetoothService : Service() {
                 // 1. Find a calendar ID to write to
                 var calendarId: Long = -1
                 contentResolver.query(
-                    CalendarContract.Calendars.CONTENT_URI,
-                    arrayOf(CalendarContract.Calendars._ID),
-                    null, null, null
-                )?.use { cursor ->
-                    if (cursor.moveToFirst()) {
-                        calendarId = cursor.getLong(0)
-                    }
-                }
+                                CalendarContract.Calendars.CONTENT_URI,
+                                arrayOf(CalendarContract.Calendars._ID),
+                                null,
+                                null,
+                                null
+                        )
+                        ?.use { cursor ->
+                            if (cursor.moveToFirst()) {
+                                calendarId = cursor.getLong(0)
+                            }
+                        }
 
                 if (calendarId == -1L) {
                     android.util.Log.e(TAG, "No system calendar found to write to")
@@ -3773,31 +4249,43 @@ class BluetoothService : Service() {
                 var count = 0
                 for (event in events) {
                     // Check for duplicates (same title and start time)
-                    val exists = contentResolver.query(
-                        CalendarContract.Events.CONTENT_URI,
-                        arrayOf(CalendarContract.Events._ID),
-                        "${CalendarContract.Events.TITLE} = ? AND ${CalendarContract.Events.DTSTART} = ?",
-                        arrayOf(event.title, event.startTime.toString()),
-                        null
-                    )?.use { it.count > 0 } ?: false
+                    val exists =
+                            contentResolver.query(
+                                            CalendarContract.Events.CONTENT_URI,
+                                            arrayOf(CalendarContract.Events._ID),
+                                            "${CalendarContract.Events.TITLE} = ? AND ${CalendarContract.Events.DTSTART} = ?",
+                                            arrayOf(event.title, event.startTime.toString()),
+                                            null
+                                    )
+                                    ?.use { it.count > 0 }
+                                    ?: false
 
                     if (!exists) {
-                        val values = ContentValues().apply {
-                            put(CalendarContract.Events.DTSTART, event.startTime)
-                            put(CalendarContract.Events.DTEND, event.endTime)
-                            put(CalendarContract.Events.TITLE, event.title)
-                            put(CalendarContract.Events.DESCRIPTION, event.description)
-                            put(CalendarContract.Events.EVENT_LOCATION, event.location)
-                            put(CalendarContract.Events.CALENDAR_ID, calendarId)
-                            put(CalendarContract.Events.EVENT_TIMEZONE, java.util.TimeZone.getDefault().id)
-                        }
+                        val values =
+                                ContentValues().apply {
+                                    put(CalendarContract.Events.DTSTART, event.startTime)
+                                    put(CalendarContract.Events.DTEND, event.endTime)
+                                    put(CalendarContract.Events.TITLE, event.title)
+                                    put(CalendarContract.Events.DESCRIPTION, event.description)
+                                    put(CalendarContract.Events.EVENT_LOCATION, event.location)
+                                    put(CalendarContract.Events.CALENDAR_ID, calendarId)
+                                    put(
+                                            CalendarContract.Events.EVENT_TIMEZONE,
+                                            java.util.TimeZone.getDefault().id
+                                    )
+                                }
                         contentResolver.insert(CalendarContract.Events.CONTENT_URI, values)
                         count++
                     }
                 }
 
                 mainHandler.post {
-                    Toast.makeText(this@BluetoothService, "Synced $count new calendar events to system", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                                    this@BluetoothService,
+                                    "Synced $count new calendar events to system",
+                                    Toast.LENGTH_SHORT
+                            )
+                            .show()
                 }
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "Error writing calendar events: ${e.message}")
@@ -3806,7 +4294,9 @@ class BluetoothService : Service() {
     }
 
     private fun handleSyncContacts(message: ProtocolMessage) {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_CONTACTS) !=
+                        PackageManager.PERMISSION_GRANTED
+        ) {
             android.util.Log.e(TAG, "WRITE_CONTACTS permission not granted")
             return
         }
@@ -3821,46 +4311,107 @@ class BluetoothService : Service() {
                 var count = 0
                 for (contact in contacts) {
                     // Check for duplicate (same name)
-                    val exists = contentResolver.query(
-                        ContactsContract.Data.CONTENT_URI,
-                        arrayOf(ContactsContract.Data._ID),
-                        "${ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
-                        arrayOf(contact.name, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE),
-                        null
-                    )?.use { it.count > 0 } ?: false
+                    val exists =
+                            contentResolver.query(
+                                            ContactsContract.Data.CONTENT_URI,
+                                            arrayOf(ContactsContract.Data._ID),
+                                            "${ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                                            arrayOf(
+                                                    contact.name,
+                                                    ContactsContract.CommonDataKinds.StructuredName
+                                                            .CONTENT_ITEM_TYPE
+                                            ),
+                                            null
+                                    )
+                                    ?.use { it.count > 0 }
+                                    ?: false
 
                     if (!exists) {
                         val ops = arrayListOf<ContentProviderOperation>()
-                        ops.add(ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
-                            .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
-                            .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
-                            .build())
+                        ops.add(
+                                ContentProviderOperation.newInsert(
+                                                ContactsContract.RawContacts.CONTENT_URI
+                                        )
+                                        .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
+                                        .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
+                                        .build()
+                        )
 
                         // Add Name
-                        ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                            .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
-                            .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
-                            .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, contact.name)
-                            .build())
+                        ops.add(
+                                ContentProviderOperation.newInsert(
+                                                ContactsContract.Data.CONTENT_URI
+                                        )
+                                        .withValueBackReference(
+                                                ContactsContract.Data.RAW_CONTACT_ID,
+                                                0
+                                        )
+                                        .withValue(
+                                                ContactsContract.Data.MIMETYPE,
+                                                ContactsContract.CommonDataKinds.StructuredName
+                                                        .CONTENT_ITEM_TYPE
+                                        )
+                                        .withValue(
+                                                ContactsContract.CommonDataKinds.StructuredName
+                                                        .DISPLAY_NAME,
+                                                contact.name
+                                        )
+                                        .build()
+                        )
 
                         // Add Phone Numbers
                         for (number in contact.phoneNumbers) {
-                            ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
-                                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
-                                .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, number)
-                                .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE)
-                                .build())
+                            ops.add(
+                                    ContentProviderOperation.newInsert(
+                                                    ContactsContract.Data.CONTENT_URI
+                                            )
+                                            .withValueBackReference(
+                                                    ContactsContract.Data.RAW_CONTACT_ID,
+                                                    0
+                                            )
+                                            .withValue(
+                                                    ContactsContract.Data.MIMETYPE,
+                                                    ContactsContract.CommonDataKinds.Phone
+                                                            .CONTENT_ITEM_TYPE
+                                            )
+                                            .withValue(
+                                                    ContactsContract.CommonDataKinds.Phone.NUMBER,
+                                                    number
+                                            )
+                                            .withValue(
+                                                    ContactsContract.CommonDataKinds.Phone.TYPE,
+                                                    ContactsContract.CommonDataKinds.Phone
+                                                            .TYPE_MOBILE
+                                            )
+                                            .build()
+                            )
                         }
 
                         // Add Emails if any
                         contact.emails?.forEach { email ->
-                             ops.add(ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
-                                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
-                                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE)
-                                .withValue(ContactsContract.CommonDataKinds.Email.ADDRESS, email)
-                                .withValue(ContactsContract.CommonDataKinds.Email.TYPE, ContactsContract.CommonDataKinds.Email.TYPE_WORK)
-                                .build())
+                            ops.add(
+                                    ContentProviderOperation.newInsert(
+                                                    ContactsContract.Data.CONTENT_URI
+                                            )
+                                            .withValueBackReference(
+                                                    ContactsContract.Data.RAW_CONTACT_ID,
+                                                    0
+                                            )
+                                            .withValue(
+                                                    ContactsContract.Data.MIMETYPE,
+                                                    ContactsContract.CommonDataKinds.Email
+                                                            .CONTENT_ITEM_TYPE
+                                            )
+                                            .withValue(
+                                                    ContactsContract.CommonDataKinds.Email.ADDRESS,
+                                                    email
+                                            )
+                                            .withValue(
+                                                    ContactsContract.CommonDataKinds.Email.TYPE,
+                                                    ContactsContract.CommonDataKinds.Email.TYPE_WORK
+                                            )
+                                            .build()
+                            )
                         }
 
                         contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
@@ -3869,7 +4420,12 @@ class BluetoothService : Service() {
                 }
 
                 mainHandler.post {
-                    Toast.makeText(this@BluetoothService, "Synced $count new contacts to system", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                                    this@BluetoothService,
+                                    "Synced $count new contacts to system",
+                                    Toast.LENGTH_SHORT
+                            )
+                            .show()
                 }
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "Error writing contacts: ${e.message}")
@@ -3880,7 +4436,7 @@ class BluetoothService : Service() {
     override fun onDestroy() {
         Log.d(TAG, "BluetoothService destroying...")
         isStopping = true
-        
+
         panManager?.close()
         panManager = null
 
@@ -3892,14 +4448,22 @@ class BluetoothService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error unbinding UserService: ${e.message}")
         }
-        
-        super.onDestroy()
-        try { unregisterReceiver(internalReceiver) } catch(_:Exception){}
-        try { unregisterReceiver(watchDismissReceiver) } catch(_:Exception){}
 
-        try { unregisterReceiver(wifiStateReceiver) } catch(_:Exception){}
-        try { unregisterReceiver(batteryReceiver) } catch(_:Exception){}
-    
+        super.onDestroy()
+        try {
+            unregisterReceiver(internalReceiver)
+        } catch (_: Exception) {}
+        try {
+            unregisterReceiver(watchDismissReceiver)
+        } catch (_: Exception) {}
+
+        try {
+            unregisterReceiver(wifiStateReceiver)
+        } catch (_: Exception) {}
+        try {
+            unregisterReceiver(batteryReceiver)
+        } catch (_: Exception) {}
+
         if (MirroringService.isRunning) {
             Log.d(TAG, "onDestroy: Mirroring is active, stopping it.")
             val stopIntent = Intent(this, MirroringService::class.java)
@@ -3924,14 +4488,14 @@ class BluetoothService : Service() {
     private fun handleRequestPreview(message: ProtocolMessage) {
         val path = ProtocolHelper.extractStringField(message, "path") ?: return
         val absPath = toAbsolutePath(path)
-        
+
         serviceScope.launch(Dispatchers.IO) {
             try {
                 var bitmap: Bitmap? = null
-                
+
                 // 1. Try to check if it's a directory or file using dispatcher logic
                 val isDir = isDirectoryDispatcher(absPath)
-                
+
                 if (isDir) {
                     val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
                     for (c in candidates) {
@@ -3943,12 +4507,16 @@ class BluetoothService : Service() {
                     // It's likely a ZIP or .watch file
                     bitmap = loadPreviewFromZip(absPath)
                 }
-                
+
                 if (bitmap != null) {
                     val thumb = Bitmap.createScaledBitmap(bitmap!!, 200, 200, true)
                     val output = ByteArrayOutputStream()
                     thumb.compress(Bitmap.CompressFormat.JPEG, 70, output)
-                    val base64 = android.util.Base64.encodeToString(output.toByteArray(), android.util.Base64.NO_WRAP)
+                    val base64 =
+                            android.util.Base64.encodeToString(
+                                    output.toByteArray(),
+                                    android.util.Base64.NO_WRAP
+                            )
                     sendMessage(ProtocolHelper.createResponsePreview(path, base64))
                 } else {
                     sendMessage(ProtocolHelper.createResponsePreview(path, null))
@@ -3963,20 +4531,20 @@ class BluetoothService : Service() {
     private suspend fun isDirectoryDispatcher(absPath: String): Boolean {
         val file = File(absPath)
         if (file.exists()) return file.isDirectory
-        
+
         if (isUsingShizuku()) {
             try {
                 ensureUserServiceBound()
                 return userService?.isDirectory(absPath) ?: false
             } catch (_: Exception) {}
         }
-        
+
         if (Shell.getShell().isRoot) {
             val rootPath = translatePathForRoot(absPath)
             val result = Shell.cmd("test -d \"$rootPath\"").exec()
             if (result.isSuccess) return true
         }
-        
+
         val relPath = getRelPath(absPath)
         val doc = getDocumentFileForPath(relPath, false)
         return doc?.isDirectory ?: false
@@ -3987,7 +4555,7 @@ class BluetoothService : Service() {
         if (file.exists() && file.canRead()) {
             return android.graphics.BitmapFactory.decodeFile(file.absolutePath)
         }
-        
+
         var tempFile: File? = null
         try {
             // Use externalCacheDir if available so Shizuku/Shell has better chance of writing to it
@@ -4000,7 +4568,7 @@ class BluetoothService : Service() {
                     copied = userService?.copyFile(absPath, tempFile.absolutePath) ?: false
                 } catch (_: Exception) {}
             }
-            
+
             if (!copied && Shell.getShell().isRoot) {
                 val rootSrc = translatePathForRoot(absPath)
                 val result = Shell.cmd("cp \"$rootSrc\" \"${tempFile.absolutePath}\"").exec()
@@ -4009,25 +4577,29 @@ class BluetoothService : Service() {
                     copied = true
                 }
             }
-            
+
             if (!copied) {
                 val relPath = getRelPath(absPath)
                 val doc = getDocumentFileForPath(relPath, false)
                 if (doc != null && doc.exists() && !doc.isDirectory) {
                     contentResolver.openInputStream(doc.uri)?.use { input ->
-                        tempFile.outputStream().use { output ->
-                            input.copyTo(output)
-                        }
+                        tempFile.outputStream().use { output -> input.copyTo(output) }
                     }
                     copied = true
                 }
             }
-            
+
             if (copied && tempFile.exists()) {
-                android.util.Log.d(TAG, "Successfully copied to temp file: ${tempFile.absolutePath}, size: ${tempFile.length()}")
+                android.util.Log.d(
+                        TAG,
+                        "Successfully copied to temp file: ${tempFile.absolutePath}, size: ${tempFile.length()}"
+                )
                 return android.graphics.BitmapFactory.decodeFile(tempFile.absolutePath)
             } else {
-                 android.util.Log.e(TAG, "Failed to copy to temp file or file does not exist. copied=$copied")
+                android.util.Log.e(
+                        TAG,
+                        "Failed to copy to temp file or file does not exist. copied=$copied"
+                )
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load bitmap from restricted path $absPath: ${e.message}", e)
@@ -4042,24 +4614,28 @@ class BluetoothService : Service() {
         var zipFileToUse = file
         var isTemp = false
         var tempFile: File? = null
-        
+
         if (!file.exists() || !file.canRead()) {
             try {
-                // Use externalCacheDir if available so Shizuku/Shell has better chance of writing to it
+                // Use externalCacheDir if available so Shizuku/Shell has better chance of writing
+                // to it
                 val cacheDirToUse = externalCacheDir ?: cacheDir
                 tempFile = File.createTempFile("pzip_", ".zip", cacheDirToUse)
                 var copied = false
                 if (isUsingShizuku()) {
                     try {
                         ensureUserServiceBound()
-                        android.util.Log.d(TAG, "Attempting Shizuku copy for ZIP preview: $absPath -> ${tempFile.absolutePath}")
+                        android.util.Log.d(
+                                TAG,
+                                "Attempting Shizuku copy for ZIP preview: $absPath -> ${tempFile.absolutePath}"
+                        )
                         copied = userService?.copyFile(absPath, tempFile.absolutePath) ?: false
                         android.util.Log.d(TAG, "Shizuku copy result: $copied")
                     } catch (e: Exception) {
                         android.util.Log.e(TAG, "Shizuku copy failed", e)
                     }
                 }
-                
+
                 if (!copied && Shell.getShell().isRoot) {
                     val rootSrc = translatePathForRoot(absPath)
                     val result = Shell.cmd("cp \"$rootSrc\" \"${tempFile.absolutePath}\"").exec()
@@ -4068,20 +4644,18 @@ class BluetoothService : Service() {
                         copied = true
                     }
                 }
-                
+
                 if (!copied) {
                     val relPath = getRelPath(absPath)
                     val doc = getDocumentFileForPath(relPath, false)
                     if (doc != null && doc.exists() && !doc.isDirectory) {
                         contentResolver.openInputStream(doc.uri)?.use { input ->
-                            tempFile.outputStream().use { output ->
-                                input.copyTo(output)
-                            }
+                            tempFile.outputStream().use { output -> input.copyTo(output) }
                         }
                         copied = true
                     }
                 }
-                
+
                 if (copied) {
                     zipFileToUse = tempFile
                     isTemp = true
@@ -4095,18 +4669,21 @@ class BluetoothService : Service() {
                 return null
             }
         }
-        
+
         return try {
             java.util.zip.ZipFile(zipFileToUse).use { zip ->
                 val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
                 for (c in candidates) {
-                    val entry = zip.entries().asSequence().find { 
-                        it.name.endsWith(c, true) && !it.isDirectory 
-                    }
+                    val entry =
+                            zip.entries().asSequence().find {
+                                it.name.endsWith(c, true) && !it.isDirectory
+                            }
                     if (entry != null) {
-                        zip.getInputStream(entry).use { input ->
-                            android.graphics.BitmapFactory.decodeStream(input)
-                        }?.let { return it }
+                        zip.getInputStream(entry)
+                                .use { input -> android.graphics.BitmapFactory.decodeStream(input) }
+                                ?.let {
+                                    return it
+                                }
                     }
                 }
                 null
@@ -4121,18 +4698,20 @@ class BluetoothService : Service() {
 
     private fun getForegroundApp(): String? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) return null
-        
+
         try {
-            val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
+            val usageStatsManager =
+                    getSystemService(Context.USAGE_STATS_SERVICE) as
+                            android.app.usage.UsageStatsManager
             val endTime = System.currentTimeMillis()
             val startTime = endTime - 5 * 60 * 1000 // Last 5 minutes
-            
+
             val events = usageStatsManager.queryEvents(startTime, endTime)
             val event = android.app.usage.UsageEvents.Event()
-            
+
             var lastPackage: String? = null
             var lastTime: Long = 0
-            
+
             while (events.hasNextEvent()) {
                 events.getNextEvent(event)
                 if (event.eventType == android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND) {
@@ -4151,48 +4730,61 @@ class BluetoothService : Service() {
 
     private fun startBatteryHistoryTracking() {
         batteryHistoryJob?.cancel()
-        
+
         val detailedEnabled = prefs.getBoolean("batt_detailed_log", false)
         val interval = if (detailedEnabled) 2 * 60 * 1000L else 30 * 60 * 1000L // 2 min vs 30 min
-        
-        Log.d(TAG, "Starting battery history tracking. Detailed: $detailedEnabled, Interval: ${interval}ms")
-        
-        batteryHistoryJob = serviceScope.launch(Dispatchers.IO) {
-            while (isActive) {
-                try {
-                    saveBatteryHistoryPoint()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error saving battery history: ${e.message}")
+
+        Log.d(
+                TAG,
+                "Starting battery history tracking. Detailed: $detailedEnabled, Interval: ${interval}ms"
+        )
+
+        batteryHistoryJob =
+                serviceScope.launch(Dispatchers.IO) {
+                    while (isActive) {
+                        try {
+                            saveBatteryHistoryPoint()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error saving battery history: ${e.message}")
+                        }
+                        delay(interval)
+                    }
                 }
-                delay(interval)
-            }
-        }
     }
 
     private fun saveBatteryHistoryPoint() {
         val bm = getSystemService(BATTERY_SERVICE) as BatteryManager
         val level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
         val current = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW).toInt()
-        val batteryStatus: Intent? = IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
-            registerReceiver(null, ifilter)
-        }
+        val batteryStatus: Intent? =
+                IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
+                    registerReceiver(null, ifilter)
+                }
         val voltage = batteryStatus?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) ?: 0
-        
+
         val packageName = getForegroundApp()
-        
-        val newPoint = BatteryHistoryPoint(System.currentTimeMillis(), level, voltage, current, packageName)
-        
+
+        val newPoint =
+                BatteryHistoryPoint(
+                        System.currentTimeMillis(),
+                        level,
+                        voltage,
+                        current,
+                        packageName
+                )
+
         val currentHistoryJson = prefs.getString("battery_history", "[]")
         val type = object : TypeToken<MutableList<BatteryHistoryPoint>>() {}.type
-        val history: MutableList<BatteryHistoryPoint> = Gson().fromJson(currentHistoryJson, type) ?: mutableListOf()
-        
+        val history: MutableList<BatteryHistoryPoint> =
+                Gson().fromJson(currentHistoryJson, type) ?: mutableListOf()
+
         history.add(newPoint)
-        
+
         // Keep last 1000 points (approx 33 hours at 2-min interval, or 20 days at 30-min interval)
         if (history.size > 1000) {
             history.removeAt(0)
         }
-        
+
         prefs.edit().putString("battery_history", Gson().toJson(history)).apply()
     }
 
@@ -4201,21 +4793,27 @@ class BluetoothService : Service() {
         serviceScope.launch(Dispatchers.IO) {
             try {
                 val bm = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
-                
-                val batteryStatus: Intent? = IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
-                    registerReceiver(null, ifilter)
-                }
-                
+
+                val batteryStatus: Intent? =
+                        IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
+                            registerReceiver(null, ifilter)
+                        }
+
                 val level = batteryStatus?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
                 val scale = batteryStatus?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-                val batteryPct = if (level != -1 && scale != -1) (level * 100 / scale.toFloat()).toInt() else 0
-                
+                val batteryPct =
+                        if (level != -1 && scale != -1) (level * 100 / scale.toFloat()).toInt()
+                        else 0
+
                 val status = batteryStatus?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
-                val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
-                
-                val currentNow = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW).toInt()
+                val isCharging =
+                        status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                                status == BatteryManager.BATTERY_STATUS_FULL
+
+                val currentNow =
+                        bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW).toInt()
                 val voltage = batteryStatus?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) ?: 0
-                
+
                 // Estimation
                 var remainingTimeMillis: Long? = null
                 if (isCharging) {
@@ -4226,19 +4824,23 @@ class BluetoothService : Service() {
                 } else {
                     // Current is usually negative when discharging
                     val absCurrent = if (currentNow < 0) -currentNow.toDouble() else 0.0
-                    // Heuristic: If it's > 5000, it's likely microamperes. If < 5000, it might be milliamperes.
-                    val dischargeCurrentMa = if (absCurrent > 5000) absCurrent / 1000.0 else absCurrent
-                    
+                    // Heuristic: If it's > 5000, it's likely microamperes. If < 5000, it might be
+                    // milliamperes.
+                    val dischargeCurrentMa =
+                            if (absCurrent > 5000) absCurrent / 1000.0 else absCurrent
+
                     if (dischargeCurrentMa > 1.0) { // More than 1mA discharge
-                        var chargeCounterMah = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER).toDouble() / 1000.0
-                        
+                        var chargeCounterMah =
+                                bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
+                                        .toDouble() / 1000.0
+
                         // Fallback if chargeCounter is unavailable (returns 0 or very small)
                         if (chargeCounterMah <= 0) {
                             // Assume a typical watch capacity of 300mAh for estimation if unknown
-                            val totalCapacityMah = 300.0 
+                            val totalCapacityMah = 300.0
                             chargeCounterMah = (batteryPct / 100.0) * totalCapacityMah
                         }
-                        
+
                         val hoursRemaining = chargeCounterMah / dischargeCurrentMa
                         if (hoursRemaining in 0.1..500.0) {
                             remainingTimeMillis = (hoursRemaining * 3600 * 1000).toLong()
@@ -4246,19 +4848,38 @@ class BluetoothService : Service() {
                     }
                 }
 
-                val detail = BatteryDetailData(
-                    batteryLevel = batteryPct,
-                    isCharging = isCharging,
-                    currentNow = currentNow,
-                    currentAverage = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE).toInt(),
-                    voltage = voltage,
-                    chargeCounter = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER).toInt(),
-                    energyCounter = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER),
-                    capacity = getBatteryCapacity(),
-                    temperature = batteryStatus?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0) ?: 0,
-                    remainingTimeMillis = remainingTimeMillis
-                )
-                
+                val detail =
+                        BatteryDetailData(
+                                batteryLevel = batteryPct,
+                                isCharging = isCharging,
+                                currentNow = currentNow,
+                                currentAverage =
+                                        bm.getLongProperty(
+                                                        BatteryManager
+                                                                .BATTERY_PROPERTY_CURRENT_AVERAGE
+                                                )
+                                                .toInt(),
+                                voltage = voltage,
+                                chargeCounter =
+                                        bm.getLongProperty(
+                                                        BatteryManager
+                                                                .BATTERY_PROPERTY_CHARGE_COUNTER
+                                                )
+                                                .toInt(),
+                                energyCounter =
+                                        bm.getLongProperty(
+                                                BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER
+                                        ),
+                                capacity = getBatteryCapacity(),
+                                temperature =
+                                        batteryStatus?.getIntExtra(
+                                                BatteryManager.EXTRA_TEMPERATURE,
+                                                0
+                                        )
+                                                ?: 0,
+                                remainingTimeMillis = remainingTimeMillis
+                        )
+
                 sendMessage(ProtocolHelper.createBatteryDetailUpdate(detail))
             } catch (e: Exception) {
                 Log.e(TAG, "Error collecting live battery data: ${e.message}")
@@ -4272,62 +4893,74 @@ class BluetoothService : Service() {
             try {
                 // Collect App Usage
                 val appUsage = collectAppUsage()
-                
+
                 // Get History
                 val currentHistoryJson = prefs.getString("battery_history", "[]")
                 val type = object : TypeToken<List<BatteryHistoryPoint>>() {}.type
-                val history: List<BatteryHistoryPoint> = Gson().fromJson(currentHistoryJson, type) ?: emptyList()
+                val history: List<BatteryHistoryPoint> =
+                        Gson().fromJson(currentHistoryJson, type) ?: emptyList()
 
-                val detail = BatteryDetailData(
-                    batteryLevel = 0,
-                    isCharging = false,
-                    currentNow = 0,
-                    currentAverage = 0,
-                    voltage = 0,
-                    chargeCounter = 0,
-                    energyCounter = 0L,
-                    capacity = getBatteryCapacity(),
-                    appUsage = appUsage,
-                    history = history
-                )
-                
+                val detail =
+                        BatteryDetailData(
+                                batteryLevel = 0,
+                                isCharging = false,
+                                currentNow = 0,
+                                currentAverage = 0,
+                                voltage = 0,
+                                chargeCounter = 0,
+                                energyCounter = 0L,
+                                capacity = getBatteryCapacity(),
+                                appUsage = appUsage,
+                                history = history
+                        )
+
                 sendMessage(ProtocolHelper.createBatteryDetailUpdate(detail))
             } catch (e: Exception) {
                 Log.e(TAG, "Error collecting static battery data: ${e.message}")
             }
         }
     }
-    
+
     @Suppress("DEPRECATION")
     private suspend fun collectAppUsage(): List<AppUsageData> {
-        val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
+        val usageStatsManager =
+                getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
         val endTime = System.currentTimeMillis()
         val startTime = endTime - 24 * 60 * 60 * 1000 // Last 24 hours
-        
-        val usageStats = try {
-            usageStatsManager.queryUsageStats(android.app.usage.UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error querying usage stats (permission likely missing): ${e.message}")
-            return emptyList()
-        }
-        
+
+        val usageStats =
+                try {
+                    usageStatsManager.queryUsageStats(
+                            android.app.usage.UsageStatsManager.INTERVAL_DAILY,
+                            startTime,
+                            endTime
+                    )
+                } catch (e: Exception) {
+                    Log.e(
+                            TAG,
+                            "Error querying usage stats (permission likely missing): ${e.message}"
+                    )
+                    return emptyList()
+                }
+
         if (usageStats.isNullOrEmpty()) return emptyList()
-        
+
         // Map packageName -> Pair(powerMah, drainSpeed)
         val batteryStatsMap = mutableMapOf<String, Pair<Double, Double>>()
-        
+
         // -------------------------------------------------------------------------
         // METHOD 1: BatteryStatsManager via Reflection (Android 12+)
         // -------------------------------------------------------------------------
         if (android.os.Build.VERSION.SDK_INT >= 31) {
             try {
-                // Log.d(TAG, "Attempting to get battery stats via REFLECTION (Android ${android.os.Build.VERSION.SDK_INT})")
-                @SuppressLint("WrongConstant") 
+                // Log.d(TAG, "Attempting to get battery stats via REFLECTION (Android
+                // ${android.os.Build.VERSION.SDK_INT})")
+                @SuppressLint("WrongConstant")
                 val batteryStatsManager = getSystemService("batterystats")
-                
+
                 val queryClass = Class.forName("android.os.BatteryUsageStatsQuery")
                 val queryBuilderClass = Class.forName("android.os.BatteryUsageStatsQuery\$Builder")
-                
+
                 // Find constructor (handle hidden/different signatures)
                 var builderConstructor: java.lang.reflect.Constructor<*>? = null
                 try {
@@ -4336,51 +4969,69 @@ class BluetoothService : Service() {
                         builderConstructor = personConstructors[0]
                     }
                 } catch (e: Exception) {}
-                
+
                 if (builderConstructor == null) {
                     builderConstructor = queryBuilderClass.getDeclaredConstructor()
                 }
-                
+
                 builderConstructor?.isAccessible = true
                 val builder = builderConstructor?.newInstance()
-                
-                try { queryBuilderClass.getMethod("includeProcessStateData").invoke(builder) } catch (_: Exception) {}
-                
+
+                try {
+                    queryBuilderClass.getMethod("includeProcessStateData").invoke(builder)
+                } catch (_: Exception) {}
+
                 val query = queryBuilderClass.getMethod("build").invoke(builder)
-                
-                val getBatteryUsageStatsMethod = batteryStatsManager.javaClass.getMethod("getBatteryUsageStats", queryClass)
+
+                val getBatteryUsageStatsMethod =
+                        batteryStatsManager.javaClass.getMethod("getBatteryUsageStats", queryClass)
                 val batteryUsageStats = getBatteryUsageStatsMethod.invoke(batteryStatsManager)
-                
-                val getUidBatteryConsumersMethod = batteryUsageStats.javaClass.getMethod("getUidBatteryConsumers")
-                val uidBatteryConsumers = getUidBatteryConsumersMethod.invoke(batteryUsageStats) as? List<*>
-                
+
+                val getUidBatteryConsumersMethod =
+                        batteryUsageStats.javaClass.getMethod("getUidBatteryConsumers")
+                val uidBatteryConsumers =
+                        getUidBatteryConsumersMethod.invoke(batteryUsageStats) as? List<*>
+
                 uidBatteryConsumers?.forEach { consumer ->
                     try {
                         if (consumer != null) {
                             val getUidMethod = consumer.javaClass.getMethod("getUid")
                             val uid = getUidMethod.invoke(consumer) as Int
                             val packageName = packageManager.getNameForUid(uid)
-                            
+
                             if (packageName != null) {
-                                val getConsumedPowerMethod = consumer.javaClass.getMethod("getConsumedPower")
-                                val consumedPowerMah = getConsumedPowerMethod.invoke(consumer) as Double
-                                
+                                val getConsumedPowerMethod =
+                                        consumer.javaClass.getMethod("getConsumedPower")
+                                val consumedPowerMah =
+                                        getConsumedPowerMethod.invoke(consumer) as Double
+
                                 if (consumedPowerMah > 0) {
-                                    val appUsageStat = usageStats.find { it.packageName == packageName }
-                                    val hoursForeground = (appUsageStat?.totalTimeInForeground ?: 0L) / (1000.0 * 3600.0)
-                                    val drainSpeed = if (hoursForeground > 0.01) consumedPowerMah / hoursForeground else 0.0
-                                    batteryStatsMap[packageName] = Pair(consumedPowerMah, drainSpeed)
+                                    val appUsageStat =
+                                            usageStats.find { it.packageName == packageName }
+                                    val hoursForeground =
+                                            (appUsageStat?.totalTimeInForeground
+                                                    ?: 0L) / (1000.0 * 3600.0)
+                                    val drainSpeed =
+                                            if (hoursForeground > 0.01)
+                                                    consumedPowerMah / hoursForeground
+                                            else 0.0
+                                    batteryStatsMap[packageName] =
+                                            Pair(consumedPowerMah, drainSpeed)
                                 }
                             }
                         }
                     } catch (_: Exception) {}
                 }
-                if (batteryStatsMap.isNotEmpty()) Log.d(TAG, "✅ Success: Retrieved battery stats via Reflection")
+                if (batteryStatsMap.isNotEmpty())
+                        Log.d(TAG, "✅ Success: Retrieved battery stats via Reflection")
             } catch (e: Exception) {
-                Log.e(TAG, "Reflective BatteryStatsManager failed, trying next method: ${e.message}")
+                Log.e(
+                        TAG,
+                        "Reflective BatteryStatsManager failed, trying next method: ${e.message}"
+                )
             }
         }
-        
+
         // -------------------------------------------------------------------------
         // METHOD 2: Direct Dumpsys (If app has permissions)
         // -------------------------------------------------------------------------
@@ -4388,59 +5039,84 @@ class BluetoothService : Service() {
         // METHOD 2: SystemHealthManager (Requires BATTERY_STATS)
         // -------------------------------------------------------------------------
         if (batteryStatsMap.isEmpty()) {
-            if (checkSelfPermission(android.Manifest.permission.BATTERY_STATS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            if (checkSelfPermission(android.Manifest.permission.BATTERY_STATS) ==
+                            android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
                 try {
                     Log.d(TAG, "Attempting SystemHealthManager (Method 2)...")
-                    val healthStatsManager = getSystemService(android.content.Context.SYSTEM_HEALTH_SERVICE) as? android.os.health.SystemHealthManager
-                    
+                    val healthStatsManager =
+                            getSystemService(android.content.Context.SYSTEM_HEALTH_SERVICE) as?
+                                    android.os.health.SystemHealthManager
+
                     if (healthStatsManager != null) {
                         // 1. Get all installed UIDs
                         val pm = packageManager
                         val installedPackages = pm.getInstalledPackages(0)
                         val validPackages = installedPackages.filter { it.applicationInfo != null }
-                        val uids = validPackages.mapNotNull { it.applicationInfo?.uid }.distinct().toIntArray()
-                        
+                        val uids =
+                                validPackages
+                                        .mapNotNull { it.applicationInfo?.uid }
+                                        .distinct()
+                                        .toIntArray()
+
                         // 2. Take Snapshot
                         Log.d(TAG, "Requesting HealthStats for ${uids.size} UIDs...")
                         val healthStats = healthStatsManager.takeUidSnapshots(uids)
-                        
+
                         // 3. Process Results
                         healthStats.forEachIndexed { index, stats ->
                             if (stats != null) {
                                 val uid = uids[index]
-                                
-                                // Direct constants for CPU Timers (Not exposed in UidHealthStats public API consistently)
+
+                                // Direct constants for CPU Timers (Not exposed in UidHealthStats
+                                // public API consistently)
                                 val TIMER_CPU_USER_MS = 10061
                                 val TIMER_CPU_SYSTEM_MS = 10062
-                                
+
                                 var cpuMs = 0L
-                                
+
                                 // Helper to safely get timer
                                 fun getTime(key: Int): Long {
                                     return if (stats.hasTimer(key)) stats.getTimerTime(key) else 0L
                                 }
                                 fun getMeasurement(key: Int): Long {
-                                     return if (stats.hasMeasurement(key)) stats.getMeasurement(key) else 0L
+                                    return if (stats.hasMeasurement(key)) stats.getMeasurement(key)
+                                    else 0L
                                 }
-                                
+
                                 // Probe other keys
                                 val TIMER_PROCESS_STATE_TOP_MS = 10038
                                 val MEASUREMENT_REALTIME_BATTERY_MS = 10001
-                                
+
                                 val fgMs = getTime(TIMER_PROCESS_STATE_TOP_MS)
                                 val realTime = getMeasurement(MEASUREMENT_REALTIME_BATTERY_MS)
-                                
+
                                 // Debug logging for the first few items to see what's happening
                                 if (index < 5) {
-                                     Log.d(TAG, "UID=$uid CPU_USER=${getTime(TIMER_CPU_USER_MS)} CPU_SYSTEM=${getTime(TIMER_CPU_SYSTEM_MS)}")
-                                     Log.d(TAG, "Has USER_MS: ${stats.hasTimer(TIMER_CPU_USER_MS)} Has SYSTEM_MS: ${stats.hasTimer(TIMER_CPU_SYSTEM_MS)}")
-                                     Log.d(TAG, "FG_MS=$fgMs Has FG: ${stats.hasTimer(TIMER_PROCESS_STATE_TOP_MS)}")
-                                     Log.d(TAG, "REALTIME=$realTime Has REALTIME: ${stats.hasMeasurement(MEASUREMENT_REALTIME_BATTERY_MS)}")
+                                    Log.d(
+                                            TAG,
+                                            "UID=$uid CPU_USER=${getTime(TIMER_CPU_USER_MS)} CPU_SYSTEM=${getTime(TIMER_CPU_SYSTEM_MS)}"
+                                    )
+                                    Log.d(
+                                            TAG,
+                                            "Has USER_MS: ${stats.hasTimer(TIMER_CPU_USER_MS)} Has SYSTEM_MS: ${stats.hasTimer(TIMER_CPU_SYSTEM_MS)}"
+                                    )
+                                    Log.d(
+                                            TAG,
+                                            "FG_MS=$fgMs Has FG: ${stats.hasTimer(TIMER_PROCESS_STATE_TOP_MS)}"
+                                    )
+                                    Log.d(
+                                            TAG,
+                                            "REALTIME=$realTime Has REALTIME: ${stats.hasMeasurement(MEASUREMENT_REALTIME_BATTERY_MS)}"
+                                    )
                                 }
-                                
+
                                 if (cpuMs > 0) {
                                     // Map UID back to Package Name
-                                    val pkgName = validPackages.firstOrNull { it.applicationInfo?.uid == uid }?.packageName
+                                    val pkgName =
+                                            validPackages
+                                                    .firstOrNull { it.applicationInfo?.uid == uid }
+                                                    ?.packageName
                                     if (pkgName != null) {
                                         // Calculate Power: cpuMs * AVG_CPU_mA / 3600000
                                         val AVG_CPU_mA = 150.0
@@ -4450,17 +5126,23 @@ class BluetoothService : Service() {
                                 }
                             }
                         }
-                            if (batteryStatsMap.isEmpty()) {
-                                Log.d(TAG, "SystemHealthManager returned valid stats but map empty after filtering.")
-                            } else {
-                                Log.d(TAG, "✅ Success: Retrieved ${batteryStatsMap.size} items via SystemHealthManager")
-                            }
-                         }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "SystemHealthManager failed: ${e.message}")
+                        if (batteryStatsMap.isEmpty()) {
+                            Log.d(
+                                    TAG,
+                                    "SystemHealthManager returned valid stats but map empty after filtering."
+                            )
+                        } else {
+                            Log.d(
+                                    TAG,
+                                    "✅ Success: Retrieved ${batteryStatsMap.size} items via SystemHealthManager"
+                            )
+                        }
                     }
+                } catch (e: Exception) {
+                    Log.e(TAG, "SystemHealthManager failed: ${e.message}")
+                }
             } else {
-                 Log.d(TAG, "Skipping Method 2: BATTERY_STATS permission not granted.")
+                Log.d(TAG, "Skipping Method 2: BATTERY_STATS permission not granted.")
             }
         }
 
@@ -4468,31 +5150,39 @@ class BluetoothService : Service() {
         // METHOD 3: Direct Dumpsys (Legacy / Fallback)
         // -------------------------------------------------------------------------
         if (batteryStatsMap.isEmpty()) {
-            if (checkSelfPermission(android.Manifest.permission.DUMP) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                 try {
+            if (checkSelfPermission(android.Manifest.permission.DUMP) ==
+                            android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                try {
                     Log.d(TAG, "Attempting direct dumpsys batterystats (Method 3)...")
                     val process = Runtime.getRuntime().exec("dumpsys batterystats --checkin")
                     val output = process.inputStream.bufferedReader().use { it.readText() }
-                    // val error = process.errorStream.bufferedReader().use { it.readText() } // Optional: read stderr if needed
+                    // val error = process.errorStream.bufferedReader().use { it.readText() } //
+                    // Optional: read stderr if needed
                     val exitCode = process.waitFor()
 
                     if (exitCode == 0 && output.isNotEmpty()) {
-                        if (output.contains("9,0,l,cpu", ignoreCase = true) || output.contains(",l,cpu,", ignoreCase = true)) {
-                             parseDumpsysBatteryStats(output).forEach { (pkg, power) ->
-                                 batteryStatsMap[pkg] = Pair(power, 0.0)
+                        if (output.contains("9,0,l,cpu", ignoreCase = true) ||
+                                        output.contains(",l,cpu,", ignoreCase = true)
+                        ) {
+                            parseDumpsysBatteryStats(output).forEach { (pkg, power) ->
+                                batteryStatsMap[pkg] = Pair(power, 0.0)
                             }
                             if (batteryStatsMap.isNotEmpty()) {
                                 Log.d(TAG, "✅ Success: Retrieved battery stats via Direct Dumpsys")
                             }
                         }
                     } else {
-                         Log.d(TAG, "Direct Dumpsys failed or empty (Exit: $exitCode, Len: ${output.length})")
+                        Log.d(
+                                TAG,
+                                "Direct Dumpsys failed or empty (Exit: $exitCode, Len: ${output.length})"
+                        )
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Direct dumpsys failed: ${e.message}")
                 }
             } else {
-                 Log.d(TAG, "Skipping Method 3: DUMP permission not granted.")
+                Log.d(TAG, "Skipping Method 3: DUMP permission not granted.")
             }
         }
 
@@ -4503,134 +5193,151 @@ class BluetoothService : Service() {
             if (isUsingShizuku()) {
                 try {
                     ensureUserServiceBound()
-                    val dumpOutput = userService?.runShellCommandWithOutput("dumpsys batterystats --checkin")
+                    val dumpOutput =
+                            userService?.runShellCommandWithOutput("dumpsys batterystats --checkin")
                     if (!dumpOutput.isNullOrEmpty()) {
                         parseDumpsysBatteryStats(dumpOutput).forEach { (pkg, power) ->
-                             batteryStatsMap[pkg] = Pair(power, 0.0)
+                            batteryStatsMap[pkg] = Pair(power, 0.0)
                         }
-                        if (batteryStatsMap.isNotEmpty()) Log.d(TAG, "✅ Success: Retrieved battery stats via Shizuku")
+                        if (batteryStatsMap.isNotEmpty())
+                                Log.d(TAG, "✅ Success: Retrieved battery stats via Shizuku")
                     }
                 } catch (e: Exception) {
-                     Log.e(TAG, "Shizuku dumpsys failed: ${e.message}")
+                    Log.e(TAG, "Shizuku dumpsys failed: ${e.message}")
                 }
             } else if (Shell.getShell().isRoot) {
-                 try {
-                     val result = Shell.cmd("dumpsys batterystats --checkin").exec()
-                     if (result.isSuccess) {
-                         val dumpOutput = result.out.joinToString("\n")
-                         parseDumpsysBatteryStats(dumpOutput).forEach { (pkg, power) ->
-                             batteryStatsMap[pkg] = Pair(power, 0.0)
+                try {
+                    val result = Shell.cmd("dumpsys batterystats --checkin").exec()
+                    if (result.isSuccess) {
+                        val dumpOutput = result.out.joinToString("\n")
+                        parseDumpsysBatteryStats(dumpOutput).forEach { (pkg, power) ->
+                            batteryStatsMap[pkg] = Pair(power, 0.0)
                         }
-                        if (batteryStatsMap.isNotEmpty()) Log.d(TAG, "✅ Success: Retrieved battery stats via Root")
-                     }
-                 } catch (e: Exception) {
-                     Log.e(TAG, "Root dumpsys failed: ${e.message}")
-                 }
+                        if (batteryStatsMap.isNotEmpty())
+                                Log.d(TAG, "✅ Success: Retrieved battery stats via Root")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Root dumpsys failed: ${e.message}")
+                }
             }
         }
-        
+
         // -------------------------------------------------------------------------
         // METHOD 4: FALLBACK (Heuristic / Fake Data)
         // -------------------------------------------------------------------------
         if (batteryStatsMap.isEmpty()) {
             Log.e(TAG, "⚠️⚠️⚠️ WARNING WARNING WARNING ⚠️⚠️⚠️")
             Log.e(TAG, "USING FAKE (SIMULATED) BATTERY DATA!")
-            Log.e(TAG, "Could not retrieve real battery stats via API, Direct Dumpsys, Shizuku, or Root.")
-            Log.e(TAG, "The values shown below are ESTIMATED based on foreground time + random variation.")
+            Log.e(
+                    TAG,
+                    "Could not retrieve real battery stats via API, Direct Dumpsys, Shizuku, or Root."
+            )
+            Log.e(
+                    TAG,
+                    "The values shown below are ESTIMATED based on foreground time + random variation."
+            )
             Log.e(TAG, "⚠️⚠️⚠️ WARNING WARNING WARNING ⚠️⚠️⚠️")
         }
-        
+
         // Final Fallback: Estimated heuristic
         val useFallback = batteryStatsMap.isEmpty()
-        
-        return usageStats.asSequence()
-            .filter { it.totalTimeInForeground > 0 }
-            .sortedByDescending { it.totalTimeInForeground }
-            .take(15)
-            .map { stats ->
-                var name = stats.packageName
-                var iconBase64: String? = null
-                try {
-                    val appInfo = packageManager.getApplicationInfo(stats.packageName, 0)
-                    name = packageManager.getApplicationLabel(appInfo).toString()
-                    val icon = packageManager.getApplicationIcon(appInfo)
-                    val bitmap = icon.toBitmap(48, 48)
-                    val stream = ByteArrayOutputStream()
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
-                    iconBase64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
-                } catch (_: Exception) {}
-                
-                var powerMah = 0.0
-                var drainSpeed = 0.0
-                
-                // Calculate hours for drain speed in all cases
-                val hours = stats.totalTimeInForeground / (1000.0 * 3600.0)
 
-                if (batteryStatsMap.containsKey(stats.packageName)) {
-                    // Use real data
-                    val s = batteryStatsMap[stats.packageName]!!
-                    powerMah = s.first
-                    // Calculate drain speed: Total Power / Foreground Time
-                    if (hours > 0.0001) {
-                         drainSpeed = powerMah / hours
+        return usageStats
+                .asSequence()
+                .filter { it.totalTimeInForeground > 0 }
+                .sortedByDescending { it.totalTimeInForeground }
+                .take(15)
+                .map { stats ->
+                    var name = stats.packageName
+                    var iconBase64: String? = null
+                    try {
+                        val appInfo = packageManager.getApplicationInfo(stats.packageName, 0)
+                        name = packageManager.getApplicationLabel(appInfo).toString()
+                        val icon = packageManager.getApplicationIcon(appInfo)
+                        val bitmap = icon.toBitmap(48, 48)
+                        val stream = ByteArrayOutputStream()
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+                        iconBase64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
+                    } catch (_: Exception) {}
+
+                    var powerMah = 0.0
+                    var drainSpeed = 0.0
+
+                    // Calculate hours for drain speed in all cases
+                    val hours = stats.totalTimeInForeground / (1000.0 * 3600.0)
+
+                    if (batteryStatsMap.containsKey(stats.packageName)) {
+                        // Use real data
+                        val s = batteryStatsMap[stats.packageName]!!
+                        powerMah = s.first
+                        // Calculate drain speed: Total Power / Foreground Time
+                        if (hours > 0.0001) {
+                            drainSpeed = powerMah / hours
+                        } else {
+                            drainSpeed = 0.0 // Avoid division by zero or unrealistic huge speed
+                        }
+                    } else if (!useFallback) {
+                        // Real data was found for OTHER apps, but not this one.
+                        // Strict mode: Assume 0 usage for this app.
+                        powerMah = 0.0
+                        drainSpeed = 0.0
                     } else {
-                         drainSpeed = 0.0 // Avoid division by zero or unrealistic huge speed
-                    }
-                } else if (!useFallback) {
-                    // Real data was found for OTHER apps, but not this one.
-                    // Strict mode: Assume 0 usage for this app.
-                    powerMah = 0.0
-                    drainSpeed = 0.0
-                } else {
-                     // ⚠️ FAKE DATA GENERATION ⚠️ (Only if useFallback == true)
-                     val hours = stats.totalTimeInForeground / (1000.0 * 3600.0)
-                     
-                     // Deterministic "random" variation
-                     val hash = stats.packageName.hashCode()
-                     val variance = (hash % 50) - 25 // -25 to +25 mA
-                     var baseDrainRate = 100.0 + variance // ~100mA average
-                     if (baseDrainRate < 20) baseDrainRate = 20.0
-                     
-                     drainSpeed = baseDrainRate
-                     powerMah = drainSpeed * hours
-                     
-                     Log.w(TAG, "USING FAKE DATA for ${stats.packageName}: DrainRate=$drainSpeed mAh/h, EstPower=$powerMah mAh")
-                }
+                        // ⚠️ FAKE DATA GENERATION ⚠️ (Only if useFallback == true)
+                        val hours = stats.totalTimeInForeground / (1000.0 * 3600.0)
 
-                AppUsageData(
-                    packageName = stats.packageName,
-                    name = name,
-                    usageTimeMillis = stats.totalTimeInForeground,
-                    icon = iconBase64,
-                    batteryPowerMah = powerMah,
-                    drainSpeed = drainSpeed
-                )
-            }.toList()
+                        // Deterministic "random" variation
+                        val hash = stats.packageName.hashCode()
+                        val variance = (hash % 50) - 25 // -25 to +25 mA
+                        var baseDrainRate = 100.0 + variance // ~100mA average
+                        if (baseDrainRate < 20) baseDrainRate = 20.0
+
+                        drainSpeed = baseDrainRate
+                        powerMah = drainSpeed * hours
+
+                        Log.w(
+                                TAG,
+                                "USING FAKE DATA for ${stats.packageName}: DrainRate=$drainSpeed mAh/h, EstPower=$powerMah mAh"
+                        )
+                    }
+
+                    AppUsageData(
+                            packageName = stats.packageName,
+                            name = name,
+                            usageTimeMillis = stats.totalTimeInForeground,
+                            icon = iconBase64,
+                            batteryPowerMah = powerMah,
+                            drainSpeed = drainSpeed
+                    )
+                }
+                .toList()
     }
 
     private fun handleUpdateBatterySettings(message: ProtocolMessage) {
         val settings = ProtocolHelper.extractData<BatterySettingsData>(message)
-            prefs.edit().apply {
-                putBoolean("batt_notify_full", settings.notifyFull)
-                putBoolean("batt_notify_low", settings.notifyLow)
-                putInt("batt_low_threshold", settings.lowThreshold)
-                putBoolean("batt_detailed_log", settings.detailedLogEnabled)
-            }.apply()
-            
-            // Restart tracking with new settings (interval might change)
-            startBatteryHistoryTracking()
-        
+        prefs.edit()
+                .apply {
+                    putBoolean("batt_notify_full", settings.notifyFull)
+                    putBoolean("batt_notify_low", settings.notifyLow)
+                    putInt("batt_low_threshold", settings.lowThreshold)
+                    putBoolean("batt_detailed_log", settings.detailedLogEnabled)
+                }
+                .apply()
+
+        // Restart tracking with new settings (interval might change)
+        startBatteryHistoryTracking()
+
         // Trigger an immediate check
         checkBatteryStateForNotification()
     }
 
     private var lastBatteryLevel = -1
     private var lastChargingState = false
-    
+
     private fun checkBatteryStateForNotification() {
-        val batteryStatus: Intent? = IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
-            registerReceiver(null, ifilter)
-        }
+        val batteryStatus: Intent? =
+                IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
+                    registerReceiver(null, ifilter)
+                }
         if (batteryStatus != null) {
             handleBatteryChanged(batteryStatus)
         }
@@ -4640,20 +5347,22 @@ class BluetoothService : Service() {
         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
         val batteryPct = (level * 100 / scale.toFloat()).toInt()
-        
+
         val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-        val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL
+        val isCharging =
+                status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                        status == BatteryManager.BATTERY_STATUS_FULL
         val temperature = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 0)
 
         if (batteryPct != lastBatteryLevel || isCharging != lastChargingState) {
             lastBatteryLevel = batteryPct
             lastChargingState = isCharging
-            
+
             // Notification logic
             val notifyFull = prefs.getBoolean("batt_notify_full", false)
             val notifyLow = prefs.getBoolean("batt_notify_low", false)
             val lowThreshold = prefs.getInt("batt_low_threshold", 20)
-            
+
             if (notifyFull && batteryPct >= 100 && isCharging) {
                 if (isConnected) {
                     sendMessage(ProtocolHelper.createBatteryAlert("FULL", batteryPct))
@@ -4669,17 +5378,20 @@ class BluetoothService : Service() {
     private fun getBatteryCapacity(): Double {
         try {
             val powerProfileClass = "com.android.internal.os.PowerProfile"
-            val mPowerProfile = Class.forName(powerProfileClass)
-                .getConstructor(Context::class.java)
-                .newInstance(this)
-            val batteryCapacity = Class.forName(powerProfileClass)
-                .getMethod("getBatteryCapacity")
-                .invoke(mPowerProfile) as Double
+            val mPowerProfile =
+                    Class.forName(powerProfileClass)
+                            .getConstructor(Context::class.java)
+                            .newInstance(this)
+            val batteryCapacity =
+                    Class.forName(powerProfileClass)
+                            .getMethod("getBatteryCapacity")
+                            .invoke(mPowerProfile) as
+                            Double
             if (batteryCapacity > 0) return batteryCapacity
         } catch (e: Exception) {
             Log.w(TAG, "Error getting capacity via PowerProfile: ${e.message}")
         }
-        
+
         try {
             val id = resources.getIdentifier("config_batteryCapacity", "dimen", "android")
             if (id > 0) {
@@ -4689,35 +5401,37 @@ class BluetoothService : Service() {
         } catch (e: Exception) {
             Log.w(TAG, "Error getting capacity via dimensions: ${e.message}")
         }
-        
+
         return 0.0
     }
 
     private fun handleIncomingCall(message: ProtocolMessage) {
         val number = ProtocolHelper.extractStringField(message, "number") ?: "Unknown"
         val callerId = ProtocolHelper.extractStringField(message, "callerId")
-        
+
         Log.d(TAG, "Incoming call: $number ($callerId)")
-        
-        val intent = Intent(this, CallActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            putExtra("number", number)
-            putExtra("callerId", callerId)
-        }
+
+        val intent =
+                Intent(this, CallActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    putExtra("number", number)
+                    putExtra("callerId", callerId)
+                }
         startActivity(intent)
     }
 
     private fun handleCallStateChanged(message: ProtocolMessage) {
         val state = ProtocolHelper.extractStringField(message, "state")
         Log.d(TAG, "Call state changed: $state")
-        
+
         // Notify CallActivity to close if it's idle
-        val intent = Intent(this, CallActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            putExtra("state", state)
-        }
+        val intent =
+                Intent(this, CallActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    putExtra("state", state)
+                }
         startActivity(intent)
     }
 
@@ -4725,49 +5439,52 @@ class BluetoothService : Service() {
         val stats = mutableMapOf<String, Double>()
         // Map uid -> cpu time
         val uidCpuTime = mutableMapOf<Int, Long>()
-        
+
         output.lines().forEach { line ->
             // Format: 9,0,l,cpu,user_ms,system_ms,power_ma (fake?)
             // Real Format from checkin: 9,uid,l,cpu,user_ms,system_ms,0
             // Example: 9,10383,l,cpu,3468,1776,0
-            
+
             val parts = line.split(",")
             if (parts.size >= 7 && parts[2] == "l" && parts[3] == "cpu") {
-                 try {
-                     val uid = parts[1].toInt()
-                     val userMs = parts[4].toLong()
-                     val systemMs = parts[5].toLong()
-                     uidCpuTime[uid] = userMs + systemMs
-                 } catch (_: Exception) {}
+                try {
+                    val uid = parts[1].toInt()
+                    val userMs = parts[4].toLong()
+                    val systemMs = parts[5].toLong()
+                    uidCpuTime[uid] = userMs + systemMs
+                } catch (_: Exception) {}
             }
         }
-        
+
         if (uidCpuTime.isEmpty()) return emptyMap()
-        
+
         // Estimate power from CPU time
         // Assumption: Active CPU consumes ~100-200mA average. Let's pick 150mA.
         // Power (mAh) = (Time (ms) / 3600000) * 150 mA
         val AVG_CPU_mA = 150.0
-        
+
         uidCpuTime.forEach { (uid, timeMs) ->
             val powerMah = (timeMs / 3600000.0) * AVG_CPU_mA
             val pkgName = packageManager.getNameForUid(uid)
-            if (pkgName != null && powerMah > 0.0) { 
+            if (pkgName != null && powerMah > 0.0) {
                 stats[pkgName] = powerMah
             }
         }
-        
+
         return stats
     }
 
     private fun handleMirrorStart(message: ProtocolMessage) {
         val data = ProtocolHelper.extractData<MirrorStartData>(message)
-        Log.d(TAG, "handleMirrorStart: isRequest=${data.isRequest}, width=${data.width}, height=${data.height}, mode=${data.mode}")
-        
+        Log.d(
+                TAG,
+                "handleMirrorStart: isRequest=${data.isRequest}, width=${data.width}, height=${data.height}, mode=${data.mode}"
+        )
+
         if (data.isRequest) {
             // Other device wants to view US.
             Log.d(TAG, "Mirror request received: ${data.width}x${data.height} mode=${data.mode}")
-            
+
             // Apply resolution first if matching is requested
             if (data.width > 0 && data.height > 0) {
                 // Construct temporary resolution message
@@ -4777,24 +5494,31 @@ class BluetoothService : Service() {
                 resData.addProperty("density", data.dpi)
                 resData.addProperty("reset", false)
                 resData.addProperty("mode", data.mode)
-                
-                val resMessage = ProtocolMessage(type = MessageType.UPDATE_RESOLUTION, data = resData)
+
+                val resMessage =
+                        ProtocolMessage(type = MessageType.UPDATE_RESOLUTION, data = resData)
                 handleUpdateResolution(resMessage)
             }
 
-            val intent = Intent(this, MirrorSettingsActivity::class.java).apply {
-                putExtra("request_mirror", true)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            }
+            val intent =
+                    Intent(this, MirrorSettingsActivity::class.java).apply {
+                        putExtra("request_mirror", true)
+                        addFlags(
+                                Intent.FLAG_ACTIVITY_NEW_TASK or
+                                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        )
+                    }
             startActivity(intent)
         } else {
             // Other device is streaming TO us. Open MirrorActivity.
             Log.d(TAG, "Incoming mirror stream: ${data.width}x${data.height}")
-            val intent = Intent(this, MirrorActivity::class.java).apply {
-                putExtra("width", data.width)
-                putExtra("height", data.height)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
+            val intent =
+                    Intent(this, MirrorActivity::class.java).apply {
+                        putExtra("width", data.width)
+                        putExtra("height", data.height)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
             startActivity(intent)
         }
     }
@@ -4814,8 +5538,11 @@ class BluetoothService : Service() {
 
     private fun handleRemoteInput(message: ProtocolMessage) {
         val data = ProtocolHelper.extractData<RemoteInputData>(message)
-        Log.d(TAG, "Forwarding touch event to accessibility service: action=${data.action}, x=${data.x}, y=${data.y}")
-        
+        Log.d(
+                TAG,
+                "Forwarding touch event to accessibility service: action=${data.action}, x=${data.x}, y=${data.y}"
+        )
+
         val intent = Intent("com.ailife.rtosifycompanion.DISPATCH_REMOTE_INPUT")
         intent.setPackage(packageName) // Make it explicit for Android 14+
         intent.putExtra("action", data.action)
@@ -4840,17 +5567,23 @@ class BluetoothService : Service() {
                     if (data.mode == ResolutionData.MODE_ASPECT) {
                         // Calculate aspect ratio matching (Watch mode: expand short axis)
                         val metrics = android.util.DisplayMetrics()
-                        val windowManager = getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+                        val windowManager =
+                                getSystemService(Context.WINDOW_SERVICE) as
+                                        android.view.WindowManager
                         windowManager.defaultDisplay.getRealMetrics(metrics)
-                        
+
                         val physW = metrics.widthPixels
                         val physH = metrics.heightPixels
                         val targetAspect = data.width.toFloat() / data.height.toFloat()
-                        
-                        Log.d(TAG, "Aspect Matching: Physical=${physW}x${physH}, TargetAspect=$targetAspect")
-                        
+
+                        Log.d(
+                                TAG,
+                                "Aspect Matching: Physical=${physW}x${physH}, TargetAspect=$targetAspect"
+                        )
+
                         // For watch, we "expand the axis that is short"
-                        // If current aspect is wider than target aspect, height is relatively short -> expand height
+                        // If current aspect is wider than target aspect, height is relatively short
+                        // -> expand height
                         if (physW.toFloat() / physH.toFloat() > targetAspect) {
                             // Expand height: H' = W / targetAspect
                             targetW = physW
@@ -4864,14 +5597,17 @@ class BluetoothService : Service() {
                     }
 
                     if (targetW > 0 && targetH > 0) {
-                        Log.d(TAG, "Setting resolution to ${targetW}x${targetH} (mode=${data.mode})")
+                        Log.d(
+                                TAG,
+                                "Setting resolution to ${targetW}x${targetH} (mode=${data.mode})"
+                        )
                         userService?.executeCommand("wm size ${targetW}x${targetH}")
                         if (targetD > 0) {
                             userService?.executeCommand("wm density $targetD")
                         }
                     }
                 }
-                
+
                 // If mirroring is running, we MUST refresh it to apply new resolution
                 if (MirroringService.isRunning) {
                     Log.d(TAG, "Mirroring is running, sending refresh signal")
@@ -4883,7 +5619,13 @@ class BluetoothService : Service() {
                 // Notify the remote device (viewer) about actual resolution change
                 if (!data.reset) {
                     val metrics = resources.displayMetrics
-                    sendMessage(ProtocolHelper.createMirrorResChange(metrics.widthPixels, metrics.heightPixels, metrics.densityDpi))
+                    sendMessage(
+                            ProtocolHelper.createMirrorResChange(
+                                    metrics.widthPixels,
+                                    metrics.heightPixels,
+                                    metrics.densityDpi
+                            )
+                    )
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to update resolution: ${e.message}")
@@ -4894,7 +5636,7 @@ class BluetoothService : Service() {
     private fun handleMirrorResChange(message: ProtocolMessage) {
         val data = ProtocolHelper.extractData<ResolutionData>(message)
         Log.d(TAG, "Received remote resolution change: ${data.width}x${data.height}")
-        
+
         val intent = Intent("com.ailife.rtosifycompanion.MIRROR_RES_CHANGE")
         intent.setPackage(packageName)
         intent.putExtra("width", data.width)

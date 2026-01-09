@@ -68,3 +68,4 @@ companion/app/build/
 companion/.gradle/
 companion/local.properties
 companion/.idea/
+.vscode/settings.json
