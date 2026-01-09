@@ -3,9 +3,11 @@ package com.ailife.rtosifycompanion
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.os.Build
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
@@ -93,6 +95,14 @@ class MirroringService : Service() {
         val height = intent?.getIntExtra(EXTRA_HEIGHT, 854) ?: 854
         val dpi = intent?.getIntExtra(EXTRA_DPI, 240) ?: 240
 
+        // Register receiver for stop commands
+        val filter = IntentFilter("com.ailife.rtosifycompanion.STOP_MIRROR")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            androidx.core.content.ContextCompat.registerReceiver(this, stopReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(stopReceiver, filter)
+        }
+
         if (resultCode != 0 && data != null) {
             startMirroring(resultCode, data, width, height, dpi)
         } else {
@@ -125,27 +135,41 @@ class MirroringService : Service() {
         codec?.start()
         isRunning = true
         
+        Log.d(TAG, "Starting encoding thread, codec started")
         Thread {
+            Log.d(TAG, "Encoding thread started, entering drainAndSend loop")
             drainAndSend()
+            Log.d(TAG, "Encoding thread finished")
         }.start()
     }
 
     private fun setupCodec(width: Int, height: Int) {
-        val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height)
+        // Use lower resolution for watch's small screen and Bluetooth bandwidth
+        val scaledWidth = 320  // Much smaller for watch
+        val scaledHeight = 568
+        
+        val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, scaledWidth, scaledHeight)
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-        format.setInteger(MediaFormat.KEY_BIT_RATE, 300000) // Lower bitrate for watch
-        format.setInteger(MediaFormat.KEY_FRAME_RATE, 5) // Lower FPS for watch
-        format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2)
+        format.setInteger(MediaFormat.KEY_BIT_RATE, 200000) // Very low bitrate for Bluetooth
+        format.setInteger(MediaFormat.KEY_FRAME_RATE, 5) // Low FPS
+        format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 3) // Longer keyframe interval
+        format.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline)
+        format.setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.AVCLevel31)
 
         codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
         codec?.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
     }
 
     private fun drainAndSend() {
+        Log.d(TAG, "drainAndSend: Starting encoding loop, isRunning=$isRunning")
+        var frameCount = 0
         while (isRunning) {
             val outputBufferId = try { 
                 codec?.dequeueOutputBuffer(bufferInfo, 10000) ?: -1 
-            } catch (e: Exception) { -1 }
+            } catch (e: Exception) { 
+                Log.e(TAG, "Error dequeuing buffer: ${e.message}")
+                -1 
+            }
 
             if (outputBufferId >= 0) {
                 val outputBuffer = codec?.getOutputBuffer(outputBufferId)
@@ -156,8 +180,14 @@ class MirroringService : Service() {
                     val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
                     val isKeyFrame = (bufferInfo.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0
                     
+                    frameCount++
+                    if (frameCount % 30 == 0 || isKeyFrame) {
+                        Log.d(TAG, "Frame #$frameCount: size=${encoded.length}B, keyframe=$isKeyFrame")
+                    }
+                    
                     // Send to BluetoothService via Broadcast
                     val intent = Intent("com.ailife.rtosifycompanion.SCREEN_DATA_AVAILABLE")
+                    intent.setPackage(packageName) // Make it explicit for Android 14+
                     intent.putExtra("data", encoded)
                     intent.putExtra("isKeyFrame", isKeyFrame)
                     sendBroadcast(intent)
@@ -165,10 +195,24 @@ class MirroringService : Service() {
                 codec?.releaseOutputBuffer(outputBufferId, false)
             }
         }
+        Log.d(TAG, "drainAndSend: Encoding loop finished, total frames=$frameCount")
+    }
+
+    private val stopReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                "com.ailife.rtosifycompanion.STOP_MIRROR" -> {
+                    Log.d(TAG, "Received STOP_MIRROR broadcast, stopping service")
+                    stopSelf()
+                }
+            }
+        }
     }
 
     override fun onDestroy() {
+        Log.d(TAG, "MirroringService onDestroy")
         isRunning = false
+        try { unregisterReceiver(stopReceiver) } catch (_: Exception) {}
         virtualDisplay?.release()
         mediaProjection?.stop()
         codec?.stop()

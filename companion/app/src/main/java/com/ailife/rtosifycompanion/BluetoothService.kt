@@ -192,6 +192,7 @@ class BluetoothService : Service() {
         const val ACTION_SCREEN_DATA_RECEIVED = "com.ailife.rtosifycompanion.SCREEN_DATA_RECEIVED"
         const val ACTION_STOP_MIRROR = "com.ailife.rtosifycompanion.STOP_MIRROR"
         const val ACTION_SEND_REMOTE_INPUT = "com.ailife.rtosifycompanion.SEND_REMOTE_INPUT"
+        const val ACTION_SCREEN_DATA_AVAILABLE = "com.ailife.rtosifycompanion.SCREEN_DATA_AVAILABLE"
 
         const val EXTRA_NOTIF_JSON = "extra_notif_json"
         const val EXTRA_NOTIF_KEY = "extra_notif_key"
@@ -254,6 +255,15 @@ class BluetoothService : Service() {
                             addProperty("y", y)
                         }))
                     }
+                }
+                ACTION_SCREEN_DATA_AVAILABLE -> {
+                    val base64Data = intent.getStringExtra("data") ?: return
+                    val isKeyFrame = intent.getBooleanExtra("isKeyFrame", false)
+                    Log.d(TAG, "Forwarding frame: size=${base64Data.length}B, keyframe=$isKeyFrame")
+                    val msg = ProtocolHelper.createMirrorData(base64Data, isKeyFrame)
+                    Log.d(TAG, "Calling sendMessage for mirror_data, isConnected=$isConnected")
+                    sendMessage(msg)
+                    Log.d(TAG, "sendMessage returned")
                 }
                 "com.ailife.rtosifycompanion.SEND_MIRROR_STOP" -> {
                     Log.d(TAG, "Sending mirror stop command to phone")
@@ -361,6 +371,7 @@ class BluetoothService : Service() {
             addAction(ACTION_SEND_NOTIF_TO_WATCH)
             addAction(ACTION_SEND_REMOVE_TO_WATCH)
             addAction(ACTION_SEND_REMOTE_INPUT) // For touch events from MirrorActivity
+            addAction(ACTION_SCREEN_DATA_AVAILABLE) // For video frames from MirroringService
             addAction("com.ailife.rtosifycompanion.SEND_MIRROR_STOP") // For stopping mirroring
             addAction("com.ailife.rtosifycompanion.UPDATE_REMOTE_RESOLUTION") // For resolution reset
         }
@@ -1385,17 +1396,26 @@ class BluetoothService : Service() {
 
     fun sendMessage(message: ProtocolMessage) {
         serviceScope.launch(Dispatchers.IO) {
-            if (!isConnected) return@launch
-            val out = globalOutputStream ?: return@launch
+            if (!isConnected) {
+                Log.w(TAG, "sendMessage: not connected, dropping message type=${message.type}")
+                return@launch
+            }
+            val out = globalOutputStream ?: run {
+                Log.w(TAG, "sendMessage: globalOutputStream is null, dropping message type=${message.type}")
+                return@launch
+            }
             try {
                 val jsonBytes = message.toBytes()
+                Log.d(TAG, "sendMessage: type=${message.type}, size=${jsonBytes.size} bytes")
                 synchronized(out) {
                     out.writeInt(jsonBytes.size)
                     out.write(jsonBytes)
                     out.flush()
                 }
+                Log.d(TAG, "sendMessage: successfully sent type=${message.type}")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send message type=${message.type}, size=${message.toBytes().size}: ${e.message}")
+                e.printStackTrace()
                 forceDisconnect()
             }
         }
@@ -4749,7 +4769,14 @@ class BluetoothService : Service() {
 
     private fun handleRemoteInput(message: ProtocolMessage) {
         val data = ProtocolHelper.extractData<RemoteInputData>(message)
-        RtosifyAccessibilityService.dispatchRemoteInput(data.action, data.x, data.y)
+        Log.d(TAG, "Forwarding touch event to accessibility service: action=${data.action}, x=${data.x}, y=${data.y}")
+        
+        val intent = Intent("com.ailife.rtosifycompanion.DISPATCH_REMOTE_INPUT")
+        intent.setPackage(packageName) // Make it explicit for Android 14+
+        intent.putExtra("action", data.action)
+        intent.putExtra("x", data.x)
+        intent.putExtra("y", data.y)
+        sendBroadcast(intent)
     }
 
     private fun handleUpdateResolution(message: ProtocolMessage) {

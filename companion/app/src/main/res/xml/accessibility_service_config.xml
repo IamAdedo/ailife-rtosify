@@ -4,4 +4,5 @@
     android:accessibilityEventTypes="typeViewClicked|typeViewFocused|typeWindowContentChanged|typeWindowStateChanged|typeNotificationStateChanged|typeViewTextChanged"
     android:accessibilityFlags="flagReportViewIds|flagRetrieveInteractiveWindows|flagIncludeNotImportantViews"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:canRetrieveWindowContent="true" />
+    android:canRetrieveWindowContent="true"
+    android:canPerformGestures="true" />

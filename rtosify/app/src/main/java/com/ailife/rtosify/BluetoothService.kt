@@ -365,6 +365,7 @@ class BluetoothService : Service() {
         val filterMirror = IntentFilter().apply {
             addAction(ACTION_SCREEN_DATA_AVAILABLE)
             addAction(ACTION_SEND_REMOTE_INPUT)
+            addAction("com.ailife.rtosify.SEND_MIRROR_STOP")
             addAction("com.ailife.rtosify.UPDATE_REMOTE_RESOLUTION")
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -2427,6 +2428,10 @@ class BluetoothService : Service() {
                     val y = intent.getFloatExtra("y", 0f)
                     sendMessage(ProtocolHelper.createRemoteInput(action, x, y))
                 }
+                "com.ailife.rtosify.SEND_MIRROR_STOP" -> {
+                    Log.d(TAG, "Sending mirror stop command to companion")
+                    sendMessage(ProtocolMessage(type = MessageType.SCREEN_MIRROR_STOP, data = com.google.gson.JsonObject()))
+                }
                 "com.ailife.rtosify.UPDATE_REMOTE_RESOLUTION" -> {
                     val width = intent.getIntExtra("width", 0)
                     val height = intent.getIntExtra("height", 0)
@@ -2467,6 +2472,7 @@ class BluetoothService : Service() {
     private fun handleMirrorData(message: ProtocolMessage) {
         val data = ProtocolHelper.extractData<MirrorData>(message)
         val intent = Intent(ACTION_SCREEN_DATA_RECEIVED)
+        intent.setPackage(packageName) // Make it explicit for Android 14+
         intent.putExtra("data", data.data)
         intent.putExtra("isKeyFrame", data.isKeyFrame)
         sendBroadcast(intent)
@@ -2474,11 +2480,11 @@ class BluetoothService : Service() {
 
     private fun handleRemoteInput(message: ProtocolMessage) {
         val data = ProtocolHelper.extractData<RemoteInputData>(message)
-        Log.d(TAG, "handleRemoteInput: action=${data.action}, x=${data.x}, y=${data.y}")
+        Log.d(TAG, "Received touch event: action=${data.action}, x=${data.x}, y=${data.y}")
         
-        // Send broadcast to accessibility service (runs in separate process)
+        // Send to accessibility service via broadcast (IPC)
         val intent = Intent("com.ailife.rtosify.DISPATCH_REMOTE_INPUT")
-        intent.setPackage(packageName)
+        intent.setPackage(packageName) // Make it explicit for Android 14+
         intent.putExtra("action", data.action)
         intent.putExtra("x", data.x)
         intent.putExtra("y", data.y)
