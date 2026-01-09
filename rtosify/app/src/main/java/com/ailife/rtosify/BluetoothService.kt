@@ -12,24 +12,21 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothServerSocket
 import android.bluetooth.BluetoothSocket
 import android.content.BroadcastReceiver
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.ComponentName
-import com.ailife.rtosify.R
-import android.view.KeyEvent
 import android.content.IntentFilter
-import android.media.AudioManager
-import android.media.MediaPlayer
-import android.media.Ringtone
-import android.media.RingtoneManager
+import android.content.ServiceConnection
 import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
+import android.media.AudioManager
+import android.media.Ringtone
+import android.media.RingtoneManager
 import android.net.Uri
 import android.net.wifi.SupplicantState
 import android.net.wifi.WifiManager
@@ -39,31 +36,24 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.provider.Settings
 import android.provider.CalendarContract
 import android.provider.ContactsContract
-import android.widget.Toast
+import android.provider.Settings
+import android.telecom.TelecomManager
+import android.telephony.TelephonyManager
 import android.util.Base64
 import android.util.Log
+import android.view.KeyEvent
+import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import com.google.gson.Gson
-import com.google.gson.JsonObject
-import com.google.gson.reflect.TypeToken
 import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
-import kotlinx.coroutines.*
-import org.json.JSONArray
-import org.json.JSONObject
-import android.telephony.TelephonyManager
-import android.telecom.TelecomManager
-import android.content.ServiceConnection
-import android.os.ParcelFileDescriptor
-import rikka.shizuku.Shizuku
-import android.content.ClipboardManager
-import android.content.ClipData
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.google.gson.reflect.TypeToken
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -72,6 +62,10 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.*
+import org.json.JSONArray
+import org.json.JSONObject
+import rikka.shizuku.Shizuku
 
 class BluetoothService : Service() {
 
@@ -90,49 +84,54 @@ class BluetoothService : Service() {
     private val APP_NAME = "RTOSifyApp"
 
     private lateinit var prefs: SharedPreferences
+    private lateinit var devicePrefManager: DevicePrefManager
+    private val activePrefs: SharedPreferences
+        get() = devicePrefManager.getActiveDevicePrefs()
     private val PREF_NAME = "AppPrefs"
 
     private var lastValidWifiSsid: String = ""
 
     // Clipboard monitoring
     private var clipboardManager: android.content.ClipboardManager? = null
-    private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
+    private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? =
+            null
     private var lastClipboardText: String? = null
     private val clipboardPollingHandler = Handler(Looper.getMainLooper())
     private var clipboardPollingRunnable: Runnable? = null
-    
+
     // Shizuku UserService for Android 10+ clipboard access
     private var userServiceConnection: Shizuku.UserServiceArgs? = null
     private var userService: IUserService? = null
     private val shizukuLock = Any()
-    
+
     private val userServiceArgs by lazy {
-        Shizuku.UserServiceArgs(ComponentName(BuildConfig.APPLICATION_ID, UserService::class.java.name))
-            .daemon(false)
-            .processNameSuffix("user_service")
-            .debuggable(BuildConfig.DEBUG)
-            .version(1)
+        Shizuku.UserServiceArgs(
+                        ComponentName(BuildConfig.APPLICATION_ID, UserService::class.java.name)
+                )
+                .daemon(false)
+                .processNameSuffix("user_service")
+                .debuggable(BuildConfig.DEBUG)
+                .version(1)
     }
 
-    private val userServiceConn = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            if (binder != null && binder.pingBinder()) {
-                userService = IUserService.Stub.asInterface(binder)
-                Log.i(TAG, "UserService connected successfully")
+    private val userServiceConn =
+            object : ServiceConnection {
+                override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                    if (binder != null && binder.pingBinder()) {
+                        userService = IUserService.Stub.asInterface(binder)
+                        Log.i(TAG, "UserService connected successfully")
+                    }
+                }
+
+                override fun onServiceDisconnected(name: ComponentName?) {
+                    userService = null
+                    Log.w(TAG, "UserService disconnected")
+                }
             }
-        }
 
-        override fun onServiceDisconnected(name: ComponentName?) {
-            userService = null
-            Log.w(TAG, "UserService disconnected")
-        }
-    }
+    @Volatile private var lastMessageTime: Long = 0L
 
-    @Volatile
-    private var lastMessageTime: Long = 0L
-
-    @Volatile
-    private var isTransferring: Boolean = false
+    @Volatile private var isTransferring: Boolean = false
 
     // Variáveis de Recepção de Arquivo
     private var receiveFile: File? = null
@@ -146,8 +145,7 @@ class BluetoothService : Service() {
     private val notificationMap = ConcurrentHashMap<String, Int>()
 
     // REFATORAÇÃO: Controle mais robusto de notificações
-    @Volatile
-    private var currentNotificationStatus: String = ""
+    @Volatile private var currentNotificationStatus: String = ""
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -155,8 +153,7 @@ class BluetoothService : Service() {
         getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     }
 
-    @Volatile
-    private var isStopping = false
+    @Volatile private var isStopping = false
 
     interface ServiceCallback {
         fun onStatusChanged(status: String)
@@ -168,7 +165,13 @@ class BluetoothService : Service() {
         fun onUploadProgress(progress: Int)
         fun onDownloadProgress(progress: Int)
         fun onFileListReceived(path: String, filesJson: String)
-        fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean) {}
+        fun onWatchStatusUpdated(
+                batteryLevel: Int,
+                isCharging: Boolean,
+                wifiSsid: String,
+                wifiEnabled: Boolean,
+                dndEnabled: Boolean
+        ) {}
         fun onHealthDataUpdated(healthData: HealthDataUpdate) {}
         fun onHealthHistoryReceived(historyData: HealthHistoryResponse) {}
         fun onHealthSettingsReceived(settings: HealthSettingsUpdate) {}
@@ -185,44 +188,50 @@ class BluetoothService : Service() {
     var callback: ServiceCallback? = null
     var alarmCallback: AlarmCallback? = null
 
-    @Volatile
-    var currentStatus: String = "" // Will be initialized in onCreate
-    @Volatile
-    var currentDeviceName: String? = null
-    @Volatile
-    var isConnected: Boolean = false
+    @Volatile var currentStatus: String = "" // Will be initialized in onCreate
+    @Volatile var currentDeviceName: String? = null
+    @Volatile var isConnected: Boolean = false
 
-    private val phoneStateReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == TelephonyManager.ACTION_PHONE_STATE_CHANGED) {
-                val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
-                val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
-                
-                Log.d(TAG, "Phone State Changed: $state, Number: $number")
-                
-                when (state) {
-                    TelephonyManager.EXTRA_STATE_RINGING -> {
-                        if (number != null) {
-                            val callerName = getContactName(number)
-                            sendMessage(ProtocolHelper.createIncomingCall(number, callerName))
+    private val phoneStateReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (intent?.action == TelephonyManager.ACTION_PHONE_STATE_CHANGED) {
+                        val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE)
+                        val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
+
+                        Log.d(TAG, "Phone State Changed: $state, Number: $number")
+
+                        when (state) {
+                            TelephonyManager.EXTRA_STATE_RINGING -> {
+                                if (number != null) {
+                                    val callerName = getContactName(number)
+                                    sendMessage(
+                                            ProtocolHelper.createIncomingCall(number, callerName)
+                                    )
+                                }
+                            }
+                            TelephonyManager.EXTRA_STATE_IDLE -> {
+                                sendMessage(ProtocolHelper.createCallStateChanged("IDLE"))
+                            }
+                            TelephonyManager.EXTRA_STATE_OFFHOOK -> {
+                                sendMessage(ProtocolHelper.createCallStateChanged("OFFHOOK"))
+                            }
                         }
-                    }
-                    TelephonyManager.EXTRA_STATE_IDLE -> {
-                        sendMessage(ProtocolHelper.createCallStateChanged("IDLE"))
-                    }
-                    TelephonyManager.EXTRA_STATE_OFFHOOK -> {
-                        sendMessage(ProtocolHelper.createCallStateChanged("OFFHOOK"))
                     }
                 }
             }
-        }
-    }
 
     private fun getContactName(phoneNumber: String): String? {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) !=
+                        PackageManager.PERMISSION_GRANTED
+        ) {
             return null
         }
-        val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(phoneNumber))
+        val uri =
+                Uri.withAppendedPath(
+                        ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
+                        Uri.encode(phoneNumber)
+                )
         val projection = arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME)
         return try {
             contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
@@ -266,7 +275,7 @@ class BluetoothService : Service() {
         const val MIRRORED_CHANNEL_ID = "mirrored_notifications"
 
         const val ACTION_STOP_SERVICE = "ACTION_STOP_SERVICE"
-        
+
         const val ACTION_SCREEN_DATA_AVAILABLE = "com.ailife.rtosify.SCREEN_DATA_AVAILABLE"
         const val ACTION_SEND_REMOTE_INPUT = "com.ailife.rtosify.SEND_REMOTE_INPUT"
         const val ACTION_SCREEN_DATA_RECEIVED = "com.ailife.rtosify.SCREEN_DATA_RECEIVED"
@@ -275,55 +284,56 @@ class BluetoothService : Service() {
         private const val DEBUG_NOTIFICATIONS = false // Ative para debug
     }
 
-    private val internalReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (!isConnected) return
-            when (intent?.action) {
-                ACTION_SEND_NOTIF_TO_WATCH -> {
-                    val jsonString = intent.getStringExtra(EXTRA_NOTIF_JSON)
-                    if (jsonString != null) {
-                        try {
-                            val gson = com.google.gson.Gson()
-                            val notifData = gson.fromJson(jsonString, NotificationData::class.java)
-                            sendMessage(ProtocolHelper.createNotificationPosted(notifData))
-                        } catch (_: Exception) {}
-                    }
-                }
-                ACTION_SEND_REMOVE_TO_WATCH -> {
-                    val key = intent.getStringExtra(EXTRA_NOTIF_KEY)
-                    if (key != null) {
-                        sendMessage(ProtocolHelper.createNotificationRemoved(key))
-                    }
-                }
-                ACTION_UPDATE_SETTINGS -> {
-                    Log.d(TAG, "Received ACTION_UPDATE_SETTINGS broadcast")
-                    syncSettingsToWatch()
-                    // Check if clipboard monitoring needs to be started/stopped
-                    if (isConnected) {
-                        if (prefs.getBoolean("clipboard_sync_enabled", false)) {
-                            startClipboardMonitoring()
-                        } else {
-                            stopClipboardMonitoring()
+    private val internalReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (!isConnected) return
+                    when (intent?.action) {
+                        ACTION_SEND_NOTIF_TO_WATCH -> {
+                            val jsonString = intent.getStringExtra(EXTRA_NOTIF_JSON)
+                            if (jsonString != null) {
+                                try {
+                                    val gson = com.google.gson.Gson()
+                                    val notifData =
+                                            gson.fromJson(jsonString, NotificationData::class.java)
+                                    sendMessage(ProtocolHelper.createNotificationPosted(notifData))
+                                } catch (_: Exception) {}
+                            }
+                        }
+                        ACTION_SEND_REMOVE_TO_WATCH -> {
+                            val key = intent.getStringExtra(EXTRA_NOTIF_KEY)
+                            if (key != null) {
+                                sendMessage(ProtocolHelper.createNotificationRemoved(key))
+                            }
+                        }
+                        ACTION_UPDATE_SETTINGS -> {
+                            Log.d(TAG, "Received ACTION_UPDATE_SETTINGS broadcast")
+                            syncSettingsToWatch()
+                            // Check if clipboard monitoring needs to be started/stopped
+                            if (isConnected) {
+                                if (activePrefs.getBoolean("clipboard_sync_enabled", false)) {
+                                    startClipboardMonitoring()
+                                } else {
+                                    stopClipboardMonitoring()
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
-    }
 
-
-
-    private val watchDismissReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == ACTION_WATCH_DISMISSED_LOCAL) {
-                val key = intent.getStringExtra(EXTRA_NOTIF_KEY)
-                if (key != null && isConnected) {
-                    sendMessage(ProtocolHelper.createDismissNotification(key))
-                    notificationMap.remove(key)
+    private val watchDismissReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (intent?.action == ACTION_WATCH_DISMISSED_LOCAL) {
+                        val key = intent.getStringExtra(EXTRA_NOTIF_KEY)
+                        if (key != null && isConnected) {
+                            sendMessage(ProtocolHelper.createDismissNotification(key))
+                            notificationMap.remove(key)
+                        }
+                    }
                 }
             }
-        }
-    }
 
     inner class LocalBinder : Binder() {
         fun getService(): BluetoothService = this@BluetoothService
@@ -336,21 +346,33 @@ class BluetoothService : Service() {
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     override fun onCreate() {
         super.onCreate()
-        prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE)
+        devicePrefManager = DevicePrefManager(this)
+        prefs = devicePrefManager.getGlobalPrefs()
         val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothAdapter = btManager.adapter
         createNotificationChannel()
 
-        val filterInternal = IntentFilter().apply {
-            addAction(ACTION_SEND_NOTIF_TO_WATCH)
-            addAction(ACTION_SEND_REMOVE_TO_WATCH)
-            addAction(ACTION_UPDATE_SETTINGS)
-        }
+        val filterInternal =
+                IntentFilter().apply {
+                    addAction(ACTION_SEND_NOTIF_TO_WATCH)
+                    addAction(ACTION_SEND_REMOVE_TO_WATCH)
+                    addAction(ACTION_UPDATE_SETTINGS)
+                }
         val filterWatch = IntentFilter(ACTION_WATCH_DISMISSED_LOCAL)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.registerReceiver(this, internalReceiver, filterInternal, ContextCompat.RECEIVER_NOT_EXPORTED)
-            ContextCompat.registerReceiver(this, watchDismissReceiver, filterWatch, ContextCompat.RECEIVER_NOT_EXPORTED)
+            ContextCompat.registerReceiver(
+                    this,
+                    internalReceiver,
+                    filterInternal,
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+            ContextCompat.registerReceiver(
+                    this,
+                    watchDismissReceiver,
+                    filterWatch,
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+            )
         } else {
             registerReceiver(internalReceiver, filterInternal)
             registerReceiver(watchDismissReceiver, filterWatch)
@@ -358,19 +380,30 @@ class BluetoothService : Service() {
 
         val filterPhone = IntentFilter(TelephonyManager.ACTION_PHONE_STATE_CHANGED)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.registerReceiver(this, phoneStateReceiver, filterPhone, ContextCompat.RECEIVER_EXPORTED)
+            ContextCompat.registerReceiver(
+                    this,
+                    phoneStateReceiver,
+                    filterPhone,
+                    ContextCompat.RECEIVER_EXPORTED
+            )
         } else {
             registerReceiver(phoneStateReceiver, filterPhone)
         }
 
-        val filterMirror = IntentFilter().apply {
-            addAction(ACTION_SCREEN_DATA_AVAILABLE)
-            addAction(ACTION_SEND_REMOTE_INPUT)
-            addAction("com.ailife.rtosify.SEND_MIRROR_STOP")
-            addAction("com.ailife.rtosify.UPDATE_REMOTE_RESOLUTION")
-        }
+        val filterMirror =
+                IntentFilter().apply {
+                    addAction(ACTION_SCREEN_DATA_AVAILABLE)
+                    addAction(ACTION_SEND_REMOTE_INPUT)
+                    addAction("com.ailife.rtosify.SEND_MIRROR_STOP")
+                    addAction("com.ailife.rtosify.UPDATE_REMOTE_RESOLUTION")
+                }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.registerReceiver(this, mirroringReceiver, filterMirror, ContextCompat.RECEIVER_NOT_EXPORTED)
+            ContextCompat.registerReceiver(
+                    this,
+                    mirroringReceiver,
+                    filterMirror,
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+            )
         } else {
             registerReceiver(mirroringReceiver, filterMirror)
         }
@@ -380,10 +413,12 @@ class BluetoothService : Service() {
 
         if (DEBUG_NOTIFICATIONS) Log.d(TAG, "onCreate: Service created")
     }
-    
+
     private fun bindUserServiceIfNeeded() {
         try {
-            if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+            if (Shizuku.pingBinder() &&
+                            Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+            ) {
                 Log.i(TAG, "✅ Binding to Shizuku UserService")
                 Shizuku.bindUserService(userServiceArgs, userServiceConn)
                 userServiceConnection = userServiceArgs
@@ -395,13 +430,13 @@ class BluetoothService : Service() {
             e.printStackTrace()
         }
     }
-    
+
     private suspend fun ensureUserServiceBound() {
         if (userService == null) {
             synchronized(shizukuLock) {
                 if (userService == null) {
                     Log.d(TAG, "UserService is null, attempting to bind...")
-                    
+
                     try {
                         if (!Shizuku.pingBinder()) {
                             Log.w(TAG, "Shizuku binder not available")
@@ -415,7 +450,7 @@ class BluetoothService : Service() {
                         Log.e(TAG, "Error checking Shizuku availability: ${e.message}")
                         return
                     }
-                    
+
                     bindUserServiceIfNeeded()
                 }
             }
@@ -425,9 +460,12 @@ class BluetoothService : Service() {
             while (userService == null && (System.currentTimeMillis() - startTime) < maxWaitTime) {
                 delay(100)
             }
-            
+
             if (userService != null) {
-                Log.i(TAG, "✅ UserService bound successfully after ${System.currentTimeMillis() - startTime}ms")
+                Log.i(
+                        TAG,
+                        "✅ UserService bound successfully after ${System.currentTimeMillis() - startTime}ms"
+                )
             } else {
                 Log.w(TAG, "❌ UserService binding timed out after ${maxWaitTime}ms")
             }
@@ -440,7 +478,8 @@ class BluetoothService : Service() {
             return START_NOT_STICKY
         }
 
-        // CRÍTICO: Chamar startForeground imediatamente para cumprir a promessa feita no BootReceiver.
+        // CRÍTICO: Chamar startForeground imediatamente para cumprir a promessa feita no
+        // BootReceiver.
         updateForegroundNotification()
 
         if (intent?.action == "STOP_ALARM") {
@@ -464,7 +503,9 @@ class BluetoothService : Service() {
             val actionKey = intent.getStringExtra(EXTRA_ACTION_KEY)
             val replyText = intent.getStringExtra(EXTRA_REPLY_TEXT)
             if (notifKey != null && actionKey != null && replyText != null) {
-                sendMessage(ProtocolHelper.createSendNotificationReply(notifKey, actionKey, replyText))
+                sendMessage(
+                        ProtocolHelper.createSendNotificationReply(notifKey, actionKey, replyText)
+                )
             }
             return START_NOT_STICKY
         }
@@ -474,7 +515,8 @@ class BluetoothService : Service() {
             initializeLogicFromPrefs()
         }
 
-        if (DEBUG_NOTIFICATIONS) Log.d(TAG, "onStartCommand: Service started, isConnected=$isConnected")
+        if (DEBUG_NOTIFICATIONS)
+                Log.d(TAG, "onStartCommand: Service started, isConnected=$isConnected")
 
         isStopping = false // Reset on start
         return START_STICKY
@@ -517,14 +559,14 @@ class BluetoothService : Service() {
                 Log.e(TAG, "Could not start enable bluetooth intent: ${e.message}")
             }
         }
-        
+
         return false
     }
 
     @SuppressLint("MissingPermission")
     fun startSmartphoneLogic() {
         if (connectionJob?.isActive == true) return
-        val lastMac = prefs.getString("last_mac", null)
+        val lastMac = devicePrefManager.getSelectedDeviceMac()
         if (lastMac != null) {
             val device = bluetoothAdapter?.getRemoteDevice(lastMac)
             if (device != null) startAutoReconnectLoop(device) else startScanForDevices()
@@ -533,139 +575,176 @@ class BluetoothService : Service() {
         }
     }
 
+    fun reconnect() {
+        connectionJob?.cancel()
+        startSmartphoneLogic()
+    }
+
     @SuppressLint("MissingPermission")
     fun startScanForDevices() {
         updateStatus(getString(R.string.status_searching))
         connectionJob?.cancel()
-        connectionJob = serviceScope.launch {
-            // Loop while Bluetooth is disabled
-            while (isActive && !checkAndEnableBluetooth()) {
-                delay(3000)
-            }
-            if (!isActive) return@launch
+        connectionJob =
+                serviceScope.launch {
+                    // Loop while Bluetooth is disabled
+                    while (isActive && !checkAndEnableBluetooth()) {
+                        delay(3000)
+                    }
+                    if (!isActive) return@launch
 
-            updateStatus(getString(R.string.status_searching))
+                    updateStatus(getString(R.string.status_searching))
 
-            // Wait a bit if we just enabled extensions
-            if (bluetoothAdapter?.state == BluetoothAdapter.STATE_TURNING_ON) {
-                 delay(2000)
-            }
+                    // Wait a bit if we just enabled extensions
+                    if (bluetoothAdapter?.state == BluetoothAdapter.STATE_TURNING_ON) {
+                        delay(2000)
+                    }
 
-            val pairedDevices = bluetoothAdapter?.bondedDevices ?: emptySet()
-            val successfulConnections = mutableListOf<Pair<BluetoothDevice, BluetoothSocket>>()
-            supervisorScope {
-                val jobs = pairedDevices.map { device ->
-                    async {
-                        try {
-                            val socket = device.createRfcommSocketToServiceRecord(APP_UUID)
-                            socket.connect()
-                            device to socket
-                        } catch (_: IOException) { null }
+                    val pairedDevices = bluetoothAdapter?.bondedDevices ?: emptySet()
+                    val successfulConnections =
+                            mutableListOf<Pair<BluetoothDevice, BluetoothSocket>>()
+                    supervisorScope {
+                        val jobs =
+                                pairedDevices.map { device ->
+                                    async {
+                                        try {
+                                            val socket =
+                                                    device.createRfcommSocketToServiceRecord(
+                                                            APP_UUID
+                                                    )
+                                            socket.connect()
+                                            device to socket
+                                        } catch (_: IOException) {
+                                            null
+                                        }
+                                    }
+                                }
+                        jobs.awaitAll().filterNotNull().forEach { successfulConnections.add(it) }
+                    }
+                    withContext(Dispatchers.Main) {
+                        if (successfulConnections.isEmpty()) {
+                            updateStatus(getString(R.string.status_no_watch_found))
+                            callback?.onError(getString(R.string.status_open_app_watch))
+                        } else if (successfulConnections.size == 1) {
+                            val (device, socket) = successfulConnections[0]
+                            savePreference("last_mac", device.address)
+                            startAutoReconnectLoop(device, socket)
+                        } else {
+                            successfulConnections.forEach {
+                                try {
+                                    it.second.close()
+                                } catch (_: Exception) {}
+                            }
+                            callback?.onScanResult(successfulConnections.map { it.first })
+                        }
                     }
                 }
-                jobs.awaitAll().filterNotNull().forEach { successfulConnections.add(it) }
-            }
-            withContext(Dispatchers.Main) {
-                if (successfulConnections.isEmpty()) {
-                    updateStatus(getString(R.string.status_no_watch_found))
-                    callback?.onError(getString(R.string.status_open_app_watch))
-                } else if (successfulConnections.size == 1) {
-                    val (device, socket) = successfulConnections[0]
-                    savePreference("last_mac", device.address)
-                    startAutoReconnectLoop(device, socket)
-                } else {
-                    successfulConnections.forEach { try { it.second.close() } catch (_: Exception){} }
-                    callback?.onScanResult(successfulConnections.map { it.first })
-                }
-            }
-        }
     }
 
     @SuppressLint("MissingPermission")
     fun connectToDevice(device: BluetoothDevice) {
-        savePreference("last_mac", device.address)
+        devicePrefManager.setSelectedDeviceMac(device.address)
+        devicePrefManager.addPairedDevice(device.name ?: "Watch", device.address)
         startAutoReconnectLoop(device)
     }
 
     @SuppressLint("MissingPermission")
-    private fun startAutoReconnectLoop(device: BluetoothDevice, initialSocket: BluetoothSocket? = null) {
+    private fun startAutoReconnectLoop(
+            device: BluetoothDevice,
+            initialSocket: BluetoothSocket? = null
+    ) {
         connectionJob?.cancel()
-        connectionJob = serviceScope.launch {
-            var socketToUse = initialSocket
-            while (isActive) {
-                if (!checkAndEnableBluetooth()) {
-                    delay(3000)
-                    continue
-                }
+        connectionJob =
+                serviceScope.launch {
+                    var socketToUse = initialSocket
+                    while (isActive) {
+                        if (!checkAndEnableBluetooth()) {
+                            delay(3000)
+                            continue
+                        }
 
-                try {
-                    if (socketToUse == null) {
-                        updateStatus(getString(R.string.status_connecting_to, device.name))
-                        socketToUse = device.createRfcommSocketToServiceRecord(APP_UUID)
-                        socketToUse!!.connect()
+                        try {
+                            if (socketToUse == null) {
+                                updateStatus(getString(R.string.status_connecting_to, device.name))
+                                socketToUse = device.createRfcommSocketToServiceRecord(APP_UUID)
+                                socketToUse!!.connect()
+                            }
+                            handleConnectedSocket(socketToUse, device.name)
+                            socketToUse = null
+                            if (isActive) {
+                                updateStatus(getString(R.string.status_starting))
+                                delay(3000)
+                            }
+                        } catch (_: IOException) {
+                            socketToUse = null
+                            if (isActive) {
+                                updateStatus(getString(R.string.status_starting))
+                                delay(5000)
+                            }
+                        }
                     }
-                    handleConnectedSocket(socketToUse, device.name)
-                    socketToUse = null
-                    if (isActive) { updateStatus(getString(R.string.status_starting)); delay(3000) }
-                } catch (_: IOException) {
-                    socketToUse = null
-                    if (isActive) { updateStatus(getString(R.string.status_starting)); delay(5000) }
                 }
-            }
-        }
     }
 
     @SuppressLint("MissingPermission")
     fun startWatchLogic() {
         if (serverJob?.isActive == true) return
         serverJob?.cancel()
-        serverJob = serviceScope.launch {
-            updateStatus(getString(R.string.status_waiting))
-            while (isActive) {
-                if (!checkAndEnableBluetooth()) {
-                    delay(3000)
-                    continue
-                }
+        serverJob =
+                serviceScope.launch {
+                    updateStatus(getString(R.string.status_waiting))
+                    while (isActive) {
+                        if (!checkAndEnableBluetooth()) {
+                            delay(3000)
+                            continue
+                        }
 
-                updateStatus(getString(R.string.status_waiting))
-
-                var serverSocket: BluetoothServerSocket?
-                try {
-                    serverSocket = bluetoothAdapter?.listenUsingRfcommWithServiceRecord(APP_NAME, APP_UUID)
-                } catch (_: IOException) {
-                    delay(3000)
-                    continue
-                }
-
-                var socket: BluetoothSocket? = null
-                while (socket == null && isActive) {
-                    // Check BT again inside the waiting loop
-                    if (bluetoothAdapter?.isEnabled != true) {
-                        try { serverSocket?.close() } catch(e:Exception){}
-                        serverSocket = null
-                        break 
-                    }
-
-                    try {
-                        socket = serverSocket?.accept(5000)
-                    } catch (_: IOException) {
-                    }
-                }
-
-                if (serverSocket == null && socket == null) continue
-
-                if (socket != null) {
-                    try {
-                        serverSocket?.close()
-                    } catch (_: Exception) {
-                    }
-                    handleConnectedSocket(socket, socket.remoteDevice?.name ?: getString(R.string.device_name_default))
-                    if (isActive) {
                         updateStatus(getString(R.string.status_waiting))
+
+                        var serverSocket: BluetoothServerSocket?
+                        try {
+                            serverSocket =
+                                    bluetoothAdapter?.listenUsingRfcommWithServiceRecord(
+                                            APP_NAME,
+                                            APP_UUID
+                                    )
+                        } catch (_: IOException) {
+                            delay(3000)
+                            continue
+                        }
+
+                        var socket: BluetoothSocket? = null
+                        while (socket == null && isActive) {
+                            // Check BT again inside the waiting loop
+                            if (bluetoothAdapter?.isEnabled != true) {
+                                try {
+                                    serverSocket?.close()
+                                } catch (e: Exception) {}
+                                serverSocket = null
+                                break
+                            }
+
+                            try {
+                                socket = serverSocket?.accept(5000)
+                            } catch (_: IOException) {}
+                        }
+
+                        if (serverSocket == null && socket == null) continue
+
+                        if (socket != null) {
+                            try {
+                                serverSocket?.close()
+                            } catch (_: Exception) {}
+                            handleConnectedSocket(
+                                    socket,
+                                    socket.remoteDevice?.name
+                                            ?: getString(R.string.device_name_default)
+                            )
+                            if (isActive) {
+                                updateStatus(getString(R.string.status_waiting))
+                            }
+                        }
                     }
                 }
-            }
-        }
     }
 
     private suspend fun handleConnectedSocket(socket: BluetoothSocket, deviceName: String) {
@@ -683,9 +762,7 @@ class BluetoothService : Service() {
         updateStatus(getString(R.string.status_connected_to, deviceName))
 
         // Notifica callback
-        withContext(Dispatchers.Main) {
-            callback?.onDeviceConnected(deviceName)
-        }
+        withContext(Dispatchers.Main) { callback?.onDeviceConnected(deviceName) }
 
         serviceScope.launch { heartbeatLoop() }
 
@@ -706,13 +783,16 @@ class BluetoothService : Service() {
                 lastMessageTime = System.currentTimeMillis()
 
                 when (message.type) {
-                    MessageType.HEARTBEAT -> { /* IGNORE */ }
+                    MessageType.HEARTBEAT -> {
+                        /* IGNORE */
+                    }
                     MessageType.REQUEST_APPS -> handleRequestApps()
                     MessageType.RESPONSE_APPS -> handleResponseApps(message)
                     MessageType.NOTIFICATION_POSTED -> showMirroredNotification(message)
                     MessageType.NOTIFICATION_REMOVED -> dismissLocalNotification(message)
                     MessageType.DISMISS_NOTIFICATION -> requestDismissOnPhone(message)
-                    MessageType.EXECUTE_NOTIFICATION_ACTION -> handleExecuteNotificationAction(message)
+                    MessageType.EXECUTE_NOTIFICATION_ACTION ->
+                            handleExecuteNotificationAction(message)
                     MessageType.SEND_NOTIFICATION_REPLY -> handleSendNotificationReply(message)
                     MessageType.FILE_TRANSFER_START -> handleFileTransferStart(message)
                     MessageType.FILE_CHUNK -> handleFileChunk(message)
@@ -761,9 +841,7 @@ class BluetoothService : Service() {
                 onConnectionLost()
             }
 
-            withContext(Dispatchers.Main) {
-                callback?.onDeviceDisconnected()
-            }
+            withContext(Dispatchers.Main) { callback?.onDeviceDisconnected() }
         }
     }
 
@@ -785,8 +863,11 @@ class BluetoothService : Service() {
                 forceDisconnect()
                 break
             }
-            try { sendMessage(ProtocolHelper.createHeartbeat()) }
-            catch (_: Exception) { break }
+            try {
+                sendMessage(ProtocolHelper.createHeartbeat())
+            } catch (_: Exception) {
+                break
+            }
         }
     }
 
@@ -797,7 +878,7 @@ class BluetoothService : Service() {
             val stopIntent = Intent(this, MirroringService::class.java)
             stopService(stopIntent)
         }
-        
+
         try {
             bluetoothSocket?.close()
         } catch (_: Exception) {}
@@ -805,27 +886,37 @@ class BluetoothService : Service() {
         statusUpdateJob?.cancel()
     }
 
-
     private fun syncSettingsToWatch() {
         if (!isConnected) {
             Log.d(TAG, "Not syncing settings: Not connected")
             return
         }
-        val settings = SettingsUpdateData(
-            notifyOnDisconnect = prefs.getBoolean("notify_on_disconnect", false),
-            notificationMirroringEnabled = prefs.getBoolean("notification_mirroring_enabled", false),
-            skipScreenOnEnabled = prefs.getBoolean("skip_screen_on_enabled", false),
-            forwardOngoingEnabled = prefs.getBoolean("forward_ongoing_enabled", false),
-            forwardSilentEnabled = prefs.getBoolean("forward_silent_enabled", false),
-            clipboardSyncEnabled = prefs.getBoolean("clipboard_sync_enabled", false),
-            autoWifiEnabled = prefs.getBoolean("auto_wifi_enabled", false),
-            autoDataEnabled = prefs.getBoolean("auto_data_enabled", false),
-            autoBtTetherEnabled = prefs.getBoolean("auto_bt_tether_enabled", false),
-            wakeScreenEnabled = prefs.getBoolean("wake_screen_enabled", false),
-            vibrateEnabled = prefs.getBoolean("vibrate_enabled", false),
-            vibrateInSilentEnabled = prefs.getBoolean("vibrate_silent_enabled", false)
+        val settings =
+                SettingsUpdateData(
+                        notifyOnDisconnect = activePrefs.getBoolean("notify_on_disconnect", false),
+                        notificationMirroringEnabled =
+                                activePrefs.getBoolean("notification_mirroring_enabled", false),
+                        skipScreenOnEnabled =
+                                activePrefs.getBoolean("skip_screen_on_enabled", false),
+                        forwardOngoingEnabled =
+                                activePrefs.getBoolean("forward_ongoing_enabled", false),
+                        forwardSilentEnabled =
+                                activePrefs.getBoolean("forward_silent_enabled", false),
+                        clipboardSyncEnabled =
+                                activePrefs.getBoolean("clipboard_sync_enabled", false),
+                        autoWifiEnabled = activePrefs.getBoolean("auto_wifi_enabled", false),
+                        autoDataEnabled = activePrefs.getBoolean("auto_data_enabled", false),
+                        autoBtTetherEnabled =
+                                activePrefs.getBoolean("auto_bt_tether_enabled", false),
+                        wakeScreenEnabled = activePrefs.getBoolean("wake_screen_enabled", false),
+                        vibrateEnabled = activePrefs.getBoolean("vibrate_enabled", false),
+                        vibrateInSilentEnabled =
+                                activePrefs.getBoolean("vibrate_silent_enabled", false)
+                )
+        Log.d(
+                TAG,
+                "Syncing settings to watch: mirroring=${settings.notificationMirroringEnabled}, skipScreenOn=${settings.skipScreenOnEnabled}, ongoing=${settings.forwardOngoingEnabled}, silent=${settings.forwardSilentEnabled}, notifyOnDisconnect=${settings.notifyOnDisconnect}, clipboard=${settings.clipboardSyncEnabled}, wifi=${settings.autoWifiEnabled}, data=${settings.autoDataEnabled}, btTether=${settings.autoBtTetherEnabled}"
         )
-        Log.d(TAG, "Syncing settings to watch: mirroring=${settings.notificationMirroringEnabled}, skipScreenOn=${settings.skipScreenOnEnabled}, ongoing=${settings.forwardOngoingEnabled}, silent=${settings.forwardSilentEnabled}, notifyOnDisconnect=${settings.notifyOnDisconnect}, clipboard=${settings.clipboardSyncEnabled}, wifi=${settings.autoWifiEnabled}, data=${settings.autoDataEnabled}, btTether=${settings.autoBtTetherEnabled}")
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
     }
 
@@ -841,7 +932,10 @@ class BluetoothService : Service() {
                     out.flush()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to send message type=${message.type}, size=${message.toBytes().size}: ${e.message}")
+                Log.e(
+                        TAG,
+                        "Failed to send message type=${message.type}, size=${message.toBytes().size}: ${e.message}"
+                )
                 forceDisconnect()
             }
         }
@@ -868,17 +962,18 @@ class BluetoothService : Service() {
 
     private fun startWatchStatusSender() {
         statusUpdateJob?.cancel()
-        statusUpdateJob = serviceScope.launch(Dispatchers.IO) {
-            while (isActive && isConnected) {
-                try {
-                    val status = collectWatchStatus()
-                    sendMessage(ProtocolHelper.createStatusUpdate(status))
-                } catch (e: Exception) {
-                    Log.e(TAG, "Erro ao enviar status: ${e.message}")
+        statusUpdateJob =
+                serviceScope.launch(Dispatchers.IO) {
+                    while (isActive && isConnected) {
+                        try {
+                            val status = collectWatchStatus()
+                            sendMessage(ProtocolHelper.createStatusUpdate(status))
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Erro ao enviar status: ${e.message}")
+                        }
+                        delay(5000)
+                    }
                 }
-                delay(5000)
-            }
-        }
     }
 
     @SuppressLint("MissingPermission")
@@ -892,7 +987,11 @@ class BluetoothService : Service() {
 
         var wifiSsid: String
         try {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED
+            ) {
                 val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
 
                 if (wm.isWifiEnabled) {
@@ -902,9 +1001,7 @@ class BluetoothService : Service() {
                         val rawSsid = info.ssid
 
                         if (rawSsid == "<unknown ssid>" || rawSsid.isEmpty()) {
-                            wifiSsid = lastValidWifiSsid.ifEmpty {
-                                "Conectado"
-                            }
+                            wifiSsid = lastValidWifiSsid.ifEmpty { "Conectado" }
                         } else {
                             val cleanSsid = rawSsid.replace("\"", "")
                             if (cleanSsid != "<unknown ssid>") {
@@ -932,10 +1029,10 @@ class BluetoothService : Service() {
         }
 
         return StatusUpdateData(
-            battery = batteryLevel,
-            charging = isCharging,
-            dnd = dndEnabled,
-            wifi = wifiSsid
+                battery = batteryLevel,
+                charging = isCharging,
+                dnd = dndEnabled,
+                wifi = wifiSsid
         )
     }
 
@@ -943,7 +1040,13 @@ class BluetoothService : Service() {
         try {
             val status = ProtocolHelper.extractData<StatusUpdateData>(message)
             withContext(Dispatchers.Main) {
-                callback?.onWatchStatusUpdated(status.battery, status.charging, status.wifi, status.wifiEnabled, status.dnd)
+                callback?.onWatchStatusUpdated(
+                        status.battery,
+                        status.charging,
+                        status.wifi,
+                        status.wifiEnabled,
+                        status.dnd
+                )
             }
         } catch (e: Exception) {
             Log.e(TAG, "Erro parser status: ${e.message}")
@@ -953,9 +1056,7 @@ class BluetoothService : Service() {
     private suspend fun handleHealthDataReceived(message: ProtocolMessage) {
         try {
             val healthData = ProtocolHelper.extractData<HealthDataUpdate>(message)
-            withContext(Dispatchers.Main) {
-                callback?.onHealthDataUpdated(healthData)
-            }
+            withContext(Dispatchers.Main) { callback?.onHealthDataUpdated(healthData) }
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing health data: ${e.message}")
         }
@@ -964,9 +1065,7 @@ class BluetoothService : Service() {
     private suspend fun handleHealthHistoryReceived(message: ProtocolMessage) {
         try {
             val historyData = ProtocolHelper.extractData<HealthHistoryResponse>(message)
-            withContext(Dispatchers.Main) {
-                callback?.onHealthHistoryReceived(historyData)
-            }
+            withContext(Dispatchers.Main) { callback?.onHealthHistoryReceived(historyData) }
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing health history: ${e.message}")
         }
@@ -975,9 +1074,7 @@ class BluetoothService : Service() {
     private suspend fun handleHealthSettingsReceived(message: ProtocolMessage) {
         try {
             val settings = ProtocolHelper.extractData<HealthSettingsUpdate>(message)
-            withContext(Dispatchers.Main) {
-                callback?.onHealthSettingsReceived(settings)
-            }
+            withContext(Dispatchers.Main) { callback?.onHealthSettingsReceived(settings) }
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing health settings: ${e.message}")
         }
@@ -987,10 +1084,9 @@ class BluetoothService : Service() {
         try {
             val resultsJson = message.data.getAsJsonArray("results")
             val listType = object : TypeToken<List<WifiScanResultData>>() {}.type
-            val results: List<WifiScanResultData> = ProtocolHelper.gson.fromJson(resultsJson, listType)
-            withContext(Dispatchers.Main) {
-                callback?.onWifiScanResultsReceived(results)
-            }
+            val results: List<WifiScanResultData> =
+                    ProtocolHelper.gson.fromJson(resultsJson, listType)
+            withContext(Dispatchers.Main) { callback?.onWifiScanResultsReceived(results) }
         } catch (e: Exception) {
             Log.e(TAG, "Erro parser wifi scan results: ${e.message}")
         }
@@ -1043,21 +1139,20 @@ class BluetoothService : Service() {
         serviceScope.launch {
             if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
                 // Android 9-: Listener only (no polling needed)
-                withContext(Dispatchers.Main) {
-                    startStandardClipboardListener()
-                }
+                withContext(Dispatchers.Main) { startStandardClipboardListener() }
                 Log.d(TAG, "Clipboard monitoring started (Android 9- mode - listener only)")
             } else {
                 // Android 10+: Shizuku UserService polling (3s)
                 ensureUserServiceBound()
-                
+
                 if (userService != null) {
-                    withContext(Dispatchers.Main) {
-                        startClipboardPolling(3000)
-                    }
+                    withContext(Dispatchers.Main) { startClipboardPolling(3000) }
                     Log.d(TAG, "Clipboard monitoring started (Shizuku mode)")
                 } else {
-                    Log.w(TAG, "Shizuku UserService not available after waiting, clipboard sync disabled on Android 10+")
+                    Log.w(
+                            TAG,
+                            "Shizuku UserService not available after waiting, clipboard sync disabled on Android 10+"
+                    )
                 }
             }
         }
@@ -1065,59 +1160,59 @@ class BluetoothService : Service() {
 
     private fun stopClipboardMonitoring() {
         Log.d(TAG, "Stopping clipboard monitoring")
-        
+
         // Stop listener (Android 9-)
-        clipboardListener?.let {
-            clipboardManager?.removePrimaryClipChangedListener(it)
-        }
+        clipboardListener?.let { clipboardManager?.removePrimaryClipChangedListener(it) }
         clipboardListener = null
-        
+
         // Stop polling
-        clipboardPollingRunnable?.let {
-            clipboardPollingHandler.removeCallbacks(it)
-        }
+        clipboardPollingRunnable?.let { clipboardPollingHandler.removeCallbacks(it) }
         clipboardPollingRunnable = null
     }
-    
+
     private fun startStandardClipboardListener() {
         if (clipboardManager == null) {
-            clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+            clipboardManager =
+                    getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
         }
-        
-        clipboardListener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
-            val clip = clipboardManager?.primaryClip
-            if (clip != null && clip.itemCount > 0) {
-                val text = clip.getItemAt(0).text?.toString()
-                if (text != null && text != lastClipboardText) {
-                    lastClipboardText = text
-                    Log.d(TAG, "Clipboard changed (listener): $text")
-                    if (isConnected) {
-                        sendMessage(ProtocolHelper.createClipboardSync(text))
+
+        clipboardListener =
+                android.content.ClipboardManager.OnPrimaryClipChangedListener {
+                    val clip = clipboardManager?.primaryClip
+                    if (clip != null && clip.itemCount > 0) {
+                        val text = clip.getItemAt(0).text?.toString()
+                        if (text != null && text != lastClipboardText) {
+                            lastClipboardText = text
+                            Log.d(TAG, "Clipboard changed (listener): $text")
+                            if (isConnected) {
+                                sendMessage(ProtocolHelper.createClipboardSync(text))
+                            }
+                        }
                     }
                 }
-            }
-        }
         clipboardManager?.addPrimaryClipChangedListener(clipboardListener)
     }
-    
+
     private fun startClipboardPolling(intervalMs: Long) {
-        clipboardPollingRunnable = object : Runnable {
-            override fun run() {
-                checkClipboard()
-                clipboardPollingHandler.postDelayed(this, intervalMs)
-            }
-        }
+        clipboardPollingRunnable =
+                object : Runnable {
+                    override fun run() {
+                        checkClipboard()
+                        clipboardPollingHandler.postDelayed(this, intervalMs)
+                    }
+                }
         clipboardPollingHandler.postDelayed(clipboardPollingRunnable!!, intervalMs)
     }
-    
+
     private fun checkClipboard() {
-        val text = try {
-            userService?.primaryClipText
-        } catch (e: Exception) {
-            Log.e(TAG, "Error reading clipboard via Shizuku: ${e.message}")
-            null
-        }
-        
+        val text =
+                try {
+                    userService?.primaryClipText
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error reading clipboard via Shizuku: ${e.message}")
+                    null
+                }
+
         if (text != null && text != lastClipboardText) {
             lastClipboardText = text
             Log.d(TAG, "Clipboard changed (polling): $text")
@@ -1129,13 +1224,13 @@ class BluetoothService : Service() {
 
     private suspend fun handleClipboardReceived(message: ProtocolMessage) {
         val text = ProtocolHelper.extractStringField(message, "text") ?: return
-        
+
         if (text == lastClipboardText) return
         lastClipboardText = text
-        
+
         withContext(Dispatchers.Main) {
             Log.d(TAG, "Setting clipboard text: $text")
-            
+
             if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
                 // Android 9-: Use standard ClipboardManager
                 val clip = android.content.ClipData.newPlainText("RTOSify", text)
@@ -1158,15 +1253,15 @@ class BluetoothService : Service() {
             delay(1000) // Debounce
 
             // Check clipboard pref
-            if (prefs.getBoolean("clipboard_sync_enabled", false)) {
+            if (activePrefs.getBoolean("clipboard_sync_enabled", false)) {
                 startClipboardMonitoring()
             }
 
             // Send automation settings to watch (watch will handle the logic)
             sendAutomationSettings()
         }
-            // Auto BT Tether: Enable phone BT tethering + watch internet
-        if (prefs.getBoolean("auto_bt_tether_enabled", false)) {
+        // Auto BT Tether: Enable phone BT tethering + watch internet
+        if (activePrefs.getBoolean("auto_bt_tether_enabled", false)) {
             try {
                 // Use accessibility to enable tethering on phone
                 RtosifyAccessibilityService.enableBluetoothTethering()
@@ -1180,15 +1275,15 @@ class BluetoothService : Service() {
 
     private fun handleDeviceInfoUpdate(message: ProtocolMessage) {
         val info = ProtocolHelper.extractData<DeviceInfoData>(message)
-        serviceScope.launch(Dispatchers.Main) {
-            callback?.onDeviceInfoReceived(info)
-        }
+        serviceScope.launch(Dispatchers.Main) { callback?.onDeviceInfoReceived(info) }
     }
 
-
     private fun onConnectionLost() {
-        Log.d(TAG, "onConnectionLost: Cleaning up. Mirroring running: ${MirroringService.isRunning}")
-        
+        Log.d(
+                TAG,
+                "onConnectionLost: Cleaning up. Mirroring running: ${MirroringService.isRunning}"
+        )
+
         if (MirroringService.isRunning) {
             Log.d(TAG, "onConnectionLost: Stopping MirroringService")
             val stopIntent = Intent(this, MirroringService::class.java)
@@ -1199,7 +1294,7 @@ class BluetoothService : Service() {
             stopClipboardMonitoring()
 
             // Auto BT Tether: Disable phone side (notify to disable manually)
-            if (prefs.getBoolean("auto_bt_tether_enabled", false)) {
+            if (activePrefs.getBoolean("auto_bt_tether_enabled", false)) {
                 // Watch will handle its own disconnection
             }
 
@@ -1209,12 +1304,15 @@ class BluetoothService : Service() {
     }
 
     private fun sendAutomationSettings() {
-        val settings = SettingsUpdateData(
-            clipboardSyncEnabled = prefs.getBoolean("clipboard_sync_enabled", false),
-            autoWifiEnabled = prefs.getBoolean("auto_wifi_enabled", false),
-            autoDataEnabled = prefs.getBoolean("auto_data_enabled", false),
-            autoBtTetherEnabled = prefs.getBoolean("auto_bt_tether_enabled", false)
-        )
+        val settings =
+                SettingsUpdateData(
+                        clipboardSyncEnabled =
+                                activePrefs.getBoolean("clipboard_sync_enabled", false),
+                        autoWifiEnabled = activePrefs.getBoolean("auto_wifi_enabled", false),
+                        autoDataEnabled = activePrefs.getBoolean("auto_data_enabled", false),
+                        autoBtTetherEnabled =
+                                activePrefs.getBoolean("auto_bt_tether_enabled", false)
+                )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
     }
 
@@ -1252,37 +1350,59 @@ class BluetoothService : Service() {
             val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
             when (controlData.command) {
-                MediaControlData.CMD_PLAY, MediaControlData.CMD_PAUSE, MediaControlData.CMD_PLAY_PAUSE,
-                MediaControlData.CMD_NEXT, MediaControlData.CMD_PREVIOUS -> {
-                    val keyCode = when(controlData.command) {
-                        MediaControlData.CMD_PLAY -> KeyEvent.KEYCODE_MEDIA_PLAY
-                        MediaControlData.CMD_PAUSE -> KeyEvent.KEYCODE_MEDIA_PAUSE
-                        MediaControlData.CMD_PLAY_PAUSE -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
-                        MediaControlData.CMD_NEXT -> KeyEvent.KEYCODE_MEDIA_NEXT
-                        MediaControlData.CMD_PREVIOUS -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
-                        else -> 0
-                    }
+                MediaControlData.CMD_PLAY,
+                MediaControlData.CMD_PAUSE,
+                MediaControlData.CMD_PLAY_PAUSE,
+                MediaControlData.CMD_NEXT,
+                MediaControlData.CMD_PREVIOUS -> {
+                    val keyCode =
+                            when (controlData.command) {
+                                MediaControlData.CMD_PLAY -> KeyEvent.KEYCODE_MEDIA_PLAY
+                                MediaControlData.CMD_PAUSE -> KeyEvent.KEYCODE_MEDIA_PAUSE
+                                MediaControlData.CMD_PLAY_PAUSE -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+                                MediaControlData.CMD_NEXT -> KeyEvent.KEYCODE_MEDIA_NEXT
+                                MediaControlData.CMD_PREVIOUS -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
+                                else -> 0
+                            }
                     if (keyCode != 0) {
                         try {
-                            audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
-                            audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
+                            audioManager.dispatchMediaKeyEvent(
+                                    KeyEvent(KeyEvent.ACTION_DOWN, keyCode)
+                            )
+                            audioManager.dispatchMediaKeyEvent(
+                                    KeyEvent(KeyEvent.ACTION_UP, keyCode)
+                            )
                         } catch (e: Exception) {
                             // Fallback to broadcast if dispatchMediaKeyEvent fails
                             val intent = Intent(Intent.ACTION_MEDIA_BUTTON)
-                            intent.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+                            intent.putExtra(
+                                    Intent.EXTRA_KEY_EVENT,
+                                    KeyEvent(KeyEvent.ACTION_DOWN, keyCode)
+                            )
                             sendOrderedBroadcast(intent, null)
 
                             val intentUp = Intent(Intent.ACTION_MEDIA_BUTTON)
-                            intentUp.putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(KeyEvent.ACTION_UP, keyCode))
+                            intentUp.putExtra(
+                                    Intent.EXTRA_KEY_EVENT,
+                                    KeyEvent(KeyEvent.ACTION_UP, keyCode)
+                            )
                             sendOrderedBroadcast(intentUp, null)
                         }
                     }
                 }
                 MediaControlData.CMD_VOL_UP -> {
-                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
+                    audioManager.adjustStreamVolume(
+                            AudioManager.STREAM_MUSIC,
+                            AudioManager.ADJUST_RAISE,
+                            AudioManager.FLAG_SHOW_UI
+                    )
                 }
                 MediaControlData.CMD_VOL_DOWN -> {
-                    audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+                    audioManager.adjustStreamVolume(
+                            AudioManager.STREAM_MUSIC,
+                            AudioManager.ADJUST_LOWER,
+                            AudioManager.FLAG_SHOW_UI
+                    )
                 }
             }
         } catch (e: Exception) {
@@ -1298,7 +1418,7 @@ class BluetoothService : Service() {
 
     private fun handleCameraStop() {
         // We can't easily finish an activity from service unless we broadcast to it.
-        // But users can just swipe back. 
+        // But users can just swipe back.
         // Or we can send a broadcast to finish it.
         // For now, let's assume user manually closes or we implement a termination broadcast.
     }
@@ -1311,15 +1431,14 @@ class BluetoothService : Service() {
     }
 
     private fun initiateCall(phoneNumber: String) {
-        val intent = if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
-            Intent(Intent.ACTION_CALL).apply {
-                data = Uri.parse("tel:$phoneNumber")
-            }
-        } else {
-            Intent(Intent.ACTION_DIAL).apply {
-                data = Uri.parse("tel:$phoneNumber")
-            }
-        }
+        val intent =
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE) ==
+                                PackageManager.PERMISSION_GRANTED
+                ) {
+                    Intent(Intent.ACTION_CALL).apply { data = Uri.parse("tel:$phoneNumber") }
+                } else {
+                    Intent(Intent.ACTION_DIAL).apply { data = Uri.parse("tel:$phoneNumber") }
+                }
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         startActivity(intent)
     }
@@ -1341,23 +1460,29 @@ class BluetoothService : Service() {
             val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
             audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxVolume, 0)
 
-            val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            val alarmUri =
+                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
 
-            findPhoneRingtone = RingtoneManager.getRingtone(this, alarmUri).apply {
-                @Suppress("DEPRECATION")
-                streamType = AudioManager.STREAM_ALARM
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    isLooping = true
-                }
-                play()
-            }
+            findPhoneRingtone =
+                    RingtoneManager.getRingtone(this, alarmUri).apply {
+                        @Suppress("DEPRECATION") streamType = AudioManager.STREAM_ALARM
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            isLooping = true
+                        }
+                        play()
+                    }
 
             // Start activity to allow stopping locally
-            val intent = Intent().apply {
-                component = ComponentName("com.ailife.rtosify", "com.ailife.rtosify.FindPhoneActivity")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
+            val intent =
+                    Intent().apply {
+                        component =
+                                ComponentName(
+                                        "com.ailife.rtosify",
+                                        "com.ailife.rtosify.FindPhoneActivity"
+                                )
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
             startActivity(intent)
 
             Log.i(TAG, "Phone alarm started at max volume")
@@ -1371,7 +1496,7 @@ class BluetoothService : Service() {
         findPhoneRingtone = null
         Log.i(TAG, "Phone alarm stopped")
     }
-    
+
     // File transfer state (receiving)
     private var receivingFile: File? = null
     private var receivingFileStream: java.io.RandomAccessFile? = null
@@ -1388,16 +1513,23 @@ class BluetoothService : Service() {
     private suspend fun handleFileTransferStart(message: ProtocolMessage) {
         try {
             val fileData = ProtocolHelper.extractData<FileTransferData>(message)
-            android.util.Log.d(TAG, "File transfer starting: ${fileData.name}, ${fileData.size} bytes")
+            android.util.Log.d(
+                    TAG,
+                    "File transfer starting: ${fileData.name}, ${fileData.size} bytes"
+            )
 
             // Prepare to receive file
             // If it's a regular file (not APK), save to Downloads
-            receivingFile = if (fileData.type == "REGULAR") {
-                val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
-                File(downloadsDir, fileData.name)
-            } else {
-                File(cacheDir, fileData.name)
-            }
+            receivingFile =
+                    if (fileData.type == "REGULAR") {
+                        val downloadsDir =
+                                android.os.Environment.getExternalStoragePublicDirectory(
+                                        android.os.Environment.DIRECTORY_DOWNLOADS
+                                )
+                        File(downloadsDir, fileData.name)
+                    } else {
+                        File(cacheDir, fileData.name)
+                    }
 
             // Use RandomAccessFile for random write access (out-of-order chunks)
             receivingFileStream = java.io.RandomAccessFile(receivingFile!!, "rw")
@@ -1407,7 +1539,6 @@ class BluetoothService : Service() {
             expectedChecksum = fileData.checksum
             receivingFileType = fileData.type
             receivedChunks.clear()
-
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error starting file transfer: ${e.message}")
         }
@@ -1427,7 +1558,10 @@ class BluetoothService : Service() {
             }
             receivedFileSize += chunkBytes.size
 
-            android.util.Log.d(TAG, "Received chunk ${chunkData.chunkNumber}/${chunkData.totalChunks} at offset ${chunkData.offset}")
+            android.util.Log.d(
+                    TAG,
+                    "Received chunk ${chunkData.chunkNumber}/${chunkData.totalChunks} at offset ${chunkData.offset}"
+            )
 
             // Report progress
             if (expectedFileSize > 0) {
@@ -1436,7 +1570,6 @@ class BluetoothService : Service() {
                     callback?.onDownloadProgress(progress)
                 }
             }
-
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error handling chunk: ${e.message}")
         }
@@ -1479,11 +1612,19 @@ class BluetoothService : Service() {
             if (expectedChecksum.isNotEmpty()) {
                 val actualChecksum = calculateMd5(file)
                 if (actualChecksum != expectedChecksum) {
-                    android.util.Log.e(TAG, "Checksum mismatch! Expected: $expectedChecksum, Got: $actualChecksum")
+                    android.util.Log.e(
+                            TAG,
+                            "Checksum mismatch! Expected: $expectedChecksum, Got: $actualChecksum"
+                    )
                     file.delete()
                     cleanupFileTransfer()
                     // Send failure acknowledgment
-                    sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = "Checksum mismatch"))
+                    sendMessage(
+                            ProtocolHelper.createFileTransferEnd(
+                                    success = false,
+                                    error = "Checksum mismatch"
+                            )
+                    )
                     return
                 }
             }
@@ -1492,25 +1633,33 @@ class BluetoothService : Service() {
             sendMessage(ProtocolHelper.createFileTransferEnd(success = true))
             android.util.Log.d(TAG, "Sent file transfer acknowledgment")
 
-            // Show install dialog ONLY if type is "APK" (sent from app install section, not file manager download)
+            // Show install dialog ONLY if type is "APK" (sent from app install section, not file
+            // manager download)
             if (receivingFileType == "APK") {
-                withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    showInstallApkDialog(file)
-                }
+                withContext(kotlinx.coroutines.Dispatchers.Main) { showInstallApkDialog(file) }
             } else {
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
                     callback?.onDownloadProgress(100)
-                    Toast.makeText(this@BluetoothService, getString(R.string.upload_complete_title) + ": ${file.name}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                                    this@BluetoothService,
+                                    getString(R.string.upload_complete_title) + ": ${file.name}",
+                                    Toast.LENGTH_LONG
+                            )
+                            .show()
                 }
             }
 
             cleanupFileTransfer()
-
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error finalizing file transfer: ${e.message}")
             cleanupFileTransfer()
             // Send failure acknowledgment
-            sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = e.message ?: "Unknown error"))
+            sendMessage(
+                    ProtocolHelper.createFileTransferEnd(
+                            success = false,
+                            error = e.message ?: "Unknown error"
+                    )
+            )
         }
     }
 
@@ -1554,7 +1703,9 @@ class BluetoothService : Service() {
                 val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "reboot -p"))
                 withTimeout(3000) { process.waitFor() }
             } catch (_: Exception) {
-                try { Runtime.getRuntime().exec(arrayOf("su", "-c", "reboot")) } catch (_: Exception) {}
+                try {
+                    Runtime.getRuntime().exec(arrayOf("su", "-c", "reboot"))
+                } catch (_: Exception) {}
             }
         }
     }
@@ -1577,63 +1728,102 @@ class BluetoothService : Service() {
 
     fun syncCalendar() {
         if (!isConnected) {
-            mainHandler.post { Toast.makeText(this, getString(R.string.toast_watch_not_connected), Toast.LENGTH_SHORT).show() }
+            mainHandler.post {
+                Toast.makeText(
+                                this,
+                                getString(R.string.toast_watch_not_connected),
+                                Toast.LENGTH_SHORT
+                        )
+                        .show()
+            }
             return
         }
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR) != PackageManager.PERMISSION_GRANTED) {
-            mainHandler.post { Toast.makeText(this, "Permission READ_CALENDAR not granted", Toast.LENGTH_SHORT).show() }
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR) !=
+                        PackageManager.PERMISSION_GRANTED
+        ) {
+            mainHandler.post {
+                Toast.makeText(this, "Permission READ_CALENDAR not granted", Toast.LENGTH_SHORT)
+                        .show()
+            }
             return
         }
 
         serviceScope.launch(Dispatchers.IO) {
             val events = mutableListOf<CalendarEvent>()
-            val projection = arrayOf(
-                CalendarContract.Events.TITLE,
-                CalendarContract.Events.DTSTART,
-                CalendarContract.Events.DTEND,
-                CalendarContract.Events.EVENT_LOCATION,
-                CalendarContract.Events.DESCRIPTION
-            )
-            
+            val projection =
+                    arrayOf(
+                            CalendarContract.Events.TITLE,
+                            CalendarContract.Events.DTSTART,
+                            CalendarContract.Events.DTEND,
+                            CalendarContract.Events.EVENT_LOCATION,
+                            CalendarContract.Events.DESCRIPTION
+                    )
+
             val now = System.currentTimeMillis()
             val weekFromNow = now + (7 * 24 * 60 * 60 * 1000L)
-            val selection = "(${CalendarContract.Events.DTSTART} >= ?) AND (${CalendarContract.Events.DTSTART} <= ?)"
+            val selection =
+                    "(${CalendarContract.Events.DTSTART} >= ?) AND (${CalendarContract.Events.DTSTART} <= ?)"
             val selectionArgs = arrayOf(now.toString(), weekFromNow.toString())
 
             try {
                 contentResolver.query(
-                    CalendarContract.Events.CONTENT_URI,
-                    projection,
-                    selection,
-                    selectionArgs,
-                    "${CalendarContract.Events.DTSTART} ASC"
-                )?.use { cursor ->
-                    val titleIdx = cursor.getColumnIndex(CalendarContract.Events.TITLE)
-                    val startIdx = cursor.getColumnIndex(CalendarContract.Events.DTSTART)
-                    val endIdx = cursor.getColumnIndex(CalendarContract.Events.DTEND)
-                    val locIdx = cursor.getColumnIndex(CalendarContract.Events.EVENT_LOCATION)
-                    val descIdx = cursor.getColumnIndex(CalendarContract.Events.DESCRIPTION)
+                                CalendarContract.Events.CONTENT_URI,
+                                projection,
+                                selection,
+                                selectionArgs,
+                                "${CalendarContract.Events.DTSTART} ASC"
+                        )
+                        ?.use { cursor ->
+                            val titleIdx = cursor.getColumnIndex(CalendarContract.Events.TITLE)
+                            val startIdx = cursor.getColumnIndex(CalendarContract.Events.DTSTART)
+                            val endIdx = cursor.getColumnIndex(CalendarContract.Events.DTEND)
+                            val locIdx =
+                                    cursor.getColumnIndex(CalendarContract.Events.EVENT_LOCATION)
+                            val descIdx = cursor.getColumnIndex(CalendarContract.Events.DESCRIPTION)
 
-                    while (cursor.moveToNext()) {
-                        events.add(CalendarEvent(
-                            title = cursor.getString(titleIdx) ?: "No Title",
-                            startTime = cursor.getLong(startIdx),
-                            endTime = cursor.getLong(endIdx),
-                            location = cursor.getString(locIdx),
-                            description = cursor.getString(descIdx)
-                        ))
-                    }
-                }
+                            while (cursor.moveToNext()) {
+                                events.add(
+                                        CalendarEvent(
+                                                title = cursor.getString(titleIdx) ?: "No Title",
+                                                startTime = cursor.getLong(startIdx),
+                                                endTime = cursor.getLong(endIdx),
+                                                location = cursor.getString(locIdx),
+                                                description = cursor.getString(descIdx)
+                                        )
+                                )
+                            }
+                        }
 
                 if (events.isNotEmpty()) {
                     sendMessage(ProtocolHelper.createSyncCalendar(events))
-                    mainHandler.post { Toast.makeText(this@BluetoothService, getString(R.string.toast_sync_success, "Calendar"), Toast.LENGTH_SHORT).show() }
+                    mainHandler.post {
+                        Toast.makeText(
+                                        this@BluetoothService,
+                                        getString(R.string.toast_sync_success, "Calendar"),
+                                        Toast.LENGTH_SHORT
+                                )
+                                .show()
+                    }
                 } else {
-                    mainHandler.post { Toast.makeText(this@BluetoothService, "No upcoming calendar events found", Toast.LENGTH_SHORT).show() }
+                    mainHandler.post {
+                        Toast.makeText(
+                                        this@BluetoothService,
+                                        "No upcoming calendar events found",
+                                        Toast.LENGTH_SHORT
+                                )
+                                .show()
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("BluetoothService", "Error syncing calendar: ${e.message}")
-                mainHandler.post { Toast.makeText(this@BluetoothService, getString(R.string.toast_sync_failed, "Calendar"), Toast.LENGTH_SHORT).show() }
+                mainHandler.post {
+                    Toast.makeText(
+                                    this@BluetoothService,
+                                    getString(R.string.toast_sync_failed, "Calendar"),
+                                    Toast.LENGTH_SHORT
+                            )
+                            .show()
+                }
             }
         }
     }
@@ -1644,58 +1834,99 @@ class BluetoothService : Service() {
 
     fun syncContacts() {
         if (!isConnected) {
-            mainHandler.post { Toast.makeText(this, getString(R.string.toast_watch_not_connected), Toast.LENGTH_SHORT).show() }
+            mainHandler.post {
+                Toast.makeText(
+                                this,
+                                getString(R.string.toast_watch_not_connected),
+                                Toast.LENGTH_SHORT
+                        )
+                        .show()
+            }
             return
         }
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
-            mainHandler.post { Toast.makeText(this, "Permission READ_CONTACTS not granted", Toast.LENGTH_SHORT).show() }
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) !=
+                        PackageManager.PERMISSION_GRANTED
+        ) {
+            mainHandler.post {
+                Toast.makeText(this, "Permission READ_CONTACTS not granted", Toast.LENGTH_SHORT)
+                        .show()
+            }
             return
         }
 
         serviceScope.launch(Dispatchers.IO) {
             val contactsList = mutableListOf<Contact>()
-            
-            val projection = arrayOf(
-                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-                ContactsContract.CommonDataKinds.Phone.NUMBER
-            )
+
+            val projection =
+                    arrayOf(
+                            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                            ContactsContract.CommonDataKinds.Phone.NUMBER
+                    )
 
             try {
                 contentResolver.query(
-                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                    projection,
-                    null,
-                    null,
-                    "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC"
-                )?.use { cursor ->
-                    val nameIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
-                    val numberIdx = cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                                projection,
+                                null,
+                                null,
+                                "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC"
+                        )
+                        ?.use { cursor ->
+                            val nameIdx =
+                                    cursor.getColumnIndex(
+                                            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
+                                    )
+                            val numberIdx =
+                                    cursor.getColumnIndex(
+                                            ContactsContract.CommonDataKinds.Phone.NUMBER
+                                    )
 
-                    val contactMap = mutableMapOf<String, MutableList<String>>()
+                            val contactMap = mutableMapOf<String, MutableList<String>>()
 
-                    while (cursor.moveToNext()) {
-                        val name = cursor.getString(nameIdx) ?: "Unknown"
-                        val number = cursor.getString(numberIdx) ?: ""
-                        if (number.isNotEmpty()) {
-                            contactMap.getOrPut(name) { mutableListOf() }.add(number)
+                            while (cursor.moveToNext()) {
+                                val name = cursor.getString(nameIdx) ?: "Unknown"
+                                val number = cursor.getString(numberIdx) ?: ""
+                                if (number.isNotEmpty()) {
+                                    contactMap.getOrPut(name) { mutableListOf() }.add(number)
+                                }
+                            }
+
+                            contactMap.forEach { (name, numbers) ->
+                                contactsList.add(Contact(name = name, phoneNumbers = numbers))
+                            }
                         }
-                    }
-
-                    contactMap.forEach { (name, numbers) ->
-                        contactsList.add(Contact(name = name, phoneNumbers = numbers))
-                    }
-                }
 
                 if (contactsList.isNotEmpty()) {
                     val limitedList = contactsList.take(100)
                     sendMessage(ProtocolHelper.createSyncContacts(limitedList))
-                    mainHandler.post { Toast.makeText(this@BluetoothService, getString(R.string.toast_sync_success, "Contacts"), Toast.LENGTH_SHORT).show() }
+                    mainHandler.post {
+                        Toast.makeText(
+                                        this@BluetoothService,
+                                        getString(R.string.toast_sync_success, "Contacts"),
+                                        Toast.LENGTH_SHORT
+                                )
+                                .show()
+                    }
                 } else {
-                    mainHandler.post { Toast.makeText(this@BluetoothService, "No contacts found", Toast.LENGTH_SHORT).show() }
+                    mainHandler.post {
+                        Toast.makeText(
+                                        this@BluetoothService,
+                                        "No contacts found",
+                                        Toast.LENGTH_SHORT
+                                )
+                                .show()
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("BluetoothService", "Error syncing contacts: ${e.message}")
-                mainHandler.post { Toast.makeText(this@BluetoothService, getString(R.string.toast_sync_failed, "Contacts"), Toast.LENGTH_SHORT).show() }
+                mainHandler.post {
+                    Toast.makeText(
+                                    this@BluetoothService,
+                                    getString(R.string.toast_sync_failed, "Contacts"),
+                                    Toast.LENGTH_SHORT
+                            )
+                            .show()
+                }
             }
         }
     }
@@ -1703,9 +1934,7 @@ class BluetoothService : Service() {
     fun sendApkFile(uri: Uri) {
         contentResolver.openInputStream(uri)?.use { inputStream ->
             val tempFile = File(cacheDir, "temp_upload.apk")
-            tempFile.outputStream().use { outputStream ->
-                inputStream.copyTo(outputStream)
-            }
+            tempFile.outputStream().use { outputStream -> inputStream.copyTo(outputStream) }
             sendFile(tempFile, "APK")
         }
     }
@@ -1724,13 +1953,14 @@ class BluetoothService : Service() {
                 md5.update(fileBytes)
                 val checksum = md5.digest().joinToString("") { "%02x".format(it) }
 
-                val fileData = FileTransferData(
-                    name = file.name,
-                    size = fileBytes.size.toLong(),
-                    checksum = checksum,
-                    type = type,
-                    path = remotePath
-                )
+                val fileData =
+                        FileTransferData(
+                                name = file.name,
+                                size = fileBytes.size.toLong(),
+                                checksum = checksum,
+                                type = type,
+                                path = remotePath
+                        )
                 sendMessage(ProtocolHelper.createFileTransferStart(fileData))
                 delay(100)
 
@@ -1742,20 +1972,20 @@ class BluetoothService : Service() {
                 while (offset < fileBytes.size) {
                     val end = minOf(offset + chunkSize, fileBytes.size)
                     val chunk = fileBytes.copyOfRange(offset, end)
-                    val base64Chunk = android.util.Base64.encodeToString(chunk, android.util.Base64.NO_WRAP)
+                    val base64Chunk =
+                            android.util.Base64.encodeToString(chunk, android.util.Base64.NO_WRAP)
 
-                    val chunkData = FileChunkData(
-                        offset = offset.toLong(),
-                        data = base64Chunk,
-                        chunkNumber = chunkNumber,
-                        totalChunks = totalChunks
-                    )
+                    val chunkData =
+                            FileChunkData(
+                                    offset = offset.toLong(),
+                                    data = base64Chunk,
+                                    chunkNumber = chunkNumber,
+                                    totalChunks = totalChunks
+                            )
                     sendMessage(ProtocolHelper.createFileChunk(chunkData))
 
                     val progress = ((chunkNumber + 1) * 95 / totalChunks)
-                    withContext(Dispatchers.Main) {
-                        callback?.onUploadProgress(progress)
-                    }
+                    withContext(Dispatchers.Main) { callback?.onUploadProgress(progress) }
 
                     offset = end
                     chunkNumber++
@@ -1766,13 +1996,14 @@ class BluetoothService : Service() {
                 waitingForFileAck = true
                 sendMessageSync(ProtocolHelper.createFileTransferEnd(success = true))
 
-                val ackReceived = try {
-                    kotlinx.coroutines.withTimeout(15000) {
-                        fileAckDeferred?.await() ?: false
-                    }
-                } catch (_: Exception) {
-                    false
-                }
+                val ackReceived =
+                        try {
+                            kotlinx.coroutines.withTimeout(15000) {
+                                fileAckDeferred?.await() ?: false
+                            }
+                        } catch (_: Exception) {
+                            false
+                        }
 
                 withContext(Dispatchers.Main) {
                     if (ackReceived) {
@@ -1784,7 +2015,12 @@ class BluetoothService : Service() {
                 }
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "Error sending file: ${e.message}")
-                sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = e.message ?: "Unknown error"))
+                sendMessage(
+                        ProtocolHelper.createFileTransferEnd(
+                                success = false,
+                                error = e.message ?: "Unknown error"
+                        )
+                )
                 withContext(Dispatchers.Main) {
                     callback?.onUploadProgress(-1)
                     callback?.onError(getString(R.string.toast_upload_failed) + ": ${e.message}")
@@ -1812,9 +2048,7 @@ class BluetoothService : Service() {
     private suspend fun handleResponseFileList(message: ProtocolMessage) {
         val path = ProtocolHelper.extractStringField(message, "path") ?: "/"
         val filesJson = message.data.get("files").toString()
-        withContext(Dispatchers.Main) {
-            callback?.onFileListReceived(path, filesJson)
-        }
+        withContext(Dispatchers.Main) { callback?.onFileListReceived(path, filesJson) }
     }
 
     private fun getFileNameFromUri(uri: Uri): String? {
@@ -1822,7 +2056,8 @@ class BluetoothService : Service() {
             var fileName: String? = null
             contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
-                    val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    val nameIndex =
+                            cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
                     if (nameIndex != -1) {
                         fileName = cursor.getString(nameIndex)
                     }
@@ -1837,51 +2072,62 @@ class BluetoothService : Service() {
     private fun showInstallNotification(tempFile: File) {
         val authority = "${packageName}.fileprovider"
         val installUri = FileProvider.getUriForFile(this, authority, tempFile)
-        val installIntent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(installUri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, installIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val builder = NotificationCompat.Builder(this, INSTALL_CHANNEL_ID)
-            .setContentTitle(getString(R.string.notification_apk_received_title))
-            .setContentText(getString(R.string.notification_apk_received_text))
-            .setSmallIcon(android.R.drawable.stat_sys_download_done)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
+        val installIntent =
+                Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(installUri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+        val pendingIntent =
+                PendingIntent.getActivity(
+                        this,
+                        0,
+                        installIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+        val builder =
+                NotificationCompat.Builder(this, INSTALL_CHANNEL_ID)
+                        .setContentTitle(getString(R.string.notification_apk_received_title))
+                        .setContentText(getString(R.string.notification_apk_received_text))
+                        .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setAutoCancel(true)
+                        .setContentIntent(pendingIntent)
         notificationManager.notify(INSTALL_NOTIFICATION_ID, builder.build())
     }
 
     private fun showPermissionNotification() {
-        val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-            data = "package:$packageName".toUri()
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        val builder = NotificationCompat.Builder(this, INSTALL_CHANNEL_ID)
-            .setContentTitle(getString(R.string.notification_config_required_title))
-            .setContentText(getString(R.string.notification_config_required_text))
-            .setSmallIcon(android.R.drawable.ic_dialog_alert)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
+        val intent =
+                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                    data = "package:$packageName".toUri()
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+        val pendingIntent =
+                PendingIntent.getActivity(
+                        this,
+                        0,
+                        intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+        val builder =
+                NotificationCompat.Builder(this, INSTALL_CHANNEL_ID)
+                        .setContentTitle(getString(R.string.notification_config_required_title))
+                        .setContentText(getString(R.string.notification_config_required_text))
+                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setAutoCancel(true)
+                        .setContentIntent(pendingIntent)
         notificationManager.notify(INSTALL_NOTIFICATION_ID, builder.build())
     }
 
     private fun showErrorNotification(msg: String) {
-        val builder = NotificationCompat.Builder(this, CHANNEL_ID_DISCONNECTED)
-            .setContentTitle(getString(R.string.notification_error_title))
-            .setContentText(msg)
-            .setSmallIcon(android.R.drawable.stat_notify_error)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
+        val builder =
+                NotificationCompat.Builder(this, CHANNEL_ID_DISCONNECTED)
+                        .setContentTitle(getString(R.string.notification_error_title))
+                        .setContentText(msg)
+                        .setSmallIcon(android.R.drawable.stat_notify_error)
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setAutoCancel(true)
         notificationManager.notify(999, builder.build())
     }
 
@@ -1924,7 +2170,10 @@ class BluetoothService : Service() {
             try {
                 val appInfo = packageInfo.applicationInfo ?: continue
                 // Skip system apps without launch intent to keep list clean
-                if ((appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0 && pm.getLaunchIntentForPackage(packageInfo.packageName) == null) continue
+                if ((appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0 &&
+                                pm.getLaunchIntentForPackage(packageInfo.packageName) == null
+                )
+                        continue
 
                 val appName = appInfo.loadLabel(pm).toString()
                 val packageName = packageInfo.packageName
@@ -1936,16 +2185,11 @@ class BluetoothService : Service() {
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
                 val iconBase64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
 
-                apps.add(AppInfo(
-                    name = appName,
-                    packageName = packageName,
-                    icon = iconBase64
-                ))
+                apps.add(AppInfo(name = appName, packageName = packageName, icon = iconBase64))
             } catch (_: Exception) {}
         }
         return apps
     }
-
 
     private fun showMirroredNotification(message: ProtocolMessage) {
         try {
@@ -1955,18 +2199,33 @@ class BluetoothService : Service() {
             val pkg = notif.packageName
             val key = notif.key
 
-            val notifId = notificationMap.getOrPut(key) { (System.currentTimeMillis() % 10000).toInt() + MIRRORED_NOTIFICATION_ID_START }
+            val notifId =
+                    notificationMap.getOrPut(key) {
+                        (System.currentTimeMillis() % 10000).toInt() +
+                                MIRRORED_NOTIFICATION_ID_START
+                    }
 
-            val deleteIntent = Intent(ACTION_WATCH_DISMISSED_LOCAL).apply { putExtra(EXTRA_NOTIF_KEY, key); setPackage(packageName) }
-            val deletePending = PendingIntent.getBroadcast(this, notifId, deleteIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            val deleteIntent =
+                    Intent(ACTION_WATCH_DISMISSED_LOCAL).apply {
+                        putExtra(EXTRA_NOTIF_KEY, key)
+                        setPackage(packageName)
+                    }
+            val deletePending =
+                    PendingIntent.getBroadcast(
+                            this,
+                            notifId,
+                            deleteIntent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
 
-            val builder = NotificationCompat.Builder(this, MIRRORED_CHANNEL_ID)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setSubText(pkg)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setAutoCancel(true)
-                .setDeleteIntent(deletePending)
+            val builder =
+                    NotificationCompat.Builder(this, MIRRORED_CHANNEL_ID)
+                            .setContentTitle(title)
+                            .setContentText(text)
+                            .setSubText(pkg)
+                            .setPriority(NotificationCompat.PRIORITY_HIGH)
+                            .setAutoCancel(true)
+                            .setDeleteIntent(deletePending)
 
             // Set large icon if available
             notif.largeIcon?.let { iconBase64 ->
@@ -1974,7 +2233,12 @@ class BluetoothService : Service() {
                     Log.d(TAG, "Decoding large icon: ${iconBase64.length} chars")
                     val iconBytes = Base64.decode(iconBase64, Base64.NO_WRAP)
                     Log.d(TAG, "Icon bytes decoded: ${iconBytes.size} bytes")
-                    val bitmap = android.graphics.BitmapFactory.decodeByteArray(iconBytes, 0, iconBytes.size)
+                    val bitmap =
+                            android.graphics.BitmapFactory.decodeByteArray(
+                                    iconBytes,
+                                    0,
+                                    iconBytes.size
+                            )
                     if (bitmap != null) {
                         Log.d(TAG, "Bitmap decoded: ${bitmap.width}x${bitmap.height}")
                         builder.setLargeIcon(bitmap)
@@ -1984,58 +2248,68 @@ class BluetoothService : Service() {
                 } catch (e: Exception) {
                     Log.e(TAG, "Error decoding large icon: ${e.message}", e)
                 }
-            } ?: Log.d(TAG, "No large icon in notification data")
+            }
+                    ?: Log.d(TAG, "No large icon in notification data")
 
             // Set small icon - always use default for now (Android requires resource ID)
             // The original small icon is extracted but can't be used directly in NotificationCompat
             // TODO: Could save as temp resource or use as large icon for better visibility
             builder.setSmallIcon(android.R.drawable.ic_popup_reminder)
-            Log.d(TAG, "Small icon extraction: ${if (notif.smallIcon != null) "available but using default (API limitation)" else "not available"}")
+            Log.d(
+                    TAG,
+                    "Small icon extraction: ${if (notif.smallIcon != null) "available but using default (API limitation)" else "not available"}"
+            )
 
             // Add action buttons
             notif.actions.forEachIndexed { index, action ->
-                val actionIntent = if (action.isReplyAction) {
-                    Intent(this, NotificationActionReceiver::class.java).apply {
-                        setAction("${key}_${action.actionKey}_$index")
-                        putExtra(EXTRA_NOTIF_KEY, key)
-                        putExtra(EXTRA_ACTION_KEY, action.actionKey)
-                        putExtra("is_reply", true)
-                    }
-                } else {
-                    Intent(this, NotificationActionReceiver::class.java).apply {
-                        setAction("${key}_${action.actionKey}_$index")
-                        putExtra(EXTRA_NOTIF_KEY, key)
-                        putExtra(EXTRA_ACTION_KEY, action.actionKey)
-                        putExtra("is_reply", false)
-                    }
-                }
+                val actionIntent =
+                        if (action.isReplyAction) {
+                            Intent(this, NotificationActionReceiver::class.java).apply {
+                                setAction("${key}_${action.actionKey}_$index")
+                                putExtra(EXTRA_NOTIF_KEY, key)
+                                putExtra(EXTRA_ACTION_KEY, action.actionKey)
+                                putExtra("is_reply", true)
+                            }
+                        } else {
+                            Intent(this, NotificationActionReceiver::class.java).apply {
+                                setAction("${key}_${action.actionKey}_$index")
+                                putExtra(EXTRA_NOTIF_KEY, key)
+                                putExtra(EXTRA_ACTION_KEY, action.actionKey)
+                                putExtra("is_reply", false)
+                            }
+                        }
 
-                val actionPendingIntent = PendingIntent.getBroadcast(
-                    this,
-                    (notifId + index + 1),
-                    actionIntent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-                )
+                val actionPendingIntent =
+                        PendingIntent.getBroadcast(
+                                this,
+                                (notifId + index + 1),
+                                actionIntent,
+                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
+                        )
 
                 if (action.isReplyAction) {
                     // Create reply action with RemoteInput
-                    val remoteInput = androidx.core.app.RemoteInput.Builder("reply_text")
-                        .setLabel(getString(R.string.reply_label))
-                        .build()
+                    val remoteInput =
+                            androidx.core.app.RemoteInput.Builder("reply_text")
+                                    .setLabel(getString(R.string.reply_label))
+                                    .build()
 
-                    val replyAction = NotificationCompat.Action.Builder(
-                        android.R.drawable.ic_menu_send,
-                        action.title,
-                        actionPendingIntent
-                    ).addRemoteInput(remoteInput).build()
+                    val replyAction =
+                            NotificationCompat.Action.Builder(
+                                            android.R.drawable.ic_menu_send,
+                                            action.title,
+                                            actionPendingIntent
+                                    )
+                                    .addRemoteInput(remoteInput)
+                                    .build()
 
                     builder.addAction(replyAction)
                 } else {
                     // Regular action button
                     builder.addAction(
-                        android.R.drawable.ic_menu_view,
-                        action.title,
-                        actionPendingIntent
+                            android.R.drawable.ic_menu_view,
+                            action.title,
+                            actionPendingIntent
                     )
                 }
             }
@@ -2045,12 +2319,23 @@ class BluetoothService : Service() {
                 try {
                     Log.d(TAG, "Decoding big picture: ${pictureBase64.length} chars")
                     val pictureBytes = Base64.decode(pictureBase64, Base64.NO_WRAP)
-                    val pictureBitmap = android.graphics.BitmapFactory.decodeByteArray(pictureBytes, 0, pictureBytes.size)
+                    val pictureBitmap =
+                            android.graphics.BitmapFactory.decodeByteArray(
+                                    pictureBytes,
+                                    0,
+                                    pictureBytes.size
+                            )
                     if (pictureBitmap != null) {
-                        Log.d(TAG, "Big picture decoded: ${pictureBitmap.width}x${pictureBitmap.height}")
-                        val bigPictureStyle = NotificationCompat.BigPictureStyle()
-                            .bigPicture(pictureBitmap)
-                            .bigLargeIcon(null as Bitmap?) // Hide large icon when expanded
+                        Log.d(
+                                TAG,
+                                "Big picture decoded: ${pictureBitmap.width}x${pictureBitmap.height}"
+                        )
+                        val bigPictureStyle =
+                                NotificationCompat.BigPictureStyle()
+                                        .bigPicture(pictureBitmap)
+                                        .bigLargeIcon(
+                                                null as Bitmap?
+                                        ) // Hide large icon when expanded
                         builder.setStyle(bigPictureStyle)
                     }
                 } catch (e: Exception) {
@@ -2075,7 +2360,11 @@ class BluetoothService : Service() {
 
     private fun requestDismissOnPhone(message: ProtocolMessage) {
         val key = ProtocolHelper.extractStringField(message, "key") ?: return
-        val intent = Intent(ACTION_CMD_DISMISS_ON_PHONE).apply { putExtra(EXTRA_NOTIF_KEY, key); setPackage(packageName) }
+        val intent =
+                Intent(ACTION_CMD_DISMISS_ON_PHONE).apply {
+                    putExtra(EXTRA_NOTIF_KEY, key)
+                    setPackage(packageName)
+                }
         sendBroadcast(intent)
     }
 
@@ -2085,11 +2374,12 @@ class BluetoothService : Service() {
 
         Log.d(TAG, "Executing notification action: $actionKey for notification: $notifKey")
 
-        val intent = Intent(ACTION_CMD_EXECUTE_ACTION).apply {
-            putExtra(EXTRA_NOTIF_KEY, notifKey)
-            putExtra(EXTRA_ACTION_KEY, actionKey)
-            setPackage(packageName)
-        }
+        val intent =
+                Intent(ACTION_CMD_EXECUTE_ACTION).apply {
+                    putExtra(EXTRA_NOTIF_KEY, notifKey)
+                    putExtra(EXTRA_ACTION_KEY, actionKey)
+                    setPackage(packageName)
+                }
         sendBroadcast(intent)
     }
 
@@ -2100,16 +2390,19 @@ class BluetoothService : Service() {
 
         Log.d(TAG, "Sending notification reply: '$replyText' for notification: $notifKey")
 
-        val intent = Intent(ACTION_CMD_SEND_REPLY).apply {
-            putExtra(EXTRA_NOTIF_KEY, notifKey)
-            putExtra(EXTRA_ACTION_KEY, actionKey)
-            putExtra(EXTRA_REPLY_TEXT, replyText)
-            setPackage(packageName)
-        }
+        val intent =
+                Intent(ACTION_CMD_SEND_REPLY).apply {
+                    putExtra(EXTRA_NOTIF_KEY, notifKey)
+                    putExtra(EXTRA_ACTION_KEY, actionKey)
+                    putExtra(EXTRA_REPLY_TEXT, replyText)
+                    setPackage(packageName)
+                }
         sendBroadcast(intent)
     }
 
-    fun requestRemoteAppList() { sendMessage(ProtocolHelper.createRequestApps()) }
+    fun requestRemoteAppList() {
+        sendMessage(ProtocolHelper.createRequestApps())
+    }
 
     fun sendUninstallCommand(packageName: String) {
         android.util.Log.d(TAG, "Sending uninstall command for: $packageName")
@@ -2120,8 +2413,9 @@ class BluetoothService : Service() {
     }
 
     fun resetApp() {
-        stopConnectionLoopOnly()
+        activePrefs.edit().clear().apply()
         prefs.edit().clear().apply()
+        stopConnectionLoopOnly()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
@@ -2151,8 +2445,8 @@ class BluetoothService : Service() {
         isStopping = true
         stopConnectionLoopOnly()
         try {
-             stopForeground(STOP_FOREGROUND_REMOVE)
-             notificationManager.cancelAll() // Ensure all are gone
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            notificationManager.cancelAll() // Ensure all are gone
         } catch (_: Exception) {}
         stopSelf()
     }
@@ -2173,14 +2467,14 @@ class BluetoothService : Service() {
     }
 
     /**
-     * CORREÇÃO DEFINITIVA PARA CANAIS BLOQUEADOS:
-     * Ao invés de usar um único ID, usamos um ID diferente para cada estado (Waiting, Connected, etc).
+     * CORREÇÃO DEFINITIVA PARA CANAIS BLOQUEADOS: Ao invés de usar um único ID, usamos um ID
+     * diferente para cada estado (Waiting, Connected, etc).
      * * Lógica:
      * 1. Determinamos o Estado Atual -> Novo ID e Novo Canal.
      * 2. Chamamos startForeground com o NOVO ID. Isso "segura" o serviço e previne crashes.
      * 3. Se o usuário bloqueou esse canal, o Android não mostra nada (correto).
-     * 4. CRUCIAL: Chamamos .cancel() nos IDs dos estados antigos. Isso garante que a notificação "Waiting"
-     * suma visualmente se mudamos para "Connected", mesmo que "Connected" esteja oculto.
+     * 4. CRUCIAL: Chamamos .cancel() nos IDs dos estados antigos. Isso garante que a notificação
+     * "Waiting" suma visualmente se mudamos para "Connected", mesmo que "Connected" esteja oculto.
      */
     private fun updateForegroundNotification() {
         try {
@@ -2189,20 +2483,28 @@ class BluetoothService : Service() {
             val intent = Intent(this, MainActivity::class.java)
             val pending = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
 
-            val notification = NotificationCompat.Builder(this, targetChannel)
-                .setContentTitle(getString(R.string.notification_service_title))
-                .setContentText(targetText)
-                .setSmallIcon(R.drawable.ic_smartwatch_notification)
-                .setContentIntent(pending)
-                .setOngoing(true)
-                .setOnlyAlertOnce(true)
-                .build()
+            val notification =
+                    NotificationCompat.Builder(this, targetChannel)
+                            .setContentTitle(getString(R.string.notification_service_title))
+                            .setContentText(targetText)
+                            .setSmallIcon(R.drawable.ic_smartwatch_notification)
+                            .setContentIntent(pending)
+                            .setOngoing(true)
+                            .setOnlyAlertOnce(true)
+                            .build()
 
             // Inicia/Atualiza o Foreground no ID correto do estado atual
             if (Build.VERSION.SDK_INT >= 34) {
-                val hasLocation = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                val type = if (hasLocation) ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
-                else ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+                val hasLocation =
+                        ContextCompat.checkSelfPermission(
+                                this,
+                                Manifest.permission.ACCESS_FINE_LOCATION
+                        ) == PackageManager.PERMISSION_GRANTED
+                val type =
+                        if (hasLocation)
+                                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE or
+                                        ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                        else ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
                 startForeground(targetId, notification, type)
             } else if (Build.VERSION.SDK_INT >= 29) {
                 var type = 0
@@ -2216,12 +2518,15 @@ class BluetoothService : Service() {
 
             // LIMPEZA: Remove visualmente as notificações dos outros estados.
             // Isso corrige o bug onde "Aguardando" persistia se "Conectado" estivesse bloqueado.
-            if (targetId != NOTIFICATION_ID_WAITING) notificationManager.cancel(NOTIFICATION_ID_WAITING)
-            if (targetId != NOTIFICATION_ID_CONNECTED) notificationManager.cancel(NOTIFICATION_ID_CONNECTED)
-            if (targetId != NOTIFICATION_ID_DISCONNECTED) notificationManager.cancel(NOTIFICATION_ID_DISCONNECTED)
-
+            if (targetId != NOTIFICATION_ID_WAITING)
+                    notificationManager.cancel(NOTIFICATION_ID_WAITING)
+            if (targetId != NOTIFICATION_ID_CONNECTED)
+                    notificationManager.cancel(NOTIFICATION_ID_CONNECTED)
+            if (targetId != NOTIFICATION_ID_DISCONNECTED)
+                    notificationManager.cancel(NOTIFICATION_ID_DISCONNECTED)
         } catch (e: Exception) {
-            if (DEBUG_NOTIFICATIONS) Log.e(TAG, "updateForegroundNotification: Erro: ${e.message}", e)
+            if (DEBUG_NOTIFICATIONS)
+                    Log.e(TAG, "updateForegroundNotification: Erro: ${e.message}", e)
         }
     }
 
@@ -2229,11 +2534,13 @@ class BluetoothService : Service() {
     private fun determineNotificationState(): Triple<Int, String, String> {
         return when {
             isConnected && currentDeviceName != null ->
-                Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, "Conectado a $currentDeviceName")
-
+                    Triple(
+                            NOTIFICATION_ID_CONNECTED,
+                            CHANNEL_ID_CONNECTED,
+                            "Conectado a $currentDeviceName"
+                    )
             isConnected && currentDeviceName == null ->
-                Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, "Conectado")
-
+                    Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, "Conectado")
             currentNotificationStatus.contains("Aguardando", ignoreCase = true) ||
                     currentNotificationStatus.contains("Waiting", ignoreCase = true) ||
                     currentNotificationStatus.contains("Escaneando", ignoreCase = true) ||
@@ -2241,50 +2548,67 @@ class BluetoothService : Service() {
                     currentNotificationStatus.contains("Iniciado", ignoreCase = true) ||
                     currentNotificationStatus.contains("Started", ignoreCase = true) ||
                     currentNotificationStatus.isEmpty() ->
-                Triple(NOTIFICATION_ID_WAITING, CHANNEL_ID_WAITING, currentNotificationStatus.ifEmpty { getString(R.string.status_waiting) })
-
+                    Triple(
+                            NOTIFICATION_ID_WAITING,
+                            CHANNEL_ID_WAITING,
+                            currentNotificationStatus.ifEmpty { getString(R.string.status_waiting) }
+                    )
             else ->
-                Triple(NOTIFICATION_ID_DISCONNECTED, CHANNEL_ID_DISCONNECTED, currentNotificationStatus)
+                    Triple(
+                            NOTIFICATION_ID_DISCONNECTED,
+                            CHANNEL_ID_DISCONNECTED,
+                            currentNotificationStatus
+                    )
         }
     }
 
     private fun createNotificationChannel() {
         notificationManager.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ID_WAITING,
-                "Notificação persistente - aguardando conexão",
-                NotificationManager.IMPORTANCE_LOW
-            )
+                NotificationChannel(
+                        CHANNEL_ID_WAITING,
+                        "Notificação persistente - aguardando conexão",
+                        NotificationManager.IMPORTANCE_LOW
+                )
         )
 
         notificationManager.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ID_CONNECTED,
-                "Notificação persistente - conectado",
-                NotificationManager.IMPORTANCE_LOW
-            )
+                NotificationChannel(
+                        CHANNEL_ID_CONNECTED,
+                        "Notificação persistente - conectado",
+                        NotificationManager.IMPORTANCE_LOW
+                )
         )
 
         notificationManager.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ID_DISCONNECTED,
-                getString(R.string.status_disconnected),
-                NotificationManager.IMPORTANCE_LOW
-            )
+                NotificationChannel(
+                        CHANNEL_ID_DISCONNECTED,
+                        getString(R.string.status_disconnected),
+                        NotificationManager.IMPORTANCE_LOW
+                )
         )
 
-        notificationManager.createNotificationChannel(NotificationChannel(INSTALL_CHANNEL_ID, "APKs", NotificationManager.IMPORTANCE_HIGH))
-        notificationManager.createNotificationChannel(NotificationChannel(MIRRORED_CHANNEL_ID, "Notificações do celular", NotificationManager.IMPORTANCE_HIGH))
+        notificationManager.createNotificationChannel(
+                NotificationChannel(INSTALL_CHANNEL_ID, "APKs", NotificationManager.IMPORTANCE_HIGH)
+        )
+        notificationManager.createNotificationChannel(
+                NotificationChannel(
+                        MIRRORED_CHANNEL_ID,
+                        "Notificações do celular",
+                        NotificationManager.IMPORTANCE_HIGH
+                )
+        )
     }
 
     private fun savePreference(key: String, value: String) {
-        prefs.edit().putString(key, value).apply()
+        activePrefs.edit().putString(key, value).apply()
     }
 
     private fun handleRejectCallCommand() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             val telecomManager = getSystemService(TELECOM_SERVICE) as TelecomManager
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ANSWER_PHONE_CALLS) == PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ANSWER_PHONE_CALLS) ==
+                            PackageManager.PERMISSION_GRANTED
+            ) {
                 try {
                     telecomManager.endCall()
                     Log.d(TAG, "Call rejected via TelecomManager")
@@ -2298,7 +2622,9 @@ class BluetoothService : Service() {
     private fun handleAnswerCallCommand() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val telecomManager = getSystemService(TELECOM_SERVICE) as TelecomManager
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ANSWER_PHONE_CALLS) == PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ANSWER_PHONE_CALLS) ==
+                            PackageManager.PERMISSION_GRANTED
+            ) {
                 try {
                     telecomManager.acceptRingingCall()
                     Log.d(TAG, "Call answered via TelecomManager")
@@ -2311,7 +2637,7 @@ class BluetoothService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        
+
         // Unbind Shizuku UserService
         try {
             if (userServiceConnection != null) {
@@ -2322,12 +2648,20 @@ class BluetoothService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error unbinding UserService: ${e.message}")
         }
-        
-        try { unregisterReceiver(internalReceiver) } catch(_:Exception){}
-        try { unregisterReceiver(watchDismissReceiver) } catch(_:Exception){}
-        try { unregisterReceiver(phoneStateReceiver) } catch(_:Exception){}
-        try { unregisterReceiver(mirroringReceiver) } catch(_:Exception){}
-        
+
+        try {
+            unregisterReceiver(internalReceiver)
+        } catch (_: Exception) {}
+        try {
+            unregisterReceiver(watchDismissReceiver)
+        } catch (_: Exception) {}
+        try {
+            unregisterReceiver(phoneStateReceiver)
+        } catch (_: Exception) {}
+        try {
+            unregisterReceiver(mirroringReceiver)
+        } catch (_: Exception) {}
+
         if (MirroringService.isRunning) {
             Log.d(TAG, "onDestroy: Mirroring is active, stopping it.")
             val stopIntent = Intent(this, MirroringService::class.java)
@@ -2343,19 +2677,14 @@ class BluetoothService : Service() {
         val path = ProtocolHelper.extractStringField(message, "path")
         val imageBase64 = ProtocolHelper.extractStringField(message, "imageBase64")
         if (path != null) {
-            withContext(Dispatchers.Main) {
-                callback?.onPreviewReceived(path, imageBase64)
-            }
+            withContext(Dispatchers.Main) { callback?.onPreviewReceived(path, imageBase64) }
         }
     }
-
 
     private suspend fun handleBatteryDetailUpdate(message: ProtocolMessage) {
         try {
             val data = ProtocolHelper.extractData<BatteryDetailData>(message)
-            withContext(Dispatchers.Main) {
-                callback?.onBatteryDetailReceived(data)
-            }
+            withContext(Dispatchers.Main) { callback?.onBatteryDetailReceived(data) }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling battery detail update: ${e.message}")
         }
@@ -2365,7 +2694,7 @@ class BluetoothService : Service() {
         try {
             val alertType = message.data.get("alertType").asString
             val level = message.data.get("level").asInt
-            
+
             postBatteryNotification(alertType, level)
         } catch (e: Exception) {
             Log.e(TAG, "Error handling battery alert: ${e.message}")
@@ -2376,24 +2705,40 @@ class BluetoothService : Service() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "battery_alerts"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            nm.createNotificationChannel(NotificationChannel(channelId, "Battery Alerts", NotificationManager.IMPORTANCE_HIGH))
+            nm.createNotificationChannel(
+                    NotificationChannel(
+                            channelId,
+                            "Battery Alerts",
+                            NotificationManager.IMPORTANCE_HIGH
+                    )
+            )
         }
 
         val title = if (alertType == "FULL") "Watch Battery Full" else "Watch Battery Low"
-        val text = if (alertType == "FULL") "Watch is fully charged!" else "Watch battery is at $level%."
+        val text =
+                if (alertType == "FULL") "Watch is fully charged!"
+                else "Watch battery is at $level%."
 
-        val intent = Intent(this, MainActivity::class.java).apply {
-            putExtra("open_battery_detail", true)
-        }
-        val pendingIntent = PendingIntent.getActivity(this, 1234, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val intent =
+                Intent(this, MainActivity::class.java).apply {
+                    putExtra("open_battery_detail", true)
+                }
+        val pendingIntent =
+                PendingIntent.getActivity(
+                        this,
+                        1234,
+                        intent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
 
-        val builder = NotificationCompat.Builder(this, channelId)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_low_battery)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
+        val builder =
+                NotificationCompat.Builder(this, channelId)
+                        .setContentTitle(title)
+                        .setContentText(text)
+                        .setSmallIcon(android.R.drawable.ic_lock_idle_low_battery)
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setAutoCancel(true)
+                        .setContentIntent(pendingIntent)
 
         nm.notify(123456, builder.build())
     }
@@ -2403,13 +2748,12 @@ class BluetoothService : Service() {
         serviceScope.launch {
             try {
                 val jsonArray = message.data.getAsJsonArray("alarms")
-                val alarms = ProtocolHelper.gson.fromJson<List<AlarmData>>(
-                    jsonArray,
-                    object : TypeToken<List<AlarmData>>() {}.type
-                )
-                withContext(Dispatchers.Main) {
-                    alarmCallback?.onAlarmsReceived(alarms)
-                }
+                val alarms =
+                        ProtocolHelper.gson.fromJson<List<AlarmData>>(
+                                jsonArray,
+                                object : TypeToken<List<AlarmData>>() {}.type
+                        )
+                withContext(Dispatchers.Main) { alarmCallback?.onAlarmsReceived(alarms) }
                 Log.d(TAG, "Received ${alarms.size} alarms from watch")
             } catch (e: Exception) {
                 Log.e(TAG, "Error handling RESPONSE_ALARMS: ${e.message}")
@@ -2437,46 +2781,66 @@ class BluetoothService : Service() {
         Log.d(TAG, "Sent DELETE_ALARM: $alarmId")
     }
 
-    private val mirroringReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            Log.d(TAG, "mirroringReceiver triggered: action=${intent?.action}")
-            when (intent?.action) {
-                ACTION_SCREEN_DATA_AVAILABLE -> {
-                    val base64Data = intent.getStringExtra("data") ?: return
-                    val isKeyFrame = intent.getBooleanExtra("isKeyFrame", false)
-                    Log.d(TAG, "Forwarding frame: size=${base64Data.length}B, keyframe=$isKeyFrame")
-                    sendMessage(ProtocolHelper.createMirrorData(base64Data, isKeyFrame))
-                }
-                ACTION_SEND_REMOTE_INPUT -> {
-                    val action = intent.getIntExtra("action", 0)
-                    val x = intent.getFloatExtra("x", 0f)
-                    val y = intent.getFloatExtra("y", 0f)
-                    sendMessage(ProtocolHelper.createRemoteInput(action, x, y))
-                }
-                "com.ailife.rtosify.SEND_MIRROR_STOP" -> {
-                    Log.d(TAG, "Sending mirror stop command to companion")
-                    sendMessage(ProtocolMessage(type = MessageType.SCREEN_MIRROR_STOP, data = com.google.gson.JsonObject()))
-                }
-                "com.ailife.rtosify.UPDATE_REMOTE_RESOLUTION" -> {
-                    val width = intent.getIntExtra("width", 0)
-                    val height = intent.getIntExtra("height", 0)
-                    val density = intent.getIntExtra("density", 0)
-                    val reset = intent.getBooleanExtra("reset", false)
-                    val mode = intent.getIntExtra("mode", ResolutionData.MODE_RESOLUTION)
-                    sendMessage(ProtocolHelper.createUpdateResolution(width, height, density, reset, mode))
+    private val mirroringReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    Log.d(TAG, "mirroringReceiver triggered: action=${intent?.action}")
+                    when (intent?.action) {
+                        ACTION_SCREEN_DATA_AVAILABLE -> {
+                            val base64Data = intent.getStringExtra("data") ?: return
+                            val isKeyFrame = intent.getBooleanExtra("isKeyFrame", false)
+                            Log.d(
+                                    TAG,
+                                    "Forwarding frame: size=${base64Data.length}B, keyframe=$isKeyFrame"
+                            )
+                            sendMessage(ProtocolHelper.createMirrorData(base64Data, isKeyFrame))
+                        }
+                        ACTION_SEND_REMOTE_INPUT -> {
+                            val action = intent.getIntExtra("action", 0)
+                            val x = intent.getFloatExtra("x", 0f)
+                            val y = intent.getFloatExtra("y", 0f)
+                            sendMessage(ProtocolHelper.createRemoteInput(action, x, y))
+                        }
+                        "com.ailife.rtosify.SEND_MIRROR_STOP" -> {
+                            Log.d(TAG, "Sending mirror stop command to companion")
+                            sendMessage(
+                                    ProtocolMessage(
+                                            type = MessageType.SCREEN_MIRROR_STOP,
+                                            data = com.google.gson.JsonObject()
+                                    )
+                            )
+                        }
+                        "com.ailife.rtosify.UPDATE_REMOTE_RESOLUTION" -> {
+                            val width = intent.getIntExtra("width", 0)
+                            val height = intent.getIntExtra("height", 0)
+                            val density = intent.getIntExtra("density", 0)
+                            val reset = intent.getBooleanExtra("reset", false)
+                            val mode = intent.getIntExtra("mode", ResolutionData.MODE_RESOLUTION)
+                            sendMessage(
+                                    ProtocolHelper.createUpdateResolution(
+                                            width,
+                                            height,
+                                            density,
+                                            reset,
+                                            mode
+                                    )
+                            )
+                        }
+                    }
                 }
             }
-        }
-    }
 
     private fun handleMirrorStart(message: ProtocolMessage) {
         val data = ProtocolHelper.extractData<MirrorStartData>(message)
-        Log.d(TAG, "handleMirrorStart: isRequest=${data.isRequest}, width=${data.width}, height=${data.height}, mode=${data.mode}")
-        
+        Log.d(
+                TAG,
+                "handleMirrorStart: isRequest=${data.isRequest}, width=${data.width}, height=${data.height}, mode=${data.mode}"
+        )
+
         if (data.isRequest) {
             // Other device wants to view US.
             Log.d(TAG, "Mirror request received: ${data.width}x${data.height} mode=${data.mode}")
-            
+
             // Apply resolution first if matching is requested
             if (data.width > 0 && data.height > 0) {
                 // Construct temporary resolution message
@@ -2486,24 +2850,27 @@ class BluetoothService : Service() {
                 resData.addProperty("density", data.dpi)
                 resData.addProperty("reset", false)
                 resData.addProperty("mode", data.mode)
-                
-                val resMessage = ProtocolMessage(type = MessageType.UPDATE_RESOLUTION, data = resData)
+
+                val resMessage =
+                        ProtocolMessage(type = MessageType.UPDATE_RESOLUTION, data = resData)
                 handleUpdateResolution(resMessage)
             }
 
-            val intent = Intent(this, MirrorSettingsActivity::class.java).apply {
-                putExtra("request_mirror", true)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            }
+            val intent =
+                    Intent(this, MirrorSettingsActivity::class.java).apply {
+                        putExtra("request_mirror", true)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    }
             startActivity(intent)
         } else {
             // Other device is streaming TO us. Open MirrorActivity.
             Log.d(TAG, "Incoming mirror stream: ${data.width}x${data.height}")
-            val intent = Intent(this, MirrorActivity::class.java).apply {
-                putExtra("width", data.width)
-                putExtra("height", data.height)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
+            val intent =
+                    Intent(this, MirrorActivity::class.java).apply {
+                        putExtra("width", data.width)
+                        putExtra("height", data.height)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
             startActivity(intent)
         }
     }
@@ -2526,7 +2893,7 @@ class BluetoothService : Service() {
     private fun handleRemoteInput(message: ProtocolMessage) {
         val data = ProtocolHelper.extractData<RemoteInputData>(message)
         Log.d(TAG, "Received touch event: action=${data.action}, x=${data.x}, y=${data.y}")
-        
+
         // Send to accessibility service via broadcast (IPC)
         val intent = Intent("com.ailife.rtosify.DISPATCH_REMOTE_INPUT")
         intent.setPackage(packageName) // Make it explicit for Android 14+
@@ -2552,15 +2919,20 @@ class BluetoothService : Service() {
                     if (data.mode == ResolutionData.MODE_ASPECT) {
                         // Calculate aspect ratio matching (Phone mode: decrease long dimension)
                         val metrics = android.util.DisplayMetrics()
-                        val windowManager = getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+                        val windowManager =
+                                getSystemService(Context.WINDOW_SERVICE) as
+                                        android.view.WindowManager
                         windowManager.defaultDisplay.getRealMetrics(metrics)
-                        
+
                         val physW = metrics.widthPixels
                         val physH = metrics.heightPixels
                         val targetAspect = data.width.toFloat() / data.height.toFloat()
-                        
-                        Log.d(TAG, "Aspect Matching: Physical=${physW}x${physH}, TargetAspect=$targetAspect")
-                        
+
+                        Log.d(
+                                TAG,
+                                "Aspect Matching: Physical=${physW}x${physH}, TargetAspect=$targetAspect"
+                        )
+
                         if (physW.toFloat() / physH.toFloat() > targetAspect) {
                             // Source is wider than target, decrease width
                             targetW = (physH * targetAspect).toInt()
@@ -2570,18 +2942,21 @@ class BluetoothService : Service() {
                             targetW = physW
                             targetH = (physW / targetAspect).toInt()
                         }
-                        targetD = metrics.densityDpi // Keep original density 
+                        targetD = metrics.densityDpi // Keep original density
                     }
 
                     if (targetW > 0 && targetH > 0) {
-                        Log.d(TAG, "Setting resolution to ${targetW}x${targetH} (mode=${data.mode})")
+                        Log.d(
+                                TAG,
+                                "Setting resolution to ${targetW}x${targetH} (mode=${data.mode})"
+                        )
                         userService?.executeCommand("wm size ${targetW}x${targetH}")
                         if (targetD > 0) {
                             userService?.executeCommand("wm density $targetD")
                         }
                     }
                 }
-                
+
                 // If mirroring is running, we MUST refresh it to apply new resolution
                 if (MirroringService.isRunning) {
                     Log.d(TAG, "Mirroring is running, sending refresh signal")
@@ -2593,7 +2968,13 @@ class BluetoothService : Service() {
                 // Notify the remote device (viewer) about actual resolution change
                 if (!data.reset) {
                     val metrics = resources.displayMetrics
-                    sendMessage(ProtocolHelper.createMirrorResChange(metrics.widthPixels, metrics.heightPixels, metrics.densityDpi))
+                    sendMessage(
+                            ProtocolHelper.createMirrorResChange(
+                                    metrics.widthPixels,
+                                    metrics.heightPixels,
+                                    metrics.densityDpi
+                            )
+                    )
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to update resolution: ${e.message}")
@@ -2604,7 +2985,7 @@ class BluetoothService : Service() {
     private fun handleMirrorResChange(message: ProtocolMessage) {
         val data = ProtocolHelper.extractData<ResolutionData>(message)
         Log.d(TAG, "Received remote resolution change: ${data.width}x${data.height}")
-        
+
         val intent = Intent("com.ailife.rtosify.MIRROR_RES_CHANGE")
         intent.setPackage(packageName)
         intent.putExtra("width", data.width)

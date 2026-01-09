@@ -1,7 +1,6 @@
 package com.ailife.rtosify
 
 import android.content.ComponentName
-import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
@@ -33,7 +32,10 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var cardManageRules: View
     private lateinit var btnOpenSettings: Button
 
-    private lateinit var prefs: SharedPreferences
+    private lateinit var devicePrefManager: DevicePrefManager
+    private lateinit var globalPrefs: SharedPreferences
+    private val activePrefs: SharedPreferences
+        get() = devicePrefManager.getActiveDevicePrefs()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,7 +46,8 @@ class NotificationSettingsActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = ""
 
-        prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+        devicePrefManager = DevicePrefManager(this)
+        globalPrefs = devicePrefManager.getGlobalPrefs()
 
         initViews()
         setupMasterSwitch()
@@ -94,74 +97,70 @@ class NotificationSettingsActivity : AppCompatActivity() {
     }
 
     private fun setupSkipScreenOnSwitch() {
-        val isSkipEnabled = prefs.getBoolean("skip_screen_on_enabled", false)
+        val isSkipEnabled = activePrefs.getBoolean("skip_screen_on_enabled", false)
         switchSkipScreenOn.isChecked = isSkipEnabled
         switchSkipScreenOn.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("skip_screen_on_enabled", isChecked).apply()
+            activePrefs.edit().putBoolean("skip_screen_on_enabled", isChecked).apply()
             syncSettings()
         }
     }
 
     private fun setupNotifyDisconnectSwitch() {
-        val isEnabled = prefs.getBoolean("notify_on_disconnect", false)
+        val isEnabled = activePrefs.getBoolean("notify_on_disconnect", false)
         switchNotifyDisconnect.isChecked = isEnabled
         switchNotifyDisconnect.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("notify_on_disconnect", isChecked).apply()
-
-            // Sync with service if connected
-            val intent = Intent("com.ailife.rtosify.ACTION_UPDATE_SETTINGS")
-            intent.setPackage(packageName)
-            sendBroadcast(intent)
+            activePrefs.edit().putBoolean("notify_on_disconnect", isChecked).apply()
+            syncSettings()
         }
     }
 
     private fun setupForwardOngoingSwitch() {
-        val isEnabled = prefs.getBoolean("forward_ongoing_enabled", false)
+        val isEnabled = activePrefs.getBoolean("forward_ongoing_enabled", false)
         switchForwardOngoing.isChecked = isEnabled
         switchForwardOngoing.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("forward_ongoing_enabled", isChecked).apply()
+            activePrefs.edit().putBoolean("forward_ongoing_enabled", isChecked).apply()
             syncSettings()
         }
     }
 
     private fun setupForwardSilentSwitch() {
-        val isEnabled = prefs.getBoolean("forward_silent_enabled", false)
+        val isEnabled = activePrefs.getBoolean("forward_silent_enabled", false)
         switchForwardSilent.isChecked = isEnabled
         switchForwardSilent.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("forward_silent_enabled", isChecked).apply()
+            activePrefs.edit().putBoolean("forward_silent_enabled", isChecked).apply()
             syncSettings()
         }
     }
 
     private fun setupWakeScreenSwitch() {
-        val isEnabled = prefs.getBoolean("wake_screen_enabled", false)
+        val isEnabled = activePrefs.getBoolean("wake_screen_enabled", false)
         switchWakeScreen.isChecked = isEnabled
         switchWakeScreen.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("wake_screen_enabled", isChecked).apply()
+            activePrefs.edit().putBoolean("wake_screen_enabled", isChecked).apply()
             syncSettings()
         }
     }
 
     private fun setupVibrateSwitch() {
-        val isEnabled = prefs.getBoolean("vibrate_enabled", false)
+        val isEnabled = activePrefs.getBoolean("vibrate_enabled", false)
         switchVibrate.isChecked = isEnabled
         switchVibrateSilent.isEnabled = isEnabled
         switchVibrate.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("vibrate_enabled", isChecked).apply()
+            activePrefs.edit().putBoolean("vibrate_enabled", isChecked).apply()
             switchVibrateSilent.isEnabled = isChecked
             if (!isChecked) {
                 switchVibrateSilent.isChecked = false
-                prefs.edit().putBoolean("vibrate_silent_enabled", false).apply()
+                activePrefs.edit().putBoolean("vibrate_silent_enabled", false).apply()
             }
             syncSettings()
         }
     }
 
     private fun setupVibrateSilentSwitch() {
-        val isEnabled = prefs.getBoolean("vibrate_silent_enabled", false)
+        val isEnabled = activePrefs.getBoolean("vibrate_silent_enabled", false)
         switchVibrateSilent.isChecked = isEnabled
         switchVibrateSilent.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("vibrate_silent_enabled", isChecked).apply()
+            activePrefs.edit().putBoolean("vibrate_silent_enabled", isChecked).apply()
             syncSettings()
         }
     }
@@ -179,15 +178,15 @@ class NotificationSettingsActivity : AppCompatActivity() {
     }
 
     private fun setupMasterSwitch() {
-        if (!prefs.contains("notification_mirroring_enabled")) {
-            prefs.edit().putBoolean("notification_mirroring_enabled", false).apply()
+        if (!activePrefs.contains("notification_mirroring_enabled")) {
+            activePrefs.edit().putBoolean("notification_mirroring_enabled", false).apply()
         }
 
-        val isEnabled = prefs.getBoolean("notification_mirroring_enabled", false)
+        val isEnabled = activePrefs.getBoolean("notification_mirroring_enabled", false)
         switchEnable.isChecked = isEnabled
 
         switchEnable.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("notification_mirroring_enabled", isChecked).apply()
+            activePrefs.edit().putBoolean("notification_mirroring_enabled", isChecked).apply()
             updateUiState()
             syncSettings()
         }
@@ -196,15 +195,13 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private fun updateUiState() {
         val hasPermission = isNotificationServiceEnabled()
 
-        if (hasPermission && prefs.getBoolean("waiting_for_permission", false)) {
-            prefs.edit()
-                .remove("waiting_for_permission")
-                .putBoolean("notification_mirroring_enabled", true)
-                .apply()
+        if (hasPermission && globalPrefs.getBoolean("waiting_for_permission", false)) {
+            globalPrefs.edit().remove("waiting_for_permission").apply()
+            activePrefs.edit().putBoolean("notification_mirroring_enabled", true).apply()
             switchEnable.isChecked = true
         }
 
-        val isSwitchOn = prefs.getBoolean("notification_mirroring_enabled", false)
+        val isSwitchOn = activePrefs.getBoolean("notification_mirroring_enabled", false)
 
         if (switchEnable.isChecked != isSwitchOn) {
             switchEnable.isChecked = isSwitchOn
@@ -217,7 +214,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
             setCardsVisibility(View.GONE)
 
             btnOpenSettings.setOnClickListener {
-                prefs.edit().putBoolean("waiting_for_permission", true).apply()
+                globalPrefs.edit().putBoolean("waiting_for_permission", true).apply()
                 openNotificationAccessSettings()
             }
         } else {
@@ -225,18 +222,32 @@ class NotificationSettingsActivity : AppCompatActivity() {
             layoutPermissionWarning.visibility = View.GONE
             setCardsVisibility(View.VISIBLE)
 
-            val cards = listOf(cardGeneralSettings, cardNotificationBehavior, cardManageApps, cardManageRules)
-            val childSwitches = listOf(switchSkipScreenOn, switchNotifyDisconnect, switchForwardOngoing, switchForwardSilent, switchWakeScreen, switchVibrate)
-            
+            val cards =
+                    listOf(
+                            cardGeneralSettings,
+                            cardNotificationBehavior,
+                            cardManageApps,
+                            cardManageRules
+                    )
+            val childSwitches =
+                    listOf(
+                            switchSkipScreenOn,
+                            switchNotifyDisconnect,
+                            switchForwardOngoing,
+                            switchForwardSilent,
+                            switchWakeScreen,
+                            switchVibrate
+                    )
+
             if (isSwitchOn) {
                 cards.forEach {
                     it.alpha = 1.0f
                     it.isEnabled = true
                 }
                 childSwitches.forEach { it.isEnabled = true }
-                
+
                 // Vibrate Silent still depends on Vibrate
-                val isVibrateOn = prefs.getBoolean("vibrate_enabled", false)
+                val isVibrateOn = activePrefs.getBoolean("vibrate_enabled", false)
                 switchVibrateSilent.isEnabled = isVibrateOn
             } else {
                 cards.forEach {
@@ -250,10 +261,15 @@ class NotificationSettingsActivity : AppCompatActivity() {
     }
 
     private fun setCardsVisibility(visibility: Int) {
-        val cards = listOf(cardGeneralSettings, cardNotificationBehavior, cardManageApps, cardManageRules)
+        val cards =
+                listOf(
+                        cardGeneralSettings,
+                        cardNotificationBehavior,
+                        cardManageApps,
+                        cardManageRules
+                )
         cards.forEach { it.visibility = visibility }
     }
-
 
     private fun isNotificationServiceEnabled(): Boolean {
         val cn = ComponentName(this, MyNotificationListener::class.java)
@@ -265,7 +281,8 @@ class NotificationSettingsActivity : AppCompatActivity() {
         try {
             startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
         } catch (e: Exception) {
-            Toast.makeText(this, getString(R.string.toast_error_open_settings), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_error_open_settings), Toast.LENGTH_SHORT)
+                    .show()
         }
     }
 

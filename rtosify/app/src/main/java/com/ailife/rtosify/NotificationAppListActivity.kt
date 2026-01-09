@@ -1,17 +1,10 @@
 package com.ailife.rtosify
 
-import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.util.LruCache
-import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
-import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.lifecycle.lifecycleScope
@@ -30,7 +23,10 @@ class NotificationAppListActivity : AppCompatActivity() {
     private lateinit var switchShowSystemApps: SwitchMaterial
     private lateinit var layoutLoadingApps: View
 
-    private lateinit var prefs: SharedPreferences
+    private lateinit var devicePrefManager: DevicePrefManager
+    private lateinit var globalPrefs: SharedPreferences
+    private val activePrefs: SharedPreferences
+        get() = devicePrefManager.getActiveDevicePrefs()
     private lateinit var appAdapter: AppNotificationAdapter
 
     private var loadingJob: Job? = null
@@ -46,7 +42,8 @@ class NotificationAppListActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = getString(R.string.notif_apps_title)
 
-        prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+        devicePrefManager = DevicePrefManager(this)
+        globalPrefs = devicePrefManager.getGlobalPrefs()
 
         initViews()
         setupRecyclerView()
@@ -64,19 +61,31 @@ class NotificationAppListActivity : AppCompatActivity() {
     }
 
     private fun setupSearch() {
-        editTextSearch.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                filterApps(s?.toString() ?: "")
-            }
-        })
+        editTextSearch.addTextChangedListener(
+                object : android.text.TextWatcher {
+                    override fun beforeTextChanged(
+                            s: CharSequence?,
+                            start: Int,
+                            count: Int,
+                            after: Int
+                    ) {}
+                    override fun onTextChanged(
+                            s: CharSequence?,
+                            start: Int,
+                            before: Int,
+                            count: Int
+                    ) {}
+                    override fun afterTextChanged(s: android.text.Editable?) {
+                        filterApps(s?.toString() ?: "")
+                    }
+                }
+        )
     }
 
     private fun setupSystemAppsToggle() {
-        switchShowSystemApps.isChecked = prefs.getBoolean("show_system_apps", false)
+        switchShowSystemApps.isChecked = globalPrefs.getBoolean("show_system_apps", false)
         switchShowSystemApps.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("show_system_apps", isChecked).apply()
+            globalPrefs.edit().putBoolean("show_system_apps", isChecked).apply()
             filterApps(editTextSearch.text?.toString() ?: "")
         }
     }
@@ -85,34 +94,40 @@ class NotificationAppListActivity : AppCompatActivity() {
 
     private fun filterApps(query: String) {
         filterJob?.cancel()
-        filterJob = lifecycleScope.launch {
-            val showSystemApps = switchShowSystemApps.isChecked
-            val filtered = withContext(Dispatchers.Default) {
-                allAppsList.filter { app ->
-                    val matchesSearch = if (query.isEmpty()) {
-                        true
-                    } else {
-                        app.packageName.contains(query, ignoreCase = true) ||
-                                app.appName.contains(query, ignoreCase = true)
-                    }
+        filterJob =
+                lifecycleScope.launch {
+                    val showSystemApps = switchShowSystemApps.isChecked
+                    val filtered =
+                            withContext(Dispatchers.Default) {
+                                allAppsList.filter { app ->
+                                    val matchesSearch =
+                                            if (query.isEmpty()) {
+                                                true
+                                            } else {
+                                                app.packageName.contains(
+                                                        query,
+                                                        ignoreCase = true
+                                                ) || app.appName.contains(query, ignoreCase = true)
+                                            }
 
-                    val matchesSystemFilter = if (showSystemApps) {
-                        true
-                    } else {
-                        !app.isSystemApp
-                    }
+                                    val matchesSystemFilter =
+                                            if (showSystemApps) {
+                                                true
+                                            } else {
+                                                !app.isSystemApp
+                                            }
 
-                    matchesSearch && matchesSystemFilter
+                                    matchesSearch && matchesSystemFilter
+                                }
+                            }
+                    appAdapter.setData(filtered)
                 }
-            }
-            appAdapter.setData(filtered)
-        }
     }
 
     @android.annotation.SuppressLint("InvalidSetHasFixedSize")
     private fun setupRecyclerView() {
         recyclerView.layoutManager = LinearLayoutManager(this)
-        appAdapter = AppNotificationAdapter(prefs)
+        appAdapter = AppNotificationAdapter(activePrefs)
         recyclerView.adapter = appAdapter
 
         recyclerView.setHasFixedSize(true)
@@ -127,44 +142,53 @@ class NotificationAppListActivity : AppCompatActivity() {
         isLoadingVisible = true
 
         loadingJob?.cancel()
-        loadingJob = lifecycleScope.launch(Dispatchers.IO) {
-            val pm = packageManager
-            val packageNamesFound = mutableSetOf<String>()
+        loadingJob =
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val pm = packageManager
+                    val packageNamesFound = mutableSetOf<String>()
 
-            val installedApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+                    val installedApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
 
-            val appsList = installedApps.mapNotNull { appInfo ->
-                val pkgName = appInfo.packageName
-                if (pkgName == packageName) return@mapNotNull null
+                    val appsList =
+                            installedApps
+                                    .mapNotNull { appInfo ->
+                                        val pkgName = appInfo.packageName
+                                        if (pkgName == packageName) return@mapNotNull null
 
-                val isSystemApp = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                                        val isSystemApp =
+                                                (appInfo.flags and
+                                                        android.content.pm.ApplicationInfo
+                                                                .FLAG_SYSTEM) != 0
 
-                val appName = try {
-                    pm.getApplicationLabel(appInfo).toString()
-                } catch (e: Exception) {
-                    pkgName
+                                        val appName =
+                                                try {
+                                                    pm.getApplicationLabel(appInfo).toString()
+                                                } catch (e: Exception) {
+                                                    pkgName
+                                                }
+
+                                        packageNamesFound.add(pkgName)
+                                        AppNotificationItem(appName, pkgName, null, isSystemApp)
+                                    }
+                                    .distinctBy { it.packageName }
+                                    .sortedBy { it.appName.lowercase() }
+
+                    if (!activePrefs.contains("allowed_notif_packages")) {
+                        activePrefs
+                                .edit()
+                                .putStringSet("allowed_notif_packages", packageNamesFound)
+                                .apply()
+                        withContext(Dispatchers.Main) { appAdapter.reloadAllowedPackages() }
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        isLoadingVisible = false
+                        layoutLoadingApps.visibility = View.GONE
+                        recyclerView.visibility = View.VISIBLE
+                        allAppsList = appsList
+                        filterApps(editTextSearch.text?.toString() ?: "")
+                    }
                 }
-
-                packageNamesFound.add(pkgName)
-                AppNotificationItem(appName, pkgName, null, isSystemApp)
-            }.distinctBy { it.packageName }
-                .sortedBy { it.appName.lowercase() }
-
-            if (!prefs.contains("allowed_notif_packages")) {
-                prefs.edit().putStringSet("allowed_notif_packages", packageNamesFound).apply()
-                withContext(Dispatchers.Main) {
-                    appAdapter.reloadAllowedPackages()
-                }
-            }
-
-            withContext(Dispatchers.Main) {
-                isLoadingVisible = false
-                layoutLoadingApps.visibility = View.GONE
-                recyclerView.visibility = View.VISIBLE
-                allAppsList = appsList
-                filterApps(editTextSearch.text?.toString() ?: "")
-            }
-        }
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {

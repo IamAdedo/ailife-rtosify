@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.media.MediaCodec
 import android.media.MediaFormat
 import android.os.Bundle
@@ -13,7 +14,6 @@ import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import androidx.appcompat.app.AppCompatActivity
-import java.nio.ByteBuffer
 
 class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
     companion object {
@@ -25,45 +25,50 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private lateinit var surfaceView: SurfaceView
     private var codec: MediaCodec? = null
     private var isCodecReady = false
-    
+
     private var targetWidth = 480
     private var targetHeight = 854
+    private lateinit var devicePrefManager: DevicePrefManager
+    private val activePrefs: SharedPreferences
+        get() = devicePrefManager.getActiveDevicePrefs()
 
-    private val dataReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            when (intent?.action) {
-                ACTION_SCREEN_DATA -> {
-                    val base64Data = intent.getStringExtra("data") ?: return
-                    val data = Base64.decode(base64Data, Base64.DEFAULT)
-                    decodeFrame(data)
-                }
-                ACTION_MIRROR_RES_CHANGE -> {
-                    val newW = intent.getIntExtra("width", targetWidth)
-                    val newH = intent.getIntExtra("height", targetHeight)
-                    Log.d(TAG, "Handling remote resolution change: ${newW}x${newH}")
-                    
-                    targetWidth = newW
-                    targetHeight = newH
-                    
-                    // Update UI size
-                    adjustSurfaceSize()
-                    
-                    // Reset decoder for new dimensions
-                    releaseDecoder()
-                    setupDecoder(surfaceView.holder)
+    private val dataReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    when (intent?.action) {
+                        ACTION_SCREEN_DATA -> {
+                            val base64Data = intent.getStringExtra("data") ?: return
+                            val data = Base64.decode(base64Data, Base64.DEFAULT)
+                            decodeFrame(data)
+                        }
+                        ACTION_MIRROR_RES_CHANGE -> {
+                            val newW = intent.getIntExtra("width", targetWidth)
+                            val newH = intent.getIntExtra("height", targetHeight)
+                            Log.d(TAG, "Handling remote resolution change: ${newW}x${newH}")
+
+                            targetWidth = newW
+                            targetHeight = newH
+
+                            // Update UI size
+                            adjustSurfaceSize()
+
+                            // Reset decoder for new dimensions
+                            releaseDecoder()
+                            setupDecoder(surfaceView.holder)
+                        }
+                    }
                 }
             }
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        devicePrefManager = DevicePrefManager(this)
         setContentView(R.layout.activity_mirror)
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         surfaceView = findViewById(R.id.surfaceView)
         surfaceView.holder.addCallback(this)
-        
+
         targetWidth = intent.getIntExtra("width", 480)
         targetHeight = intent.getIntExtra("height", 854)
 
@@ -81,17 +86,15 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
         }
 
         // checkResolutionMatching() - Removed to avoid redundant handshake, handled by source
-        
-        surfaceView.post {
-            adjustSurfaceSize()
-        }
+
+        surfaceView.post { adjustSurfaceSize() }
     }
 
     private fun adjustSurfaceSize() {
         val parent = surfaceView.parent as android.view.View
         val viewWidth = parent.width
         val viewHeight = parent.height
-        
+
         if (viewWidth == 0 || viewHeight == 0) {
             surfaceView.post { adjustSurfaceSize() }
             return
@@ -111,7 +114,10 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
             params.width = (viewHeight * videoRatio).toInt()
         }
         surfaceView.layoutParams = params
-        Log.d(TAG, "Adjusted SurfaceView size: ${params.width}x${params.height} for video ${targetWidth}x${targetHeight}")
+        Log.d(
+                TAG,
+                "Adjusted SurfaceView size: ${params.width}x${params.height} for video ${targetWidth}x${targetHeight}"
+        )
     }
 
     private fun sendRemoteNavigation(navAction: Int) {
@@ -125,9 +131,8 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
     }
 
     private fun checkResolutionMatching() {
-        val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
-        val resMatching = prefs.getBoolean("mirror_res_matching", false)
-        val aspectMatching = prefs.getBoolean("mirror_aspect_matching", false)
+        val resMatching = activePrefs.getBoolean("mirror_res_matching", false)
+        val aspectMatching = activePrefs.getBoolean("mirror_aspect_matching", false)
 
         if (resMatching || aspectMatching) {
             val metrics = resources.displayMetrics
@@ -136,9 +141,15 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
             intent.putExtra("width", metrics.widthPixels)
             intent.putExtra("height", metrics.heightPixels)
             intent.putExtra("density", metrics.densityDpi)
-            intent.putExtra("mode", if (resMatching) ResolutionData.MODE_RESOLUTION else ResolutionData.MODE_ASPECT)
+            intent.putExtra(
+                    "mode",
+                    if (resMatching) ResolutionData.MODE_RESOLUTION else ResolutionData.MODE_ASPECT
+            )
             sendBroadcast(intent)
-            Log.d(TAG, "Requested remote resolution update: mode=${if (resMatching) "RES" else "ASPECT"}")
+            Log.d(
+                    TAG,
+                    "Requested remote resolution update: mode=${if (resMatching) "RES" else "ASPECT"}"
+            )
         }
     }
 
@@ -153,31 +164,37 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             window.setDecorFitsSystemWindows(false)
             window.insetsController?.let {
-                it.hide(android.view.WindowInsets.Type.statusBars() or android.view.WindowInsets.Type.navigationBars())
-                it.systemBarsBehavior = android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                it.hide(
+                        android.view.WindowInsets.Type.statusBars() or
+                                android.view.WindowInsets.Type.navigationBars()
+                )
+                it.systemBarsBehavior =
+                        android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
         } else {
             @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = (android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-                    or android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                    or android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                    or android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                    or android.view.View.SYSTEM_UI_FLAG_FULLSCREEN)
+            window.decorView.systemUiVisibility =
+                    (android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or
+                            android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                            android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                            android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                            android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                            android.view.View.SYSTEM_UI_FLAG_FULLSCREEN)
         }
     }
 
     override fun onResume() {
         super.onResume()
-        val filter = IntentFilter().apply {
-            addAction(ACTION_SCREEN_DATA)
-            addAction(ACTION_MIRROR_RES_CHANGE)
-        }
+        val filter =
+                IntentFilter().apply {
+                    addAction(ACTION_SCREEN_DATA)
+                    addAction(ACTION_MIRROR_RES_CHANGE)
+                }
         androidx.core.content.ContextCompat.registerReceiver(
-            this,
-            dataReceiver,
-            filter,
-            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+                this,
+                dataReceiver,
+                filter,
+                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
         )
     }
 
@@ -188,27 +205,25 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     override fun onDestroy() {
         super.onDestroy()
-        
+
         // Send stop command to companion's MirroringService
         val stopIntent = Intent("com.ailife.rtosify.SEND_MIRROR_STOP")
         stopIntent.setPackage(packageName)
         sendBroadcast(stopIntent)
-        
+
         // Reset resolution if matching was enabled
-        val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
-        if (prefs.getBoolean("mirror_res_matching", false)) {
+        if (activePrefs.getBoolean("mirror_res_matching", false)) {
             val resetIntent = Intent("com.ailife.rtosify.UPDATE_REMOTE_RESOLUTION")
             resetIntent.setPackage(packageName)
             resetIntent.putExtra("reset", true)
             sendBroadcast(resetIntent)
         }
-        
+
         releaseDecoder()
     }
 
     private fun handleTouch(event: MotionEvent) {
-        val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
-        if (!prefs.getBoolean("mirror_enable_touch", true)) return
+        if (!activePrefs.getBoolean("mirror_enable_touch", true)) return
 
         val viewWidth = surfaceView.width.toFloat()
         val viewHeight = surfaceView.height.toFloat()
@@ -234,9 +249,12 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
         val x = ((event.x - offsetX) / displayedWidth).coerceIn(0f, 1f)
         val y = ((event.y - offsetY) / displayedHeight).coerceIn(0f, 1f)
-        
-        Log.d(TAG, "Touch event: action=${event.action}, x=$x, y=$y (view: ${viewWidth}x${viewHeight}, video: ${targetWidth}x${targetHeight})")
-        
+
+        Log.d(
+                TAG,
+                "Touch event: action=${event.action}, x=$x, y=$y (view: ${viewWidth}x${viewHeight}, video: ${targetWidth}x${targetHeight})"
+        )
+
         // Send touch to BluetoothService
         val intent = Intent("com.ailife.rtosify.SEND_REMOTE_INPUT")
         intent.setPackage(packageName) // Make it explicit for Android 14+
@@ -258,7 +276,12 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     private fun setupDecoder(holder: SurfaceHolder) {
         try {
-            val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, targetWidth, targetHeight)
+            val format =
+                    MediaFormat.createVideoFormat(
+                            MediaFormat.MIMETYPE_VIDEO_AVC,
+                            targetWidth,
+                            targetHeight
+                    )
             codec = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
             codec?.configure(format, holder.surface, null, 0)
             codec?.start()
@@ -270,7 +293,7 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     private fun decodeFrame(data: ByteArray) {
         if (!isCodecReady) return
-        
+
         try {
             val inputBufferId = codec?.dequeueInputBuffer(10000) ?: -1
             if (inputBufferId >= 0) {

@@ -9,7 +9,6 @@ import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
 import android.view.MenuItem
-import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -31,47 +30,60 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
     private lateinit var switchResMatching: MaterialSwitch
     private lateinit var switchAspectMatching: MaterialSwitch
 
-    private lateinit var prefs: SharedPreferences
+    private lateinit var devicePrefManager: DevicePrefManager
+    private lateinit var globalPrefs: SharedPreferences
+    private val activePrefs: SharedPreferences
+        get() = devicePrefManager.getActiveDevicePrefs()
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
 
-    private val connection = object : ServiceConnection {
-        override fun onServiceConnected(className: ComponentName, service: IBinder) {
-            val binder = service as BluetoothService.LocalBinder
-            bluetoothService = binder.getService()
-            bluetoothService?.callback = this@MirrorSettingsActivity
-            isBound = true
-            updateUI(bluetoothService?.isConnected == true)
-        }
+    private val connection =
+            object : ServiceConnection {
+                override fun onServiceConnected(className: ComponentName, service: IBinder) {
+                    val binder = service as BluetoothService.LocalBinder
+                    bluetoothService = binder.getService()
+                    bluetoothService?.callback = this@MirrorSettingsActivity
+                    isBound = true
+                    updateUI(bluetoothService?.isConnected == true)
+                }
 
-        override fun onServiceDisconnected(arg0: ComponentName) {
-            isBound = false
-            bluetoothService = null
-        }
-    }
-
-    private val screenCaptureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == RESULT_OK && result.data != null) {
-            val intent = Intent(this, MirroringService::class.java).apply {
-                putExtra(MirroringService.EXTRA_RESULT_CODE, result.resultCode)
-                putExtra(MirroringService.EXTRA_DATA, result.data)
+                override fun onServiceDisconnected(arg0: ComponentName) {
+                    isBound = false
+                    bluetoothService = null
+                }
             }
-            ContextCompat.startForegroundService(this, intent)
-            
-            // Send message to watch to open MirrorActivity
-            val metrics = resources.displayMetrics
-            bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(metrics.widthPixels, metrics.heightPixels, metrics.densityDpi))
-            
-            // Update button state
-            btnStartMirror.text = "Stop Mirroring"
-        }
-    }
+
+    private val screenCaptureLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                if (result.resultCode == RESULT_OK && result.data != null) {
+                    val intent =
+                            Intent(this, MirroringService::class.java).apply {
+                                putExtra(MirroringService.EXTRA_RESULT_CODE, result.resultCode)
+                                putExtra(MirroringService.EXTRA_DATA, result.data)
+                            }
+                    ContextCompat.startForegroundService(this, intent)
+
+                    // Send message to watch to open MirrorActivity
+                    val metrics = resources.displayMetrics
+                    bluetoothService?.sendMessage(
+                            ProtocolHelper.createMirrorStart(
+                                    metrics.widthPixels,
+                                    metrics.heightPixels,
+                                    metrics.densityDpi
+                            )
+                    )
+
+                    // Update button state
+                    btnStartMirror.text = "Stop Mirroring"
+                }
+            }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_mirror_settings)
 
-        prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+        devicePrefManager = DevicePrefManager(this)
+        globalPrefs = devicePrefManager.getGlobalPrefs()
         initViews()
 
         setSupportActionBar(toolbar)
@@ -82,12 +94,19 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
         bindToService()
 
         if (intent.getBooleanExtra("request_mirror", false)) {
-            Log.d("MirrorSettingsActivity", "Received mirror request, delaying projection permission by 1s for stability")
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                if (!MirroringService.isRunning) {
-                    startPhoneMirroring()
-                }
-            }, 1000)
+            Log.d(
+                    "MirrorSettingsActivity",
+                    "Received mirror request, delaying projection permission by 1s for stability"
+            )
+            android.os.Handler(android.os.Looper.getMainLooper())
+                    .postDelayed(
+                            {
+                                if (!MirroringService.isRunning) {
+                                    startPhoneMirroring()
+                                }
+                            },
+                            1000
+                    )
         }
     }
 
@@ -101,9 +120,9 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
         switchResMatching = findViewById(R.id.switchResMatching)
         switchAspectMatching = findViewById(R.id.switchAspectMatching)
 
-        switchResMatching.isChecked = prefs.getBoolean("mirror_res_matching", false)
-        switchAspectMatching.isChecked = prefs.getBoolean("mirror_aspect_matching", false)
-        switchEnableTouch.isChecked = prefs.getBoolean("mirror_enable_touch", true)
+        switchResMatching.isChecked = activePrefs.getBoolean("mirror_res_matching", false)
+        switchAspectMatching.isChecked = activePrefs.getBoolean("mirror_aspect_matching", false)
+        switchEnableTouch.isChecked = activePrefs.getBoolean("mirror_enable_touch", true)
     }
 
     private fun setupListeners() {
@@ -119,47 +138,55 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
 
         btnControlWatch.setOnClickListener {
             runIfConnected {
-                val resMatching = prefs.getBoolean("mirror_res_matching", false)
-                val aspectMatching = prefs.getBoolean("mirror_aspect_matching", false)
-                
+                val resMatching = activePrefs.getBoolean("mirror_res_matching", false)
+                val aspectMatching = activePrefs.getBoolean("mirror_aspect_matching", false)
+
                 if (resMatching || aspectMatching) {
                     val metrics = resources.displayMetrics
-                    val mode = if (resMatching) ResolutionData.MODE_RESOLUTION else ResolutionData.MODE_ASPECT
-                    bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(
-                        metrics.widthPixels, 
-                        metrics.heightPixels, 
-                        metrics.densityDpi, 
-                        isRequest = true, 
-                        mode = mode
-                    ))
+                    val mode =
+                            if (resMatching) ResolutionData.MODE_RESOLUTION
+                            else ResolutionData.MODE_ASPECT
+                    bluetoothService?.sendMessage(
+                            ProtocolHelper.createMirrorStart(
+                                    metrics.widthPixels,
+                                    metrics.heightPixels,
+                                    metrics.densityDpi,
+                                    isRequest = true,
+                                    mode = mode
+                            )
+                    )
                 } else {
-                    bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(0, 0, 0, isRequest = true))
+                    bluetoothService?.sendMessage(
+                            ProtocolHelper.createMirrorStart(0, 0, 0, isRequest = true)
+                    )
                 }
                 Toast.makeText(this, "Requesting watch screen...", Toast.LENGTH_SHORT).show()
             }
         }
 
         switchResMatching.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("mirror_res_matching", isChecked).apply()
+            activePrefs.edit().putBoolean("mirror_res_matching", isChecked).apply()
             if (isChecked) {
                 switchAspectMatching.isChecked = false
             }
         }
 
         switchAspectMatching.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("mirror_aspect_matching", isChecked).apply()
+            activePrefs.edit().putBoolean("mirror_aspect_matching", isChecked).apply()
             if (isChecked) {
                 switchResMatching.isChecked = false
             }
         }
 
         switchEnableTouch.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("mirror_enable_touch", isChecked).apply()
+            activePrefs.edit().putBoolean("mirror_enable_touch", isChecked).apply()
         }
     }
 
     private fun startPhoneMirroring() {
-        val projectionManager = getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager
+        val projectionManager =
+                getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as
+                        android.media.projection.MediaProjectionManager
         screenCaptureLauncher.launch(projectionManager.createScreenCaptureIntent())
     }
 
@@ -178,7 +205,8 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
         if (bluetoothService?.isConnected == true) {
             action()
         } else {
-            Toast.makeText(this, getString(R.string.toast_watch_not_connected), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_watch_not_connected), Toast.LENGTH_SHORT)
+                    .show()
         }
     }
 
@@ -208,11 +236,12 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
         return super.onOptionsItemSelected(item)
     }
 
-    private val mirrorStateReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            updateUI(bluetoothService?.isConnected == true)
-        }
-    }
+    private val mirrorStateReceiver =
+            object : android.content.BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    updateUI(bluetoothService?.isConnected == true)
+                }
+            }
 
     override fun onResume() {
         super.onResume()
@@ -221,10 +250,10 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
             updateUI(bluetoothService?.isConnected == true)
         }
         androidx.core.content.ContextCompat.registerReceiver(
-            this,
-            mirrorStateReceiver,
-            android.content.IntentFilter(MirroringService.ACTION_MIRROR_STATE_CHANGED),
-            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+                this,
+                mirrorStateReceiver,
+                android.content.IntentFilter(MirroringService.ACTION_MIRROR_STATE_CHANGED),
+                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
         )
     }
 
@@ -259,5 +288,11 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
     override fun onDownloadProgress(progress: Int) {}
     override fun onFileListReceived(path: String, filesJson: String) {}
     override fun onAppListReceived(appsJson: String) {}
-    override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean) {}
+    override fun onWatchStatusUpdated(
+            batteryLevel: Int,
+            isCharging: Boolean,
+            wifiSsid: String,
+            wifiEnabled: Boolean,
+            dndEnabled: Boolean
+    ) {}
 }

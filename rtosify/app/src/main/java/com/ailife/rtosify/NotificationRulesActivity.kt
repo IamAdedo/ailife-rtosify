@@ -1,6 +1,5 @@
 package com.ailife.rtosify
 
-import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Bundle
@@ -25,11 +24,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 data class NotificationRule(
-    val id: String,
-    val packageName: String,
-    val mode: String, // "whitelist" or "blacklist"
-    val titlePattern: String,
-    val contentPattern: String
+        val id: String,
+        val packageName: String,
+        val mode: String, // "whitelist" or "blacklist"
+        val titlePattern: String,
+        val contentPattern: String
 )
 
 class NotificationRulesActivity : AppCompatActivity() {
@@ -37,7 +36,10 @@ class NotificationRulesActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var fabAddRule: FloatingActionButton
     private lateinit var tvEmptyList: TextView
-    private lateinit var prefs: SharedPreferences
+    private lateinit var devicePrefManager: DevicePrefManager
+    private lateinit var globalPrefs: SharedPreferences
+    private val activePrefs: SharedPreferences
+        get() = devicePrefManager.getActiveDevicePrefs()
     private lateinit var adapter: NotificationRulesAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,7 +51,8 @@ class NotificationRulesActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = getString(R.string.notif_manage_rules_title)
 
-        prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+        devicePrefManager = DevicePrefManager(this)
+        globalPrefs = devicePrefManager.getGlobalPrefs()
 
         initViews()
         setupRecyclerView()
@@ -61,22 +64,21 @@ class NotificationRulesActivity : AppCompatActivity() {
         fabAddRule = findViewById(R.id.fabAddRule)
         tvEmptyList = findViewById(R.id.tvEmptyList)
 
-        fabAddRule.setOnClickListener {
-            showAddEditRuleDialog(null)
-        }
+        fabAddRule.setOnClickListener { showAddEditRuleDialog(null) }
     }
 
     private fun setupRecyclerView() {
         recyclerView.layoutManager = LinearLayoutManager(this)
-        adapter = NotificationRulesAdapter(
-            onEditClick = { rule -> showAddEditRuleDialog(rule) },
-            onDeleteClick = { rule -> showDeleteConfirmDialog(rule) }
-        )
+        adapter =
+                NotificationRulesAdapter(
+                        onEditClick = { rule -> showAddEditRuleDialog(rule) },
+                        onDeleteClick = { rule -> showDeleteConfirmDialog(rule) }
+                )
         recyclerView.adapter = adapter
     }
 
     private fun loadRules() {
-        val rulesJson = prefs.getString("notification_rules", "[]") ?: "[]"
+        val rulesJson = activePrefs.getString("notification_rules", "[]") ?: "[]"
         val rules = mutableListOf<NotificationRule>()
 
         try {
@@ -84,13 +86,13 @@ class NotificationRulesActivity : AppCompatActivity() {
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
                 rules.add(
-                    NotificationRule(
-                        id = obj.getString("id"),
-                        packageName = obj.getString("packageName"),
-                        mode = obj.getString("mode"),
-                        titlePattern = obj.optString("titlePattern", ""),
-                        contentPattern = obj.optString("contentPattern", "")
-                    )
+                        NotificationRule(
+                                id = obj.getString("id"),
+                                packageName = obj.getString("packageName"),
+                                mode = obj.getString("mode"),
+                                titlePattern = obj.optString("titlePattern", ""),
+                                contentPattern = obj.optString("contentPattern", "")
+                        )
                 )
             }
         } catch (e: Exception) {
@@ -118,7 +120,7 @@ class NotificationRulesActivity : AppCompatActivity() {
             obj.put("contentPattern", rule.contentPattern)
             jsonArray.put(obj)
         }
-        prefs.edit().putString("notification_rules", jsonArray.toString()).apply()
+        activePrefs.edit().putString("notification_rules", jsonArray.toString()).apply()
         android.util.Log.d("RulesActivity", "Rules saved: ${rules.size} rules, JSON: $jsonArray")
 
         // Notify the notification listener service about the rule change
@@ -150,9 +152,7 @@ class NotificationRulesActivity : AppCompatActivity() {
         }
 
         btnSelectApp.setOnClickListener {
-            showAppSelectionDialog { packageName ->
-                editPackageName.setText(packageName)
-            }
+            showAppSelectionDialog { packageName -> editPackageName.setText(packageName) }
         }
 
         fun updateModeButtons() {
@@ -193,12 +193,13 @@ class NotificationRulesActivity : AppCompatActivity() {
             updateModeButtons()
         }
 
-        val dialog = AlertDialog.Builder(this)
-            .setTitle(if (existingRule == null) "Add Rule" else "Edit Rule")
-            .setView(dialogView)
-            .setPositiveButton("Save", null)  // Set to null initially
-            .setNegativeButton("Cancel", null)
-            .create()
+        val dialog =
+                AlertDialog.Builder(this)
+                        .setTitle(if (existingRule == null) "Add Rule" else "Edit Rule")
+                        .setView(dialogView)
+                        .setPositiveButton("Save", null) // Set to null initially
+                        .setNegativeButton("Cancel", null)
+                        .create()
 
         dialog.setOnShowListener {
             val saveButton = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
@@ -214,8 +215,10 @@ class NotificationRulesActivity : AppCompatActivity() {
                 }
 
                 // Check if rule has at least some filtering criteria
-                // For whitelist: if patterns are empty, all notifications from this app will be forwarded
-                // For blacklist: if patterns are empty, all notifications from this app will be blocked
+                // For whitelist: if patterns are empty, all notifications from this app will be
+                // forwarded
+                // For blacklist: if patterns are empty, all notifications from this app will be
+                // blocked
                 // This is intentional behavior, so we just show a warning
 
                 val currentRules = adapter.getRules().toMutableList()
@@ -224,13 +227,14 @@ class NotificationRulesActivity : AppCompatActivity() {
                     currentRules.removeAll { it.id == existingRule.id }
                 }
 
-                val newRule = NotificationRule(
-                    id = existingRule?.id ?: System.currentTimeMillis().toString(),
-                    packageName = packageName,
-                    mode = selectedMode,
-                    titlePattern = titlePattern,
-                    contentPattern = contentPattern
-                )
+                val newRule =
+                        NotificationRule(
+                                id = existingRule?.id ?: System.currentTimeMillis().toString(),
+                                packageName = packageName,
+                                mode = selectedMode,
+                                titlePattern = titlePattern,
+                                contentPattern = contentPattern
+                        )
 
                 currentRules.add(newRule)
                 saveRules(currentRules)
@@ -243,40 +247,45 @@ class NotificationRulesActivity : AppCompatActivity() {
 
     private fun showDeleteConfirmDialog(rule: NotificationRule) {
         AlertDialog.Builder(this)
-            .setTitle("Delete Rule")
-            .setMessage("Are you sure you want to delete this rule for ${rule.packageName}?")
-            .setPositiveButton("Delete") { _, _ ->
-                val currentRules = adapter.getRules().toMutableList()
-                currentRules.removeAll { it.id == rule.id }
-                saveRules(currentRules)
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+                .setTitle("Delete Rule")
+                .setMessage("Are you sure you want to delete this rule for ${rule.packageName}?")
+                .setPositiveButton("Delete") { _, _ ->
+                    val currentRules = adapter.getRules().toMutableList()
+                    currentRules.removeAll { it.id == rule.id }
+                    saveRules(currentRules)
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
     }
 
     private fun showAppSelectionDialog(onAppSelected: (String) -> Unit) {
-        val progressDialog = AlertDialog.Builder(this)
-            .setMessage("Loading apps...")
-            .setCancelable(false)
-            .create()
+        val progressDialog =
+                AlertDialog.Builder(this)
+                        .setMessage("Loading apps...")
+                        .setCancelable(false)
+                        .create()
         progressDialog.show()
 
         lifecycleScope.launch(Dispatchers.IO) {
             val pm = packageManager
             val installedApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
 
-            val appsList = installedApps.mapNotNull { appInfo ->
-                val pkgName = appInfo.packageName
-                if (pkgName == packageName) return@mapNotNull null
+            val appsList =
+                    installedApps
+                            .mapNotNull { appInfo ->
+                                val pkgName = appInfo.packageName
+                                if (pkgName == packageName) return@mapNotNull null
 
-                val appName = try {
-                    pm.getApplicationLabel(appInfo).toString()
-                } catch (e: Exception) {
-                    pkgName
-                }
+                                val appName =
+                                        try {
+                                            pm.getApplicationLabel(appInfo).toString()
+                                        } catch (e: Exception) {
+                                            pkgName
+                                        }
 
-                Pair(appName, pkgName)
-            }.sortedBy { it.first.lowercase() }
+                                Pair(appName, pkgName)
+                            }
+                            .sortedBy { it.first.lowercase() }
 
             withContext(Dispatchers.Main) {
                 progressDialog.dismiss()
@@ -288,51 +297,67 @@ class NotificationRulesActivity : AppCompatActivity() {
     }
 
     private fun showSearchableAppDialog(
-        appsList: List<Pair<String, String>>,
-        onAppSelected: (String) -> Unit
+            appsList: List<Pair<String, String>>,
+            onAppSelected: (String) -> Unit
     ) {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_app_selector, null)
         val searchInput = dialogView.findViewById<android.widget.EditText>(R.id.searchInput)
         val recyclerView = dialogView.findViewById<RecyclerView>(R.id.recyclerViewApps)
         val tvNoResults = dialogView.findViewById<TextView>(R.id.tvNoResults)
 
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Select App")
-            .setView(dialogView)
-            .setNegativeButton("Cancel", null)
-            .create()
+        val dialog =
+                AlertDialog.Builder(this)
+                        .setTitle("Select App")
+                        .setView(dialogView)
+                        .setNegativeButton("Cancel", null)
+                        .create()
 
-        val adapter = AppSelectorAdapter(appsList) { selectedPackage ->
-            onAppSelected(selectedPackage)
-            dialog.dismiss()
-        }
+        val adapter =
+                AppSelectorAdapter(appsList) { selectedPackage ->
+                    onAppSelected(selectedPackage)
+                    dialog.dismiss()
+                }
 
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = adapter
 
-        searchInput.addTextChangedListener(object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                val query = s?.toString()?.lowercase() ?: ""
-                val filtered = if (query.isEmpty()) {
-                    appsList
-                } else {
-                    appsList.filter {
-                        it.first.lowercase().contains(query) || it.second.lowercase().contains(query)
+        searchInput.addTextChangedListener(
+                object : android.text.TextWatcher {
+                    override fun beforeTextChanged(
+                            s: CharSequence?,
+                            start: Int,
+                            count: Int,
+                            after: Int
+                    ) {}
+                    override fun onTextChanged(
+                            s: CharSequence?,
+                            start: Int,
+                            before: Int,
+                            count: Int
+                    ) {}
+                    override fun afterTextChanged(s: android.text.Editable?) {
+                        val query = s?.toString()?.lowercase() ?: ""
+                        val filtered =
+                                if (query.isEmpty()) {
+                                    appsList
+                                } else {
+                                    appsList.filter {
+                                        it.first.lowercase().contains(query) ||
+                                                it.second.lowercase().contains(query)
+                                    }
+                                }
+
+                        if (filtered.isEmpty()) {
+                            tvNoResults.visibility = View.VISIBLE
+                            recyclerView.visibility = View.GONE
+                        } else {
+                            tvNoResults.visibility = View.GONE
+                            recyclerView.visibility = View.VISIBLE
+                            adapter.updateList(filtered)
+                        }
                     }
                 }
-
-                if (filtered.isEmpty()) {
-                    tvNoResults.visibility = View.VISIBLE
-                    recyclerView.visibility = View.GONE
-                } else {
-                    tvNoResults.visibility = View.GONE
-                    recyclerView.visibility = View.VISIBLE
-                    adapter.updateList(filtered)
-                }
-            }
-        })
+        )
 
         dialog.show()
     }
@@ -347,8 +372,8 @@ class NotificationRulesActivity : AppCompatActivity() {
 }
 
 class NotificationRulesAdapter(
-    private val onEditClick: (NotificationRule) -> Unit,
-    private val onDeleteClick: (NotificationRule) -> Unit
+        private val onEditClick: (NotificationRule) -> Unit,
+        private val onDeleteClick: (NotificationRule) -> Unit
 ) : RecyclerView.Adapter<NotificationRulesAdapter.ViewHolder>() {
 
     private var rules = listOf<NotificationRule>()
@@ -361,7 +386,9 @@ class NotificationRulesAdapter(
     fun getRules() = rules
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_notification_rule, parent, false)
+        val view =
+                LayoutInflater.from(parent.context)
+                        .inflate(R.layout.item_notification_rule, parent, false)
         return ViewHolder(view)
     }
 
@@ -390,11 +417,12 @@ class NotificationRulesAdapter(
                 patterns.add("Content: ${rule.contentPattern}")
             }
 
-            tvPatterns.text = if (patterns.isEmpty()) {
-                "No pattern filters"
-            } else {
-                patterns.joinToString("\n")
-            }
+            tvPatterns.text =
+                    if (patterns.isEmpty()) {
+                        "No pattern filters"
+                    } else {
+                        patterns.joinToString("\n")
+                    }
 
             btnEdit.setOnClickListener { onEditClick(rule) }
             btnDelete.setOnClickListener { onDeleteClick(rule) }
@@ -403,8 +431,8 @@ class NotificationRulesAdapter(
 }
 
 class AppSelectorAdapter(
-    private var apps: List<Pair<String, String>>,
-    private val onAppClick: (String) -> Unit
+        private var apps: List<Pair<String, String>>,
+        private val onAppClick: (String) -> Unit
 ) : RecyclerView.Adapter<AppSelectorAdapter.ViewHolder>() {
 
     fun updateList(newApps: List<Pair<String, String>>) {
@@ -413,7 +441,9 @@ class AppSelectorAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_app_selector, parent, false)
+        val view =
+                LayoutInflater.from(parent.context)
+                        .inflate(R.layout.item_app_selector, parent, false)
         return ViewHolder(view)
     }
 
@@ -431,9 +461,7 @@ class AppSelectorAdapter(
             tvAppName.text = app.first
             tvPackageName.text = app.second
 
-            itemView.setOnClickListener {
-                onAppClick(app.second)
-            }
+            itemView.setOnClickListener { onAppClick(app.second) }
         }
     }
 }

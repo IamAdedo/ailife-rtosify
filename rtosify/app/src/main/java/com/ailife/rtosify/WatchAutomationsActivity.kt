@@ -1,6 +1,5 @@
 package com.ailife.rtosify
 
-import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
@@ -17,7 +16,10 @@ class WatchAutomationsActivity : AppCompatActivity() {
     private lateinit var switchAutoData: SwitchMaterial
     private lateinit var switchAutoBtTether: SwitchMaterial
 
-    private lateinit var prefs: SharedPreferences
+    private lateinit var devicePrefManager: DevicePrefManager
+    private lateinit var globalPrefs: SharedPreferences
+    private val activePrefs: SharedPreferences
+        get() = devicePrefManager.getActiveDevicePrefs()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,7 +30,8 @@ class WatchAutomationsActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = ""
 
-        prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+        devicePrefManager = DevicePrefManager(this)
+        globalPrefs = devicePrefManager.getGlobalPrefs()
 
         initViews()
         setupBootServiceSwitch()
@@ -47,45 +50,45 @@ class WatchAutomationsActivity : AppCompatActivity() {
     }
 
     private fun setupBootServiceSwitch() {
-        val isEnabled = prefs.getBoolean("autostart_on_boot", true)
+        val isEnabled = globalPrefs.getBoolean("autostart_on_boot", true)
         switchBootService.isChecked = isEnabled
         switchBootService.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("autostart_on_boot", isChecked).apply()
+            globalPrefs.edit().putBoolean("autostart_on_boot", isChecked).apply()
         }
     }
 
     private fun setupClipboardSwitch() {
-        val isEnabled = prefs.getBoolean("clipboard_sync_enabled", false)
+        val isEnabled = activePrefs.getBoolean("clipboard_sync_enabled", false)
         switchClipboard.isChecked = isEnabled
         switchClipboard.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("clipboard_sync_enabled", isChecked).apply()
+            activePrefs.edit().putBoolean("clipboard_sync_enabled", isChecked).apply()
             sendAutomationUpdate()
         }
     }
 
     private fun setupAutoWifiSwitch() {
-        val isEnabled = prefs.getBoolean("auto_wifi_enabled", false)
+        val isEnabled = activePrefs.getBoolean("auto_wifi_enabled", false)
         switchAutoWifi.isChecked = isEnabled
         switchAutoWifi.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("auto_wifi_enabled", isChecked).apply()
+            activePrefs.edit().putBoolean("auto_wifi_enabled", isChecked).apply()
             sendAutomationUpdate()
         }
     }
 
     private fun setupAutoDataSwitch() {
-        val isEnabled = prefs.getBoolean("auto_data_enabled", false)
+        val isEnabled = activePrefs.getBoolean("auto_data_enabled", false)
         switchAutoData.isChecked = isEnabled
         switchAutoData.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("auto_data_enabled", isChecked).apply()
+            activePrefs.edit().putBoolean("auto_data_enabled", isChecked).apply()
             sendAutomationUpdate()
         }
     }
 
     private fun setupAutoBtTetherSwitch() {
-        val isEnabled = prefs.getBoolean("auto_bt_tether_enabled", false)
+        val isEnabled = activePrefs.getBoolean("auto_bt_tether_enabled", false)
         switchAutoBtTether.isChecked = isEnabled
         switchAutoBtTether.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("auto_bt_tether_enabled", isChecked).apply()
+            activePrefs.edit().putBoolean("auto_bt_tether_enabled", isChecked).apply()
             sendAutomationUpdate()
         }
     }

@@ -16,7 +16,12 @@
     <string name="status_open_app_watch">Open the app on your Watch and try again.</string>
     <string name="status_connecting_to">Connecting to %s…</string>
     <string name="status_connected_to">Connected to %s</string>
+    <string name="status_switching">Switching Device…</string>
     <string name="device_name_default">Device</string>
+    <string name="device_picker_title">Select Device</string>
+    <string name="no_devices_paired">No devices paired yet.</string>
+    <string name="device_selected">Selected %s</string>
+    <string name="pair_new_device">Pair New Device</string>
 
     <!-- Toast Messages -->
     <string name="toast_watch_not_connected">Watch not connected.</string>

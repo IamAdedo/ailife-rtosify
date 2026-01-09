@@ -12,96 +12,106 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
 import android.os.Build
+import android.os.PowerManager
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Base64
 import android.util.Log
-import androidx.core.graphics.drawable.toBitmap
 import com.google.gson.Gson
-import org.json.JSONArray
-import org.json.JSONObject
-import android.os.PowerManager
 import java.io.ByteArrayOutputStream
+import org.json.JSONArray
 
 class MyNotificationListener : NotificationListenerService() {
 
-    private lateinit var prefs: SharedPreferences
+    private lateinit var devicePrefManager: DevicePrefManager
+    private lateinit var globalPrefs: SharedPreferences
+    private val activePrefs: SharedPreferences
+        get() = devicePrefManager.getActiveDevicePrefs()
     private val gson = Gson()
 
     // Map to store notification actions for later execution
-    private val notificationActionsMap = mutableMapOf<String, MutableMap<String, android.app.Notification.Action>>()
+    private val notificationActionsMap =
+            mutableMapOf<String, MutableMap<String, android.app.Notification.Action>>()
 
-    // Map to track the last time a reply was sent for a notification (to prevent premature dismissal)
+    // Map to track the last time a reply was sent for a notification (to prevent premature
+    // dismissal)
     private val lastReplyTimes = mutableMapOf<String, Long>()
 
     // Cache for notification rules
     private var notificationRules = mutableListOf<NotificationRule>()
 
     // SharedPreferences listener for rule changes
-    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->
-        if (key == "notification_rules") {
-            Log.d("Listener", "Rules preference changed, reloading rules...")
-            loadNotificationRules()
-        }
-    }
+    private val prefsListener =
+            SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->
+                if (key == "notification_rules") {
+                    Log.d("Listener", "Rules preference changed, reloading rules...")
+                    loadNotificationRules()
+                }
+            }
 
     data class NotificationRule(
-        val id: String,
-        val packageName: String,
-        val mode: String,
-        val titlePattern: String,
-        val contentPattern: String
+            val id: String,
+            val packageName: String,
+            val mode: String,
+            val titlePattern: String,
+            val contentPattern: String
     )
 
     // Receiver para ouvir comandos do BluetoothService (Ex: Watch pediu pra apagar)
-    private val commandReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            when (intent?.action) {
-                "com.ailife.rtosify.ACTION_RULES_UPDATED" -> {
-                    Log.d("Listener", "Rules updated, reloading...")
-                    loadNotificationRules()
-                }
-                BluetoothService.ACTION_CMD_DISMISS_ON_PHONE -> {
-                    val key = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_KEY)
-                    if (key != null) {
-                        try {
-                            cancelNotification(key)
-                            notificationActionsMap.remove(key)
-                            Log.d("Listener", "Cancelando notificação solicitada pelo Watch: $key")
-                        } catch (e: Exception) {
-                            Log.e("Listener", "Erro ao cancelar notificação: ${e.message}")
+    private val commandReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    when (intent?.action) {
+                        "com.ailife.rtosify.ACTION_RULES_UPDATED" -> {
+                            Log.d("Listener", "Rules updated, reloading...")
+                            loadNotificationRules()
+                        }
+                        BluetoothService.ACTION_CMD_DISMISS_ON_PHONE -> {
+                            val key = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_KEY)
+                            if (key != null) {
+                                try {
+                                    cancelNotification(key)
+                                    notificationActionsMap.remove(key)
+                                    Log.d(
+                                            "Listener",
+                                            "Cancelando notificação solicitada pelo Watch: $key"
+                                    )
+                                } catch (e: Exception) {
+                                    Log.e("Listener", "Erro ao cancelar notificação: ${e.message}")
+                                }
+                            }
+                        }
+                        BluetoothService.ACTION_CMD_EXECUTE_ACTION -> {
+                            val notifKey = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_KEY)
+                            val actionKey = intent.getStringExtra(BluetoothService.EXTRA_ACTION_KEY)
+                            if (notifKey != null && actionKey != null) {
+                                executeNotificationAction(notifKey, actionKey, null)
+                            }
+                        }
+                        BluetoothService.ACTION_CMD_SEND_REPLY -> {
+                            val notifKey = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_KEY)
+                            val actionKey = intent.getStringExtra(BluetoothService.EXTRA_ACTION_KEY)
+                            val replyText = intent.getStringExtra(BluetoothService.EXTRA_REPLY_TEXT)
+                            if (notifKey != null && actionKey != null && replyText != null) {
+                                executeNotificationAction(notifKey, actionKey, replyText)
+                            }
                         }
                     }
                 }
-                BluetoothService.ACTION_CMD_EXECUTE_ACTION -> {
-                    val notifKey = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_KEY)
-                    val actionKey = intent.getStringExtra(BluetoothService.EXTRA_ACTION_KEY)
-                    if (notifKey != null && actionKey != null) {
-                        executeNotificationAction(notifKey, actionKey, null)
-                    }
-                }
-                BluetoothService.ACTION_CMD_SEND_REPLY -> {
-                    val notifKey = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_KEY)
-                    val actionKey = intent.getStringExtra(BluetoothService.EXTRA_ACTION_KEY)
-                    val replyText = intent.getStringExtra(BluetoothService.EXTRA_REPLY_TEXT)
-                    if (notifKey != null && actionKey != null && replyText != null) {
-                        executeNotificationAction(notifKey, actionKey, replyText)
-                    }
-                }
             }
-        }
-    }
 
     override fun onCreate() {
         super.onCreate()
-        prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+        devicePrefManager = DevicePrefManager(this)
+        globalPrefs = devicePrefManager.getGlobalPrefs()
 
-        val filter = IntentFilter().apply {
-            addAction("com.ailife.rtosify.ACTION_RULES_UPDATED")
-            addAction(BluetoothService.ACTION_CMD_DISMISS_ON_PHONE)
-            addAction(BluetoothService.ACTION_CMD_EXECUTE_ACTION)
-            addAction(BluetoothService.ACTION_CMD_SEND_REPLY)
-        }
+        val filter =
+                IntentFilter().apply {
+                    addAction("com.ailife.rtosify.ACTION_RULES_UPDATED")
+                    addAction(BluetoothService.ACTION_CMD_DISMISS_ON_PHONE)
+                    addAction(BluetoothService.ACTION_CMD_EXECUTE_ACTION)
+                    addAction(BluetoothService.ACTION_CMD_SEND_REPLY)
+                }
 
         // CORREÇÃO CRÍTICA PARA ANDROID 14 (API 34):
         // É obrigatório definir se o receiver é exportado ou não.
@@ -109,20 +119,19 @@ class MyNotificationListener : NotificationListenerService() {
             registerReceiver(commandReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
             // Android 12 e inferiores - lint requires explicit flag check
-            @Suppress("UnspecifiedRegisterReceiverFlag")
-            registerReceiver(commandReceiver, filter)
+            @Suppress("UnspecifiedRegisterReceiverFlag") registerReceiver(commandReceiver, filter)
         }
 
-        // Register SharedPreferences listener for rule changes
-        prefs.registerOnSharedPreferenceChangeListener(prefsListener)
-        Log.d("Listener", "SharedPreferences listener registered")
+        // Register SharedPreferences listener for rule changes in active prefs
+        activePrefs.registerOnSharedPreferenceChangeListener(prefsListener)
+        Log.d("Listener", "SharedPreferences listener registered for active device")
 
         // Load notification rules
         loadNotificationRules()
     }
 
     private fun loadNotificationRules() {
-        val rulesJson = prefs.getString("notification_rules", "[]") ?: "[]"
+        val rulesJson = activePrefs.getString("notification_rules", "[]") ?: "[]"
         notificationRules.clear()
 
         try {
@@ -130,15 +139,19 @@ class MyNotificationListener : NotificationListenerService() {
             val jsonArray = JSONArray(rulesJson)
             for (i in 0 until jsonArray.length()) {
                 val obj = jsonArray.getJSONObject(i)
-                val rule = NotificationRule(
-                    id = obj.getString("id"),
-                    packageName = obj.getString("packageName"),
-                    mode = obj.getString("mode"),
-                    titlePattern = obj.optString("titlePattern", ""),
-                    contentPattern = obj.optString("contentPattern", "")
-                )
+                val rule =
+                        NotificationRule(
+                                id = obj.getString("id"),
+                                packageName = obj.getString("packageName"),
+                                mode = obj.getString("mode"),
+                                titlePattern = obj.optString("titlePattern", ""),
+                                contentPattern = obj.optString("contentPattern", "")
+                        )
                 notificationRules.add(rule)
-                Log.d("Listener", "Loaded rule: pkg=${rule.packageName}, mode=${rule.mode}, title='${rule.titlePattern}', content='${rule.contentPattern}'")
+                Log.d(
+                        "Listener",
+                        "Loaded rule: pkg=${rule.packageName}, mode=${rule.mode}, title='${rule.titlePattern}', content='${rule.contentPattern}'"
+                )
             }
             Log.d("Listener", "Total rules loaded: ${notificationRules.size}")
         } catch (e: Exception) {
@@ -146,7 +159,11 @@ class MyNotificationListener : NotificationListenerService() {
         }
     }
 
-    private fun shouldForwardNotification(packageName: String, title: String, text: String): Boolean {
+    private fun shouldForwardNotification(
+            packageName: String,
+            title: String,
+            text: String
+    ): Boolean {
         Log.d("NotifRules", "=== Checking notification ===")
         Log.d("NotifRules", "Package: $packageName")
         Log.d("NotifRules", "Title: '$title'")
@@ -171,7 +188,10 @@ class MyNotificationListener : NotificationListenerService() {
 
         // Log all rules for this package
         rulesForPackage.forEachIndexed { index, rule ->
-            Log.d("NotifRules", "Rule #${index + 1}: mode=${rule.mode}, titlePattern='${rule.titlePattern}', contentPattern='${rule.contentPattern}'")
+            Log.d(
+                    "NotifRules",
+                    "Rule #${index + 1}: mode=${rule.mode}, titlePattern='${rule.titlePattern}', contentPattern='${rule.contentPattern}'"
+            )
         }
 
         // Process each rule
@@ -206,7 +226,10 @@ class MyNotificationListener : NotificationListenerService() {
         // If we have only blacklist rules and none matched, allow it
         val hasWhitelistRules = rulesForPackage.any { it.mode == "whitelist" }
         val result = !hasWhitelistRules
-        Log.d("NotifRules", "Default behavior: hasWhitelistRules=$hasWhitelistRules, result=$result")
+        Log.d(
+                "NotifRules",
+                "Default behavior: hasWhitelistRules=$hasWhitelistRules, result=$result"
+        )
         if (hasWhitelistRules && !result) {
             Log.d("NotifRules", "✗ BLOCKED: No whitelist rules matched")
         }
@@ -217,7 +240,10 @@ class MyNotificationListener : NotificationListenerService() {
         val hasTitlePattern = rule.titlePattern.isNotEmpty()
         val hasContentPattern = rule.contentPattern.isNotEmpty()
 
-        Log.d("NotifRules", "  Pattern matching: hasTitlePattern=$hasTitlePattern, hasContentPattern=$hasContentPattern")
+        Log.d(
+                "NotifRules",
+                "  Pattern matching: hasTitlePattern=$hasTitlePattern, hasContentPattern=$hasContentPattern"
+        )
 
         // If no patterns specified, the rule applies to all notifications from this app
         if (!hasTitlePattern && !hasContentPattern) {
@@ -231,18 +257,27 @@ class MyNotificationListener : NotificationListenerService() {
         // Check title pattern if specified
         if (hasTitlePattern) {
             titleMatches = title.contains(rule.titlePattern, ignoreCase = true)
-            Log.d("NotifRules", "  Title check: '$title' contains '${rule.titlePattern}' (ignoreCase) = $titleMatches")
+            Log.d(
+                    "NotifRules",
+                    "  Title check: '$title' contains '${rule.titlePattern}' (ignoreCase) = $titleMatches"
+            )
         }
 
         // Check content pattern if specified
         if (hasContentPattern) {
             contentMatches = text.contains(rule.contentPattern, ignoreCase = true)
-            Log.d("NotifRules", "  Content check: '$text' contains '${rule.contentPattern}' (ignoreCase) = $contentMatches")
+            Log.d(
+                    "NotifRules",
+                    "  Content check: '$text' contains '${rule.contentPattern}' (ignoreCase) = $contentMatches"
+            )
         }
 
         // Both patterns must match (if specified)
         val result = titleMatches && contentMatches
-        Log.d("NotifRules", "  Final pattern match result: $result (titleMatches=$titleMatches, contentMatches=$contentMatches)")
+        Log.d(
+                "NotifRules",
+                "  Final pattern match result: $result (titleMatches=$titleMatches, contentMatches=$contentMatches)"
+        )
         return result
     }
 
@@ -257,7 +292,7 @@ class MyNotificationListener : NotificationListenerService() {
 
         // Unregister SharedPreferences listener
         try {
-            prefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
+            activePrefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
         } catch (e: Exception) {
             // Ignora se já não estiver registrado
         }
@@ -268,11 +303,11 @@ class MyNotificationListener : NotificationListenerService() {
         super.onNotificationPosted(sbn)
         if (sbn == null) return
 
-        val isMirroringEnabled = prefs.getBoolean("notification_mirroring_enabled", false)
+        val isMirroringEnabled = activePrefs.getBoolean("notification_mirroring_enabled", false)
         if (!isMirroringEnabled) return
 
         // Check for "Skip when screen on" option
-        val skipIfScreenOn = prefs.getBoolean("skip_screen_on_enabled", false)
+        val skipIfScreenOn = activePrefs.getBoolean("skip_screen_on_enabled", false)
         if (skipIfScreenOn) {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
             if (pm.isInteractive) {
@@ -282,8 +317,8 @@ class MyNotificationListener : NotificationListenerService() {
         }
 
         // Whitelist check
-        if (prefs.contains("allowed_notif_packages")) {
-            val allowedApps = prefs.getStringSet("allowed_notif_packages", emptySet())
+        if (activePrefs.contains("allowed_notif_packages")) {
+            val allowedApps = activePrefs.getStringSet("allowed_notif_packages", emptySet())
             if (allowedApps == null || !allowedApps.contains(sbn.packageName)) return
         }
 
@@ -292,17 +327,20 @@ class MyNotificationListener : NotificationListenerService() {
         val notification = sbn.notification
 
         // Check if ongoing notifications should be forwarded
-        val forwardOngoing = prefs.getBoolean("forward_ongoing_enabled", false)
+        val forwardOngoing = activePrefs.getBoolean("forward_ongoing_enabled", false)
         if (sbn.isOngoing && !forwardOngoing) {
             Log.d("Listener", "Skipping ongoing notification (forward_ongoing disabled)")
             return
         }
 
         // Check if silent notifications should be forwarded
-        val forwardSilent = prefs.getBoolean("forward_silent_enabled", false)
+        val forwardSilent = activePrefs.getBoolean("forward_silent_enabled", false)
         if (!forwardSilent) {
-            val isSilent = (notification.flags and android.app.Notification.FLAG_ONLY_ALERT_ONCE) != 0 ||
-                    (notification.defaults == 0 && notification.sound == null && notification.vibrate == null)
+            val isSilent =
+                    (notification.flags and android.app.Notification.FLAG_ONLY_ALERT_ONCE) != 0 ||
+                            (notification.defaults == 0 &&
+                                    notification.sound == null &&
+                                    notification.vibrate == null)
             if (isSilent) {
                 Log.d("Listener", "Skipping silent notification (forward_silent disabled)")
                 return
@@ -334,17 +372,26 @@ class MyNotificationListener : NotificationListenerService() {
             // 1. Extract large icon (original large icon if present)
             var largeIconBase64 = extractLargeIcon(notification)
             val hasOriginalLargeIcon = largeIconBase64 != null
-            Log.d("Listener", "Large icon extracted: ${if (hasOriginalLargeIcon) "YES (${largeIconBase64!!.length} chars)" else "NO"}")
+            Log.d(
+                    "Listener",
+                    "Large icon extracted: ${if (hasOriginalLargeIcon) "YES (${largeIconBase64!!.length} chars)" else "NO"}"
+            )
 
             // 2. Extract group icon (API 30+)
             val groupIconBase64 = extractGroupIcon(notification)
-            Log.d("Listener", "Group icon extracted: ${if (groupIconBase64 != null) "YES (${groupIconBase64.length} chars)" else "NO"}")
+            Log.d(
+                    "Listener",
+                    "Group icon extracted: ${if (groupIconBase64 != null) "YES (${groupIconBase64.length} chars)" else "NO"}"
+            )
 
             // 3. Extract sender icon and name (MessagingStyle)
             val senderInfo = extractSenderInfo(notification)
             val senderIconBase64 = senderInfo.first
             val senderName = senderInfo.second
-            Log.d("Listener", "Sender info: icon=${if (senderIconBase64 != null) "YES" else "NO"}, name=$senderName")
+            Log.d(
+                    "Listener",
+                    "Sender info: icon=${if (senderIconBase64 != null) "YES" else "NO"}, name=$senderName"
+            )
 
             // Extract message history
             val messagesList = extractMessages(notification)
@@ -352,12 +399,20 @@ class MyNotificationListener : NotificationListenerService() {
 
             // 4. Extract app icon (base fallback)
             val appIconBase64 = extractAppIcon(sbn.packageName)
-            Log.d("Listener", "App icon extracted: ${if (appIconBase64 != null) "YES (${appIconBase64.length} chars)" else "NO"}")
+            Log.d(
+                    "Listener",
+                    "App icon extracted: ${if (appIconBase64 != null) "YES (${appIconBase64.length} chars)" else "NO"}"
+            )
 
             // --- Fallback logic ---
-            // If original notification had NO large icon, and we have NO group icon AND NO sender icon,
+            // If original notification had NO large icon, and we have NO group icon AND NO sender
+            // icon,
             // then use app icon as fallback for largeIcon.
-            if (!hasOriginalLargeIcon && groupIconBase64 == null && senderIconBase64 == null && appIconBase64 != null) {
+            if (!hasOriginalLargeIcon &&
+                            groupIconBase64 == null &&
+                            senderIconBase64 == null &&
+                            appIconBase64 != null
+            ) {
                 largeIconBase64 = appIconBase64
                 Log.d("Listener", "Using app icon as large icon fallback (no other icons found)")
             }
@@ -371,27 +426,31 @@ class MyNotificationListener : NotificationListenerService() {
 
             // Extract big picture (for BigPictureStyle notifications)
             val bigPictureBase64 = extractBigPicture(notification)
-            Log.d("Listener", "Big picture extracted: ${if (bigPictureBase64 != null) "YES (${bigPictureBase64.length} chars)" else "NO"}")
+            Log.d(
+                    "Listener",
+                    "Big picture extracted: ${if (bigPictureBase64 != null) "YES (${bigPictureBase64.length} chars)" else "NO"}"
+            )
 
             // Extract actions
             val actions = extractActions(sbn.key, notification)
 
             // Create NotificationData object
-            val notificationData = NotificationData(
-                packageName = sbn.packageName,
-                title = title,
-                text = text,
-                key = sbn.key,
-                appName = extractAppName(sbn.packageName),
-                largeIcon = largeIconBase64,
-                smallIcon = smallIconBase64,
-                groupIcon = groupIconBase64,
-                senderIcon = senderIconBase64,
-                senderName = senderName,
-                messages = messagesList,
-                bigPicture = bigPictureBase64,
-                actions = actions
-            )
+            val notificationData =
+                    NotificationData(
+                            packageName = sbn.packageName,
+                            title = title,
+                            text = text,
+                            key = sbn.key,
+                            appName = extractAppName(sbn.packageName),
+                            largeIcon = largeIconBase64,
+                            smallIcon = smallIconBase64,
+                            groupIcon = groupIconBase64,
+                            senderIcon = senderIconBase64,
+                            senderName = senderName,
+                            messages = messagesList,
+                            bigPicture = bigPictureBase64,
+                            actions = actions
+                    )
 
             // Convert to JSON using Gson
             val jsonString = gson.toJson(notificationData)
@@ -408,11 +467,15 @@ class MyNotificationListener : NotificationListenerService() {
     }
 
     // --- REMOÇÃO (Telefone -> Watch) ---
-    override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int) {
+    override fun onNotificationRemoved(
+            sbn: StatusBarNotification?,
+            rankingMap: RankingMap?,
+            reason: Int
+    ) {
         super.onNotificationRemoved(sbn, rankingMap, reason)
         if (sbn == null) return
 
-        val isMirroringEnabled = prefs.getBoolean("notification_mirroring_enabled", false)
+        val isMirroringEnabled = activePrefs.getBoolean("notification_mirroring_enabled", false)
         if (!isMirroringEnabled) return
 
         // 如果这通知刚才回复过，暂时忽略移除指令，给用户留时间连发
@@ -437,11 +500,12 @@ class MyNotificationListener : NotificationListenerService() {
     private fun extractLargeIcon(notification: android.app.Notification): String? {
         try {
             // Try getting large icon from notification
-            var largeIcon = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                notification.getLargeIcon()
-            } else {
-                null
-            }
+            var largeIcon =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        notification.getLargeIcon()
+                    } else {
+                        null
+                    }
             Log.d("Listener", "getLargeIcon() returned: ${largeIcon != null}")
 
             // If getLargeIcon is null, try getting from extras
@@ -454,9 +518,15 @@ class MyNotificationListener : NotificationListenerService() {
                 // 1. Try android.largeIcon.big as Icon (for BigPictureStyle) - MOST COMMON
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     try {
-                        largeIcon = extras.getParcelable<android.graphics.drawable.Icon>("android.largeIcon.big")
+                        largeIcon =
+                                extras.getParcelable<android.graphics.drawable.Icon>(
+                                        "android.largeIcon.big"
+                                )
                         if (largeIcon != null) {
-                            Log.d("Listener", "Found large icon in extras as Icon (android.largeIcon.big)")
+                            Log.d(
+                                    "Listener",
+                                    "Found large icon in extras as Icon (android.largeIcon.big)"
+                            )
                         }
                     } catch (e: ClassCastException) {
                         // Not an Icon, will try as Bitmap below
@@ -467,9 +537,15 @@ class MyNotificationListener : NotificationListenerService() {
                 // 2. Try android.largeIcon as Icon
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && largeIcon == null) {
                     try {
-                        largeIcon = extras.getParcelable<android.graphics.drawable.Icon>("android.largeIcon")
+                        largeIcon =
+                                extras.getParcelable<android.graphics.drawable.Icon>(
+                                        "android.largeIcon"
+                                )
                         if (largeIcon != null) {
-                            Log.d("Listener", "Found large icon in extras as Icon (android.largeIcon)")
+                            Log.d(
+                                    "Listener",
+                                    "Found large icon in extras as Icon (android.largeIcon)"
+                            )
                         }
                     } catch (e: ClassCastException) {
                         Log.d("Listener", "android.largeIcon is not an Icon, trying Bitmap")
@@ -480,14 +556,20 @@ class MyNotificationListener : NotificationListenerService() {
                 if (largeIcon == null) {
                     var largeIconBitmap = extras.getParcelable<Bitmap>("android.largeIcon")
                     if (largeIconBitmap != null) {
-                        Log.d("Listener", "Found large icon in extras as Bitmap (android.largeIcon)")
+                        Log.d(
+                                "Listener",
+                                "Found large icon in extras as Bitmap (android.largeIcon)"
+                        )
                         return bitmapToBase64(largeIconBitmap)
                     }
 
                     // 4. Try android.largeIcon.big as Bitmap
                     largeIconBitmap = extras.getParcelable<Bitmap>("android.largeIcon.big")
                     if (largeIconBitmap != null) {
-                        Log.d("Listener", "Found large icon in extras as Bitmap (android.largeIcon.big)")
+                        Log.d(
+                                "Listener",
+                                "Found large icon in extras as Bitmap (android.largeIcon.big)"
+                        )
                         return bitmapToBase64(largeIconBitmap)
                     }
                 }
@@ -536,7 +618,8 @@ class MyNotificationListener : NotificationListenerService() {
 
             // Try as Icon (if android.pictureIcon exists)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val pictureIcon = extras.getParcelable<android.graphics.drawable.Icon>("android.pictureIcon")
+                val pictureIcon =
+                        extras.getParcelable<android.graphics.drawable.Icon>("android.pictureIcon")
                 if (pictureIcon != null) {
                     val drawable = pictureIcon.loadDrawable(this)
                     if (drawable != null) {
@@ -557,7 +640,10 @@ class MyNotificationListener : NotificationListenerService() {
 
             // 1. Try EXTRA_CONVERSATION_ICON (API 30+)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                val icon = extras.getParcelable<android.graphics.drawable.Icon>("android.conversationIcon")
+                val icon =
+                        extras.getParcelable<android.graphics.drawable.Icon>(
+                                "android.conversationIcon"
+                        )
                 if (icon != null) {
                     val drawable = icon.loadDrawable(this)
                     if (drawable != null) {
@@ -569,7 +655,10 @@ class MyNotificationListener : NotificationListenerService() {
 
             // 2. Try EXTRA_LARGE_ICON_BIG (standard for messaging)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val icon = extras.getParcelable<android.graphics.drawable.Icon>("android.largeIcon.big")
+                val icon =
+                        extras.getParcelable<android.graphics.drawable.Icon>(
+                                "android.largeIcon.big"
+                        )
                 if (icon != null) {
                     val drawable = icon.loadDrawable(this)
                     if (drawable != null) {
@@ -584,7 +673,9 @@ class MyNotificationListener : NotificationListenerService() {
         return null
     }
 
-    private fun extractMessages(notification: android.app.Notification): List<NotificationMessageData> {
+    private fun extractMessages(
+            notification: android.app.Notification
+    ): List<NotificationMessageData> {
         val messagesList = mutableListOf<NotificationMessageData>()
         try {
             val extras = notification.extras
@@ -596,7 +687,7 @@ class MyNotificationListener : NotificationListenerService() {
                         val text = m.getCharSequence("text")?.toString() ?: ""
                         val timestamp = m.getLong("time")
                         val person = m.getParcelable<android.app.Person>("sender_person")
-                        
+
                         var iconBase64: String? = null
                         if (person?.icon != null) {
                             val drawable = person.icon!!.loadDrawable(this)
@@ -604,13 +695,15 @@ class MyNotificationListener : NotificationListenerService() {
                                 iconBase64 = bitmapToBase64(drawableToBitmap(drawable))
                             }
                         }
-                        
-                        messagesList.add(NotificationMessageData(
-                            text = text,
-                            timestamp = timestamp,
-                            senderName = person?.name?.toString(),
-                            senderIcon = iconBase64
-                        ))
+
+                        messagesList.add(
+                                NotificationMessageData(
+                                        text = text,
+                                        timestamp = timestamp,
+                                        senderName = person?.name?.toString(),
+                                        senderIcon = iconBase64
+                                )
+                        )
                     }
                 }
             }
@@ -695,7 +788,10 @@ class MyNotificationListener : NotificationListenerService() {
         }
     }
 
-    private fun extractActions(notifKey: String, notification: android.app.Notification): List<NotificationActionData> {
+    private fun extractActions(
+            notifKey: String,
+            notification: android.app.Notification
+    ): List<NotificationActionData> {
         val actionsList = mutableListOf<NotificationActionData>()
         val actionsMap = mutableMapOf<String, android.app.Notification.Action>()
 
@@ -705,11 +801,13 @@ class MyNotificationListener : NotificationListenerService() {
                     val actionKey = "action_$index"
                     val isReply = action.remoteInputs?.any { it.allowFreeFormInput } ?: false
 
-                    actionsList.add(NotificationActionData(
-                        title = action.title.toString(),
-                        actionKey = actionKey,
-                        isReplyAction = isReply
-                    ))
+                    actionsList.add(
+                            NotificationActionData(
+                                    title = action.title.toString(),
+                                    actionKey = actionKey,
+                                    isReplyAction = isReply
+                            )
+                    )
 
                     actionsMap[actionKey] = action
                 }
@@ -727,15 +825,19 @@ class MyNotificationListener : NotificationListenerService() {
 
     private fun executeNotificationAction(notifKey: String, actionKey: String, replyText: String?) {
         try {
-            val actionsMap = notificationActionsMap[notifKey] ?: run {
-                Log.e("Listener", "No actions found for notification: $notifKey")
-                return
-            }
+            val actionsMap =
+                    notificationActionsMap[notifKey]
+                            ?: run {
+                                Log.e("Listener", "No actions found for notification: $notifKey")
+                                return
+                            }
 
-            val action = actionsMap[actionKey] ?: run {
-                Log.e("Listener", "Action not found: $actionKey")
-                return
-            }
+            val action =
+                    actionsMap[actionKey]
+                            ?: run {
+                                Log.e("Listener", "Action not found: $actionKey")
+                                return
+                            }
 
             if (replyText != null) {
                 // Handle reply action
@@ -745,17 +847,18 @@ class MyNotificationListener : NotificationListenerService() {
                     val bundle = android.os.Bundle()
                     bundle.putCharSequence(remoteInput.resultKey, replyText)
                     RemoteInput.addResultsToIntent(arrayOf(remoteInput), intent, bundle)
-                    
-                    // Set result source to convince the target app that this is a real user reply (API 28+)
+
+                    // Set result source to convince the target app that this is a real user reply
+                    // (API 28+)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                         RemoteInput.setResultsSource(intent, RemoteInput.SOURCE_FREE_FORM_INPUT)
                     }
 
                     action.actionIntent?.send(this, 0, intent)
-                    
+
                     // Track reply time to ignore the immediate dismissal event
                     lastReplyTimes[notifKey] = System.currentTimeMillis()
-                    
+
                     Log.d("Listener", "Reply sent: $replyText")
                 }
             } else {
@@ -773,11 +876,12 @@ class MyNotificationListener : NotificationListenerService() {
             return drawable.bitmap
         }
 
-        val bitmap = Bitmap.createBitmap(
-            drawable.intrinsicWidth.coerceAtLeast(1),
-            drawable.intrinsicHeight.coerceAtLeast(1),
-            Bitmap.Config.ARGB_8888
-        )
+        val bitmap =
+                Bitmap.createBitmap(
+                        drawable.intrinsicWidth.coerceAtLeast(1),
+                        drawable.intrinsicHeight.coerceAtLeast(1),
+                        Bitmap.Config.ARGB_8888
+                )
 
         val canvas = Canvas(bitmap)
         drawable.setBounds(0, 0, canvas.width, canvas.height)
@@ -788,14 +892,15 @@ class MyNotificationListener : NotificationListenerService() {
     private fun bitmapToBase64(bitmap: Bitmap): String {
         val outputStream = ByteArrayOutputStream()
         // Resize if too large to avoid protocol size issues
-        val resizedBitmap = if (bitmap.width > 512 || bitmap.height > 512) {
-            val scale = 512f / maxOf(bitmap.width, bitmap.height)
-            val newWidth = (bitmap.width * scale).toInt()
-            val newHeight = (bitmap.height * scale).toInt()
-            Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
-        } else {
-            bitmap
-        }
+        val resizedBitmap =
+                if (bitmap.width > 512 || bitmap.height > 512) {
+                    val scale = 512f / maxOf(bitmap.width, bitmap.height)
+                    val newWidth = (bitmap.width * scale).toInt()
+                    val newHeight = (bitmap.height * scale).toInt()
+                    Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+                } else {
+                    bitmap
+                }
 
         // Use PNG to preserve transparency (critical for notification icons)
         resizedBitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
