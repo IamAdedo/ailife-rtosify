@@ -1,17 +1,12 @@
 package com.ailife.rtosifycompanion
 
-import android.animation.AnimatorSet
-import android.animation.ObjectAnimator
-import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.*
 import android.content.*
 import android.graphics.PixelFormat
-import android.graphics.Point
 import android.os.*
 import android.util.Log
 import android.view.*
-import android.widget.FrameLayout
 import androidx.core.app.NotificationCompat
 import com.google.gson.Gson
 
@@ -22,8 +17,7 @@ class DynamicIslandService : Service() {
         private const val NOTIFICATION_ID = 9001
         private const val CHANNEL_ID = "dynamic_island_channel"
 
-        @Volatile
-        var isRunning = false
+        @Volatile var isRunning = false
     }
 
     private lateinit var windowManager: WindowManager
@@ -41,42 +35,47 @@ class DynamicIslandService : Service() {
     private var isCharging = false
     private var batteryPercent = 0
 
-    private val receiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            when (intent?.action) {
-                BluetoothService.ACTION_SHOW_IN_DYNAMIC_ISLAND -> {
-                    val notifJson = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_JSON)
-                    if (notifJson != null) {
-                        try {
-                            val notif = Gson().fromJson(notifJson, NotificationData::class.java)
-                            showNotification(notif)
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Failed to parse notification: ${e.message}")
+    private val receiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    when (intent?.action) {
+                        BluetoothService.ACTION_SHOW_IN_DYNAMIC_ISLAND -> {
+                            val notifJson = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_JSON)
+                            if (notifJson != null) {
+                                try {
+                                    val notif =
+                                            Gson().fromJson(notifJson, NotificationData::class.java)
+                                    showNotification(notif)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Failed to parse notification: ${e.message}")
+                                }
+                            }
+                        }
+                        BluetoothService.ACTION_DISMISS_FROM_DYNAMIC_ISLAND -> {
+                            val key = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_KEY)
+                            if (key != null) {
+                                dismissNotification(key)
+                            }
+                        }
+                        BluetoothService.ACTION_UPDATE_DI_TIMEOUT -> {
+                            val timeout = intent.getIntExtra("timeout", 5)
+                            prefs.edit().putInt("dynamic_island_timeout", timeout).apply()
+                        }
+                        Intent.ACTION_BATTERY_CHANGED -> {
+                            handleBatteryChanged(intent)
+                        }
+                        "com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED" -> {
+                            isBluetoothConnected = intent.getBooleanExtra("connected", false)
+                            if (!isBluetoothConnected &&
+                                            notificationQueue.isEmpty() &&
+                                            currentNotification == null
+                            ) {
+                                overlayView.showDisconnectedState()
+                            }
                         }
                     }
                 }
-                BluetoothService.ACTION_DISMISS_FROM_DYNAMIC_ISLAND -> {
-                    val key = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_KEY)
-                    if (key != null) {
-                        dismissNotification(key)
-                    }
-                }
-                BluetoothService.ACTION_UPDATE_DI_TIMEOUT -> {
-                    val timeout = intent.getIntExtra("timeout", 5)
-                    prefs.edit().putInt("dynamic_island_timeout", timeout).apply()
-                }
-                Intent.ACTION_BATTERY_CHANGED -> {
-                    handleBatteryChanged(intent)
-                }
-                "com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED" -> {
-                    isBluetoothConnected = intent.getBooleanExtra("connected", false)
-                    if (!isBluetoothConnected && notificationQueue.isEmpty() && currentNotification == null) {
-                        overlayView.showDisconnectedState()
-                    }
-                }
             }
-        }
-    }
 
     override fun onCreate() {
         super.onCreate()
@@ -109,14 +108,16 @@ class DynamicIslandService : Service() {
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Dynamic Island",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "Dynamic Island notification overlay"
-                setShowBadge(false)
-            }
+            val channel =
+                    NotificationChannel(
+                                    CHANNEL_ID,
+                                    "Dynamic Island",
+                                    NotificationManager.IMPORTANCE_LOW
+                            )
+                            .apply {
+                                description = "Dynamic Island notification overlay"
+                                setShowBadge(false)
+                            }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
         }
@@ -124,56 +125,54 @@ class DynamicIslandService : Service() {
 
     private fun createNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Dynamic Island Active")
-            .setContentText("Showing notifications")
-            .setSmallIcon(R.drawable.ic_smartwatch_notification)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true)
-            .build()
+                .setContentTitle("Dynamic Island Active")
+                .setContentText("Showing notifications")
+                .setSmallIcon(R.drawable.ic_smartwatch_notification)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true)
+                .build()
     }
 
     @SuppressLint("ClickableViewAccessibility")
     private fun createOverlayView() {
-        val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-        } else {
-            @Suppress("DEPRECATION")
-            WindowManager.LayoutParams.TYPE_PHONE
-        }
+        val layoutFlag =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
+                }
 
-        params = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            layoutFlag,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            y = 0
-        }
+        params =
+                WindowManager.LayoutParams(
+                                WindowManager.LayoutParams.MATCH_PARENT,
+                                WindowManager.LayoutParams.WRAP_CONTENT,
+                                layoutFlag,
+                                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                                PixelFormat.TRANSLUCENT
+                        )
+                        .apply {
+                            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                            y = 0
+                        }
 
         overlayView = DynamicIslandView(this)
-        overlayView.setOnClickListener {
+
+        // Handle pill clicks (for expanding/collapsing list)
+        overlayView.onPillClick = {
             if (isExpanded) {
-                // If expanded and showing notification list, user clicked to interact
-                // Keep expanded
-            } else if (currentNotification != null) {
-                // Collapsed with notification - expand to show list
+                // If expanded list is showing, collapse it
+                collapseList()
+            } else if (notificationQueue.isNotEmpty()) {
+                // Has notifications - expand to show list
                 expandToList()
-            } else {
-                // Just the pill - do nothing or collapse further
             }
         }
 
-        overlayView.onNotificationClick = { notif ->
-            handleNotificationClick(notif)
-        }
+        overlayView.onNotificationClick = { notif -> handleNotificationClick(notif) }
 
-        overlayView.onNotificationDismiss = { notif ->
-            handleNotificationDismiss(notif)
-        }
+        overlayView.onNotificationDismiss = { notif -> handleNotificationDismiss(notif) }
 
         overlayView.onNotificationReply = { notif, replyText ->
             handleNotificationReply(notif, replyText)
@@ -184,13 +183,14 @@ class DynamicIslandService : Service() {
     }
 
     private fun registerReceivers() {
-        val filter = IntentFilter().apply {
-            addAction(BluetoothService.ACTION_SHOW_IN_DYNAMIC_ISLAND)
-            addAction(BluetoothService.ACTION_DISMISS_FROM_DYNAMIC_ISLAND)
-            addAction(BluetoothService.ACTION_UPDATE_DI_TIMEOUT)
-            addAction(Intent.ACTION_BATTERY_CHANGED)
-            addAction("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED")
-        }
+        val filter =
+                IntentFilter().apply {
+                    addAction(BluetoothService.ACTION_SHOW_IN_DYNAMIC_ISLAND)
+                    addAction(BluetoothService.ACTION_DISMISS_FROM_DYNAMIC_ISLAND)
+                    addAction(BluetoothService.ACTION_UPDATE_DI_TIMEOUT)
+                    addAction(Intent.ACTION_BATTERY_CHANGED)
+                    addAction("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED")
+                }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
@@ -205,15 +205,17 @@ class DynamicIslandService : Service() {
     private fun handleBatteryChanged(intent: Intent) {
         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-        batteryPercent = if (level >= 0 && scale > 0) {
-            (level * 100 / scale)
-        } else {
-            0
-        }
+        batteryPercent =
+                if (level >= 0 && scale > 0) {
+                    (level * 100 / scale)
+                } else {
+                    0
+                }
 
         val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-        isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                status == BatteryManager.BATTERY_STATUS_FULL
+        isCharging =
+                status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                        status == BatteryManager.BATTERY_STATUS_FULL
 
         updateState()
     }
@@ -270,9 +272,7 @@ class DynamicIslandService : Service() {
 
         // Schedule auto-collapse
         val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
-        collapseRunnable = Runnable {
-            collapseNotification()
-        }
+        collapseRunnable = Runnable { collapseNotification() }
         handler.postDelayed(collapseRunnable!!, timeout)
     }
 
@@ -297,6 +297,16 @@ class DynamicIslandService : Service() {
         overlayView.expandToList(notificationQueue)
     }
 
+    private fun collapseList() {
+        isExpanded = false
+
+        if (notificationQueue.isNotEmpty()) {
+            overlayView.collapseToIcons(notificationQueue)
+        } else {
+            updateState()
+        }
+    }
+
     private fun handleNotificationClick(notif: NotificationData) {
         Log.d(TAG, "Notification clicked: ${notif.key}")
         // The notification system handles the click through PendingIntent
@@ -315,10 +325,11 @@ class DynamicIslandService : Service() {
         }
 
         // Tell phone to dismiss
-        val intent = Intent(BluetoothService.ACTION_CMD_DISMISS_ON_PHONE).apply {
-            putExtra(BluetoothService.EXTRA_NOTIF_KEY, notif.key)
-            setPackage(packageName)
-        }
+        val intent =
+                Intent(BluetoothService.ACTION_CMD_DISMISS_ON_PHONE).apply {
+                    putExtra(BluetoothService.EXTRA_NOTIF_KEY, notif.key)
+                    setPackage(packageName)
+                }
         sendBroadcast(intent)
 
         // Update display
@@ -338,12 +349,13 @@ class DynamicIslandService : Service() {
         // Find the reply action
         val replyAction = notif.actions.find { it.isReplyAction }
         if (replyAction != null) {
-            val intent = Intent(BluetoothService.ACTION_CMD_SEND_REPLY).apply {
-                putExtra(BluetoothService.EXTRA_NOTIF_KEY, notif.key)
-                putExtra(BluetoothService.EXTRA_ACTION_KEY, replyAction.actionKey)
-                putExtra(BluetoothService.EXTRA_REPLY_TEXT, replyText)
-                setPackage(packageName)
-            }
+            val intent =
+                    Intent(BluetoothService.ACTION_CMD_SEND_REPLY).apply {
+                        putExtra(BluetoothService.EXTRA_NOTIF_KEY, notif.key)
+                        putExtra(BluetoothService.EXTRA_ACTION_KEY, replyAction.actionKey)
+                        putExtra(BluetoothService.EXTRA_REPLY_TEXT, replyText)
+                        setPackage(packageName)
+                    }
             sendBroadcast(intent)
         }
 
