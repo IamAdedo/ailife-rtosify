@@ -178,6 +178,19 @@ class DynamicIslandService : Service() {
             handleNotificationReply(notif, replyText)
         }
 
+        overlayView.onClearAllClicked = {
+            Log.d(TAG, "Clear All clicked")
+            // Make a copy to avoid ConcurrentModificationException
+            val keys = notificationQueue.map { it.key }
+            keys.forEach { key ->
+                val notif = notificationQueue.find { it.key == key }
+                if (notif != null) {
+                    handleNotificationDismiss(notif)
+                }
+            }
+            collapseList()
+        }
+
         windowManager.addView(overlayView, params)
         updateState()
     }

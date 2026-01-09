@@ -33,12 +33,14 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     var onNotificationDismiss: ((NotificationData) -> Unit)? = null
     var onNotificationReply: ((NotificationData, String) -> Unit)? = null
     var onPillClick: (() -> Unit)? = null
+    var onClearAllClicked: (() -> Unit)? = null
 
     private val pillContainer: FrameLayout
     private val contentContainer: LinearLayout
     private val iconContainer: LinearLayout
     private val expandedContainer: ScrollView
     private val expandedList: LinearLayout
+    private val closeContainer: LinearLayout
     private var startY: Float = 0f
 
     private var currentState: State = State.IDLE
@@ -103,6 +105,35 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                     visibility = GONE
                 }
 
+        // Close UI (for expanded list)
+        closeContainer =
+                LinearLayout(context).apply {
+                    layoutParams =
+                            LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT)
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                    visibility = GONE
+                    setPadding(dpToPx(12))
+
+                    val closeText =
+                            TextView(context).apply {
+                                text = "Close"
+                                textSize = 14f
+                                setTextColor(Color.WHITE)
+                                typeface = Typeface.DEFAULT_BOLD
+                            }
+
+                    val arrow =
+                            TextView(context).apply {
+                                text = " ▴" // Small up arrow
+                                textSize = 14f
+                                setTextColor(Color.WHITE)
+                            }
+
+                    addView(closeText)
+                    addView(arrow)
+                }
+
         // Expanded list container
         expandedList =
                 LinearLayout(context).apply {
@@ -124,6 +155,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
         pillContainer.addView(contentContainer)
         pillContainer.addView(iconContainer)
+        pillContainer.addView(closeContainer)
 
         addView(pillContainer)
         addView(expandedContainer)
@@ -143,40 +175,34 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
         expandedContainer.visibility = GONE
         pillContainer.alpha = 1f
+        closeContainer.visibility = GONE
+        contentContainer.visibility = VISIBLE
+        iconContainer.visibility = GONE
 
         animateToCollapsed {
             contentContainer.removeAllViews()
-            iconContainer.visibility = GONE
-            contentContainer.setPadding(dpToPx(12)) // Restore padding for idle state
+            contentContainer.setPadding(dpToPx(12))
         }
     }
 
     fun showDisconnectedState() {
-        if (currentState == State.DISCONNECTED) return
         currentState = State.DISCONNECTED
-
         expandedContainer.visibility = GONE
         pillContainer.alpha = 1f
-        contentContainer.visibility = VISIBLE
-
+        closeContainer.visibility = GONE
         contentContainer.removeAllViews()
+        contentContainer.visibility = VISIBLE
         iconContainer.visibility = GONE
-        contentContainer.setPadding(dpToPx(12)) // Restore padding for disconnected state
 
-        // Show bluetooth disconnected icon (smaller to prevent clipping)
-        val icon =
-                ImageView(context).apply {
-                    layoutParams =
-                            LinearLayout.LayoutParams(
-                                    dpToPx(24),
-                                    dpToPx(24)
-                            ) // Reduced from 36 to 24
-                    setImageResource(android.R.drawable.stat_sys_data_bluetooth)
-                    setColorFilter(Color.parseColor("#FF453A")) // Red color
-                }
-        contentContainer.addView(icon)
-
-        animateToCollapsed {}
+        animateToCollapsed {
+            contentContainer.addView(
+                    TextView(context).apply {
+                        text = "Disconnected"
+                        textSize = 12f
+                        setTextColor(Color.WHITE)
+                    }
+            )
+        }
     }
 
     fun showChargingState(batteryPercent: Int) {
@@ -190,6 +216,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         expandedContainer.visibility = GONE
         pillContainer.alpha = 1f
         contentContainer.visibility = VISIBLE
+        closeContainer.visibility = GONE
 
         contentContainer.removeAllViews()
         iconContainer.visibility = GONE
@@ -408,7 +435,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                     }
 
             // Title
-            val title =
+            val titleView =
                     TextView(context).apply {
                         layoutParams =
                                 LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
@@ -424,14 +451,14 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                     }
 
             // Content text
-            val contentText =
+            val contentTextView =
                     TextView(context).apply {
                         layoutParams =
                                 LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
                         text = notif.text
                         textSize = 12f
                         setTextColor(Color.parseColor("#AAAAAA"))
-                        maxLines = 1
+                        maxLines = 2 // Increased to 2 for better display
                         ellipsize = android.text.TextUtils.TruncateAt.END
                         // Slide animation from center
                         alpha = 0f
@@ -444,8 +471,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                 .start()
                     }
 
-            textContainer.addView(title)
-            textContainer.addView(contentText)
+            textContainer.addView(titleView)
+            textContainer.addView(contentTextView)
             addView(textContainer)
         }
     }
@@ -462,6 +489,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 .withEndAction {
                     expandedContainer.visibility = GONE
                     pillContainer.alpha = 1f
+                    closeContainer.visibility = GONE
 
                     contentContainer.removeAllViews()
                     contentContainer.visibility = GONE
@@ -562,6 +590,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 val itemView = createNotificationListItem(notif)
                 expandedList.addView(itemView)
             }
+
+            if (notifications.size > 1) {
+                addClearAllButton()
+            }
             return
         }
 
@@ -584,8 +616,45 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 expandedList.addView(itemView)
             }
 
+            if (notifications.size > 1) {
+                addClearAllButton()
+            }
+
+            // Show Close UI in pill
+            contentContainer.visibility = GONE
+            iconContainer.visibility = GONE
+            closeContainer.visibility = VISIBLE
+
             expandedContainer.animate().alpha(1f).translationY(0f).setDuration(300).start()
         }
+    }
+
+    private fun addClearAllButton() {
+        val clearAllBtn =
+                TextView(context).apply {
+                    layoutParams =
+                            LinearLayout.LayoutParams(
+                                            LayoutParams.MATCH_PARENT,
+                                            LayoutParams.WRAP_CONTENT
+                                    )
+                                    .apply {
+                                        topMargin = dpToPx(8)
+                                        bottomMargin = dpToPx(16)
+                                    }
+                    text = "Clear All"
+                    textSize = 14f
+                    setTextColor(Color.WHITE)
+                    gravity = Gravity.CENTER
+                    setPadding(dpToPx(12))
+                    background =
+                            GradientDrawable().apply {
+                                shape = GradientDrawable.RECTANGLE
+                                cornerRadius = dpToPx(12).toFloat()
+                                setColor(Color.parseColor("#3A3A3C"))
+                            }
+                    setOnClickListener { onClearAllClicked?.invoke() }
+                }
+        expandedList.addView(clearAllBtn)
     }
 
     fun updateNotificationQueue(notifications: List<NotificationData>) {
@@ -785,41 +854,35 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                                     LayoutParams.MATCH_PARENT,
                                                     LayoutParams.WRAP_CONTENT
                                             )
-                                            .apply { topMargin = dpToPx(8) }
+                                            .apply { topMargin = dpToPx(12) }
                             orientation = LinearLayout.HORIZONTAL
                         }
 
-                notif.actions.forEach { action ->
-                    if (action.isReplyAction) {
-                        // Reply action - show input field
-                        val replyBtn =
-                                Button(context).apply {
-                                    layoutParams =
-                                            LinearLayout.LayoutParams(
-                                                            0,
-                                                            LayoutParams.WRAP_CONTENT,
-                                                            1f
-                                                    )
-                                                    .apply { marginEnd = dpToPx(8) }
-                                    text = action.title
-                                    textSize = 12f
-                                    setOnClickListener { showReplyDialog(notif) }
-                                }
-                        actionRow.addView(replyBtn)
-                    } else {
-                        // Regular action
-                        val actionBtn =
-                                Button(context).apply {
-                                    layoutParams =
-                                            LinearLayout.LayoutParams(
-                                                            0,
-                                                            LayoutParams.WRAP_CONTENT,
-                                                            1f
-                                                    )
-                                                    .apply { marginEnd = dpToPx(8) }
-                                    text = action.title
-                                    textSize = 12f
-                                    setOnClickListener {
+                notif.actions.forEachIndexed { index, action ->
+                    val actionBtn =
+                            TextView(context).apply {
+                                layoutParams =
+                                        LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+                                                .apply {
+                                                    if (index < notif.actions.size - 1) {
+                                                        marginEnd = dpToPx(8)
+                                                    }
+                                                }
+                                text = action.title
+                                textSize = 12f
+                                setTextColor(Color.WHITE)
+                                gravity = Gravity.CENTER
+                                setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+                                background =
+                                        GradientDrawable().apply {
+                                            cornerRadius = dpToPx(16).toFloat()
+                                            setColor(Color.parseColor("#3A3A3C"))
+                                        }
+
+                                setOnClickListener {
+                                    if (action.isReplyAction) {
+                                        showReplyDialog(notif)
+                                    } else {
                                         // Execute action
                                         val intent =
                                                 android.content.Intent(
@@ -843,8 +906,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                         onNotificationDismiss?.invoke(notif)
                                     }
                                 }
-                        actionRow.addView(actionBtn)
-                    }
+                            }
+                    actionRow.addView(actionBtn)
                 }
 
                 addView(actionRow)
