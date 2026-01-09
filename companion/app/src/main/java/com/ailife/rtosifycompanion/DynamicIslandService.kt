@@ -374,8 +374,31 @@ class DynamicIslandService : Service() {
             sendBroadcast(intent)
         }
 
-        // Collapse after replying
-        handleNotificationDismiss(notif)
+        // Add local reply to history for immediate feedback (mimics real Android behavior)
+        val newMessage =
+                NotificationMessageData(
+                        text = replyText,
+                        timestamp = System.currentTimeMillis(),
+                        senderName = "Me" // Matches BluetoothService logic for user replies
+                )
+
+        // Update the notification in the queue
+        notificationQueue.indexOfFirst { it.key == notif.key }.let { index ->
+            if (index != -1) {
+                val updatedNotif =
+                        notificationQueue[index].copy(
+                                messages = notificationQueue[index].messages + newMessage
+                        )
+                notificationQueue[index] = updatedNotif
+
+                // Refresh display immediately
+                if (isExpanded) {
+                    overlayView.expandToList(notificationQueue)
+                } else {
+                    overlayView.expandWithNotification(updatedNotif)
+                }
+            }
+        }
     }
 
     private fun dismissNotification(key: String) {

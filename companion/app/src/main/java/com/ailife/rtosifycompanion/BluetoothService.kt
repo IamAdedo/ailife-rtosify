@@ -248,6 +248,60 @@ class BluetoothService : Service() {
                             }
                         }
                         ACTION_SEND_REMOTE_INPUT -> {
+                            val x = intent.getIntExtra("x", 0)
+                            val y = intent.getIntExtra("y", 0)
+                            val action = intent.getIntExtra("action", 0)
+                            Log.d(TAG, "Sending remote input: $action at ($x, $y)")
+                            sendMessage(
+                                    ProtocolHelper.createRemoteInput(
+                                            action,
+                                            x.toFloat(),
+                                            y.toFloat()
+                                    )
+                            )
+                        }
+                        ACTION_CMD_DISMISS_ON_PHONE -> {
+                            val key = intent.getStringExtra(EXTRA_NOTIF_KEY)
+                            if (key != null) {
+                                Log.d(TAG, "Internal request: Dismiss on phone: $key")
+                                sendMessage(ProtocolHelper.createDismissNotification(key))
+                            }
+                        }
+                        ACTION_CMD_EXECUTE_ACTION -> {
+                            val notifKey = intent.getStringExtra(EXTRA_NOTIF_KEY)
+                            val actionKey = intent.getStringExtra(EXTRA_ACTION_KEY)
+                            if (notifKey != null && actionKey != null) {
+                                Log.d(
+                                        TAG,
+                                        "Internal request: Execute action $actionKey for $notifKey"
+                                )
+                                sendMessage(
+                                        ProtocolHelper.createExecuteNotificationAction(
+                                                notifKey,
+                                                actionKey
+                                        )
+                                )
+                            }
+                        }
+                        ACTION_CMD_SEND_REPLY -> {
+                            val notifKey = intent.getStringExtra(EXTRA_NOTIF_KEY)
+                            val actionKey = intent.getStringExtra(EXTRA_ACTION_KEY)
+                            val replyText = intent.getStringExtra(EXTRA_REPLY_TEXT)
+                            if (notifKey != null && actionKey != null && replyText != null) {
+                                Log.d(
+                                        TAG,
+                                        "Internal request: Send reply '$replyText' for $notifKey"
+                                )
+                                sendMessage(
+                                        ProtocolHelper.createSendNotificationReply(
+                                                notifKey,
+                                                actionKey,
+                                                replyText
+                                        )
+                                )
+                            }
+                        }
+                        ACTION_SCREEN_DATA_AVAILABLE -> {
                             val action = intent.getIntExtra("action", -1)
                             val x = intent.getFloatExtra("x", 0f)
                             val y = intent.getFloatExtra("y", 0f)
@@ -418,6 +472,9 @@ class BluetoothService : Service() {
                     addAction(
                             "com.ailife.rtosifycompanion.UPDATE_REMOTE_RESOLUTION"
                     ) // For resolution reset
+                    addAction(ACTION_CMD_DISMISS_ON_PHONE)
+                    addAction(ACTION_CMD_EXECUTE_ACTION)
+                    addAction(ACTION_CMD_SEND_REPLY)
                 }
         val filterWatch = IntentFilter(ACTION_WATCH_DISMISSED_LOCAL)
         val filterWifi =
@@ -987,10 +1044,12 @@ class BluetoothService : Service() {
         updateStatus(getString(R.string.status_connected_to, deviceName))
 
         // Notify Dynamic Island of connection state
-        sendBroadcast(Intent("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED").apply {
-            putExtra("connected", true)
-            setPackage(packageName)
-        })
+        sendBroadcast(
+                Intent("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED").apply {
+                    putExtra("connected", true)
+                    setPackage(packageName)
+                }
+        )
 
         // Notifica callback
         withContext(Dispatchers.Main) { callback?.onDeviceConnected(deviceName) }
@@ -1088,10 +1147,12 @@ class BluetoothService : Service() {
             currentDeviceName = null
 
             // Notify Dynamic Island of disconnection
-            sendBroadcast(Intent("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED").apply {
-                putExtra("connected", false)
-                setPackage(packageName)
-            })
+            sendBroadcast(
+                    Intent("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED").apply {
+                        putExtra("connected", false)
+                        setPackage(packageName)
+                    }
+            )
 
             if (wasConnected) {
                 updateStatus(getString(R.string.status_disconnected))
@@ -1189,10 +1250,12 @@ class BluetoothService : Service() {
                 Log.d(TAG, "Dynamic Island timeout updated: $it seconds")
 
                 // Notify DynamicIslandService of timeout change
-                sendBroadcast(Intent(ACTION_UPDATE_DI_TIMEOUT).apply {
-                    putExtra("timeout", it)
-                    setPackage(packageName)
-                })
+                sendBroadcast(
+                        Intent(ACTION_UPDATE_DI_TIMEOUT).apply {
+                            putExtra("timeout", it)
+                            setPackage(packageName)
+                        }
+                )
             }
 
             Log.d(TAG, "Automation settings updated from phone")
@@ -3686,10 +3749,11 @@ class BluetoothService : Service() {
 
             if (notificationStyle == "dynamic_island") {
                 // Route to Dynamic Island
-                val intent = Intent(ACTION_SHOW_IN_DYNAMIC_ISLAND).apply {
-                    putExtra(EXTRA_NOTIF_JSON, Gson().toJson(notif))
-                    setPackage(packageName)
-                }
+                val intent =
+                        Intent(ACTION_SHOW_IN_DYNAMIC_ISLAND).apply {
+                            putExtra(EXTRA_NOTIF_JSON, Gson().toJson(notif))
+                            setPackage(packageName)
+                        }
                 sendBroadcast(intent)
                 Log.d(TAG, "Notification sent to Dynamic Island: ${notif.title}")
                 return
@@ -3999,10 +4063,11 @@ class BluetoothService : Service() {
         }
 
         // Also dismiss from Dynamic Island if it's running
-        val intent = Intent(ACTION_DISMISS_FROM_DYNAMIC_ISLAND).apply {
-            putExtra(EXTRA_NOTIF_KEY, key)
-            setPackage(packageName)
-        }
+        val intent =
+                Intent(ACTION_DISMISS_FROM_DYNAMIC_ISLAND).apply {
+                    putExtra(EXTRA_NOTIF_KEY, key)
+                    setPackage(packageName)
+                }
         sendBroadcast(intent)
     }
 
@@ -4094,10 +4159,12 @@ class BluetoothService : Service() {
         bluetoothSocket = null
 
         // Notify Dynamic Island of disconnection
-        sendBroadcast(Intent("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED").apply {
-            putExtra("connected", false)
-            setPackage(packageName)
-        })
+        sendBroadcast(
+                Intent("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED").apply {
+                    putExtra("connected", false)
+                    setPackage(packageName)
+                }
+        )
 
         if (wasConnected || currentNotificationStatus != getString(R.string.status_stopped)) {
             updateStatus(getString(R.string.status_stopped))

@@ -109,7 +109,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         closeContainer =
                 LinearLayout(context).apply {
                     layoutParams =
-                            LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT)
+                            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER
                     visibility = GONE
@@ -529,6 +529,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
                                     val iconBitmap =
                                             when {
+                                                notif.senderIcon != null ->
+                                                        decodeBase64ToBitmap(notif.senderIcon)
+                                                notif.groupIcon != null ->
+                                                        decodeBase64ToBitmap(notif.groupIcon)
                                                 notif.largeIcon != null ->
                                                         decodeBase64ToBitmap(notif.largeIcon)
                                                 notif.smallIcon != null ->
@@ -702,10 +706,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
                         val iconBitmap =
                                 when {
-                                    notif.largeIcon != null -> decodeBase64ToBitmap(notif.largeIcon)
-                                    notif.groupIcon != null -> decodeBase64ToBitmap(notif.groupIcon)
                                     notif.senderIcon != null ->
                                             decodeBase64ToBitmap(notif.senderIcon)
+                                    notif.groupIcon != null -> decodeBase64ToBitmap(notif.groupIcon)
+                                    notif.largeIcon != null -> decodeBase64ToBitmap(notif.largeIcon)
                                     notif.smallIcon != null -> decodeBase64ToBitmap(notif.smallIcon)
                                     else -> null
                                 }
@@ -992,22 +996,35 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     }
 
     private fun showReplyDialog(notif: NotificationData) {
+        val input =
+                EditText(context).apply {
+                    hint = "Type your reply..."
+                    inputType = InputType.TYPE_CLASS_TEXT
+                    setTextColor(Color.WHITE)
+                    setHintTextColor(Color.LTGRAY)
+                    setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16))
+                    background =
+                            GradientDrawable().apply {
+                                cornerRadius = dpToPx(8).toFloat()
+                                setColor(Color.parseColor("#3A3A3C"))
+                            }
+                }
+
+        val container =
+                FrameLayout(context).apply {
+                    setPadding(dpToPx(16), dpToPx(8), dpToPx(16), dpToPx(8))
+                    addView(input)
+                }
+
         val dialog =
-                android.app.AlertDialog.Builder(context)
-                        .setTitle("Reply")
-                        .setView(
-                                EditText(context).apply {
-                                    hint = "Type your reply..."
-                                    inputType = InputType.TYPE_CLASS_TEXT
-                                    id = View.generateViewId()
-                                }
+                android.app.AlertDialog.Builder(
+                                context,
+                                android.R.style.Theme_DeviceDefault_Dialog_Alert
                         )
-                        .setPositiveButton("Send") { dialog, _ ->
-                            val editText =
-                                    (dialog as android.app.AlertDialog).findViewById<EditText>(
-                                            View.generateViewId()
-                                    )
-                            val replyText = editText?.text?.toString() ?: ""
+                        .setTitle("Reply to ${notif.title}")
+                        .setView(container)
+                        .setPositiveButton("Send") { _, _ ->
+                            val replyText = input.text.toString()
                             if (replyText.isNotEmpty()) {
                                 onNotificationReply?.invoke(notif, replyText)
                             }
