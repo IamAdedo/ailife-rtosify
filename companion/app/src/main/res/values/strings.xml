@@ -187,6 +187,12 @@
     <string name="perm_restricted_title">Restricted Setting</string>
     <string name="perm_restricted_desc">This setting is restricted by Android for security. You need to enable it manually using ADB.\n\nCommand copied to clipboard.</string>
 
+    <string name="perm_go_restricted_title">Permission Restricted (Go Edition)</string>
+    <string name="perm_go_restricted_desc">This permission is restricted on Android Go Edition. You can try to enable it anyways, or use manual methods.</string>
+    <string name="perm_button_try_anyways">Try Anyways</string>
+    <string name="perm_button_copy_adb">Copy ADB Command</string>
+    <string name="perm_button_grant_root_shizuku">Activate with Root/Shizuku</string>
+
     <string name="bt_name_format">BT: %s</string>
 
     <!-- Remote Monitoring & Control -->

@@ -1,9 +1,11 @@
 package com.ailife.rtosify
 
 import android.Manifest
+import android.app.ActivityManager
 import android.app.NotificationManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -36,28 +38,34 @@ class PermissionActivity : AppCompatActivity() {
     // Shizuku UserService for Shell commands
     private var userService: IUserService? = null
     private var userServiceConnection: Shizuku.UserServiceArgs? = null
-    
-    private val userServiceArgs by lazy {
-        Shizuku.UserServiceArgs(ComponentName(BuildConfig.APPLICATION_ID, UserService::class.java.name))
-            .daemon(false)
-            .processNameSuffix("user_service")
-            .debuggable(BuildConfig.DEBUG)
-            .version(1)
-    }
-    
-    private val userServiceConn = object : android.content.ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, binder: android.os.IBinder?) {
-            if (binder != null && binder.pingBinder()) {
-                userService = IUserService.Stub.asInterface(binder)
-                android.util.Log.i("PermissionActivity", "UserService connected successfully")
-            }
-        }
 
-        override fun onServiceDisconnected(name: ComponentName?) {
-            userService = null
-            android.util.Log.w("PermissionActivity", "UserService disconnected")
-        }
+    private val userServiceArgs by lazy {
+        Shizuku.UserServiceArgs(
+                        ComponentName(BuildConfig.APPLICATION_ID, UserService::class.java.name)
+                )
+                .daemon(false)
+                .processNameSuffix("user_service")
+                .debuggable(BuildConfig.DEBUG)
+                .version(1)
     }
+
+    private val userServiceConn =
+            object : android.content.ServiceConnection {
+                override fun onServiceConnected(name: ComponentName?, binder: android.os.IBinder?) {
+                    if (binder != null && binder.pingBinder()) {
+                        userService = IUserService.Stub.asInterface(binder)
+                        android.util.Log.i(
+                                "PermissionActivity",
+                                "UserService connected successfully"
+                        )
+                    }
+                }
+
+                override fun onServiceDisconnected(name: ComponentName?) {
+                    userService = null
+                    android.util.Log.w("PermissionActivity", "UserService disconnected")
+                }
+            }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,12 +94,12 @@ class PermissionActivity : AppCompatActivity() {
         }
 
         // Listener para quando o Shizuku conectar
-        Shizuku.addBinderReceivedListener {
-            updatePermissionList()
-        }
-        
+        Shizuku.addBinderReceivedListener { updatePermissionList() }
+
         // Bind UserService if Shizuku is available
-        if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+        if (Shizuku.pingBinder() &&
+                        Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+        ) {
             try {
                 Shizuku.bindUserService(userServiceArgs, userServiceConn)
                 userServiceConnection = userServiceArgs
@@ -110,98 +118,240 @@ class PermissionActivity : AppCompatActivity() {
         val perms = mutableListOf<PermissionItem>()
 
         // 1. Bluetooth (Scan/Connect)
-        val hasBT = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            checkPerm(Manifest.permission.BLUETOOTH_SCAN) && checkPerm(Manifest.permission.BLUETOOTH_CONNECT)
-        } else {
-            true // Legacy
-        }
-        perms.add(PermissionItem("BT", getString(R.string.perm_bluetooth), getString(R.string.perm_bluetooth_desc), hasBT))
+        val hasBT =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    checkPerm(Manifest.permission.BLUETOOTH_SCAN) &&
+                            checkPerm(Manifest.permission.BLUETOOTH_CONNECT)
+                } else {
+                    true // Legacy
+                }
+        perms.add(
+                PermissionItem(
+                        "BT",
+                        getString(R.string.perm_bluetooth),
+                        getString(R.string.perm_bluetooth_desc),
+                        hasBT
+                )
+        )
 
         // 2. Notification Access
-        perms.add(PermissionItem("NOTIF", getString(R.string.perm_notifications), getString(R.string.perm_notifications_desc), isNotificationServiceEnabled()))
+        perms.add(
+                PermissionItem(
+                        "NOTIF",
+                        getString(R.string.perm_notifications),
+                        getString(R.string.perm_notifications_desc),
+                        isNotificationServiceEnabled()
+                )
+        )
 
         // 3. Install Unknown Apps
-        val hasInstall = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            packageManager.canRequestPackageInstalls()
-        } else {
-            true // Not applicable or always true
-        }
-        perms.add(PermissionItem("INSTALL", getString(R.string.perm_install), getString(R.string.perm_install_desc), hasInstall))
+        val hasInstall =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    packageManager.canRequestPackageInstalls()
+                } else {
+                    true // Not applicable or always true
+                }
+        perms.add(
+                PermissionItem(
+                        "INSTALL",
+                        getString(R.string.perm_install),
+                        getString(R.string.perm_install_desc),
+                        hasInstall
+                )
+        )
 
         // 4. Battery Optimization
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        val isIgnoring = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            powerManager.isIgnoringBatteryOptimizations(packageName)
-        } else true
-        perms.add(PermissionItem("BATTERY", getString(R.string.perm_battery), getString(R.string.perm_battery_desc), isIgnoring))
+        val isIgnoring =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    powerManager.isIgnoringBatteryOptimizations(packageName)
+                } else true
+        perms.add(
+                PermissionItem(
+                        "BATTERY",
+                        getString(R.string.perm_battery),
+                        getString(R.string.perm_battery_desc),
+                        isIgnoring
+                )
+        )
 
         // 5. Shizuku
         var hasShizuku = false
         try {
-            hasShizuku = Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+            hasShizuku =
+                    Shizuku.pingBinder() &&
+                            Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
         } catch (e: Exception) {}
-        perms.add(PermissionItem("SHIZUKU", getString(R.string.perm_shizuku), getString(R.string.perm_shizuku_desc), hasShizuku))
+        perms.add(
+                PermissionItem(
+                        "SHIZUKU",
+                        getString(R.string.perm_shizuku),
+                        getString(R.string.perm_shizuku_desc),
+                        hasShizuku
+                )
+        )
 
         // 6. Root
         val isRoot = Shell.isAppGrantedRoot() == true || (Shell.getCachedShell()?.isRoot == true)
-        perms.add(PermissionItem("ROOT", getString(R.string.perm_root), getString(R.string.perm_root_desc), isRoot))
+        perms.add(
+                PermissionItem(
+                        "ROOT",
+                        getString(R.string.perm_root),
+                        getString(R.string.perm_root_desc),
+                        isRoot
+                )
+        )
 
         // 7. Location (for BT scan)
-        perms.add(PermissionItem("LOCATION", getString(R.string.perm_location), getString(R.string.perm_location_desc), checkPerm(Manifest.permission.ACCESS_FINE_LOCATION)))
+        perms.add(
+                PermissionItem(
+                        "LOCATION",
+                        getString(R.string.perm_location),
+                        getString(R.string.perm_location_desc),
+                        checkPerm(Manifest.permission.ACCESS_FINE_LOCATION)
+                )
+        )
 
         // 8. Background Location
-        val hasBG = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            checkPerm(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-        } else true
-        perms.add(PermissionItem("LOCATION_BG", getString(R.string.perm_location_bg), getString(R.string.perm_location_bg_desc), hasBG))
+        val hasBG =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    checkPerm(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                } else true
+        perms.add(
+                PermissionItem(
+                        "LOCATION_BG",
+                        getString(R.string.perm_location_bg),
+                        getString(R.string.perm_location_bg_desc),
+                        hasBG
+                )
+        )
 
         // 9. Post Notifications (Android 13+)
-        val hasPostNotif = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            checkPerm(Manifest.permission.POST_NOTIFICATIONS)
-        } else true
-        perms.add(PermissionItem("POST_NOTIF", getString(R.string.perm_post_notif), getString(R.string.perm_post_notif_desc), hasPostNotif))
+        val hasPostNotif =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    checkPerm(Manifest.permission.POST_NOTIFICATIONS)
+                } else true
+        perms.add(
+                PermissionItem(
+                        "POST_NOTIF",
+                        getString(R.string.perm_post_notif),
+                        getString(R.string.perm_post_notif_desc),
+                        hasPostNotif
+                )
+        )
 
         // 10. Camera
-        perms.add(PermissionItem("CAMERA", getString(R.string.perm_camera), getString(R.string.perm_camera_desc), checkPerm(Manifest.permission.CAMERA)))
+        perms.add(
+                PermissionItem(
+                        "CAMERA",
+                        getString(R.string.perm_camera),
+                        getString(R.string.perm_camera_desc),
+                        checkPerm(Manifest.permission.CAMERA)
+                )
+        )
 
         // 11. DND Access
         val notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val hasDnd = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            notifManager.isNotificationPolicyAccessGranted
-        } else true
-        perms.add(PermissionItem("DND", getString(R.string.perm_dnd), getString(R.string.perm_dnd_desc), hasDnd))
+        val hasDnd =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    notifManager.isNotificationPolicyAccessGranted
+                } else true
+        perms.add(
+                PermissionItem(
+                        "DND",
+                        getString(R.string.perm_dnd),
+                        getString(R.string.perm_dnd_desc),
+                        hasDnd
+                )
+        )
 
         // 12. Storage
-        val hasStorage = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            checkPerm(Manifest.permission.READ_MEDIA_IMAGES)
-        } else {
-            checkPerm(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
+        val hasStorage =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    checkPerm(Manifest.permission.READ_MEDIA_IMAGES)
+                } else {
+                    checkPerm(Manifest.permission.READ_EXTERNAL_STORAGE)
+                }
 
-        perms.add(PermissionItem("STORAGE", getString(R.string.perm_storage), getString(R.string.perm_storage_desc), hasStorage))
-        
+        perms.add(
+                PermissionItem(
+                        "STORAGE",
+                        getString(R.string.perm_storage),
+                        getString(R.string.perm_storage_desc),
+                        hasStorage
+                )
+        )
+
         // 13. Call Phone
-        perms.add(PermissionItem("CALL", getString(R.string.perm_call), getString(R.string.perm_call_desc), checkPerm(Manifest.permission.CALL_PHONE)))
+        perms.add(
+                PermissionItem(
+                        "CALL",
+                        getString(R.string.perm_call),
+                        getString(R.string.perm_call_desc),
+                        checkPerm(Manifest.permission.CALL_PHONE)
+                )
+        )
 
         // 14. Calendar
-        perms.add(PermissionItem("CALENDAR", getString(R.string.perm_calendar), getString(R.string.perm_calendar_desc), checkPerm(Manifest.permission.READ_CALENDAR)))
+        perms.add(
+                PermissionItem(
+                        "CALENDAR",
+                        getString(R.string.perm_calendar),
+                        getString(R.string.perm_calendar_desc),
+                        checkPerm(Manifest.permission.READ_CALENDAR)
+                )
+        )
 
         // 15. Contacts
-        perms.add(PermissionItem("CONTACTS", getString(R.string.perm_contacts), getString(R.string.perm_contacts_desc), checkPerm(Manifest.permission.READ_CONTACTS)))
+        perms.add(
+                PermissionItem(
+                        "CONTACTS",
+                        getString(R.string.perm_contacts),
+                        getString(R.string.perm_contacts_desc),
+                        checkPerm(Manifest.permission.READ_CONTACTS)
+                )
+        )
 
         // 16. Phone Status
-        val hasPhoneStatus = checkPerm(Manifest.permission.READ_PHONE_STATE) && checkPerm(Manifest.permission.READ_CALL_LOG) && (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) checkPerm(Manifest.permission.ANSWER_PHONE_CALLS) else true)
-        perms.add(PermissionItem("PHONE", getString(R.string.perm_phone_status), getString(R.string.perm_phone_status_desc), hasPhoneStatus))
-        
+        val hasPhoneStatus =
+                checkPerm(Manifest.permission.READ_PHONE_STATE) &&
+                        checkPerm(Manifest.permission.READ_CALL_LOG) &&
+                        (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                                checkPerm(Manifest.permission.ANSWER_PHONE_CALLS)
+                        else true)
+        perms.add(
+                PermissionItem(
+                        "PHONE",
+                        getString(R.string.perm_phone_status),
+                        getString(R.string.perm_phone_status_desc),
+                        hasPhoneStatus
+                )
+        )
+
         // 17. Accessibility Service (for clipboard access)
         val hasAccessibility = isAccessibilityServiceEnabled()
-        perms.add(PermissionItem("ACCESSIBILITY", getString(R.string.perm_accessibility), getString(R.string.perm_accessibility_desc), hasAccessibility))
+        perms.add(
+                PermissionItem(
+                        "ACCESSIBILITY",
+                        getString(R.string.perm_accessibility),
+                        getString(R.string.perm_accessibility_desc),
+                        hasAccessibility
+                )
+        )
 
         // 18. Nearby WiFi Devices (Android 13+)
-        val hasNearbyWifi = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            checkPerm(Manifest.permission.NEARBY_WIFI_DEVICES)
-        } else true
-        perms.add(PermissionItem("NEARBY_WIFI", getString(R.string.perm_nearby_wifi), getString(R.string.perm_nearby_wifi_desc), hasNearbyWifi))
+        val hasNearbyWifi =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    checkPerm(Manifest.permission.NEARBY_WIFI_DEVICES)
+                } else true
+        perms.add(
+                PermissionItem(
+                        "NEARBY_WIFI",
+                        getString(R.string.perm_nearby_wifi),
+                        getString(R.string.perm_nearby_wifi_desc),
+                        hasNearbyWifi
+                )
+        )
 
         adapter.updateList(perms)
     }
@@ -218,7 +368,11 @@ class PermissionActivity : AppCompatActivity() {
 
     private fun isAccessibilityServiceEnabled(): Boolean {
         val cn = ComponentName(this, RtosifyAccessibilityService::class.java)
-        val flat = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+        val flat =
+                Settings.Secure.getString(
+                        contentResolver,
+                        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                )
         return flat != null && flat.contains(cn.flattenToString())
     }
 
@@ -226,27 +380,49 @@ class PermissionActivity : AppCompatActivity() {
         when (perm.id) {
             "BT" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    requestPermissions(arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_ADVERTISE), 101)
+                    requestPermissions(
+                            arrayOf(
+                                    Manifest.permission.BLUETOOTH_SCAN,
+                                    Manifest.permission.BLUETOOTH_CONNECT,
+                                    Manifest.permission.BLUETOOTH_ADVERTISE
+                            ),
+                            101
+                    )
                 }
             }
             "NOTIF" -> {
                 val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
-                if (isRestrictedSettingsAllowed()) {
-                    startActivity(intent)
-                } else {
+                if (isGoEdition() && Build.VERSION.SDK_INT <= 33) {
+                    showGoRestrictionDialog(
+                            intent,
+                            "adb shell settings put secure enabled_notification_listeners %s/%s.MyNotificationListener".format(
+                                    packageName,
+                                    packageName
+                            ),
+                            "Notification Access"
+                    )
+                } else if (!isRestrictedSettingsAllowed()) {
                     showRestrictedSettingsDialog(intent)
+                } else {
+                    startActivity(intent)
                 }
             }
             "INSTALL" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                    startActivity(
+                            Intent(
+                                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                    Uri.parse("package:$packageName")
+                            )
+                    )
                 }
             }
             "BATTERY" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                        data = Uri.parse("package:$packageName")
-                    }
+                    val intent =
+                            Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                data = Uri.parse("package:$packageName")
+                            }
                     startActivity(intent)
                 }
             }
@@ -261,18 +437,25 @@ class PermissionActivity : AppCompatActivity() {
                         }
                     } else {
                         // Open Shizuku app?
-                        val intent = packageManager.getLaunchIntentForPackage("moe.shizuku.privileged.api")
+                        val intent =
+                                packageManager.getLaunchIntentForPackage(
+                                        "moe.shizuku.privileged.api"
+                                )
                         if (intent != null) {
                             startActivity(intent)
                         } else {
-                             val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://shizuku.rikka.app/download/"))
-                             startActivity(browserIntent)
+                            val browserIntent =
+                                    Intent(
+                                            Intent.ACTION_VIEW,
+                                            Uri.parse("https://shizuku.rikka.app/download/")
+                                    )
+                            startActivity(browserIntent)
                         }
                     }
                 } catch (e: Exception) {}
             }
             "ROOT" -> {
-                Shell.getShell { /* Triggers root request */ }
+                Shell.getShell { /* Triggers root request */}
             }
             "LOCATION" -> requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 103)
             "LOCATION_BG" -> {
@@ -288,7 +471,16 @@ class PermissionActivity : AppCompatActivity() {
             "CAMERA" -> requestPermissions(arrayOf(Manifest.permission.CAMERA), 106)
             "DND" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+                    val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                    if (isGoEdition() && Build.VERSION.SDK_INT <= 33) {
+                        showGoRestrictionDialog(
+                                intent,
+                                "adb shell settings put secure enabled_notification_policy_access_packages $packageName",
+                                "Do Not Disturb Access"
+                        )
+                    } else {
+                        startActivity(intent)
+                    }
                 }
             }
             "STORAGE" -> {
@@ -302,8 +494,13 @@ class PermissionActivity : AppCompatActivity() {
             "CALENDAR" -> requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR), 109)
             "CONTACTS" -> requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS), 110)
             "PHONE" -> {
-                val p = mutableListOf(Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_CALL_LOG)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) p.add(Manifest.permission.ANSWER_PHONE_CALLS)
+                val p =
+                        mutableListOf(
+                                Manifest.permission.READ_PHONE_STATE,
+                                Manifest.permission.READ_CALL_LOG
+                        )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+                        p.add(Manifest.permission.ANSWER_PHONE_CALLS)
                 requestPermissions(p.toTypedArray(), 111)
             }
             "ACCESSIBILITY" -> {
@@ -326,20 +523,32 @@ class PermissionActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
         val appOps = getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
         return try {
-            val mode = appOps.checkOpNoThrow("android:access_restricted_settings", android.os.Process.myUid(), packageName)
-            android.util.Log.d("PermissionActivity", "Restricted Mode Check: $mode (Allowed=${android.app.AppOpsManager.MODE_ALLOWED})")
+            val mode =
+                    appOps.checkOpNoThrow(
+                            "android:access_restricted_settings",
+                            android.os.Process.myUid(),
+                            packageName
+                    )
+            android.util.Log.d(
+                    "PermissionActivity",
+                    "Restricted Mode Check: $mode (Allowed=${android.app.AppOpsManager.MODE_ALLOWED})"
+            )
             mode == android.app.AppOpsManager.MODE_ALLOWED
         } catch (e: Exception) {
             android.util.Log.e("PermissionActivity", "Restricted Check Error", e)
             false
         }
     }
-    
+
     private fun checkRestrictedSettingsWithShizuku(): Boolean {
         try {
             if (userService != null) {
                 // Use bound service
-                val output = userService?.executeCommand("appops get $packageName ACCESS_RESTRICTED_SETTINGS") ?: ""
+                val output =
+                        userService?.executeCommand(
+                                "appops get $packageName ACCESS_RESTRICTED_SETTINGS"
+                        )
+                                ?: ""
                 android.util.Log.d("PermissionActivity", "Shizuku check output: $output")
                 return output.contains("ALLOW", ignoreCase = true)
             } else if (Shell.isAppGrantedRoot() == true) {
@@ -357,37 +566,54 @@ class PermissionActivity : AppCompatActivity() {
 
     private fun showRestrictedSettingsDialog(intent: Intent) {
         val adbCommand = "appops set $packageName ACCESS_RESTRICTED_SETTINGS allow"
-        
+
         android.app.AlertDialog.Builder(this)
-            .setTitle(R.string.perm_restricted_title)
-            .setMessage(R.string.perm_restricted_desc)
-            .setPositiveButton("Copy ADB Command") { _, _ ->
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                val clip = android.content.ClipData.newPlainText("ADB Command", adbCommand)
-                clipboard.setPrimaryClip(clip)
-                android.widget.Toast.makeText(this, "Command copied!", android.widget.Toast.LENGTH_SHORT).show()
-            }
-            .setNeutralButton("Open Settings") { _, _ ->
-                startActivity(intent)
-            }
-            .setNegativeButton("Activate with Shizuku") { _, _ ->
-                grantRestrictedSettingsWithShizuku()
-            }
-            .show()
+                .setTitle(R.string.perm_restricted_title)
+                .setMessage(R.string.perm_restricted_desc)
+                .setPositiveButton("Copy ADB Command") { _, _ ->
+                    val clipboard =
+                            getSystemService(Context.CLIPBOARD_SERVICE) as
+                                    android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("ADB Command", adbCommand)
+                    clipboard.setPrimaryClip(clip)
+                    android.widget.Toast.makeText(
+                                    this,
+                                    "Command copied!",
+                                    android.widget.Toast.LENGTH_SHORT
+                            )
+                            .show()
+                }
+                .setNeutralButton("Open Settings") { _, _ -> startActivity(intent) }
+                .setNegativeButton("Activate with Shizuku") { _, _ ->
+                    grantRestrictedSettingsWithShizuku()
+                }
+                .show()
     }
 
     private fun grantRestrictedSettingsWithShizuku() {
         try {
             // Check if root is available (Shizuku or libsu)
             val hasRoot = Shell.isAppGrantedRoot() == true
-            val hasShizuku = Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
-            
+            val hasShizuku =
+                    Shizuku.pingBinder() &&
+                            Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+
             if (!hasRoot && !hasShizuku) {
-                android.widget.Toast.makeText(this, "Root or Shizuku required.", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(
+                                this,
+                                "Root or Shizuku required.",
+                                android.widget.Toast.LENGTH_SHORT
+                        )
+                        .show()
                 return
             }
 
-            android.widget.Toast.makeText(this, "Granting restricted settings...", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(
+                            this,
+                            "Granting restricted settings...",
+                            android.widget.Toast.LENGTH_SHORT
+                    )
+                    .show()
 
             // Bind UserService if using Shizuku and not already bound
             if (hasShizuku && userService == null) {
@@ -396,40 +622,71 @@ class PermissionActivity : AppCompatActivity() {
                     userServiceConnection = userServiceArgs
                     Thread.sleep(500)
                 } catch (e: Exception) {
-                    android.util.Log.e("PermissionActivity", "Failed to bind UserService: ${e.message}")
+                    android.util.Log.e(
+                            "PermissionActivity",
+                            "Failed to bind UserService: ${e.message}"
+                    )
                 }
             }
 
             // Use UserService to execute command via Shizuku
             Thread {
-                try {
-                    if (userService == null && hasShizuku) {
-                        runOnUiThread {
-                            android.widget.Toast.makeText(this, "UserService not connected. Try again.", android.widget.Toast.LENGTH_SHORT).show()
+                        try {
+                            if (userService == null && hasShizuku) {
+                                runOnUiThread {
+                                    android.widget.Toast.makeText(
+                                                    this,
+                                                    "UserService not connected. Try again.",
+                                                    android.widget.Toast.LENGTH_SHORT
+                                            )
+                                            .show()
+                                }
+                                return@Thread
+                            }
+
+                            val command = "appops set $packageName ACCESS_RESTRICTED_SETTINGS allow"
+                            val exitCodeStr =
+                                    userService?.executeCommand(command)
+                                            ?: Shell.cmd(command).exec().code.toString()
+                            val exitCode = exitCodeStr.toIntOrNull() ?: -1
+
+                            runOnUiThread {
+                                if (exitCode == 0) {
+                                    android.widget.Toast.makeText(
+                                                    this,
+                                                    "Permission granted!",
+                                                    android.widget.Toast.LENGTH_SHORT
+                                            )
+                                            .show()
+                                    updatePermissionList()
+                                } else {
+                                    android.widget.Toast.makeText(
+                                                    this,
+                                                    "Failed (Code: $exitCode). Try ADB.",
+                                                    android.widget.Toast.LENGTH_LONG
+                                            )
+                                            .show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            runOnUiThread {
+                                android.widget.Toast.makeText(
+                                                this,
+                                                "Error: ${e.message}",
+                                                android.widget.Toast.LENGTH_SHORT
+                                        )
+                                        .show()
+                            }
                         }
-                        return@Thread
                     }
-                    
-                    val command = "appops set $packageName ACCESS_RESTRICTED_SETTINGS allow"
-                    val exitCodeStr = userService?.executeCommand(command) ?: Shell.cmd(command).exec().code.toString()
-                    val exitCode = exitCodeStr.toIntOrNull() ?: -1
-                    
-                    runOnUiThread {
-                        if (exitCode == 0) {
-                            android.widget.Toast.makeText(this, "Permission granted!", android.widget.Toast.LENGTH_SHORT).show()
-                            updatePermissionList()
-                        } else {
-                            android.widget.Toast.makeText(this, "Failed (Code: $exitCode). Try ADB.", android.widget.Toast.LENGTH_LONG).show()
-                        }
-                    }
-                } catch (e: Exception) {
-                    runOnUiThread {
-                         android.widget.Toast.makeText(this, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }.start()
+                    .start()
         } catch (e: Exception) {
-             android.widget.Toast.makeText(this, "Error: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+            android.widget.Toast.makeText(
+                            this,
+                            "Error: ${e.message}",
+                            android.widget.Toast.LENGTH_SHORT
+                    )
+                    .show()
         }
     }
 
@@ -441,9 +698,15 @@ class PermissionActivity : AppCompatActivity() {
         return super.onOptionsItemSelected(item)
     }
 
-    data class PermissionItem(val id: String, val title: String, val desc: String, val granted: Boolean)
+    data class PermissionItem(
+            val id: String,
+            val title: String,
+            val desc: String,
+            val granted: Boolean
+    )
 
-    class PermissionAdapter(private val onClick: (PermissionItem) -> Unit) : RecyclerView.Adapter<PermissionAdapter.ViewHolder>() {
+    class PermissionAdapter(private val onClick: (PermissionItem) -> Unit) :
+            RecyclerView.Adapter<PermissionAdapter.ViewHolder>() {
         private var list = listOf<PermissionItem>()
 
         fun updateList(newList: List<PermissionItem>) {
@@ -452,7 +715,9 @@ class PermissionActivity : AppCompatActivity() {
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_permission, parent, false)
+            val view =
+                    LayoutInflater.from(parent.context)
+                            .inflate(R.layout.item_permission, parent, false)
             return ViewHolder(view, onClick)
         }
 
@@ -462,7 +727,8 @@ class PermissionActivity : AppCompatActivity() {
 
         override fun getItemCount() = list.size
 
-        class ViewHolder(itemView: View, private val onClick: (PermissionItem) -> Unit) : RecyclerView.ViewHolder(itemView) {
+        class ViewHolder(itemView: View, private val onClick: (PermissionItem) -> Unit) :
+                RecyclerView.ViewHolder(itemView) {
             private val imgStatus: ImageView = itemView.findViewById(R.id.imgStatus)
             private val tvTitle: TextView = itemView.findViewById(R.id.tvPermTitle)
             private val tvDesc: TextView = itemView.findViewById(R.id.tvPermDesc)
@@ -471,19 +737,168 @@ class PermissionActivity : AppCompatActivity() {
             fun bind(item: PermissionItem) {
                 tvTitle.text = item.title
                 tvDesc.text = item.desc
-                
+
                 if (item.granted) {
                     imgStatus.setImageResource(android.R.drawable.presence_online)
                     tvStatus.text = itemView.context.getString(R.string.perm_granted)
-                    tvStatus.setTextColor(ContextCompat.getColor(itemView.context, android.R.color.holo_green_dark))
+                    tvStatus.setTextColor(
+                            ContextCompat.getColor(
+                                    itemView.context,
+                                    android.R.color.holo_green_dark
+                            )
+                    )
                 } else {
                     imgStatus.setImageResource(android.R.drawable.presence_busy)
                     tvStatus.text = itemView.context.getString(R.string.perm_not_granted)
-                    tvStatus.setTextColor(ContextCompat.getColor(itemView.context, android.R.color.holo_red_dark))
+                    tvStatus.setTextColor(
+                            ContextCompat.getColor(itemView.context, android.R.color.holo_red_dark)
+                    )
                 }
 
                 itemView.setOnClickListener { onClick(item) }
             }
+        }
+    }
+    private fun isGoEdition(): Boolean {
+        val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val isLowRam = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && am.isLowRamDevice
+        android.util.Log.d("PermissionActivity", "isLowRamDevice: $isLowRam")
+        if (isLowRam) return true
+
+        return try {
+            val val1 =
+                    Runtime.getRuntime()
+                            .exec("getprop ro.config.low_ram")
+                            .inputStream
+                            .bufferedReader()
+                            .use { it.readText().trim() }
+            android.util.Log.d("PermissionActivity", "ro.config.low_ram: '$val1'")
+            if (val1 == "true" || val1 == "1") return true
+
+            val val2 =
+                    Runtime.getRuntime()
+                            .exec("getprop ro.config.lowram")
+                            .inputStream
+                            .bufferedReader()
+                            .use { it.readText().trim() }
+            android.util.Log.d("PermissionActivity", "ro.config.lowram: '$val2'")
+            val2 == "true" || val2 == "1"
+        } catch (e: Exception) {
+            android.util.Log.e("PermissionActivity", "isGoEdition error", e)
+            false
+        }
+    }
+
+    private fun showGoRestrictionDialog(intent: Intent, adbCommand: String, permName: String) {
+        android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.perm_go_restricted_title)
+                .setMessage(getString(R.string.perm_go_restricted_desc))
+                .setPositiveButton(R.string.perm_button_try_anyways) {
+                        dialog: DialogInterface,
+                        which: Int ->
+                    try {
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        android.widget.Toast.makeText(
+                                        this,
+                                        "Failed to open settings",
+                                        android.widget.Toast.LENGTH_SHORT
+                                )
+                                .show()
+                    }
+                }
+                .setNeutralButton(R.string.perm_button_copy_adb) {
+                        dialog: DialogInterface,
+                        which: Int ->
+                    val clipboard =
+                            getSystemService(Context.CLIPBOARD_SERVICE) as
+                                    android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("ADB Command", adbCommand)
+                    clipboard.setPrimaryClip(clip)
+                    android.widget.Toast.makeText(
+                                    this,
+                                    "Command copied!",
+                                    android.widget.Toast.LENGTH_SHORT
+                            )
+                            .show()
+                }
+                .setNegativeButton(R.string.perm_button_grant_root_shizuku) {
+                        _: DialogInterface,
+                        _: Int ->
+                    grantGoPermissionWithShizuku(adbCommand)
+                }
+                .show()
+    }
+
+    private fun grantGoPermissionWithShizuku(adbCommand: String) {
+        val command = adbCommand.replace("adb shell ", "")
+        try {
+            val hasRoot = Shell.isAppGrantedRoot() == true
+            val hasShizuku =
+                    Shizuku.pingBinder() &&
+                            Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+
+            if (!hasRoot && !hasShizuku) {
+                android.widget.Toast.makeText(
+                                this,
+                                "Root or Shizuku required.",
+                                android.widget.Toast.LENGTH_SHORT
+                        )
+                        .show()
+                return
+            }
+
+            android.widget.Toast.makeText(
+                            this,
+                            "Granting permission...",
+                            android.widget.Toast.LENGTH_SHORT
+                    )
+                    .show()
+
+            Thread {
+                        try {
+                            val exitCodeStr =
+                                    userService?.executeCommand(command)
+                                            ?: Shell.cmd(command).exec().code.toString()
+                            val exitCode = exitCodeStr.toIntOrNull() ?: -1
+
+                            runOnUiThread {
+                                if (exitCode == 0) {
+                                    android.widget.Toast.makeText(
+                                                    this,
+                                                    "Permission granted!",
+                                                    android.widget.Toast.LENGTH_SHORT
+                                            )
+                                            .show()
+                                    updatePermissionList()
+                                } else {
+                                    android.widget.Toast.makeText(
+                                                    this,
+                                                    "Failed (Code: $exitCode).",
+                                                    android.widget.Toast.LENGTH_LONG
+                                            )
+                                            .show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            runOnUiThread {
+                                android.widget.Toast.makeText(
+                                                this,
+                                                "Error: ${e.message}",
+                                                android.widget.Toast.LENGTH_SHORT
+                                        )
+                                        .show()
+                            }
+                        }
+                    }
+                    .start()
+        } catch (e: Exception) {
+            android.widget.Toast.makeText(
+                            this,
+                            "Error: ${e.message}",
+                            android.widget.Toast.LENGTH_SHORT
+                    )
+                    .show()
         }
     }
 }

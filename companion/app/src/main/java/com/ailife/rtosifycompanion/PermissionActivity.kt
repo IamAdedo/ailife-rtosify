@@ -1,9 +1,11 @@
 package com.ailife.rtosifycompanion
 
 import android.Manifest
+import android.app.ActivityManager
 import android.app.AppOpsManager
 import android.app.NotificationManager
 import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -492,7 +494,16 @@ class PermissionActivity : AppCompatActivity() {
             }
             "DND" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS))
+                    val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+                    if (isGoEdition() && Build.VERSION.SDK_INT <= 33) {
+                        showGoRestrictionDialog(
+                                intent,
+                                "adb shell settings put secure enabled_notification_policy_access_packages $packageName",
+                                "Do Not Disturb Access"
+                        )
+                    } else {
+                        startActivity(intent)
+                    }
                 }
             }
             "CALENDAR" ->
@@ -543,7 +554,15 @@ class PermissionActivity : AppCompatActivity() {
                                 Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
                                     data = Uri.parse("package:$packageName")
                                 }
-                        startActivity(intent)
+                        if (isGoEdition() && Build.VERSION.SDK_INT <= 33) {
+                            showGoRestrictionDialog(
+                                    intent,
+                                    "adb shell appops set $packageName SYSTEM_ALERT_WINDOW allow",
+                                    "Display over other apps"
+                            )
+                        } else {
+                            startActivity(intent)
+                        }
                     }
                 }
             }
@@ -953,6 +972,147 @@ class PermissionActivity : AppCompatActivity() {
                                     android.widget.Toast.makeText(
                                                     this,
                                                     "Failed (Code: $exitCode). Try ADB.",
+                                                    android.widget.Toast.LENGTH_LONG
+                                            )
+                                            .show()
+                                }
+                            }
+                        } catch (e: Exception) {
+                            runOnUiThread {
+                                android.widget.Toast.makeText(
+                                                this,
+                                                "Error: ${e.message}",
+                                                android.widget.Toast.LENGTH_SHORT
+                                        )
+                                        .show()
+                            }
+                        }
+                    }
+                    .start()
+        } catch (e: Exception) {
+            android.widget.Toast.makeText(
+                            this,
+                            "Error: ${e.message}",
+                            android.widget.Toast.LENGTH_SHORT
+                    )
+                    .show()
+        }
+    }
+
+    private fun isGoEdition(): Boolean {
+        val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val isLowRam = Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && am.isLowRamDevice
+        android.util.Log.d("PermissionActivity", "isLowRamDevice: $isLowRam")
+        if (isLowRam) return true
+
+        return try {
+            val val1 =
+                    Runtime.getRuntime()
+                            .exec("getprop ro.config.low_ram")
+                            .inputStream
+                            .bufferedReader()
+                            .use { it.readText().trim() }
+            android.util.Log.d("PermissionActivity", "ro.config.low_ram: '$val1'")
+            if (val1 == "true" || val1 == "1") return true
+
+            val val2 =
+                    Runtime.getRuntime()
+                            .exec("getprop ro.config.lowram")
+                            .inputStream
+                            .bufferedReader()
+                            .use { it.readText().trim() }
+            android.util.Log.d("PermissionActivity", "ro.config.lowram: '$val2'")
+            val2 == "true" || val2 == "1"
+        } catch (e: Exception) {
+            android.util.Log.e("PermissionActivity", "isGoEdition error", e)
+            false
+        }
+    }
+
+    private fun showGoRestrictionDialog(intent: Intent, adbCommand: String, permName: String) {
+        android.app.AlertDialog.Builder(this)
+                .setTitle(R.string.perm_go_restricted_title)
+                .setMessage(getString(R.string.perm_go_restricted_desc))
+                .setPositiveButton(R.string.perm_button_try_anyways) {
+                        dialog: DialogInterface,
+                        which: Int ->
+                    try {
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        android.widget.Toast.makeText(
+                                        this,
+                                        "Failed to open settings",
+                                        android.widget.Toast.LENGTH_SHORT
+                                )
+                                .show()
+                    }
+                }
+                .setNeutralButton(R.string.perm_button_copy_adb) { _: DialogInterface, _: Int ->
+                    val clipboard =
+                            getSystemService(Context.CLIPBOARD_SERVICE) as
+                                    android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("ADB Command", adbCommand)
+                    clipboard.setPrimaryClip(clip)
+                    android.widget.Toast.makeText(
+                                    this,
+                                    "Command copied!",
+                                    android.widget.Toast.LENGTH_SHORT
+                            )
+                            .show()
+                }
+                .setNegativeButton(R.string.perm_button_grant_root_shizuku) {
+                        _: DialogInterface,
+                        _: Int ->
+                    grantGoPermissionWithShizuku(adbCommand)
+                }
+                .show()
+    }
+
+    private fun grantGoPermissionWithShizuku(adbCommand: String) {
+        val command = adbCommand.replace("adb shell ", "")
+        try {
+            val hasRoot = Shell.isAppGrantedRoot() == true
+            val hasShizuku =
+                    Shizuku.pingBinder() &&
+                            Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+
+            if (!hasRoot && !hasShizuku) {
+                android.widget.Toast.makeText(
+                                this,
+                                "Root or Shizuku required.",
+                                android.widget.Toast.LENGTH_SHORT
+                        )
+                        .show()
+                return
+            }
+
+            android.widget.Toast.makeText(
+                            this,
+                            "Granting permission...",
+                            android.widget.Toast.LENGTH_SHORT
+                    )
+                    .show()
+
+            Thread {
+                        try {
+                            val exitCodeStr =
+                                    userService?.executeCommand(command)
+                                            ?: Shell.cmd(command).exec().code.toString()
+                            val exitCode = exitCodeStr.toIntOrNull() ?: -1
+
+                            runOnUiThread {
+                                if (exitCode == 0) {
+                                    android.widget.Toast.makeText(
+                                                    this,
+                                                    "Permission granted!",
+                                                    android.widget.Toast.LENGTH_SHORT
+                                            )
+                                            .show()
+                                    updatePermissionList()
+                                } else {
+                                    android.widget.Toast.makeText(
+                                                    this,
+                                                    "Failed (Code: $exitCode).",
                                                     android.widget.Toast.LENGTH_LONG
                                             )
                                             .show()
