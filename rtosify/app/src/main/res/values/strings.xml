@@ -371,4 +371,11 @@
     <string name="remote_control_watch_desc">View and control your watch screen from this phone</string>
     <string name="remote_res_matching">Resolution Matching</string>
     <string name="remote_res_matching_desc">Automatically adjust watch resolution to match phone aspect ratio during control</string>
+
+    <!-- Dynamic Island Customization -->
+    <string name="di_vertical_pos">Vertical Position (Y)</string>
+    <string name="di_width">Pill Width</string>
+    <string name="di_height">Pill Height</string>
+    <string name="di_hide_idle">Hide when idle</string>
+    <string name="di_hide_idle_desc">Hide the pill when there are no active notifications</string>
 </resources>

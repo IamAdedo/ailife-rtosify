@@ -475,61 +475,204 @@
                             android:minHeight="48dp"/>
                     </LinearLayout>
 
-                    <!-- Timeout Duration -->
+                    <!-- Dynamic Island Options Group (Enabled only for Dynamic Island style) -->
                     <LinearLayout
+                        android:id="@+id/layoutDynamicIslandOptions"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:layout_marginTop="24dp">
+                        android:orientation="vertical">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Auto-collapse Timeout"
-                            android:textSize="15sp"
-                            android:textStyle="bold"
-                            android:textColor="?android:attr/textColorPrimary"/>
-
-                        <TextView
-                            android:id="@+id/tvTimeoutValue"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="5 seconds"
-                            android:textSize="14sp"
-                            android:textColor="?android:attr/colorAccent"
-                            android:layout_marginTop="4dp"/>
-
-                        <SeekBar
-                            android:id="@+id/seekBarTimeout"
+                        <!-- Timeout Duration -->
+                        <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:max="8"
-                            android:progress="3"
-                            android:layout_marginTop="8dp"/>
+                            android:orientation="vertical"
+                            android:layout_marginTop="24dp">
 
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Auto-collapse Timeout"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:id="@+id/tvTimeoutValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="5 seconds"
+                                android:textSize="14sp"
+                                android:textColor="?android:attr/colorAccent"
+                                android:layout_marginTop="4dp"/>
+
+                            <SeekBar
+                                android:id="@+id/seekBarTimeout"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:max="8"
+                                android:progress="3"
+                                android:layout_marginTop="8dp"/>
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:layout_marginTop="4dp">
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="2s"
+                                    android:textSize="11sp"
+                                    android:textColor="?android:attr/textColorSecondary"
+                                    android:gravity="start"/>
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="10s"
+                                    android:textSize="11sp"
+                                    android:textColor="?android:attr/textColorSecondary"
+                                    android:gravity="end"/>
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- Switch: Hide when idle -->
                         <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:orientation="horizontal"
-                            android:layout_marginTop="4dp">
+                            android:gravity="center_vertical"
+                            android:layout_marginTop="20dp">
 
-                            <TextView
+                            <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="2s"
-                                android:textSize="11sp"
-                                android:textColor="?android:attr/textColorSecondary"
-                                android:gravity="start"/>
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/di_hide_idle"
+                                    android:textSize="15sp"
+                                    android:textStyle="bold"
+                                    android:textColor="?android:attr/textColorPrimary"/>
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/di_hide_idle_desc"
+                                    android:textSize="12sp"
+                                    android:textColor="?android:attr/textColorSecondary"/>
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switchHideWhenIdle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"/>
+                        </LinearLayout>
+
+                        <!-- Vertical Position (Y) -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="20dp">
 
                             <TextView
-                                android:layout_width="0dp"
+                                android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="10s"
-                                android:textSize="11sp"
-                                android:textColor="?android:attr/textColorSecondary"
-                                android:gravity="end"/>
+                                android:text="@string/di_vertical_pos"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:id="@+id/tvYValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="8 dp"
+                                android:textSize="14sp"
+                                android:textColor="?android:attr/colorAccent"
+                                android:layout_marginTop="4dp"/>
+
+                            <SeekBar
+                                android:id="@+id/seekBarY"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:max="100"
+                                android:progress="8"
+                                android:layout_marginTop="8dp"/>
+                        </LinearLayout>
+
+                        <!-- Width -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="20dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/di_width"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:id="@+id/tvWidthValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="150 dp"
+                                android:textSize="14sp"
+                                android:textColor="?android:attr/colorAccent"
+                                android:layout_marginTop="4dp"/>
+
+                            <SeekBar
+                                android:id="@+id/seekBarWidth"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:max="330"
+                                android:progress="100"
+                                android:layout_marginTop="8dp"/>
+                        </LinearLayout>
+
+                        <!-- Height -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="20dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/di_height"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:id="@+id/tvHeightValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="40 dp"
+                                android:textSize="14sp"
+                                android:textColor="?android:attr/colorAccent"
+                                android:layout_marginTop="4dp"/>
+
+                            <SeekBar
+                                android:id="@+id/seekBarHeight"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:max="80"
+                                android:progress="20"
+                                android:layout_marginTop="8dp"/>
                         </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>

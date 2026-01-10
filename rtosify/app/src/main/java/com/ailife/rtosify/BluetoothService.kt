@@ -913,11 +913,16 @@ class BluetoothService : Service() {
                         vibrateInSilentEnabled =
                                 activePrefs.getBoolean("vibrate_silent_enabled", false),
                         notificationStyle = activePrefs.getString("notification_style", "android"),
-                        dynamicIslandTimeout = activePrefs.getInt("dynamic_island_timeout", 5)
+                        dynamicIslandTimeout = activePrefs.getInt("dynamic_island_timeout", 5),
+                        dynamicIslandY = activePrefs.getInt("dynamic_island_y", 8),
+                        dynamicIslandWidth = activePrefs.getInt("dynamic_island_width", 150),
+                        dynamicIslandHeight = activePrefs.getInt("dynamic_island_height", 40),
+                        dynamicIslandHideWhenIdle =
+                                activePrefs.getBoolean("dynamic_island_hide_idle", false)
                 )
         Log.d(
                 TAG,
-                "Syncing settings to watch: mirroring=${settings.notificationMirroringEnabled}, skipScreenOn=${settings.skipScreenOnEnabled}, ongoing=${settings.forwardOngoingEnabled}, silent=${settings.forwardSilentEnabled}, notifyOnDisconnect=${settings.notifyOnDisconnect}, clipboard=${settings.clipboardSyncEnabled}, wifi=${settings.autoWifiEnabled}, data=${settings.autoDataEnabled}, btTether=${settings.autoBtTetherEnabled}, notifStyle=${settings.notificationStyle}, diTimeout=${settings.dynamicIslandTimeout}"
+                "Syncing settings to watch: mirroring=${settings.notificationMirroringEnabled}, skipScreenOn=${settings.skipScreenOnEnabled}, ongoing=${settings.forwardOngoingEnabled}, silent=${settings.forwardSilentEnabled}, notifyOnDisconnect=${settings.notifyOnDisconnect}, clipboard=${settings.clipboardSyncEnabled}, wifi=${settings.autoWifiEnabled}, data=${settings.autoDataEnabled}, btTether=${settings.autoBtTetherEnabled}, notifStyle=${settings.notificationStyle}, diTimeout=${settings.dynamicIslandTimeout}, diY=${settings.dynamicIslandY}, diW=${settings.dynamicIslandWidth}, diH=${settings.dynamicIslandHeight}, diHideIdle=${settings.dynamicIslandHideWhenIdle}"
         )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
     }

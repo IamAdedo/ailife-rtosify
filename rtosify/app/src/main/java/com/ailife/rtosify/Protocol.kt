@@ -2,25 +2,18 @@ package com.ailife.rtosify
 
 import com.google.gson.Gson
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 
 /**
  * RTOSify JSON Protocol V1
  *
- * All messages are JSON objects with the following structure:
- * {
- *   "version": 1,
- *   "type": "message_type",
- *   "timestamp": 1234567890,
- *   "data": { ... }
- * }
+ * All messages are JSON objects with the following structure: { "version": 1, "type":
+ * "message_type", "timestamp": 1234567890, "data": { ... } }
  */
-
 data class ProtocolMessage(
-    val version: Int = 1,
-    val type: String,
-    val timestamp: Long = System.currentTimeMillis(),
-    val data: JsonObject = JsonObject()
+        val version: Int = 1,
+        val type: String,
+        val timestamp: Long = System.currentTimeMillis(),
+        val data: JsonObject = JsonObject()
 ) {
     companion object {
         private val gson = Gson()
@@ -110,7 +103,7 @@ object MessageType {
     const val ADD_ALARM = "add_alarm"
     const val UPDATE_ALARM = "update_alarm"
     const val DELETE_ALARM = "delete_alarm"
-    
+
     // Screen Mirroring & Remote Control
     const val SCREEN_MIRROR_START = "mirror_start"
     const val SCREEN_MIRROR_STOP = "mirror_stop"
@@ -121,17 +114,13 @@ object MessageType {
 }
 
 // Data classes for specific message types
-data class CameraFrameData(
-    val imageBase64: String
-)
+data class CameraFrameData(val imageBase64: String)
 
-data class MediaControlData(
-    val command: String,
-    val volume: Int? = null
-) {
+data class MediaControlData(val command: String, val volume: Int? = null) {
     companion object {
         const val CMD_PLAY = "PLAY"
-        const val CMD_PAUSE = "PAUSE" // Although often PLAY_PAUSE is used, separate constant for clarity
+        const val CMD_PAUSE =
+                "PAUSE" // Although often PLAY_PAUSE is used, separate constant for clarity
         const val CMD_PLAY_PAUSE = "PLAY_PAUSE" // Toggle
         const val CMD_NEXT = "NEXT"
         const val CMD_PREVIOUS = "PREVIOUS"
@@ -141,48 +130,49 @@ data class MediaControlData(
 }
 
 data class NotificationActionData(
-    val title: String,
-    val actionKey: String,
-    val isReplyAction: Boolean = false
+        val title: String,
+        val actionKey: String,
+        val isReplyAction: Boolean = false
 )
 
 data class NotificationData(
-    val packageName: String,
-    val title: String,
-    val text: String,
-    val key: String,
-    val appName: String? = null,    // Human readable app name
-    val largeIcon: String? = null,  // Base64 encoded - large icon (or app icon as fallback if no others exist)
-    val smallIcon: String? = null,  // Base64 encoded app icon
-    val groupIcon: String? = null,  // Base64 encoded group icon (EXTRA_CONVERSATION_ICON)
-    val senderIcon: String? = null, // Base64 encoded sender icon (from MessagingStyle)
-    val senderName: String? = null, // Name of the sender
-    val bigPicture: String? = null,  // Base64 encoded - for BigPictureStyle
-    val messages: List<NotificationMessageData> = emptyList(), // History of messages
-    val actions: List<NotificationActionData> = emptyList()
+        val packageName: String,
+        val title: String,
+        val text: String,
+        val key: String,
+        val appName: String? = null, // Human readable app name
+        val largeIcon: String? =
+                null, // Base64 encoded - large icon (or app icon as fallback if no others exist)
+        val smallIcon: String? = null, // Base64 encoded app icon
+        val groupIcon: String? = null, // Base64 encoded group icon (EXTRA_CONVERSATION_ICON)
+        val senderIcon: String? = null, // Base64 encoded sender icon (from MessagingStyle)
+        val senderName: String? = null, // Name of the sender
+        val bigPicture: String? = null, // Base64 encoded - for BigPictureStyle
+        val messages: List<NotificationMessageData> = emptyList(), // History of messages
+        val actions: List<NotificationActionData> = emptyList()
 )
 
 data class NotificationMessageData(
-    val text: String,
-    val timestamp: Long,
-    val senderName: String?,
-    val senderIcon: String? = null // Base64 encoded sender avatar helper
+        val text: String,
+        val timestamp: Long,
+        val senderName: String?,
+        val senderIcon: String? = null // Base64 encoded sender avatar helper
 )
 
 data class StatusUpdateData(
-    val battery: Int,
-    val charging: Boolean,
-    val dnd: Boolean,
-    val wifi: String,
-    val wifiEnabled: Boolean = true
+        val battery: Int,
+        val charging: Boolean,
+        val dnd: Boolean,
+        val wifi: String,
+        val wifiEnabled: Boolean = true
 )
 
 data class FileTransferData(
-    val name: String,
-    val size: Long,
-    val checksum: String = "",
-    val type: String = TYPE_REGULAR,
-    val path: String? = null      // Destination path on watch or source path on watch for download
+        val name: String,
+        val size: Long,
+        val checksum: String = "",
+        val type: String = TYPE_REGULAR,
+        val path: String? = null // Destination path on watch or source path on watch for download
 ) {
     companion object {
         const val TYPE_REGULAR = "REGULAR"
@@ -191,212 +181,210 @@ data class FileTransferData(
     }
 }
 
-data class FileListData(
-    val path: String,
-    val files: List<FileInfo>
-)
+data class FileListData(val path: String, val files: List<FileInfo>)
 
 data class CalendarEvent(
-    val title: String,
-    val startTime: Long,
-    val endTime: Long,
-    val location: String? = null,
-    val description: String? = null
+        val title: String,
+        val startTime: Long,
+        val endTime: Long,
+        val location: String? = null,
+        val description: String? = null
 )
 
 data class Contact(
-    val name: String,
-    val phoneNumbers: List<String>,
-    val emails: List<String>? = null
+        val name: String,
+        val phoneNumbers: List<String>,
+        val emails: List<String>? = null
 )
 
 data class FileInfo(
-    val name: String,
-    val size: Long,
-    val isDirectory: Boolean,
-    val lastModified: Long
+        val name: String,
+        val size: Long,
+        val isDirectory: Boolean,
+        val lastModified: Long
 )
 
 data class SettingsUpdateData(
-    val notifyOnDisconnect: Boolean? = null,
-    val notificationMirroringEnabled: Boolean? = null,
-    val skipScreenOnEnabled: Boolean? = null,
-    val forwardOngoingEnabled: Boolean? = null,
-    val forwardSilentEnabled: Boolean? = null,
-    // Automation settings
-    val clipboardSyncEnabled: Boolean? = null,
-    val autoWifiEnabled: Boolean? = null,
-    val autoDataEnabled: Boolean? = null,
-    val autoBtTetherEnabled: Boolean? = null,
-    val wakeScreenEnabled: Boolean? = null,
-    val vibrateEnabled: Boolean? = null,
-    val vibrateInSilentEnabled: Boolean? = null,
-    // Dynamic Island settings
-    val notificationStyle: String? = null,  // "android" or "dynamic_island"
-    val dynamicIslandTimeout: Int? = null   // timeout in seconds (2-10)
+        val notifyOnDisconnect: Boolean? = null,
+        val notificationMirroringEnabled: Boolean? = null,
+        val skipScreenOnEnabled: Boolean? = null,
+        val forwardOngoingEnabled: Boolean? = null,
+        val forwardSilentEnabled: Boolean? = null,
+        // Automation settings
+        val clipboardSyncEnabled: Boolean? = null,
+        val autoWifiEnabled: Boolean? = null,
+        val autoDataEnabled: Boolean? = null,
+        val autoBtTetherEnabled: Boolean? = null,
+        val wakeScreenEnabled: Boolean? = null,
+        val vibrateEnabled: Boolean? = null,
+        val vibrateInSilentEnabled: Boolean? = null,
+        // Dynamic Island settings
+        val notificationStyle: String? = null, // "android" or "dynamic_island"
+        val dynamicIslandTimeout: Int? = null, // timeout in seconds (2-10)
+        val dynamicIslandY: Int? = null,
+        val dynamicIslandWidth: Int? = null,
+        val dynamicIslandHeight: Int? = null,
+        val dynamicIslandHideWhenIdle: Boolean? = null
 )
 
 data class HealthDataUpdate(
-    val steps: Int,
-    val distance: Float,              // km
-    val calories: Int,                 // kcal
-    val heartRate: Int?,               // bpm, null if unavailable
-    val heartRateTimestamp: Long?,     // millis
-    val bloodOxygen: Int?,             // percentage, null if unavailable
-    val oxygenTimestamp: Long?,        // millis
-    val errorState: String? = null,    // "APP_NOT_INSTALLED", "API_DISABLED", etc.
-    val isInstant: Boolean = false
+        val steps: Int,
+        val distance: Float, // km
+        val calories: Int, // kcal
+        val heartRate: Int?, // bpm, null if unavailable
+        val heartRateTimestamp: Long?, // millis
+        val bloodOxygen: Int?, // percentage, null if unavailable
+        val oxygenTimestamp: Long?, // millis
+        val errorState: String? = null, // "APP_NOT_INSTALLED", "API_DISABLED", etc.
+        val isInstant: Boolean = false
 )
 
 data class HealthHistoryRequest(
-    val type: String,              // "STEP", "HR", "OXYGEN"
-    val startTime: Long,           // Unix timestamp in seconds
-    val endTime: Long              // Unix timestamp in seconds
+        val type: String, // "STEP", "HR", "OXYGEN"
+        val startTime: Long, // Unix timestamp in seconds
+        val endTime: Long // Unix timestamp in seconds
 )
 
 data class HealthHistoryResponse(
-    val type: String,
-    val dataPoints: List<HealthDataPoint>,
-    val goal: Int? = null,
-    val errorState: String? = null
+        val type: String,
+        val dataPoints: List<HealthDataPoint>,
+        val goal: Int? = null,
+        val errorState: String? = null
 )
 
 data class HealthDataPoint(
-    val timestamp: Long,           // Unix timestamp in seconds
-    val value: Float
+        val timestamp: Long, // Unix timestamp in seconds
+        val value: Float
 )
 
 data class LiveMeasurementRequest(
-    val type: String               // "HR" or "OXYGEN"
+        val type: String // "HR" or "OXYGEN"
 )
 
 data class HealthSettingsUpdate(
-    val stepGoal: Int? = null,
-    val backgroundEnabled: Boolean? = null,
-    val monitoringTypes: String? = null,  // "STEP,HR,OXYGEN"
-    val interval: Int? = null,             // minutes
-    val age: Int? = null,
-    val gender: String? = null,
-    val height: Int? = null,               // cm
-    val weight: Float? = null,             // kg
-    val errorState: String? = null
+        val stepGoal: Int? = null,
+        val backgroundEnabled: Boolean? = null,
+        val monitoringTypes: String? = null, // "STEP,HR,OXYGEN"
+        val interval: Int? = null, // minutes
+        val age: Int? = null,
+        val gender: String? = null,
+        val height: Int? = null, // cm
+        val weight: Float? = null, // kg
+        val errorState: String? = null
 )
 
 data class FileChunkData(
-    val offset: Long,
-    val data: String,  // Base64 encoded chunk
-    val chunkNumber: Int,
-    val totalChunks: Int
+        val offset: Long,
+        val data: String, // Base64 encoded chunk
+        val chunkNumber: Int,
+        val totalChunks: Int
 )
 
 data class AppInfo(
-    val name: String,
-    val packageName: String,
-    val icon: String  // Base64 encoded PNG
+        val name: String,
+        val packageName: String,
+        val icon: String // Base64 encoded PNG
 )
 
 data class WifiScanResultData(
-    val ssid: String,
-    val bssid: String,
-    val signalLevel: Int,
-    val isSecure: Boolean
+        val ssid: String,
+        val bssid: String,
+        val signalLevel: Int,
+        val isSecure: Boolean
 )
 
-data class WifiConnectData(
-    val ssid: String,
-    val password: String? = null
-)
+data class WifiConnectData(val ssid: String, val password: String? = null)
 
 data class DndSettingsData(
-    val scheduleEnabled: Boolean,
-    val startTime: String? = null, // "HH:mm"
-    val endTime: String? = null,   // "HH:mm"
-    val quickDurationMinutes: Int? = null
+        val scheduleEnabled: Boolean,
+        val startTime: String? = null, // "HH:mm"
+        val endTime: String? = null, // "HH:mm"
+        val quickDurationMinutes: Int? = null
 )
 
 data class AppUsageData(
-    val packageName: String,
-    val name: String,
-    val usageTimeMillis: Long,
-    val icon: String? = null, // Base64
-    val batteryPowerMah: Double? = null,
-    val drainSpeed: Double? = null // mAh/h
+        val packageName: String,
+        val name: String,
+        val usageTimeMillis: Long,
+        val icon: String? = null, // Base64
+        val batteryPowerMah: Double? = null,
+        val drainSpeed: Double? = null // mAh/h
 )
 
 data class DeviceInfoData(
-    val model: String,
-    val androidVersion: String,
-    val ramUsage: String,
-    val storageUsage: String,
-    val processor: String,
-    val cpuUsage: Int,
-    val btRssi: Int? = null
+        val model: String,
+        val androidVersion: String,
+        val ramUsage: String,
+        val storageUsage: String,
+        val processor: String,
+        val cpuUsage: Int,
+        val btRssi: Int? = null
 )
 
 data class BatteryHistoryPoint(
-    val timestamp: Long,
-    val level: Int,
-    val voltage: Int,
-    val current: Int,
-    val packageName: String? = null
+        val timestamp: Long,
+        val level: Int,
+        val voltage: Int,
+        val current: Int,
+        val packageName: String? = null
 )
 
 data class BatteryDetailData(
-    val batteryLevel: Int,
-    val isCharging: Boolean,
-    val currentNow: Int, // microamperes
-    val currentAverage: Int, // microamperes
-    val voltage: Int, // millivolts
-    val chargeCounter: Int, // microampere-hours
-    val energyCounter: Long, // nanowatt-hours
-    val capacity: Double, // mAh
-    val temperature: Int = 0, // tenths of a degree Celsius
-    val timestamp: Long = System.currentTimeMillis(),
-    val appUsage: List<AppUsageData> = emptyList(),
-    val history: List<BatteryHistoryPoint> = emptyList(),
-    val remainingTimeMillis: Long? = null
+        val batteryLevel: Int,
+        val isCharging: Boolean,
+        val currentNow: Int, // microamperes
+        val currentAverage: Int, // microamperes
+        val voltage: Int, // millivolts
+        val chargeCounter: Int, // microampere-hours
+        val energyCounter: Long, // nanowatt-hours
+        val capacity: Double, // mAh
+        val temperature: Int = 0, // tenths of a degree Celsius
+        val timestamp: Long = System.currentTimeMillis(),
+        val appUsage: List<AppUsageData> = emptyList(),
+        val history: List<BatteryHistoryPoint> = emptyList(),
+        val remainingTimeMillis: Long? = null
 )
 
 data class BatterySettingsData(
-    val notifyFull: Boolean,
-    val notifyLow: Boolean,
-    val lowThreshold: Int,
-    val detailedLogEnabled: Boolean = false
+        val notifyFull: Boolean,
+        val notifyLow: Boolean,
+        val lowThreshold: Int,
+        val detailedLogEnabled: Boolean = false
 )
 
 data class BatteryAlertData(
-    val alertType: String, // "FULL" or "LOW"
-    val level: Int
+        val alertType: String, // "FULL" or "LOW"
+        val level: Int
 )
 
 data class AlarmData(
-    val id: String,              // Unique alarm identifier
-    val hour: Int,               // Hour (0-23)
-    val minute: Int,             // Minute (0-59)
-    val enabled: Boolean,        // Whether alarm is active
-    val daysOfWeek: List<Int>,   // Days of week (1=Monday, 7=Sunday), empty = once
-    val label: String = ""       // Optional alarm label
+        val id: String, // Unique alarm identifier
+        val hour: Int, // Hour (0-23)
+        val minute: Int, // Minute (0-59)
+        val enabled: Boolean, // Whether alarm is active
+        val daysOfWeek: List<Int>, // Days of week (1=Monday, 7=Sunday), empty = once
+        val label: String = "" // Optional alarm label
 )
 
 data class MirrorStartData(
-    val width: Int,
-    val height: Int,
-    val dpi: Int,
-    val bitrate: Int = 500000,
-    val fps: Int = 10,
-    val isRequest: Boolean = false,
-    val mode: Int = 1
+        val width: Int,
+        val height: Int,
+        val dpi: Int,
+        val bitrate: Int = 500000,
+        val fps: Int = 10,
+        val isRequest: Boolean = false,
+        val mode: Int = 1
 )
 
 data class MirrorData(
-    val data: String, // Base64 encoded frame/chunk
-    val isKeyFrame: Boolean = false
+        val data: String, // Base64 encoded frame/chunk
+        val isKeyFrame: Boolean = false
 )
 
 data class RemoteInputData(
-    val action: Int, // MotionEvent action or custom navigation actions
-    val x: Float,
-    val y: Float
+        val action: Int, // MotionEvent action or custom navigation actions
+        val x: Float,
+        val y: Float
 ) {
     companion object {
         const val ACTION_NAV_BACK = -10
@@ -406,11 +394,11 @@ data class RemoteInputData(
 }
 
 data class ResolutionData(
-    val width: Int,
-    val height: Int,
-    val density: Int,
-    val reset: Boolean = false,
-    val mode: Int = 1 // 1=Resolution, 2=Aspect
+        val width: Int,
+        val height: Int,
+        val density: Int,
+        val reset: Boolean = false,
+        val mode: Int = 1 // 1=Resolution, 2=Aspect
 ) {
     companion object {
         const val MODE_RESOLUTION = 1
@@ -526,7 +514,11 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.EXECUTE_NOTIFICATION_ACTION, data = data)
     }
 
-    fun createSendNotificationReply(notifKey: String, actionKey: String, replyText: String): ProtocolMessage {
+    fun createSendNotificationReply(
+            notifKey: String,
+            actionKey: String,
+            replyText: String
+    ): ProtocolMessage {
         val data = JsonObject()
         data.addProperty("notifKey", notifKey)
         data.addProperty("actionKey", actionKey)
@@ -756,7 +748,6 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.ENABLE_BT_INTERNET, data = data)
     }
 
-
     fun createBatteryDetailUpdate(detail: BatteryDetailData): ProtocolMessage {
         val data = gson.toJsonTree(detail).asJsonObject
         return ProtocolMessage(type = MessageType.BATTERY_DETAIL_UPDATE, data = data)
@@ -813,7 +804,13 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.DELETE_ALARM, data = data)
     }
 
-    fun createMirrorStart(width: Int, height: Int, dpi: Int, isRequest: Boolean = false, mode: Int = 1): ProtocolMessage {
+    fun createMirrorStart(
+            width: Int,
+            height: Int,
+            dpi: Int,
+            isRequest: Boolean = false,
+            mode: Int = 1
+    ): ProtocolMessage {
         val data = JsonObject()
         data.addProperty("width", width)
         data.addProperty("height", height)
@@ -850,7 +847,13 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.REMOTE_INPUT, data = data)
     }
 
-    fun createUpdateResolution(width: Int, height: Int, density: Int, reset: Boolean = false, mode: Int = 1): ProtocolMessage {
+    fun createUpdateResolution(
+            width: Int,
+            height: Int,
+            density: Int,
+            reset: Boolean = false,
+            mode: Int = 1
+    ): ProtocolMessage {
         val data = JsonObject()
         data.addProperty("width", width)
         data.addProperty("height", height)

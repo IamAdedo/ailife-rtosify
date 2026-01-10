@@ -60,9 +60,8 @@ class DynamicIslandService : Service() {
                                 dismissNotification(key)
                             }
                         }
-                        BluetoothService.ACTION_UPDATE_DI_TIMEOUT -> {
-                            val timeout = intent.getIntExtra("timeout", 5)
-                            prefs.edit().putInt("dynamic_island_timeout", timeout).apply()
+                        BluetoothService.ACTION_UPDATE_DI_SETTINGS -> {
+                            loadSettings()
                         }
                         Intent.ACTION_BATTERY_CHANGED -> {
                             handleBatteryChanged(intent)
@@ -102,11 +101,32 @@ class DynamicIslandService : Service() {
         createOverlayView()
         registerReceivers()
 
+        // Load initial settings
+        loadSettings()
+
         // Initialize connection state - request from BluetoothService
         isBluetoothConnected = false
         requestInitialConnectionState()
         updateState()
     }
+
+    private fun loadSettings() {
+        val y = prefs.getInt("dynamic_island_y", 8).dpToPx()
+        params.y = y
+        try {
+            windowManager.updateViewLayout(overlayView, params)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update window layout: ${e.message}")
+        }
+
+        val width = prefs.getInt("dynamic_island_width", 150)
+        val height = prefs.getInt("dynamic_island_height", 40)
+        overlayView.updateDimensions(width, height)
+
+        updateState()
+    }
+
+    private fun Int.dpToPx(): Int = (this * resources.displayMetrics.density).toInt()
 
     private fun requestInitialConnectionState() {
         Log.d(TAG, "Requesting initial connection state from BluetoothService")
@@ -210,7 +230,7 @@ class DynamicIslandService : Service() {
                 IntentFilter().apply {
                     addAction(BluetoothService.ACTION_SHOW_IN_DYNAMIC_ISLAND)
                     addAction(BluetoothService.ACTION_DISMISS_FROM_DYNAMIC_ISLAND)
-                    addAction(BluetoothService.ACTION_UPDATE_DI_TIMEOUT)
+                    addAction(BluetoothService.ACTION_UPDATE_DI_SETTINGS)
                     addAction(Intent.ACTION_BATTERY_CHANGED)
                     addAction("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED")
                 }
@@ -285,30 +305,43 @@ class DynamicIslandService : Service() {
 
     private fun updateState() {
         handler.post {
-            if (isShowingTransientState) return@post
-
-            // If expanded and queue is empty, we must collapse
-            if (isExpanded && notificationQueue.isEmpty()) {
-                isExpanded = false
+            if (isShowingTransientState) {
+                overlayView.visibility = View.VISIBLE
+                // In transient state, show the corresponding event visual
+                when {
+                    isCharging -> overlayView.showChargingState(batteryPercent)
+                    !isBluetoothConnected -> overlayView.showDisconnectedState()
+                    else -> overlayView.showConnectedState()
+                }
+                return@post
             }
 
-            if (isExpanded) return@post
+            // Persistence logic: If hideWhenIdle is enabled, only persist if notifications exist
+            val hideWhenIdle = prefs.getBoolean("dynamic_island_hide_idle", false)
+            val hasNotifications = notificationQueue.isNotEmpty()
 
-            when {
-                currentNotification != null -> {
-                    // Already showing a notification
-                }
-                notificationQueue.isNotEmpty() -> {
-                    overlayView.collapseToIcons(notificationQueue)
-                }
-                isCharging -> {
-                    overlayView.showChargingState(batteryPercent)
-                }
-                !isBluetoothConnected -> {
-                    overlayView.showDisconnectedState()
-                }
-                else -> {
-                    overlayView.showIdleState()
+            if (hideWhenIdle && !hasNotifications) {
+                overlayView.visibility = View.GONE
+            } else {
+                overlayView.visibility = View.VISIBLE
+
+                // Normal state logic
+                when {
+                    currentNotification != null -> {
+                        // Already showing a notification (expanded or recent)
+                    }
+                    notificationQueue.isNotEmpty() -> {
+                        overlayView.collapseToIcons(notificationQueue)
+                    }
+                    isCharging -> {
+                        overlayView.showChargingState(batteryPercent)
+                    }
+                    !isBluetoothConnected -> {
+                        overlayView.showDisconnectedState()
+                    }
+                    else -> {
+                        overlayView.showIdleState()
+                    }
                 }
             }
         }

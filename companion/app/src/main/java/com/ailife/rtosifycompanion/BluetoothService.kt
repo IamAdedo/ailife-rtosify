@@ -189,7 +189,7 @@ class BluetoothService : Service() {
         const val ACTION_STOP_MIRROR = "com.ailife.rtosifycompanion.STOP_MIRROR"
         const val ACTION_SEND_REMOTE_INPUT = "com.ailife.rtosifycompanion.SEND_REMOTE_INPUT"
         const val ACTION_SCREEN_DATA_AVAILABLE = "com.ailife.rtosifycompanion.SCREEN_DATA_AVAILABLE"
-        const val ACTION_UPDATE_DI_TIMEOUT = "com.ailife.rtosifycompanion.UPDATE_DI_TIMEOUT"
+        const val ACTION_UPDATE_DI_SETTINGS = "com.ailife.rtosifycompanion.UPDATE_DI_SETTINGS"
         const val ACTION_SHOW_IN_DYNAMIC_ISLAND = "com.ailife.rtosifycompanion.SHOW_IN_DI"
         const val ACTION_DISMISS_FROM_DYNAMIC_ISLAND = "com.ailife.rtosifycompanion.DISMISS_FROM_DI"
         const val ACTION_REQUEST_CONNECTION_STATE =
@@ -305,7 +305,7 @@ class BluetoothService : Service() {
                                 )
                             }
                         }
-                        ACTION_SCREEN_DATA_AVAILABLE -> {
+                        ACTION_SEND_REMOTE_INPUT -> {
                             val action = intent.getIntExtra("action", -1)
                             val x = intent.getFloatExtra("x", 0f)
                             val y = intent.getFloatExtra("y", 0f)
@@ -1273,15 +1273,26 @@ class BluetoothService : Service() {
             settings.dynamicIslandTimeout?.let {
                 prefs.edit().putInt("dynamic_island_timeout", it).apply()
                 Log.d(TAG, "Dynamic Island timeout updated: $it seconds")
-
-                // Notify DynamicIslandService of timeout change
-                sendBroadcast(
-                        Intent(ACTION_UPDATE_DI_TIMEOUT).apply {
-                            putExtra("timeout", it)
-                            setPackage(packageName)
-                        }
-                )
             }
+            settings.dynamicIslandY?.let {
+                prefs.edit().putInt("dynamic_island_y", it).apply()
+                Log.d(TAG, "Dynamic Island Y updated: $it dp")
+            }
+            settings.dynamicIslandWidth?.let {
+                prefs.edit().putInt("dynamic_island_width", it).apply()
+                Log.d(TAG, "Dynamic Island Width updated: $it dp")
+            }
+            settings.dynamicIslandHeight?.let {
+                prefs.edit().putInt("dynamic_island_height", it).apply()
+                Log.d(TAG, "Dynamic Island Height updated: $it dp")
+            }
+            settings.dynamicIslandHideWhenIdle?.let {
+                prefs.edit().putBoolean("dynamic_island_hide_idle", it).apply()
+                Log.d(TAG, "Dynamic Island Hide When Idle updated: $it")
+            }
+
+            // Notify DynamicIslandService of settings change
+            sendBroadcast(Intent(ACTION_UPDATE_DI_SETTINGS).setPackage(packageName))
 
             Log.d(TAG, "Automation settings updated from phone")
         } catch (e: Exception) {
@@ -4136,16 +4147,17 @@ class BluetoothService : Service() {
 
             if (!isSilent || vibrateInSilent) {
                 try {
-                    val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+                    val vibrator =
+                            ContextCompat.getSystemService(this, android.os.Vibrator::class.java)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        vibrator.vibrate(
+                        vibrator?.vibrate(
                                 android.os.VibrationEffect.createOneShot(
                                         500,
                                         android.os.VibrationEffect.DEFAULT_AMPLITUDE
                                 )
                         )
                     } else {
-                        @Suppress("DEPRECATION") vibrator.vibrate(500)
+                        @Suppress("DEPRECATION") vibrator?.vibrate(500)
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to vibrate: ${e.message}")

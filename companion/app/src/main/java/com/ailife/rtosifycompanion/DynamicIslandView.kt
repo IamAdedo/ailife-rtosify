@@ -41,6 +41,11 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     private val expandedContainer: ScrollView
     private val expandedList: LinearLayout
     private val closeContainer: LinearLayout
+    private var pillHeightCollapsed = PILL_HEIGHT_COLLAPSED_DP
+    private var pillWidthCollapsed = PILL_WIDTH_COLLAPSED_DP
+    private var pillHeightExpanded = PILL_HEIGHT_EXPANDED_DP
+    private var pillWidthExpanded = PILL_WIDTH_EXPANDED_DP
+
     private var startY: Float = 0f
 
     private var currentState: State = State.IDLE
@@ -63,14 +68,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         pillContainer =
                 FrameLayout(context).apply {
                     layoutParams =
-                            LayoutParams(
-                                            dpToPx(PILL_WIDTH_COLLAPSED_DP),
-                                            dpToPx(PILL_HEIGHT_COLLAPSED_DP)
-                                    )
-                                    .apply {
-                                        gravity = Gravity.CENTER_HORIZONTAL
-                                        topMargin = dpToPx(8)
-                                    }
+                            LayoutParams(dpToPx(pillWidthCollapsed), dpToPx(pillHeightCollapsed))
+                                    .apply { gravity = Gravity.CENTER_HORIZONTAL }
                     background = createPillBackground()
                     elevation = dpToPx(8).toFloat()
                     clipChildren = false
@@ -164,8 +163,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     private fun createPillBackground(): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
-            cornerRadius = dpToPx(CORNER_RADIUS_DP).toFloat()
             setColor(Color.parseColor("#1C1C1E")) // Dark gray/black
+            cornerRadius = dpToPx(pillHeightCollapsed / 2).toFloat()
         }
     }
 
@@ -625,9 +624,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                                     .apply {
                                                         if (index == 0) {
                                                             marginStart =
-                                                                    (dpToPx(
-                                                                            PILL_HEIGHT_COLLAPSED_DP
-                                                                    ) -
+                                                                    (dpToPx(pillHeightCollapsed) -
                                                                             dpToPx(
                                                                                     STACKED_ICON_SIZE_DP
                                                                             )) / 2
@@ -1152,8 +1149,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
     private fun animateToCollapsed(onEnd: () -> Unit) {
         contentContainer.visibility = VISIBLE
-        val targetWidth = dpToPx(PILL_WIDTH_COLLAPSED_DP)
-        val targetHeight = dpToPx(PILL_HEIGHT_COLLAPSED_DP)
+        val targetWidth = dpToPx(pillWidthCollapsed)
+        val targetHeight = dpToPx(pillHeightCollapsed)
         animateSize(
                 pillContainer,
                 pillContainer.width,
@@ -1165,8 +1162,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     }
 
     private fun animateToExpanded(onEnd: () -> Unit) {
-        val targetWidth = dpToPx(PILL_WIDTH_EXPANDED_DP)
-        val targetHeight = dpToPx(PILL_HEIGHT_EXPANDED_DP)
+        val targetWidth = dpToPx(pillWidthExpanded)
+        val targetHeight = dpToPx(pillHeightExpanded)
         animateSize(
                 pillContainer,
                 pillContainer.width,
@@ -1298,6 +1295,23 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         canvas.drawBitmap(bitmap, srcRect, dstRect, paint)
 
         return output
+    }
+
+    fun updateDimensions(width: Int, height: Int) {
+        pillWidthCollapsed = width
+        pillHeightCollapsed = height
+
+        // Re-scale expanded height if needed, keeping it larger than collapsed
+        pillHeightExpanded = Math.max(PILL_HEIGHT_EXPANDED_DP, height + 40)
+
+        // Update current pill if not expanded
+        if (currentState != State.NOTIFICATION_EXPANDED && currentState != State.LIST_EXPANDED) {
+            val params = pillContainer.layoutParams as LayoutParams
+            params.width = dpToPx(pillWidthCollapsed)
+            params.height = dpToPx(pillHeightCollapsed)
+            pillContainer.layoutParams = params
+            pillContainer.background = createPillBackground()
+        }
     }
 
     private fun dpToPx(dp: Int): Int {

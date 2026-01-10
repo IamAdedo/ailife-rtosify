@@ -40,6 +40,14 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var spinnerNotificationStyle: Spinner
     private lateinit var seekBarTimeout: SeekBar
     private lateinit var tvTimeoutValue: TextView
+    private lateinit var layoutDynamicIslandOptions: LinearLayout
+    private lateinit var switchHideWhenIdle: SwitchMaterial
+    private lateinit var seekBarY: SeekBar
+    private lateinit var tvYValue: TextView
+    private lateinit var seekBarWidth: SeekBar
+    private lateinit var tvWidthValue: TextView
+    private lateinit var seekBarHeight: SeekBar
+    private lateinit var tvHeightValue: TextView
 
     private lateinit var devicePrefManager: DevicePrefManager
     private lateinit var globalPrefs: SharedPreferences
@@ -69,6 +77,10 @@ class NotificationSettingsActivity : AppCompatActivity() {
         setupVibrateSilentSwitch()
         setupNotificationStyleSpinner()
         setupTimeoutSeekBar()
+        setupHideWhenIdleSwitch()
+        setupYSeekBar()
+        setupWidthSeekBar()
+        setupHeightSeekBar()
         setupCardClickListeners()
     }
 
@@ -93,6 +105,14 @@ class NotificationSettingsActivity : AppCompatActivity() {
         spinnerNotificationStyle = findViewById(R.id.spinnerNotificationStyle)
         seekBarTimeout = findViewById(R.id.seekBarTimeout)
         tvTimeoutValue = findViewById(R.id.tvTimeoutValue)
+        layoutDynamicIslandOptions = findViewById(R.id.layoutDynamicIslandOptions)
+        switchHideWhenIdle = findViewById(R.id.switchHideWhenIdle)
+        seekBarY = findViewById(R.id.seekBarY)
+        tvYValue = findViewById(R.id.tvYValue)
+        seekBarWidth = findViewById(R.id.seekBarWidth)
+        tvWidthValue = findViewById(R.id.tvWidthValue)
+        seekBarHeight = findViewById(R.id.seekBarHeight)
+        tvHeightValue = findViewById(R.id.tvHeightValue)
     }
 
     private fun setupCardClickListeners() {
@@ -190,15 +210,22 @@ class NotificationSettingsActivity : AppCompatActivity() {
         val currentStyle = activePrefs.getString("notification_style", "android") ?: "android"
         spinnerNotificationStyle.setSelection(if (currentStyle == "dynamic_island") 1 else 0)
 
-        spinnerNotificationStyle.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val style = if (position == 0) "android" else "dynamic_island"
-                activePrefs.edit().putString("notification_style", style).apply()
-                syncSettings()
-            }
+        spinnerNotificationStyle.onItemSelectedListener =
+                object : AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(
+                            parent: AdapterView<*>?,
+                            view: View?,
+                            position: Int,
+                            id: Long
+                    ) {
+                        val style = if (position == 0) "android" else "dynamic_island"
+                        activePrefs.edit().putString("notification_style", style).apply()
+                        updateUiState()
+                        syncSettings()
+                    }
 
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
+                    override fun onNothingSelected(parent: AdapterView<*>?) {}
+                }
     }
 
     private fun setupTimeoutSeekBar() {
@@ -207,18 +234,101 @@ class NotificationSettingsActivity : AppCompatActivity() {
         seekBarTimeout.progress = timeout - 2 // Offset by 2 since min is 2
         tvTimeoutValue.text = "$timeout seconds"
 
-        seekBarTimeout.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                // Minimum timeout is 2 seconds, max is 10 seconds
-                val timeoutSeconds = progress + 2
-                tvTimeoutValue.text = "$timeoutSeconds seconds"
-                activePrefs.edit().putInt("dynamic_island_timeout", timeoutSeconds).apply()
-                syncSettings()
-            }
+        seekBarTimeout.setOnSeekBarChangeListener(
+                object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(
+                            seekBar: SeekBar?,
+                            progress: Int,
+                            fromUser: Boolean
+                    ) {
+                        // Minimum timeout is 2 seconds, max is 10 seconds
+                        val timeoutSeconds = progress + 2
+                        tvTimeoutValue.text = "$timeoutSeconds seconds"
+                        activePrefs.edit().putInt("dynamic_island_timeout", timeoutSeconds).apply()
+                        syncSettings()
+                    }
 
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
+                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                    override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+                }
+        )
+    }
+
+    private fun setupHideWhenIdleSwitch() {
+        val isEnabled = activePrefs.getBoolean("dynamic_island_hide_idle", false)
+        switchHideWhenIdle.isChecked = isEnabled
+        switchHideWhenIdle.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("dynamic_island_hide_idle", isChecked).apply()
+            syncSettings()
+        }
+    }
+
+    private fun setupYSeekBar() {
+        val y = activePrefs.getInt("dynamic_island_y", 8)
+        seekBarY.progress = y
+        tvYValue.text = "$y dp"
+
+        seekBarY.setOnSeekBarChangeListener(
+                object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(
+                            seekBar: SeekBar?,
+                            progress: Int,
+                            fromUser: Boolean
+                    ) {
+                        tvYValue.text = "$progress dp"
+                        activePrefs.edit().putInt("dynamic_island_y", progress).apply()
+                        syncSettings()
+                    }
+                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                    override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+                }
+        )
+    }
+
+    private fun setupWidthSeekBar() {
+        val width = activePrefs.getInt("dynamic_island_width", 150)
+        seekBarWidth.progress = width - 50
+        tvWidthValue.text = "$width dp"
+
+        seekBarWidth.setOnSeekBarChangeListener(
+                object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(
+                            seekBar: SeekBar?,
+                            progress: Int,
+                            fromUser: Boolean
+                    ) {
+                        val value = progress + 50
+                        tvWidthValue.text = "$value dp"
+                        activePrefs.edit().putInt("dynamic_island_width", value).apply()
+                        syncSettings()
+                    }
+                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                    override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+                }
+        )
+    }
+
+    private fun setupHeightSeekBar() {
+        val height = activePrefs.getInt("dynamic_island_height", 40)
+        seekBarHeight.progress = height - 20
+        tvHeightValue.text = "$height dp"
+
+        seekBarHeight.setOnSeekBarChangeListener(
+                object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(
+                            seekBar: SeekBar?,
+                            progress: Int,
+                            fromUser: Boolean
+                    ) {
+                        val value = progress + 20
+                        tvHeightValue.text = "$value dp"
+                        activePrefs.edit().putInt("dynamic_island_height", value).apply()
+                        syncSettings()
+                    }
+                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                    override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+                }
+        )
     }
 
     private fun syncSettings() {
@@ -306,6 +416,13 @@ class NotificationSettingsActivity : AppCompatActivity() {
                 // Vibrate Silent still depends on Vibrate
                 val isVibrateOn = activePrefs.getBoolean("vibrate_enabled", false)
                 switchVibrateSilent.isEnabled = isVibrateOn
+
+                // Dynamic Island options depend on selected style
+                val currentStyle = activePrefs.getString("notification_style", "android")
+                val isDynamicIsland = currentStyle == "dynamic_island"
+                layoutDynamicIslandOptions.isEnabled = isDynamicIsland
+                layoutDynamicIslandOptions.alpha = if (isDynamicIsland) 1.0f else 0.4f
+                setViewGroupEnabled(layoutDynamicIslandOptions, isDynamicIsland)
             } else {
                 cards.forEach {
                     it.alpha = 0.4f
@@ -313,6 +430,18 @@ class NotificationSettingsActivity : AppCompatActivity() {
                 }
                 childSwitches.forEach { it.isEnabled = false }
                 switchVibrateSilent.isEnabled = false
+                layoutDynamicIslandOptions.isEnabled = false
+                layoutDynamicIslandOptions.alpha = 0.4f
+                setViewGroupEnabled(layoutDynamicIslandOptions, false)
+            }
+        }
+    }
+
+    private fun setViewGroupEnabled(view: View, enabled: Boolean) {
+        view.isEnabled = enabled
+        if (view is android.view.ViewGroup) {
+            for (i in 0 until view.childCount) {
+                setViewGroupEnabled(view.getChildAt(i), enabled)
             }
         }
     }
