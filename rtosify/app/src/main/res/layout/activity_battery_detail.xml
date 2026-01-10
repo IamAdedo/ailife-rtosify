@@ -35,7 +35,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:fontFamily="sans-serif-bold"
-                android:text="Battery Details"
+                android:text="@string/battery_title"
                 android:textColor="@android:color/white"
                 android:textSize="24sp" />
         </LinearLayout>
@@ -137,7 +137,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Current"
+                        android:text="@string/battery_current_label"
                         android:textColor="#888888"
                         android:textSize="12sp" />
 
@@ -174,7 +174,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Voltage"
+                        android:text="@string/battery_voltage_label"
                         android:textColor="#888888"
                         android:textSize="12sp" />
 
@@ -211,7 +211,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Temperature"
+                        android:text="@string/battery_temp_label"
                         android:textColor="#888888"
                         android:textSize="12sp" />
 
@@ -283,7 +283,7 @@
                  <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Charge History"
+                    android:text="@string/battery_history_title"
                     android:textColor="#AAAAAA"
                     android:textSize="14sp"
                     android:fontFamily="sans-serif-medium"/>
@@ -314,7 +314,7 @@
                  <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Current Draw (mA)"
+                    android:text="@string/battery_current_draw_title"
                     android:textColor="#AAAAAA"
                     android:textSize="14sp"
                     android:fontFamily="sans-serif-medium"/>
@@ -334,7 +334,7 @@
             android:layout_marginTop="24dp"
             android:layout_marginBottom="12dp"
             android:fontFamily="sans-serif-bold"
-            android:text="Notifications"
+            android:text="@string/battery_notifications_title"
             android:textColor="@android:color/white"
             android:textSize="18sp" />
 
@@ -367,14 +367,14 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Full Charge Alert"
+                            android:text="@string/battery_full_charge_alert"
                             android:textColor="@android:color/white"
                             android:textSize="16sp" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Notify when battery reaches 100%"
+                            android:text="@string/battery_full_charge_desc"
                             android:textColor="#888888"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -406,7 +406,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Low Battery Alert"
+                            android:text="@string/battery_low_charge_alert"
                             android:textColor="@android:color/white"
                             android:textSize="16sp" />
 
@@ -414,7 +414,7 @@
                             android:id="@+id/tvLowThresholdTitle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Notify below 15%"
+                            android:text="@string/battery_low_charge_desc_placeholder"
                             android:textColor="#888888"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -451,14 +451,14 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Detailed Logging"
+                            android:text="@string/battery_detailed_logging"
                             android:textColor="@android:color/white"
                             android:textSize="16sp" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Log current and app usage every 2 mins"
+                            android:text="@string/battery_detailed_logging_desc"
                             android:textColor="#888888"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -485,7 +485,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:fontFamily="sans-serif-bold"
-                android:text="Top App Usage (24h)"
+                android:text="@string/battery_top_usage_title"
                 android:textColor="@android:color/white"
                 android:textSize="18sp" />
 
@@ -493,7 +493,7 @@
                 android:id="@+id/btnSortUsage"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Sort by Time"
+                android:text="@string/battery_sort_by_time"
                 android:textColor="#2196F3"
                 android:textSize="14sp"
                 android:padding="8dp"
@@ -513,7 +513,7 @@
              android:id="@+id/tvUsageEmpty"
              android:layout_width="match_parent"
              android:layout_height="wrap_content"
-             android:text="Usage stats may require permission.\nConfigured on watch system settings."
+             android:text="@string/battery_usage_empty_msg"
              android:textColor="#666"
              android:gravity="center"
              android:padding="24dp"

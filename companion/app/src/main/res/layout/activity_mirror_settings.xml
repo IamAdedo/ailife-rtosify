@@ -43,7 +43,7 @@
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Start Mirroring"
+                android:text="@string/mirror_start"
                 android:layout_marginBottom="8dp"
                 app:icon="@drawable/ic_cast"/>
 
@@ -53,7 +53,7 @@
                 style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Control Phone"
+                android:text="@string/mirror_control_phone"
                 android:layout_marginBottom="16dp"
                 app:icon="@drawable/ic_settings_remote"/>
 
@@ -69,7 +69,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Enable Touch"
+                    android:text="@string/mirror_enable_touch"
                     android:textAppearance="@style/TextAppearance.Material3.BodySmall" />
 
                 <com.google.android.material.materialswitch.MaterialSwitch
@@ -93,7 +93,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Res Matching"
+                    android:text="@string/mirror_res_matching"
                     android:textAppearance="@style/TextAppearance.Material3.BodySmall" />
 
                 <com.google.android.material.materialswitch.MaterialSwitch
@@ -117,7 +117,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Aspect Match"
+                    android:text="@string/mirror_aspect_match"
                     android:textAppearance="@style/TextAppearance.Material3.BodySmall" />
 
                 <com.google.android.material.materialswitch.MaterialSwitch

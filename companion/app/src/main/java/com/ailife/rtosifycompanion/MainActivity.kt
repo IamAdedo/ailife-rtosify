@@ -74,10 +74,10 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private var isPhoneMode = true
     private var menuAdapter: MenuAdapter? = null
 
-    // Estado local do DND
+    // Local DND state
     private var currentDndState = false
 
-    // Diálogo Upload
+    // Upload Dialog
     private var uploadDialog: AlertDialog? = null
     private var uploadProgressBar: ProgressBar? = null
     private var uploadPercentageText: TextView? = null
@@ -162,12 +162,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     override fun onResume() {
         super.onResume()
-        // Quando a atividade volta ao foco, é crucial se registrar novamente como o callback
-        // e atualizar a UI com o estado mais recente do serviço.
+        // When the activity returns to focus, it is crucial to re-register as the callback
+        // and update the UI with the latest service state.
         updateLocalBtName()
         if (isBound) {
             bluetoothService?.callback = this
-            // Força a atualização da UI com os dados atuais do serviço
+            // Force UI update with current service data
             updateStatusUI(
                     bluetoothService?.currentStatus ?: getString(R.string.status_verifying),
                     bluetoothService?.isConnected == true
@@ -249,7 +249,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     private fun setupDndClickListener() {
         layoutDndAction.setOnClickListener {
-            // Também aplicamos a verificação segura aqui
+            // We also apply the secure check here
             runIfConnected {
                 val newState = !currentDndState
                 bluetoothService?.sendDndCommand(newState)
@@ -289,7 +289,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
                         updateStatusUI(getString(R.string.status_starting), false)
                         syncDynamicIslandService()
-                        Toast.makeText(this@MainActivity, "Service Started", Toast.LENGTH_SHORT)
+                        Toast.makeText(this@MainActivity, getString(R.string.toast_service_started), Toast.LENGTH_SHORT)
                                 .show()
                     } else {
                         bluetoothService?.stopServiceCompletely()
@@ -300,7 +300,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         }
                         updateStatusUI(getString(R.string.status_stopped), false)
                         syncDynamicIslandService()
-                        Toast.makeText(this, "Service Stopped", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, getString(R.string.toast_service_stopped), Toast.LENGTH_SHORT).show()
                     }
                     refreshMenu()
                 }
@@ -338,13 +338,13 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         screenCaptureLauncher.launch(projectionManager.createScreenCaptureIntent())
     }
 
-    // --- NOVA FUNÇÃO DE SEGURANÇA ---
-    // Verifica se está conectado antes de executar a ação.
+    // --- NEW SECURITY FUNCTION ---
+    // Checks if connected before executing the action.
     private fun runIfConnected(action: () -> Unit) {
         if (bluetoothService?.isConnected == true) {
             action()
         } else {
-            Toast.makeText(this, "Phone not connected", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_phone_not_connected), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -389,9 +389,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         val options =
                 mutableListOf(
                         MenuOption(
-                                "Media Control", // Hardcoded string for now or add to strings.xml
-                                // later if requested
-                                "Control phone playback",
+                                getString(R.string.menu_media_control),
+                                getString(R.string.menu_media_control_desc),
                                 android.R
                                         .drawable
                                         .ic_media_play, // Using a standard system drawable
@@ -410,14 +409,14 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
                         ),
                         MenuOption(
-                                "Alarms",
-                                "Manage alarms",
+                                getString(R.string.menu_alarms),
+                                getString(R.string.menu_alarms_desc),
                                 android.R.drawable.ic_lock_idle_alarm,
                                 { startActivity(Intent(this, AlarmManagementActivity::class.java)) }
                         ),
                         MenuOption(
-                                "Camera",
-                                "Remote Shutter",
+                                getString(R.string.menu_camera),
+                                getString(R.string.menu_camera_desc),
                                 android.R.drawable.ic_menu_camera,
                                 {
                                     runIfConnected {
@@ -516,8 +515,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         } else {
             options.add(
                     MenuOption(
-                            "Media Control",
-                            "Control phone playback",
+                            getString(R.string.menu_media_control),
+                            getString(R.string.menu_media_control_desc),
                             android.R.drawable.ic_media_play,
                             {
                                 runIfConnected {
@@ -536,16 +535,16 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             )
             options.add(
                     MenuOption(
-                            "Alarms",
-                            "Manage alarms",
+                            getString(R.string.menu_alarms),
+                            getString(R.string.menu_alarms_desc),
                             android.R.drawable.ic_lock_idle_alarm,
                             { startActivity(Intent(this, AlarmManagementActivity::class.java)) }
                     )
             )
             options.add(
                     MenuOption(
-                            "Camera",
-                            "Remote Shutter",
+                            getString(R.string.menu_camera),
+                            getString(R.string.menu_camera_desc),
                             android.R.drawable.ic_menu_camera,
                             {
                                 runIfConnected {
@@ -606,7 +605,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 .setTitle(getString(R.string.menu_find_phone))
                 .setMessage(
                         getString(R.string.dialog_find_watch_message)
-                ) // Reuse message or add new one
                 .setPositiveButton(getString(R.string.dialog_find_watch_start)) { _, _ ->
                     bluetoothService?.sendMessage(ProtocolHelper.createFindPhone(true))
                 }
@@ -637,7 +635,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         updateLocalBtName()
 
         progressBarMain.visibility =
-                if (!isConnected && status.contains("Conectando")) View.VISIBLE else View.INVISIBLE
+                if (!isConnected && status.contains(getString(R.string.status_connecting))) View.VISIBLE else View.INVISIBLE
 
         if (isPhoneMode && isConnected) {
             cardWatchStatus.visibility = View.VISIBLE
@@ -805,7 +803,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         runOnUiThread {
             updateStatusUI(getString(R.string.status_disconnected), false)
             if (uploadDialog?.isShowing == true) {
-                // Se o progresso já for 100%, não trate a desconexão como falha.
+                // If the progress is already 100%, do not treat the disconnection as a failure.
                 if (uploadProgressBar?.progress != 100) {
                     updateUploadProgress(-1)
                 }

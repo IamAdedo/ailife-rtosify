@@ -90,7 +90,7 @@
                         android:layout_width="48dp"
                         android:layout_height="48dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="Previous"
+                        android:contentDescription="@string/health_prev_date"
                         android:src="@drawable/ic_arrow_back"
                         app:tint="?android:attr/textColorPrimary" />
 
@@ -108,7 +108,7 @@
                         android:layout_width="48dp"
                         android:layout_height="48dp"
                         android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="Next"
+                        android:contentDescription="@string/health_next_date"
                         android:rotation="180"
                         android:src="@drawable/ic_arrow_back"
                         app:tint="?android:attr/textColorPrimary" />
@@ -142,7 +142,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Current Value"
+                                android:text="@string/health_current_value"
                                 android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
                                 android:textColor="?android:attr/textColorSecondary" />
 
@@ -167,7 +167,7 @@
                             style="?attr/materialButtonStyle"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Measure" />
+                            android:text="@string/health_measure_button" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -192,7 +192,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Total Stats"
+                            android:text="@string/health_total_stats"
                             android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
                             android:layout_marginBottom="8dp" />
 
@@ -218,7 +218,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Steps"
+                                    android:text="@string/health_label_steps"
                                     android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                                     android:textColor="?android:attr/textColorSecondary" />
                             </LinearLayout>
@@ -240,7 +240,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Distance"
+                                    android:text="@string/health_label_distance"
                                     android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                                     android:textColor="?android:attr/textColorSecondary" />
                             </LinearLayout>
@@ -262,7 +262,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Calories"
+                                    android:text="@string/health_label_calories"
                                     android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                                     android:textColor="?android:attr/textColorSecondary" />
                             </LinearLayout>
@@ -387,7 +387,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Min"
+                                    android:text="@string/health_label_min"
                                     android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                                     android:textColor="?android:attr/textColorSecondary" />
                             </LinearLayout>
@@ -409,7 +409,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Avg"
+                                    android:text="@string/health_label_avg"
                                     android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                                     android:textColor="?android:attr/textColorSecondary" />
                             </LinearLayout>
@@ -431,7 +431,7 @@
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="Max"
+                                    android:text="@string/health_label_max"
                                     android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                                     android:textColor="?android:attr/textColorSecondary" />
                             </LinearLayout>

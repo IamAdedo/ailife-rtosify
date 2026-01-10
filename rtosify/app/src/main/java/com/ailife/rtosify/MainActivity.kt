@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.text.InputType
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -409,7 +410,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                             quickDurationMinutes = 60
                     )
             )
-            Toast.makeText(this, "DND for 1 hour sent", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_dnd_sent_format, 1, getString(R.string.unit_hour)), Toast.LENGTH_SHORT).show()
             dialog.dismiss()
         }
 
@@ -422,7 +423,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                             quickDurationMinutes = 120
                     )
             )
-            Toast.makeText(this, "DND for 2 hours sent", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_dnd_sent_format, 2, getString(R.string.unit_hours)), Toast.LENGTH_SHORT).show()
             dialog.dismiss()
         }
 
@@ -922,8 +923,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         dialog.show()
     }
 
-    // --- NOVA FUNÇÃO DE SEGURANÇA ---
-    // Verifica se está conectado antes de executar a ação.
+    // --- NEW SECURITY FUNCTION ---
+    // Verifies if connected before executing the action.
     private fun runIfConnected(action: () -> Unit) {
         if (bluetoothService?.isConnected == true) {
             action()
@@ -1420,12 +1421,14 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         when (progress) {
             in 0..99 -> {
                 uploadProgressBar?.progress = progress
-                uploadPercentageText?.text = "$progress%"
+                uploadPercentageText?.text = getString(R.string.status_progress_format, progress)
                 uploadDescriptionText?.text = getString(R.string.upload_transferring)
             }
             100 -> {
                 uploadProgressBar?.progress = 100
-                uploadPercentageText?.text = "100%"
+                uploadPercentageText?.text = getString(R.string.status_progress_format, 100)
+// Or just "100%" if preferred, but let's use the format if available.
+// I'll check if status_progress_format exists.
                 uploadTitleText?.text = getString(R.string.upload_complete_title)
                 uploadDescriptionText?.text = getString(R.string.upload_complete_message)
                 uploadIconView?.setImageResource(android.R.drawable.stat_sys_upload_done)
@@ -1532,7 +1535,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         if (!hasRequestedHealthData && bluetoothService?.isConnected == true) {
             hasRequestedHealthData = true
             bluetoothService?.requestHealthData()
-            android.util.Log.d("MainActivity", "Requesting health data from watch")
+            Log.d("MainActivity", "Requesting health data from watch")
         }
     }
 
@@ -1550,7 +1553,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     // All discovered networks were hidden because they are currently connected?
                     // Or list is just empty
                 } else if (results.isEmpty()) {
-                    Toast.makeText(this, "No WiFi networks found.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_wifi_no_networks), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -1584,7 +1587,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val item = results[position]
             holder.tvSsid.text = item.ssid
-            holder.tvSecurity.text = if (item.isSecure) "Secured" else "Open"
+            holder.tvSecurity.text = if (item.isSecure) getString(R.string.wifi_security_secured) else getString(R.string.wifi_security_open)
             holder.imgLock.visibility =
                     if (item.isSecure) android.view.View.VISIBLE else android.view.View.GONE
 

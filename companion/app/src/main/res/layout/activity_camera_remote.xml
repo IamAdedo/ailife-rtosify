@@ -9,7 +9,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop"
-        android:contentDescription="Viewfinder" />
+        android:contentDescription="@string/camera_viewfinder" />
 
     <Button
         android:id="@+id/btn_shutter"
@@ -19,14 +19,14 @@
         android:layout_marginBottom="16dp"
         android:backgroundTint="#FF0000"
         android:text=""
-        android:contentDescription="Shutter" />
+        android:contentDescription="@string/camera_shutter" />
     
     <TextView
         android:id="@+id/tv_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:text="Waiting for video..."
+        android:text="@string/camera_waiting_video"
         android:textColor="#FFFFFF"
         android:textSize="12sp" />
 

@@ -56,14 +56,14 @@ class PermissionActivity : AppCompatActivity() {
                         userService = IUserService.Stub.asInterface(binder)
                         android.util.Log.i(
                                 "PermissionActivity",
-                                "UserService connected successfully"
+                                getString(R.string.perm_shizuku_connected)
                         )
                     }
                 }
 
                 override fun onServiceDisconnected(name: ComponentName?) {
                     userService = null
-                    android.util.Log.w("PermissionActivity", "UserService disconnected")
+                    android.util.Log.w("PermissionActivity", getString(R.string.perm_shizuku_disconnected))
                 }
             }
 
@@ -93,7 +93,7 @@ class PermissionActivity : AppCompatActivity() {
             supportActionBar?.setDisplayHomeAsUpEnabled(false)
         }
 
-        // Listener para quando o Shizuku conectar
+        // Listener for when Shizuku connects
         Shizuku.addBinderReceivedListener { updatePermissionList() }
 
         // Bind UserService if Shizuku is available
@@ -104,7 +104,7 @@ class PermissionActivity : AppCompatActivity() {
                 Shizuku.bindUserService(userServiceArgs, userServiceConn)
                 userServiceConnection = userServiceArgs
             } catch (e: Exception) {
-                android.util.Log.e("PermissionActivity", "Failed to bind UserService: ${e.message}")
+                android.util.Log.e("PermissionActivity", getString(R.string.perm_shizuku_bind_error, e.message))
             }
         }
     }
@@ -535,7 +535,7 @@ class PermissionActivity : AppCompatActivity() {
             )
             mode == android.app.AppOpsManager.MODE_ALLOWED
         } catch (e: Exception) {
-            android.util.Log.e("PermissionActivity", "Restricted Check Error", e)
+            android.util.Log.e("PermissionActivity", getString(R.string.perm_restricted_check_error), e)
             false
         }
     }
@@ -570,7 +570,7 @@ class PermissionActivity : AppCompatActivity() {
         android.app.AlertDialog.Builder(this)
                 .setTitle(R.string.perm_restricted_title)
                 .setMessage(R.string.perm_restricted_desc)
-                .setPositiveButton("Copy ADB Command") { _, _ ->
+                .setPositiveButton(R.string.perm_button_copy_adb) { _, _ ->
                     val clipboard =
                             getSystemService(Context.CLIPBOARD_SERVICE) as
                                     android.content.ClipboardManager
@@ -578,13 +578,13 @@ class PermissionActivity : AppCompatActivity() {
                     clipboard.setPrimaryClip(clip)
                     android.widget.Toast.makeText(
                                     this,
-                                    "Command copied!",
+                                    getString(R.string.toast_command_copied),
                                     android.widget.Toast.LENGTH_SHORT
                             )
                             .show()
                 }
-                .setNeutralButton("Open Settings") { _, _ -> startActivity(intent) }
-                .setNegativeButton("Activate with Shizuku") { _, _ ->
+                .setNeutralButton(getString(R.string.toast_open_settings)) { _, _ -> startActivity(intent) }
+                .setNegativeButton(getString(R.string.perm_activate_shizuku)) { _, _ ->
                     grantRestrictedSettingsWithShizuku()
                 }
                 .show()
@@ -601,7 +601,7 @@ class PermissionActivity : AppCompatActivity() {
             if (!hasRoot && !hasShizuku) {
                 android.widget.Toast.makeText(
                                 this,
-                                "Root or Shizuku required.",
+                                getString(R.string.toast_root_shizuku_required),
                                 android.widget.Toast.LENGTH_SHORT
                         )
                         .show()
@@ -610,7 +610,7 @@ class PermissionActivity : AppCompatActivity() {
 
             android.widget.Toast.makeText(
                             this,
-                            "Granting restricted settings...",
+                            getString(R.string.toast_granting_restricted),
                             android.widget.Toast.LENGTH_SHORT
                     )
                     .show()
@@ -624,7 +624,7 @@ class PermissionActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     android.util.Log.e(
                             "PermissionActivity",
-                            "Failed to bind UserService: ${e.message}"
+                            getString(R.string.perm_shizuku_bind_error, e.message)
                     )
                 }
             }
@@ -636,7 +636,7 @@ class PermissionActivity : AppCompatActivity() {
                                 runOnUiThread {
                                     android.widget.Toast.makeText(
                                                     this,
-                                                    "UserService not connected. Try again.",
+                                                    getString(R.string.toast_user_service_not_connected),
                                                     android.widget.Toast.LENGTH_SHORT
                                             )
                                             .show()
@@ -654,7 +654,7 @@ class PermissionActivity : AppCompatActivity() {
                                 if (exitCode == 0) {
                                     android.widget.Toast.makeText(
                                                     this,
-                                                    "Permission granted!",
+                                                    getString(R.string.toast_grant_success),
                                                     android.widget.Toast.LENGTH_SHORT
                                             )
                                             .show()
@@ -662,7 +662,7 @@ class PermissionActivity : AppCompatActivity() {
                                 } else {
                                     android.widget.Toast.makeText(
                                                     this,
-                                                    "Failed (Code: $exitCode). Try ADB.",
+                                                    getString(R.string.toast_grant_failed, exitCode),
                                                     android.widget.Toast.LENGTH_LONG
                                             )
                                             .show()
@@ -672,7 +672,7 @@ class PermissionActivity : AppCompatActivity() {
                             runOnUiThread {
                                 android.widget.Toast.makeText(
                                                 this,
-                                                "Error: ${e.message}",
+                                                getString(R.string.health_error_prefix, e.message),
                                                 android.widget.Toast.LENGTH_SHORT
                                         )
                                         .show()
@@ -683,7 +683,7 @@ class PermissionActivity : AppCompatActivity() {
         } catch (e: Exception) {
             android.widget.Toast.makeText(
                             this,
-                            "Error: ${e.message}",
+                            getString(R.string.health_error_prefix, e.message),
                             android.widget.Toast.LENGTH_SHORT
                     )
                     .show()
@@ -801,7 +801,7 @@ class PermissionActivity : AppCompatActivity() {
                     } catch (e: Exception) {
                         android.widget.Toast.makeText(
                                         this,
-                                        "Failed to open settings",
+                                        getString(R.string.toast_open_settings_error),
                                         android.widget.Toast.LENGTH_SHORT
                                 )
                                 .show()
@@ -817,7 +817,7 @@ class PermissionActivity : AppCompatActivity() {
                     clipboard.setPrimaryClip(clip)
                     android.widget.Toast.makeText(
                                     this,
-                                    "Command copied!",
+                                    getString(R.string.toast_command_copied),
                                     android.widget.Toast.LENGTH_SHORT
                             )
                             .show()
@@ -841,7 +841,7 @@ class PermissionActivity : AppCompatActivity() {
             if (!hasRoot && !hasShizuku) {
                 android.widget.Toast.makeText(
                                 this,
-                                "Root or Shizuku required.",
+                                getString(R.string.toast_root_shizuku_required),
                                 android.widget.Toast.LENGTH_SHORT
                         )
                         .show()
@@ -850,7 +850,7 @@ class PermissionActivity : AppCompatActivity() {
 
             android.widget.Toast.makeText(
                             this,
-                            "Granting permission...",
+                            getString(R.string.toast_granting_perm),
                             android.widget.Toast.LENGTH_SHORT
                     )
                     .show()
@@ -866,7 +866,7 @@ class PermissionActivity : AppCompatActivity() {
                                 if (exitCode == 0) {
                                     android.widget.Toast.makeText(
                                                     this,
-                                                    "Permission granted!",
+                                                    getString(R.string.toast_grant_success),
                                                     android.widget.Toast.LENGTH_SHORT
                                             )
                                             .show()
@@ -874,7 +874,7 @@ class PermissionActivity : AppCompatActivity() {
                                 } else {
                                     android.widget.Toast.makeText(
                                                     this,
-                                                    "Failed (Code: $exitCode).",
+                                                    getString(R.string.toast_grant_failed_simple, exitCode),
                                                     android.widget.Toast.LENGTH_LONG
                                             )
                                             .show()
@@ -884,7 +884,7 @@ class PermissionActivity : AppCompatActivity() {
                             runOnUiThread {
                                 android.widget.Toast.makeText(
                                                 this,
-                                                "Error: ${e.message}",
+                                                getString(R.string.health_error_prefix, e.message),
                                                 android.widget.Toast.LENGTH_SHORT
                                         )
                                         .show()
@@ -895,7 +895,7 @@ class PermissionActivity : AppCompatActivity() {
         } catch (e: Exception) {
             android.widget.Toast.makeText(
                             this,
-                            "Error: ${e.message}",
+                            getString(R.string.health_error_prefix, e.message),
                             android.widget.Toast.LENGTH_SHORT
                     )
                     .show()

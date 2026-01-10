@@ -55,7 +55,7 @@
             android:id="@+id/btnFinishedSetup"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Finished Setup"
+            android:text="@string/welcome_btn_finished"
             android:visibility="gone"
             android:layout_marginBottom="16dp"/>
 
@@ -64,7 +64,7 @@
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Already Paired"
+            android:text="@string/welcome_btn_already_paired"
             android:visibility="gone"
             android:layout_marginBottom="16dp"/>
 
@@ -76,7 +76,7 @@
             android:layout_marginBottom="24dp"
             android:visibility="visible"/>
 
-        <!-- Os cards foram removidos para simplificar o processo automático -->
+        <!-- Cards were removed to simplify the automatic process -->
         <View
             android:id="@+id/cardSmartphone"
             android:layout_width="0dp"

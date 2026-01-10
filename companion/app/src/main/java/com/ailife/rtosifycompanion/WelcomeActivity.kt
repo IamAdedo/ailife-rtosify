@@ -221,7 +221,7 @@ class WelcomeActivity : AppCompatActivity() {
 
     // Methods removed as they are now handled in PermissionActivity
 
-    // 5. Finaliza o processo
+    // 5. Finishes the process
     private fun finishSetup(type: String) {
         val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
         prefs.edit { putString("device_type", type) }
@@ -237,8 +237,8 @@ class WelcomeActivity : AppCompatActivity() {
     private fun checkAndRequestPermissions() {
         val permissions = mutableListOf<String>()
 
-        // Solicita permissões de localização apenas em versões onde é obrigatório para pairing/scan (Android 11-)
-        // No Android 12+ usamos o flag 'neverForLocation' no manifesto, então localização é opcional para o setup inicial.
+        // Request location permissions only on versions where it's required for pairing/scan (Android 11-)
+        // On Android 12+ we use the 'neverForLocation' flag in the manifest, so location is optional for initial setup.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
             permissions.add(Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -251,7 +251,7 @@ class WelcomeActivity : AppCompatActivity() {
             permissions.add(Manifest.permission.BLUETOOTH_ADVERTISE)
         }
 
-        // Filtra o que falta
+        // Filter what's missing
         val missing = permissions.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }

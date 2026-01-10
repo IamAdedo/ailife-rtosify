@@ -133,7 +133,7 @@ class BluetoothService : Service() {
 
     @Volatile private var isTransferring: Boolean = false
 
-    // Variáveis de Recepção de Arquivo
+    // File Reception Variables
     private var receiveFile: File? = null
     private var receiveFileOutputStream: FileOutputStream? = null
     private var receiveTotalSize: Long = 0
@@ -144,7 +144,7 @@ class BluetoothService : Service() {
 
     private val notificationMap = ConcurrentHashMap<String, Int>()
 
-    // REFATORAÇÃO: Controle mais robusto de notificações
+    // REFACTORING: More robust notification control
     @Volatile private var currentNotificationStatus: String = ""
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -261,7 +261,7 @@ class BluetoothService : Service() {
 
         const val ACTION_UPDATE_SETTINGS = "com.ailife.rtosify.ACTION_UPDATE_SETTINGS"
 
-        // IDs DISTINTOS para garantir limpeza correta ao trocar de estado
+        // DISTINCT IDs to ensure correct cleanup when changing states
         const val NOTIFICATION_ID_WAITING = 10
         const val NOTIFICATION_ID_CONNECTED = 11
         const val NOTIFICATION_ID_DISCONNECTED = 12
@@ -421,7 +421,7 @@ class BluetoothService : Service() {
             if (Shizuku.pingBinder() &&
                             Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
             ) {
-                Log.i(TAG, "✅ Binding to Shizuku UserService")
+                Log.i(TAG, "Binding to Shizuku UserService")
                 Shizuku.bindUserService(userServiceArgs, userServiceConn)
                 userServiceConnection = userServiceArgs
             } else {
@@ -480,7 +480,7 @@ class BluetoothService : Service() {
             return START_NOT_STICKY
         }
 
-        // CRÍTICO: Chamar startForeground imediatamente para cumprir a promessa feita no
+        // CRITICAL: Call startForeground immediately to fulfill the promise made in the
         // BootReceiver.
         updateForegroundNotification()
 
@@ -512,7 +512,7 @@ class BluetoothService : Service() {
             return START_NOT_STICKY
         }
 
-        // Inicializa lógica se não estiver conectado
+        // Initialize logic if not connected
         if (!isConnected) {
             initializeLogicFromPrefs()
         }
@@ -543,7 +543,7 @@ class BluetoothService : Service() {
         // Tenta habilitar automaticamente
         try {
             if (bluetoothAdapter?.enable() == true) {
-                updateStatus("Enabling Bluetooth...")
+                updateStatus(getString(R.string.status_starting))
                 return false
             }
         } catch (e: Exception) {
@@ -552,7 +552,7 @@ class BluetoothService : Service() {
 
         // Se falhar, solicita ao usuário
         mainHandler.post {
-            Toast.makeText(this, "Bluetooth required. Please enable it.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_bt_required), Toast.LENGTH_SHORT).show()
             try {
                 val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -1013,7 +1013,7 @@ class BluetoothService : Service() {
                         val rawSsid = info.ssid
 
                         if (rawSsid == "<unknown ssid>" || rawSsid.isEmpty()) {
-                            wifiSsid = lastValidWifiSsid.ifEmpty { "Conectado" }
+                            wifiSsid = lastValidWifiSsid.ifEmpty { getString(R.string.status_connected) }
                         } else {
                             val cleanSsid = rawSsid.replace("\"", "")
                             if (cleanSsid != "<unknown ssid>") {
@@ -1022,19 +1022,19 @@ class BluetoothService : Service() {
                             } else if (lastValidWifiSsid.isNotEmpty()) {
                                 wifiSsid = lastValidWifiSsid
                             } else {
-                                wifiSsid = "Conectado"
+                                wifiSsid = getString(R.string.status_connected)
                             }
                         }
                     } else {
                         lastValidWifiSsid = ""
-                        wifiSsid = "Desconectado"
+                        wifiSsid = getString(R.string.status_disconnected)
                     }
                 } else {
                     lastValidWifiSsid = ""
                     wifiSsid = "Wifi Off"
                 }
             } else {
-                wifiSsid = "Sem Permissão"
+                wifiSsid = getString(R.string.status_no_permission)
             }
         } catch (_: Exception) {
             wifiSsid = "Erro Wifi"
@@ -1769,7 +1769,7 @@ class BluetoothService : Service() {
                         PackageManager.PERMISSION_GRANTED
         ) {
             mainHandler.post {
-                Toast.makeText(this, "Permission READ_CALENDAR not granted", Toast.LENGTH_SHORT)
+                Toast.makeText(this, getString(R.string.toast_perm_calendar_not_granted), Toast.LENGTH_SHORT)
                         .show()
             }
             return
@@ -1835,7 +1835,7 @@ class BluetoothService : Service() {
                     mainHandler.post {
                         Toast.makeText(
                                         this@BluetoothService,
-                                        "No upcoming calendar events found",
+                                        getString(R.string.toast_no_calendar_events),
                                         Toast.LENGTH_SHORT
                                 )
                                 .show()
@@ -1938,7 +1938,7 @@ class BluetoothService : Service() {
                     mainHandler.post {
                         Toast.makeText(
                                         this@BluetoothService,
-                                        "No contacts found",
+                                        getString(R.string.toast_no_contacts_found),
                                         Toast.LENGTH_SHORT
                                 )
                                 .show()
@@ -1969,7 +1969,7 @@ class BluetoothService : Service() {
     fun sendFile(file: File, type: String = "REGULAR", remotePath: String? = null) {
         serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             if (!isConnected) {
-                withContext(Dispatchers.Main) { callback?.onError("Não conectado.") }
+                withContext(Dispatchers.Main) { callback?.onError(getString(R.string.status_disconnected)) }
                 return@launch
             }
             isTransferring = true
@@ -2572,10 +2572,10 @@ class BluetoothService : Service() {
                     Triple(
                             NOTIFICATION_ID_CONNECTED,
                             CHANNEL_ID_CONNECTED,
-                            "Conectado a $currentDeviceName"
+                            "Connected to $currentDeviceName"
                     )
             isConnected && currentDeviceName == null ->
-                    Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, "Conectado")
+                    Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, "Connected")
             currentNotificationStatus.contains("Aguardando", ignoreCase = true) ||
                     currentNotificationStatus.contains("Waiting", ignoreCase = true) ||
                     currentNotificationStatus.contains("Escaneando", ignoreCase = true) ||
@@ -2601,7 +2601,7 @@ class BluetoothService : Service() {
         notificationManager.createNotificationChannel(
                 NotificationChannel(
                         CHANNEL_ID_WAITING,
-                        "Notificação persistente - aguardando conexão",
+                        getString(R.string.notif_waiting_channel),
                         NotificationManager.IMPORTANCE_LOW
                 )
         )
@@ -2609,7 +2609,7 @@ class BluetoothService : Service() {
         notificationManager.createNotificationChannel(
                 NotificationChannel(
                         CHANNEL_ID_CONNECTED,
-                        "Notificação persistente - conectado",
+                        getString(R.string.notif_connected_channel),
                         NotificationManager.IMPORTANCE_LOW
                 )
         )
@@ -2749,10 +2749,12 @@ class BluetoothService : Service() {
             )
         }
 
-        val title = if (alertType == "FULL") "Watch Battery Full" else "Watch Battery Low"
+        val title =
+                if (alertType == "FULL") getString(R.string.notif_battery_full_title)
+                else getString(R.string.notif_battery_low_title)
         val text =
-                if (alertType == "FULL") "Watch is fully charged!"
-                else "Watch battery is at $level%."
+                if (alertType == "FULL") getString(R.string.notif_battery_full_text)
+                else getString(R.string.notif_battery_low_text, level)
 
         val intent =
                 Intent(this, MainActivity::class.java).apply {

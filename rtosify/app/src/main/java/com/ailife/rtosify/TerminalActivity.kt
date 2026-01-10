@@ -81,8 +81,8 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             bindService(intent, connection, Context.BIND_AUTO_CREATE)
         }
 
-        appendOutput("RTOSify Terminal v1.0", COLOR_INFO)
-        appendOutput("Connecting to watch...", COLOR_INFO)
+        appendOutput(getString(R.string.terminal_title), COLOR_INFO)
+        appendOutput(getString(R.string.terminal_connecting), COLOR_INFO)
         appendOutput("", COLOR_DEFAULT)
     }
 
@@ -216,7 +216,7 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         )
 
         // Show loading indicator
-        appendOutput("Executing...", COLOR_INFO)
+        appendOutput(getString(R.string.terminal_executing), COLOR_INFO)
     }
 
     private fun shellEscape(path: String): String {
@@ -245,7 +245,7 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
             // Remove "Executing..." on first output
             if (!removedExecutingLine) {
-                if (outputBuilder.toString().endsWith("Executing...\n")) {
+                if (outputBuilder.toString().endsWith(getString(R.string.terminal_executing) + "\n")) {
                     val lines = outputBuilder.toString().split("\n").dropLast(2)
                     outputBuilder.clear()
                     lines.forEach { line ->
@@ -307,7 +307,7 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
                         currentWorkingDir = newDir
                         tvWorkingDir.text = currentWorkingDir
-                        appendOutput("Changed directory to: $currentWorkingDir", COLOR_INFO)
+                        appendOutput(getString(R.string.terminal_changed_dir, currentWorkingDir), COLOR_INFO)
                     }
                 }
             }
@@ -316,8 +316,13 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             val exitCode = completion.exitCode ?: -1
             val statusColor = if (exitCode == 0) COLOR_SUCCESS else COLOR_ERROR
             appendOutput(
-                "Exit code: $exitCode | Time: ${completion.executionTimeMs}ms | " +
-                        "UID: ${completion.uid} (${completion.permissionLevel})",
+                getString(
+                    R.string.terminal_exit_code_format,
+                    exitCode,
+                    completion.executionTimeMs,
+                    completion.uid,
+                    completion.permissionLevel
+                ),
                 statusColor
             )
             appendOutput("", COLOR_DEFAULT)
@@ -336,8 +341,8 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             permissionInfo = info
             updatePermissionUI(info)
 
-            appendOutput("Permission level: ${info.level.uppercase()}", COLOR_INFO)
-            appendOutput("UID: ${info.uid}", COLOR_INFO)
+            appendOutput(getString(R.string.terminal_perm_level, info.level.uppercase()), COLOR_INFO)
+            appendOutput(getString(R.string.terminal_uid_format, info.uid.toString()), COLOR_INFO)
             appendOutput("", COLOR_DEFAULT)
         }
     }
@@ -347,23 +352,23 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         when (info.level) {
             "shizuku" -> {
-                tvPermissionLevel.text = "Shizuku (Shell Access)"
+                tvPermissionLevel.text = getString(R.string.terminal_perm_shizuku)
                 tvPermissionLevel.setTextColor(getColor(android.R.color.holo_green_light))
-                tvUid.text = "UID: ${info.uid}"
+                tvUid.text = getString(R.string.terminal_uid_format, info.uid.toString())
                 tvWarning.visibility = View.GONE
             }
             "root" -> {
-                tvPermissionLevel.text = "Root Access"
+                tvPermissionLevel.text = getString(R.string.terminal_perm_root)
                 tvPermissionLevel.setTextColor(getColor(android.R.color.holo_red_light))
-                tvUid.text = "UID: ${info.uid}"
+                tvUid.text = getString(R.string.terminal_uid_format, info.uid.toString())
                 tvWarning.visibility = View.GONE
             }
             else -> {
-                tvPermissionLevel.text = "App Context (Limited)"
+                tvPermissionLevel.text = getString(R.string.terminal_perm_limited)
                 tvPermissionLevel.setTextColor(getColor(android.R.color.holo_orange_light))
-                tvUid.text = "UID: ${info.uid}"
+                tvUid.text = getString(R.string.terminal_uid_format, info.uid.toString())
                 tvWarning.visibility = View.VISIBLE
-                tvWarning.text = "⚠ Limited permissions - some commands may fail"
+                tvWarning.text = getString(R.string.terminal_warning_limited)
             }
         }
     }
@@ -397,7 +402,7 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     override fun onDeviceConnected(deviceName: String) {}
     override fun onDeviceDisconnected() {
         runOnUiThread {
-            appendOutput("Disconnected from watch", COLOR_ERROR)
+            appendOutput(getString(R.string.terminal_disconnected), COLOR_ERROR)
         }
     }
     override fun onError(message: String) {}

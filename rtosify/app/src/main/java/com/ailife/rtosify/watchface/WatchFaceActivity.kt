@@ -72,7 +72,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
         tabLayout = findViewById(R.id.tabLayout)
         tabLayout.addTab(tabLayout.newTab().setText(R.string.wf_tab_store))
         tabLayout.addTab(tabLayout.newTab().setText(R.string.wf_tab_watch))
-        tabLayout.addTab(tabLayout.newTab().setText("Local"))
+        tabLayout.addTab(tabLayout.newTab().setText(getString(R.string.wf_local)))
 
         tabLayout.addOnTabSelectedListener(
                 object : TabLayout.OnTabSelectedListener {
@@ -212,7 +212,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
             return
         }
 
-        showProgressDialog("Transferring ${file.name}...")
+        showProgressDialog(getString(R.string.wf_transferring, file.name))
         // Specify remote restricted path
         val remotePath = "Android/data/com.ailife.ClockSkinCoco/files/ClockSkin/${file.name}"
         service.sendFile(file, FileTransferData.TYPE_WATCHFACE, remotePath)
@@ -301,9 +301,9 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
             destFile.outputStream().use { output -> inputStream.copyTo(output) }
             // File saved, will auto-transfer after download complete
             localFragment.refresh()
-            Toast.makeText(this, "Imported ${fileName}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.wf_import_success, fileName), Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Toast.makeText(this, "Import failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.wf_import_fail, e.message), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -311,7 +311,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
         // Send command to watch to set watch face via Bluetooth
         val msg = com.ailife.rtosify.ProtocolHelper.createSetWatchFace(relPath)
         bluetoothService?.sendMessage(msg)
-        Toast.makeText(this, "Setting watch face: $relPath", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.wf_setting, relPath), Toast.LENGTH_SHORT).show()
     }
 
     private fun getFileName(uri: Uri): String? {
@@ -345,7 +345,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
             if (progress >= 100 || progress < 0) {
                 dismissProgressDialog()
                 if (progress == 100) {
-                    Toast.makeText(this, "Transfer complete", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.wf_transfer_complete), Toast.LENGTH_SHORT).show()
                 }
             } else {
                 progressDialog?.findViewById<android.widget.ProgressBar>(R.id.progressBarUpload)

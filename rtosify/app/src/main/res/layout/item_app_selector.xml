@@ -13,7 +13,7 @@
         android:id="@+id/tvAppName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="App Name"
+        android:text="@string/app_name_placeholder"
         android:textSize="16sp"
         android:textStyle="bold"
         android:textColor="?android:attr/textColorPrimary"/>
@@ -22,7 +22,7 @@
         android:id="@+id/tvPackageName"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="com.example.app"
+        android:text="@string/app_package_placeholder"
         android:textSize="13sp"
         android:layout_marginTop="2dp"
         android:textColor="?android:attr/textColorSecondary"/>

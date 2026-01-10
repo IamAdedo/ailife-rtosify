@@ -67,7 +67,7 @@ class MediaControlActivity : Activity() {
                 bluetoothService?.sendMediaCommand(command)
                 // Toast removed as requested
             } else {
-                Toast.makeText(this, "Not connected", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.toast_not_connected), Toast.LENGTH_SHORT).show()
             }
         }
     }

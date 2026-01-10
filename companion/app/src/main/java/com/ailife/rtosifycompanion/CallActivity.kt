@@ -57,7 +57,7 @@ class CallActivity : Activity() {
         tvStatus = findViewById(R.id.tv_call_status)
 
         val name = intent.getStringExtra("callerId") ?: getString(R.string.device_name_default)
-        val number = intent.getStringExtra("number") ?: "Unknown"
+        val number = intent.getStringExtra("number") ?: getString(R.string.call_unknown)
 
         tvName.text = name
         tvNumber.text = number
@@ -80,7 +80,7 @@ class CallActivity : Activity() {
             bluetoothService?.sendRejectCall()
             finish()
         } else {
-            Toast.makeText(this, "Not connected", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_not_connected), Toast.LENGTH_SHORT).show()
             finish()
         }
     }
@@ -88,12 +88,12 @@ class CallActivity : Activity() {
     private fun answerCall() {
         if (isBound && bluetoothService?.isConnected == true) {
             bluetoothService?.sendAnswerCall()
-            tvStatus.text = "Answered"
+            tvStatus.text = getString(R.string.call_answered)
             // We might want to finish or stay to show call duration, 
             // but for now let's finish as the phone takes over.
             finish()
         } else {
-            Toast.makeText(this, "Not connected", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_not_connected), Toast.LENGTH_SHORT).show()
             finish()
         }
     }

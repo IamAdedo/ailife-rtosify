@@ -74,7 +74,7 @@ class MirroringService : Service() {
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Screen Mirroring",
+            getString(R.string.mirror_notif_title),
             NotificationManager.IMPORTANCE_LOW
         )
         val manager = getSystemService(NotificationManager::class.java)
@@ -84,8 +84,8 @@ class MirroringService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // Android 14+ requires calling startForeground() almost immediately
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Screen Mirroring")
-            .setContentText("Mirroring screen...")
+            .setContentTitle(getString(R.string.mirror_notif_title))
+            .setContentText(getString(R.string.mirror_notif_text))
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)

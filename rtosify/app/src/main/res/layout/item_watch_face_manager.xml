@@ -28,7 +28,7 @@
             android:ellipsize="end"
             android:gravity="center"
             android:maxLines="2"
-            android:text="Watch Face Name"
+            android:text="@string/wf_name_placeholder"
             android:textSize="12sp" />
 
         <LinearLayout

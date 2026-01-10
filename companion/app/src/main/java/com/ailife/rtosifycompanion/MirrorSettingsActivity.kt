@@ -57,7 +57,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
             val metrics = resources.displayMetrics
             bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(metrics.widthPixels, metrics.heightPixels, metrics.densityDpi))
             
-            btnStartMirror.text = "Stop Mirroring"
+            btnStartMirror.text = getString(R.string.mirror_stop)
         }
     }
 
@@ -122,7 +122,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
                 } else {
                     bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(0, 0, 0, isRequest = true))
                 }
-                Toast.makeText(this, "Requesting phone screen...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.mirror_requesting), Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -153,7 +153,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
     private fun stopWatchMirroring() {
         val intent = Intent(this, MirroringService::class.java)
         stopService(intent)
-        btnStartMirror.text = "Start Mirroring"
+        btnStartMirror.text = getString(R.string.mirror_start)
     }
 
     private fun bindToService() {
@@ -165,23 +165,23 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
         if (bluetoothService?.isConnected == true) {
             action()
         } else {
-            Toast.makeText(this, "Phone not connected", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.status_phone_not_connected), Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun updateUI(isConnected: Boolean) {
         if (isConnected) {
-            tvStatus.text = "Connected to Phone"
+            tvStatus.text = getString(R.string.status_phone_connected)
             tvStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_light))
         } else {
-            tvStatus.text = "Phone not connected"
+            tvStatus.text = getString(R.string.status_phone_not_connected)
             tvStatus.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_light))
         }
 
         if (MirroringService.isRunning) {
-            btnStartMirror.text = "Stop Mirroring"
+            btnStartMirror.text = getString(R.string.mirror_stop)
         } else {
-            btnStartMirror.text = "Start Mirroring"
+            btnStartMirror.text = getString(R.string.mirror_start)
         }
     }
 

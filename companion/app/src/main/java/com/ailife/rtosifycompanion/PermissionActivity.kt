@@ -311,8 +311,8 @@ class PermissionActivity : AppCompatActivity() {
         perms.add(
                 PermissionItem(
                         "WRITE_SETTINGS",
-                        "Write System Settings",
-                        "Required for immediate WiFi connection",
+                        getString(R.string.perm_write_settings),
+                        getString(R.string.perm_write_settings_desc),
                         hasWriteSettings
                 )
         )
@@ -325,8 +325,8 @@ class PermissionActivity : AppCompatActivity() {
         perms.add(
                 PermissionItem(
                         "OVERLAY",
-                        "Display over other apps",
-                        "Required for Dynamic Island notification overlay",
+                        getString(R.string.perm_overlay),
+                        getString(R.string.perm_overlay_desc),
                         hasOverlay
                 )
         )
@@ -362,25 +362,25 @@ class PermissionActivity : AppCompatActivity() {
         perms.add(
                 PermissionItem(
                         "BATTERY_STATS",
-                        "Battery Stats",
-                        "Access real per-app battery consumption data (Android 12+)",
+                        getString(R.string.perm_battery_stats),
+                        getString(R.string.perm_battery_stats_desc),
                         hasBatteryStats
                 )
         )
 
         // 19. Dump Permission (Direct Dumpsys)
         val hasDump =
-                try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     packageManager.checkPermission("android.permission.DUMP", packageName) ==
                             PackageManager.PERMISSION_GRANTED
-                } catch (e: Exception) {
+                } else {
                     false
                 }
         perms.add(
                 PermissionItem(
                         "DUMP",
-                        "System Dump",
-                        "Directly access system stats for robust data (Method 2)",
+                        getString(R.string.perm_dump),
+                        getString(R.string.perm_dump_desc),
                         hasDump
                 )
         )
@@ -404,8 +404,8 @@ class PermissionActivity : AppCompatActivity() {
         perms.add(
                 PermissionItem(
                         "LOCKSCREEN",
-                        "Show on Lock Screen",
-                        "Required for Dynamic Island on lock screen (Xiaomi/MIUI)",
+                        getString(R.string.perm_lock_screen),
+                        getString(R.string.perm_lock_screen_desc),
                         true
                 )
         ) // Shown as granted as it's guidance
@@ -577,7 +577,7 @@ class PermissionActivity : AppCompatActivity() {
                 startActivity(intent)
                 android.widget.Toast.makeText(
                                 this,
-                                "Enable 'Show on Lock screen' in Permissions",
+                                getString(R.string.perm_toast_lock_screen_instruction),
                                 android.widget.Toast.LENGTH_LONG
                         )
                         .show()
@@ -607,17 +607,17 @@ class PermissionActivity : AppCompatActivity() {
 
     private fun showBatteryStatsDialog() {
         showPermissionDialog(
-                "Battery Stats",
+                getString(R.string.perm_battery_stats),
                 "android.permission.BATTERY_STATS",
-                "This permission allows access to real per-app battery consumption data."
+                getString(R.string.perm_battery_stats_desc)
         )
     }
 
     private fun showDumpDialog() {
         showPermissionDialog(
-                "Dump Permission",
+                getString(R.string.perm_dump),
                 "android.permission.DUMP",
-                "This permission allows direct access to system dumpsys for robust battery stats collection."
+                getString(R.string.perm_dump_desc)
         )
     }
 
@@ -627,8 +627,8 @@ class PermissionActivity : AppCompatActivity() {
         val dialog =
                 android.app.AlertDialog.Builder(this)
                         .setTitle(title)
-                        .setMessage("$desc\n\nChoose activation method:")
-                        .setPositiveButton("Copy ADB Command") { _, _ ->
+                        .setMessage("$desc\n\n" + getString(R.string.perm_dialog_activation_method))
+                        .setPositiveButton(R.string.perm_button_copy_adb) { _, _ ->
                             val clipboard =
                                     getSystemService(Context.CLIPBOARD_SERVICE) as
                                             android.content.ClipboardManager
@@ -637,15 +637,15 @@ class PermissionActivity : AppCompatActivity() {
                             clipboard.setPrimaryClip(clip)
                             android.widget.Toast.makeText(
                                             this,
-                                            "Command copied! Run it on your computer.",
+                                            getString(R.string.perm_toast_command_copied),
                                             android.widget.Toast.LENGTH_LONG
                                     )
                                     .show()
                         }
-                        .setNeutralButton("Activate with Shizuku") { _, _ ->
+                        .setNeutralButton(R.string.perm_button_activate_shizuku) { _, _ ->
                             grantPermissionWithShizuku(permission)
                         }
-                        .setNegativeButton("Cancel", null)
+                        .setNegativeButton(android.R.string.cancel, null)
                         .create()
         dialog.show()
     }
@@ -663,7 +663,7 @@ class PermissionActivity : AppCompatActivity() {
             if (!hasRoot && !hasShizuku) {
                 android.widget.Toast.makeText(
                                 this,
-                                "Root or Shizuku required.",
+                                getString(R.string.perm_toast_root_shizuku_required),
                                 android.widget.Toast.LENGTH_SHORT
                         )
                         .show()
@@ -672,7 +672,7 @@ class PermissionActivity : AppCompatActivity() {
 
             android.widget.Toast.makeText(
                             this,
-                            "Granting $permission...",
+                            getString(R.string.perm_toast_granting, permission),
                             android.widget.Toast.LENGTH_SHORT
                     )
                     .show()
@@ -907,7 +907,7 @@ class PermissionActivity : AppCompatActivity() {
         android.app.AlertDialog.Builder(this)
                 .setTitle(R.string.perm_restricted_title)
                 .setMessage(R.string.perm_restricted_desc)
-                .setPositiveButton("Copy ADB Command") { _, _ ->
+                .setPositiveButton(R.string.perm_button_copy_adb) { _, _ ->
                     val clipboard =
                             getSystemService(Context.CLIPBOARD_SERVICE) as
                                     android.content.ClipboardManager
@@ -915,13 +915,13 @@ class PermissionActivity : AppCompatActivity() {
                     clipboard.setPrimaryClip(clip)
                     android.widget.Toast.makeText(
                                     this,
-                                    "Command copied! Run it on your computer.",
+                                    getString(R.string.perm_toast_command_copied),
                                     android.widget.Toast.LENGTH_LONG
                             )
                             .show()
                 }
-                .setNeutralButton("Open Settings") { _, _ -> startActivity(intent) }
-                .setNegativeButton("Activate with Shizuku") { _, _ ->
+                .setNeutralButton(R.string.welcome_perms_title) { _, _ -> startActivity(intent) }
+                .setNegativeButton(R.string.perm_button_activate_shizuku) { _, _ ->
                     grantRestrictedSettingsWithShizuku()
                 }
                 .show()
@@ -937,7 +937,7 @@ class PermissionActivity : AppCompatActivity() {
             if (!hasRoot && !hasShizuku) {
                 android.widget.Toast.makeText(
                                 this,
-                                "Root or Shizuku required.",
+                                getString(R.string.perm_toast_root_shizuku_required),
                                 android.widget.Toast.LENGTH_SHORT
                         )
                         .show()
@@ -946,7 +946,7 @@ class PermissionActivity : AppCompatActivity() {
 
             android.widget.Toast.makeText(
                             this,
-                            "Granting restricted settings...",
+                            getString(R.string.perm_toast_granting, "restricted settings"),
                             android.widget.Toast.LENGTH_SHORT
                     )
                     .show()
@@ -1041,7 +1041,7 @@ class PermissionActivity : AppCompatActivity() {
                     } catch (e: Exception) {
                         android.widget.Toast.makeText(
                                         this,
-                                        "Failed to open settings",
+                                        getString(R.string.perm_toast_failed_open_settings),
                                         android.widget.Toast.LENGTH_SHORT
                                 )
                                 .show()
@@ -1055,7 +1055,7 @@ class PermissionActivity : AppCompatActivity() {
                     clipboard.setPrimaryClip(clip)
                     android.widget.Toast.makeText(
                                     this,
-                                    "Command copied!",
+                                    getString(R.string.perm_toast_command_copied_simple),
                                     android.widget.Toast.LENGTH_SHORT
                             )
                             .show()
@@ -1079,7 +1079,7 @@ class PermissionActivity : AppCompatActivity() {
             if (!hasRoot && !hasShizuku) {
                 android.widget.Toast.makeText(
                                 this,
-                                "Root or Shizuku required.",
+                                getString(R.string.perm_toast_root_shizuku_required),
                                 android.widget.Toast.LENGTH_SHORT
                         )
                         .show()
@@ -1088,7 +1088,7 @@ class PermissionActivity : AppCompatActivity() {
 
             android.widget.Toast.makeText(
                             this,
-                            "Granting permission...",
+                            getString(R.string.perm_toast_granting, "permission"),
                             android.widget.Toast.LENGTH_SHORT
                     )
                     .show()
@@ -1104,7 +1104,7 @@ class PermissionActivity : AppCompatActivity() {
                                 if (exitCode == 0) {
                                     android.widget.Toast.makeText(
                                                     this,
-                                                    "Permission granted!",
+                                                    getString(R.string.perm_toast_granted),
                                                     android.widget.Toast.LENGTH_SHORT
                                             )
                                             .show()
@@ -1112,7 +1112,7 @@ class PermissionActivity : AppCompatActivity() {
                                 } else {
                                     android.widget.Toast.makeText(
                                                     this,
-                                                    "Failed (Code: $exitCode).",
+                                                    getString(R.string.perm_toast_failed, exitCode),
                                                     android.widget.Toast.LENGTH_LONG
                                             )
                                             .show()

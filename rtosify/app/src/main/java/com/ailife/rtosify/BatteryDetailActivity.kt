@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.edit
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import java.util.Locale
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
@@ -161,7 +162,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         tvUsageEmpty = findViewById(R.id.tvUsageEmpty)
 
         chartCurrent = findViewById(R.id.chartCurrent) // Init New Chart
-        setupChart(chartCurrent, "Current (mA)")
+        setupChart(chartCurrent, getString(R.string.battery_label_current))
         seekbarLowThreshold = findViewById(R.id.seekbarLowThreshold)
         tvUsageEmpty = findViewById(R.id.tvUsageEmpty)
 
@@ -171,13 +172,13 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         rvAppUsage.adapter = appUsageAdapter
 
         // Chart Styling
-        setupChart(chartBattery, "Battery Level")
+        setupChart(chartBattery, getString(R.string.battery_label_level))
     }
 
     private fun setupChart(chart: LineChart, label: String) {
         chart.description.isEnabled = false
         chart.setTouchEnabled(false)
-        chart.setNoDataText("No history available")
+        chart.setNoDataText(getString(R.string.battery_no_history))
         chart.setNoDataTextColor(android.graphics.Color.GRAY)
 
         val textColor = android.graphics.Color.WHITE
@@ -200,7 +201,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
                         val diffHours = Math.abs(diffMillis) / (1000 * 3600)
 
                         return if (Math.abs(diffMillis) < 5 * 60 * 1000) {
-                            "Now"
+                            getString(R.string.time_just_now)
                         } else if (diffHours > 0 && diffHours % 6 == 0L) {
                             "-${diffHours}h"
                         } else {
@@ -228,7 +229,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
                     ) {
                         if (fromUser) {
                             val value = if (progress < 5) 5 else progress
-                            tvLowThresholdTitle.text = "Notify below $value%"
+                            tvLowThresholdTitle.text = getString(R.string.battery_notify_below, value)
                         }
                     }
 
@@ -251,7 +252,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         switchNotifyLow.isChecked = notifyLow
         switchDetailedLog.isChecked = detailedLog
         seekbarLowThreshold.progress = lowThreshold
-        tvLowThresholdTitle.text = "Notify below $lowThreshold%"
+        tvLowThresholdTitle.text = getString(R.string.battery_notify_below, lowThreshold)
     }
 
     private fun saveAndSendSettings() {
@@ -294,9 +295,9 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
 
             val statusText =
                     when {
-                        mergedData.isCharging && mergedData.batteryLevel >= 100 -> "Full"
-                        mergedData.isCharging -> "Charging"
-                        else -> "Discharging"
+                        mergedData.isCharging && mergedData.batteryLevel >= 100 -> getString(R.string.battery_charging_full)
+                        mergedData.isCharging -> getString(R.string.battery_charging)
+                        else -> getString(R.string.battery_discharging)
                     }
             tvChargingStatus.text = statusText
 
@@ -311,15 +312,15 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
                 if (timeHistory.size > 10) timeHistory.removeAt(0)
 
                 if (timeHistory.size < 10) {
-                    tvRemainingTime.text = "Calculating..."
+                    tvRemainingTime.text = getString(R.string.battery_calculating)
                 } else {
                     val avgMillis = timeHistory.average().toLong()
                     val hours = avgMillis / (1000 * 60 * 60)
                     val mins = (avgMillis / (1000 * 60)) % 60
                     val timeStr = if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
                     tvRemainingTime.text =
-                            if (mergedData.isCharging) "$timeStr until full"
-                            else "$timeStr remaining"
+                            if (mergedData.isCharging) getString(R.string.battery_until_full, timeStr)
+                            else getString(R.string.battery_remaining, timeStr)
                 }
                 tvRemainingTime.visibility = View.VISIBLE
             }
@@ -337,14 +338,14 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
                     } else {
                         currentVal.toDouble()
                     }
-            tvCurrentNow.text = String.format("%.1f mA", displayCurrent)
-            tvVoltage.text = "${mergedData.voltage} mV"
+            tvCurrentNow.text = String.format(Locale.getDefault(), getString(R.string.battery_current_unit), displayCurrent)
+            tvVoltage.text = getString(R.string.battery_voltage_unit, mergedData.voltage)
 
             if (mergedData.temperature != 0) {
                 val tempC = mergedData.temperature / 10.0
-                tvTemperature.text = String.format("%.1f °C", tempC)
+                tvTemperature.text = String.format(Locale.getDefault(), getString(R.string.battery_temp_unit), tempC)
             } else {
-                tvTemperature.text = "-- °C"
+                tvTemperature.text = getString(R.string.battery_temp_placeholder)
             }
 
             if (mergedData.capacity > 0) {
@@ -354,7 +355,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
                                 mergedData.capacity.toInt().toString()
                         )
             } else {
-                tvCapacity.text = "-- mAh"
+                tvCapacity.text = getString(R.string.battery_capacity_placeholder)
             }
 
             if (mergedData.history.isNotEmpty()) {
@@ -383,19 +384,19 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
 
     private fun showSortMenu() {
         val popup = android.widget.PopupMenu(this, btnSortUsage)
-        popup.menu.add("Usage Time")
-        popup.menu.add("Battery Used (mAh)")
-        popup.menu.add("Drain Speed (mA)")
+        popup.menu.add(getString(R.string.battery_sort_usage_time))
+        popup.menu.add(getString(R.string.battery_sort_power))
+        popup.menu.add(getString(R.string.battery_sort_speed))
 
         popup.setOnMenuItemClickListener { item ->
             val order =
                     when (item.title) {
-                        "Usage Time" -> AppUsageAdapter.SortOrder.TIME
-                        "Battery Used (mAh)" -> AppUsageAdapter.SortOrder.POWER
-                        "Drain Speed (mA)" -> AppUsageAdapter.SortOrder.SPEED
+                        getString(R.string.battery_sort_usage_time) -> AppUsageAdapter.SortOrder.TIME
+                        getString(R.string.battery_sort_power) -> AppUsageAdapter.SortOrder.POWER
+                        getString(R.string.battery_sort_speed) -> AppUsageAdapter.SortOrder.SPEED
                         else -> AppUsageAdapter.SortOrder.TIME
                     }
-            btnSortUsage.text = "Sort by ${item.title}"
+            btnSortUsage.text = getString(R.string.battery_sort_by, item.title)
             currentBatteryData?.appUsage?.let { appUsageAdapter.updateData(it, order) }
             true
         }
@@ -417,7 +418,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
             entries.add(Entry(relTime, point.level.toFloat()))
         }
 
-        val dataSet = LineDataSet(entries, "Battery Level")
+        val dataSet = LineDataSet(entries, getString(R.string.battery_label_level))
         dataSet.color = android.graphics.Color.parseColor("#00E676")
         dataSet.setDrawCircles(false)
         dataSet.setDrawValues(false)
@@ -454,7 +455,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
             entries.add(Entry(relTime, currentMa))
         }
 
-        val dataSet = LineDataSet(entries, "Current (mA)")
+        val dataSet = LineDataSet(entries, getString(R.string.battery_label_current))
         dataSet.color = android.graphics.Color.parseColor("#2196F3") // Blue
         dataSet.setDrawCircles(false)
         dataSet.setDrawValues(false)

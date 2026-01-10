@@ -27,7 +27,7 @@ class WatchFilesFragment : Fragment() {
         
         recyclerView = view.findViewById(R.id.recyclerView)
         tvEmpty = TextView(context).apply {
-            text = "No watch faces found on watch"
+            text = getString(R.string.wf_no_faces_on_watch)
             visibility = View.GONE
             gravity = android.view.Gravity.CENTER
             setPadding(0, 50, 0, 0)

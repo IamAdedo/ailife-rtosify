@@ -526,7 +526,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         // Update UI
         tvCurrentValue.text = "--"
         tvLastMeasured.text = getString(R.string.health_measuring)
-        btnMeasureNow.text = "Stop"
+        btnMeasureNow.text = getString(R.string.health_button_stop)
         Toast.makeText(this, getString(R.string.health_measuring), Toast.LENGTH_SHORT).show()
     }
 
@@ -537,7 +537,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         isLiveMeasuring = false
 
         // Restore button text
-        btnMeasureNow.text = "Measure"
+        btnMeasureNow.text = getString(R.string.health_button_measure)
     }
 
     private fun updateChart(historyData: HealthHistoryResponse) {
@@ -687,9 +687,9 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         val max = nonZeroValues.maxOrNull() ?: 0f
         val avg = nonZeroValues.average().toFloat()
 
-        tvMinValue.text = String.format("%.0f", min)
-        tvAvgValue.text = String.format("%.0f", avg)
-        tvMaxValue.text = String.format("%.0f", max)
+        tvMinValue.text = String.format(Locale.getDefault(), "%.0f", min)
+        tvAvgValue.text = String.format(Locale.getDefault(), "%.0f", avg)
+        tvMaxValue.text = String.format(Locale.getDefault(), "%.0f", max)
     }
 
     private fun updateStepCards(dataPoints: List<HealthDataPoint>) {
@@ -699,9 +699,9 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         val distanceKm = (totalSteps * 0.0007f) // Approx 0.7m per step
         val calories = (totalSteps * 0.04f).toInt() // Approx 0.04 calories per step
 
-        tvTotalSteps.text = String.format("%,d", totalSteps)
-        tvTotalDistance.text = String.format("%.1f km", distanceKm)
-        tvTotalCalories.text = calories.toString()
+        tvTotalSteps.text = String.format(Locale.getDefault(), "%,d", totalSteps)
+        tvTotalDistance.text = getString(R.string.health_dist_unit, distanceKm)
+        tvTotalCalories.text = getString(R.string.health_calories_unit, calories)
 
         // Update goal progress
         if (currentGoal != null) {
@@ -730,8 +730,8 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             if (value != null) {
                 val unit =
                         when (healthType) {
-                            "HEART_RATE" -> " bpm"
-                            "OXYGEN" -> "%"
+                            "HEART_RATE" -> getString(R.string.health_hr_unit)
+                            "OXYGEN" -> getString(R.string.health_oxygen_unit)
                             else -> ""
                         }
                 tvCurrentValue.text = "$value$unit"
@@ -741,7 +741,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
                 }
             } else {
                 tvCurrentValue.text = "--"
-                tvLastMeasured.text = "No recent data"
+                tvLastMeasured.text = getString(R.string.health_no_recent_data)
             }
         }
     }
@@ -760,8 +760,8 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     private fun getChartLabel(): String {
         return when (healthType) {
             "STEPS" -> getString(R.string.health_steps)
-            "HEART_RATE" -> "Heart Rate (bpm)"
-            "OXYGEN" -> "Blood Oxygen (%)"
+            "HEART_RATE" -> getString(R.string.health_hr_label)
+            "OXYGEN" -> getString(R.string.health_oxygen_label)
             else -> ""
         }
     }
@@ -894,7 +894,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
 
                 // Show "Measuring..." while session is active
                 if (isLiveMeasuring && healthData.isInstant) {
-                    tvLastMeasured.text = "Measuring..."
+                    tvLastMeasured.text = getString(R.string.health_measuring)
                 }
             }
 
@@ -903,15 +903,15 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
                 if (isLiveMeasuring) {
                     val message =
                             when (error) {
-                                "FALL" -> "Checking sensor contact..."
-                                "HARDWARE" -> "Hardware busy or error"
-                                "APP_NOT_INSTALLED" -> "Tracker app not installed"
-                                "NO_DATA" -> "Measurement timed out"
-                                else -> "Error: $error"
+                                "FALL" -> getString(R.string.health_sensor_contact)
+                                "HARDWARE" -> getString(R.string.health_hardware_error)
+                                "APP_NOT_INSTALLED" -> getString(R.string.health_tracker_not_installed)
+                                "NO_DATA" -> getString(R.string.health_measure_timeout)
+                                else -> getString(R.string.health_error_prefix, error)
                             }
                     Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                     isLiveMeasuring = false
-                    btnMeasureNow.text = "Measure"
+                    btnMeasureNow.text = getString(R.string.health_button_measure)
                     updateCurrentValueCard() // Reset display
                 }
                 return@runOnUiThread
@@ -931,7 +931,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
 
             // Stop measuring state since we received the stable value
             isLiveMeasuring = false
-            btnMeasureNow.text = "Measure"
+            btnMeasureNow.text = getString(R.string.health_button_measure)
 
             // Add live data point to chart
             val timestamp = System.currentTimeMillis() / 1000
@@ -952,7 +952,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             if (settings.errorState == "PERMISSION_DENIED") {
                 Toast.makeText(
                                 this,
-                                "Please enable 'Settings API' in the health app settings",
+                                getString(R.string.health_settings_api_error),
                                 Toast.LENGTH_LONG
                         )
                         .show()

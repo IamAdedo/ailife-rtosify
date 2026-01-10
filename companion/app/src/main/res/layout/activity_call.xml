@@ -11,7 +11,7 @@
         android:id="@+id/tv_caller_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Unknown"
+        android:text="@string/call_unknown"
         android:textColor="@android:color/white"
         android:textSize="22sp"
         android:textStyle="bold"
@@ -33,7 +33,7 @@
         android:id="@+id/tv_call_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Incoming Call"
+        android:text="@string/call_incoming"
         android:textColor="@android:color/holo_green_light"
         android:textSize="12sp"
         android:layout_marginTop="12dp"
@@ -55,7 +55,7 @@
             android:src="@android:drawable/ic_menu_close_clear_cancel"
             android:scaleType="centerInside"
             android:padding="12dp"
-            android:contentDescription="Reject" />
+            android:contentDescription="@string/call_reject" />
 
         <Space
             android:layout_width="24dp"
@@ -70,7 +70,7 @@
             android:src="@android:drawable/ic_menu_call"
             android:scaleType="centerInside"
             android:padding="12dp"
-            android:contentDescription="Answer" />
+            android:contentDescription="@string/call_answer" />
 
     </LinearLayout>
 

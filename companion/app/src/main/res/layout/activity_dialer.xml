@@ -38,9 +38,9 @@
         <Button android:text="8" style="@style/DialerButton"/>
         <Button android:text="9" style="@style/DialerButton"/>
 
-        <Button android:id="@+id/btn_delete" android:text="DEL" style="@style/DialerButton"/>
+        <Button android:id="@+id/btn_delete" android:text="@string/dialer_delete" style="@style/DialerButton"/>
         <Button android:text="0" style="@style/DialerButton"/>
-        <Button android:id="@+id/btn_call" android:text="CALL" style="@style/DialerButton" android:textColor="@android:color/holo_green_light"/>
+        <Button android:id="@+id/btn_call" android:text="@string/dialer_call" style="@style/DialerButton" android:textColor="@android:color/holo_green_light"/>
 
     </GridLayout>
 

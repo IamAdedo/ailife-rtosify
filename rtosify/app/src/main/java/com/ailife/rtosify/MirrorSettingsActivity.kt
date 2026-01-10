@@ -74,7 +74,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
                     )
 
                     // Update button state
-                    btnStartMirror.text = "Stop Mirroring"
+                    btnStartMirror.text = getString(R.string.mirror_stop)
                 }
             }
 
@@ -160,7 +160,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
                             ProtocolHelper.createMirrorStart(0, 0, 0, isRequest = true)
                     )
                 }
-                Toast.makeText(this, "Requesting watch screen...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.mirror_requesting_watch), Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -193,7 +193,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
     private fun stopPhoneMirroring() {
         val intent = Intent(this, MirroringService::class.java)
         stopService(intent)
-        btnStartMirror.text = "Start Mirroring"
+        btnStartMirror.text = getString(R.string.mirror_start)
     }
 
     private fun bindToService() {
@@ -222,9 +222,9 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
         }
 
         if (MirroringService.isRunning) {
-            btnStartMirror.text = "Stop Mirroring"
+            btnStartMirror.text = getString(R.string.mirror_stop)
         } else {
-            btnStartMirror.text = "Start Mirroring"
+            btnStartMirror.text = getString(R.string.mirror_start)
         }
     }
 

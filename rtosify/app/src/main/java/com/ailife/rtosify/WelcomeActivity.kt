@@ -10,6 +10,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -50,7 +51,7 @@ class WelcomeActivity : AppCompatActivity() {
             registerForActivityResult(ScanContract()) { result ->
                 if (result.contents != null) {
                     val qrData = result.contents
-                    android.util.Log.d("Welcome", "QR Scanned: $qrData")
+                    Log.d("Welcome", getString(R.string.welcome_qr_scanned, qrData))
 
                     // Check if it's the new format (CODE-ANDROIDID) or old format (MAC address)
                     val macRegex = Regex("^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$")
@@ -255,7 +256,7 @@ class WelcomeActivity : AppCompatActivity() {
             // Wait a bit to ensure UI updates
             delay(1000)
 
-            // Tenta encontrar um relógio já pareado
+            // Tries to find an already paired watch
             val bondedDevices =
                     try {
                         adapter.bondedDevices.toList()
@@ -267,7 +268,7 @@ class WelcomeActivity : AppCompatActivity() {
             android.util.Log.d("Welcome", "Bonded devices found: ${bondedDevices.size}")
 
             if (bondedDevices.isNotEmpty()) {
-                // Filtra possíveis relógios
+                // Filters potential watches
                 val candidates =
                         bondedDevices.filter {
                             val name = it.name ?: ""
@@ -278,12 +279,12 @@ class WelcomeActivity : AppCompatActivity() {
                         }
 
                 if (candidates.size == 1) {
-                    // Se houver apenas UM candidato provável, usa ele direto
+                    // If there is only ONE likely candidate, use it directly
                     val watch = candidates.first()
                     android.util.Log.d("Welcome", "Automatic match: ${watch.name}")
                     completeSetupWithDevice(watch)
                 } else {
-                    // Se houver vários ou nenhum óbvio, deixa o usuário escolher
+                    // If there are many or no obvious ones, let the user choose
                     progressBar.visibility = android.view.View.GONE
                     btnRetry.visibility = android.view.View.VISIBLE
 
@@ -518,7 +519,7 @@ class WelcomeActivity : AppCompatActivity() {
 
     // Methods removed as they are now handled in PermissionActivity
 
-    // 5. Finaliza o processo
+    // 5. Finalize the process
     private fun finishSetup(type: String) {
         val globalPrefs = devicePrefManager.getGlobalPrefs()
         globalPrefs.edit().putString("device_type", type).commit()
@@ -538,23 +539,23 @@ class WelcomeActivity : AppCompatActivity() {
     private fun checkAndRequestPermissions() {
         val permissions = mutableListOf<String>()
 
-        // Solicita permissões de localização apenas em versões onde é obrigatório para pairing/scan
+        // Request location permissions only on versions where it's mandatory for pairing/scan
         // (Android 11-)
-        // No Android 12+ usamos o flag 'neverForLocation' no manifesto, então localização é
-        // opcional para o setup inicial.
+        // On Android 12+ we use the 'neverForLocation' flag in the manifest, so location is
+        // optional for initial setup.
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
             permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
             permissions.add(Manifest.permission.ACCESS_COARSE_LOCATION)
         }
 
-        // Permissões de Bluetooth específicas do Android 12+
+        // Bluetooth permissions specific to Android 12+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             permissions.add(Manifest.permission.BLUETOOTH_SCAN)
             permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
             permissions.add(Manifest.permission.BLUETOOTH_ADVERTISE)
         }
 
-        // Filtra o que falta
+        // Filter what is missing
         val missing =
                 permissions.filter {
                     ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED

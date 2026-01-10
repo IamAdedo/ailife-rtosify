@@ -31,7 +31,7 @@
                 android:id="@+id/tvPermTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Permission Title"
+                android:text="@string/perm_title_placeholder"
                 android:textSize="18sp"
                 android:textStyle="bold" />
 
@@ -39,7 +39,7 @@
                 android:id="@+id/tvPermDesc"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Description of where is used."
+                android:text="@string/perm_desc_placeholder"
                 android:textSize="14sp"
                 android:alpha="0.7" />
 
@@ -47,7 +47,7 @@
                 android:id="@+id/tvStatusText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Granted"
+                android:text="@string/perm_granted"
                 android:textSize="12sp"
                 android:textStyle="italic"
                 android:textColor="?attr/colorPrimary" />

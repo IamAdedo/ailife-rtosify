@@ -103,7 +103,7 @@ class WatchFaceManagerFragment : Fragment() {
                     val msg = com.ailife.rtosify.ProtocolHelper.createMoveFile(fromPath, destPath)
                     activity.sendBluetoothMessage(msg)
                     activity.runOnUiThread {
-                        android.widget.Toast.makeText(context, "Moving $fileName to $toFolder", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, getString(R.string.wf_moving_to, fileName, toFolder), android.widget.Toast.LENGTH_SHORT).show()
                     }
                     // Refresh after a delay
                     recyclerView.postDelayed({ refresh() }, 1000)
@@ -125,12 +125,12 @@ class WatchFaceManagerFragment : Fragment() {
 
     private fun showCreateFolderDialog() {
         val input = EditText(context).apply {
-            hint = "Folder name"
+            hint = getString(R.string.wf_folder_name_hint)
         }
         AlertDialog.Builder(context)
-            .setTitle("Create Folder")
+            .setTitle(R.string.wf_create_folder_title)
             .setView(input)
-            .setPositiveButton("Create") { _, _ ->
+            .setPositiveButton(R.string.wf_button_create) { _, _ ->
                 val folderName = input.text.toString().trim()
                 if (folderName.isNotBlank()) {
                     val folderPath = "$watchPath/$folderName"
@@ -171,10 +171,10 @@ class WatchFaceManagerFragment : Fragment() {
 
             val items = mutableListOf<ManagerItem>()
             if (files.isNotEmpty()) {
-                items.add(ManagerItem.Header("Downloaded", true))
+                items.add(ManagerItem.Header(getString(R.string.wf_header_downloaded), true))
                 items.addAll(files.map { file ->
                     val fileInfo = WatchFaceFileInfo(file.name, file.absolutePath, false, file.length())
-                    ManagerItem.Face(fileInfo, "Downloaded")
+                    ManagerItem.Face(fileInfo, getString(R.string.wf_header_downloaded))
                 })
             }
             
@@ -301,7 +301,7 @@ class WatchFaceManagerFragment : Fragment() {
                             File(item.fileInfo.path).delete()
                             refresh()
                         } catch (e: Exception) {
-                            Toast.makeText(context, "Failed to delete: ${e.message}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, getString(R.string.wf_delete_fail, e.message), Toast.LENGTH_SHORT).show()
                         }
                     } else {
                         // Delete on watch
@@ -333,10 +333,10 @@ class WatchFaceManagerFragment : Fragment() {
     private fun showRenameFolderDialog(oldName: String) {
         val input = EditText(context).apply {
             setText(oldName)
-            hint = "Folder name"
+            hint = getString(R.string.wf_folder_name_hint)
         }
         AlertDialog.Builder(context)
-            .setTitle("Rename Folder")
+            .setTitle(R.string.wf_rename_folder_title)
             .setView(input)
             .setPositiveButton("OK") { _, _ ->
                 val newName = input.text.toString().trim()
@@ -357,7 +357,7 @@ class WatchFaceManagerFragment : Fragment() {
     private fun showRenameDialog(fileInfo: WatchFaceFileInfo) {
         val input = EditText(context).apply { setText(fileInfo.name) }
         AlertDialog.Builder(context)
-            .setTitle("Rename")
+            .setTitle(R.string.wf_rename_title)
             .setView(input)
             .setPositiveButton("OK") { _, _ ->
                 val newName = input.text.toString()
@@ -369,10 +369,10 @@ class WatchFaceManagerFragment : Fragment() {
                             if (oldFile.renameTo(newFile)) {
                                 refresh()
                             } else {
-                                Toast.makeText(context, "Rename failed", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, getString(R.string.wf_rename_fail), Toast.LENGTH_SHORT).show()
                             }
                         } catch (e: Exception) {
-                            Toast.makeText(context, "Rename failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, getString(R.string.wf_rename_fail_with_msg, e.message), Toast.LENGTH_SHORT).show()
                         }
                     } else {
                         // Send rename command via protocol

@@ -52,7 +52,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- MODO WATCH: Status Header (Visível apenas em modo Watch) -->
+            <!-- WATCH MODE: Status Header (Visible only in Watch mode) -->
             <LinearLayout
                 android:id="@+id/layoutWatchMode"
                 android:layout_width="match_parent"
@@ -84,7 +84,7 @@
                     android:id="@+id/tvLocalBtNameWatch"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="BT: ---"
+                    android:text="@string/main_bt_placeholder"
                     android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
                     android:textColor="?android:attr/textColorSecondary"
                     android:layout_marginTop="4dp"
@@ -95,7 +95,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:checked="true"
-                    android:text="Turn Service On"
+                    android:text="@string/main_turn_service_on"
                     android:layout_marginTop="16dp"/>
 
                 <LinearLayout
@@ -127,7 +127,7 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- HEADER CONEXÃO -->
+            <!-- CONNECTION HEADER -->
             <LinearLayout
                 android:id="@+id/layoutConnectionHeader"
                 android:layout_width="match_parent"
@@ -136,7 +136,7 @@
                 android:gravity="center_vertical"
                 android:padding="16dp">
 
-                <!-- Ícone Smartwatch -->
+                <!-- Smartwatch Icon -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="56dp"
                     android:layout_height="56dp"
@@ -152,7 +152,7 @@
                         android:layout_gravity="center"/>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- Infos -->
+                <!-- Info -->
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
@@ -172,7 +172,7 @@
                         android:id="@+id/tvLocalBtName"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="BT: ---"
+                        android:text="@string/main_bt_placeholder"
                         android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
                         android:textColor="?android:attr/textColorSecondary"
                         android:layout_marginTop="2dp"
@@ -184,7 +184,7 @@
                         android:layout_height="wrap_content"
                         android:text="@string/status_disconnected"
                         android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                        android:textColor="?android:attr/textColorSecondary"/> <!-- Cor padrão para evitar erro -->
+                        android:textColor="?android:attr/textColorSecondary"/> <!-- Default color to avoid error -->
                 </LinearLayout>
 
                 <com.google.android.material.materialswitch.MaterialSwitch
@@ -192,12 +192,12 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:checked="true"
-                    android:text="Service"
+                    android:text="@string/main_service"
                     android:layout_gravity="center_vertical"/>
             </LinearLayout>
 
-            <!-- STATUS DO WATCH: BATERIA, WIFI, DND -->
-            <!-- Layout Linear com pesos iguais para alinhamento perfeito -->
+            <!-- WATCH STATUS: BATTERY, WIFI, DND -->
+            <!-- Linear layout with equal weights for perfect alignment -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardWatchStatus"
                 android:layout_width="match_parent"
@@ -217,7 +217,7 @@
                     android:padding="16dp"
                     android:baselineAligned="false">
 
-                    <!-- BATERIA (Peso 1) -->
+                    <!-- BATTERY (Weight 1) -->
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -242,7 +242,7 @@
                             android:textColor="?android:attr/textColorPrimary"/>
                     </LinearLayout>
 
-                    <!-- WIFI (Peso 1) -->
+                    <!-- WIFI (Weight 1) -->
                     <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
@@ -271,7 +271,7 @@
                             android:textColor="?android:attr/textColorPrimary"/>
                     </LinearLayout>
 
-                    <!-- NÃO PERTURBE (Peso 1) -->
+                    <!-- DO NOT DISTURB (Weight 1) -->
                     <LinearLayout
                         android:id="@+id/layoutDndAction"
                         android:layout_width="0dp"
@@ -288,7 +288,7 @@
                             android:layout_width="24dp"
                             android:layout_height="24dp"
                             android:src="@drawable/ic_do_not_disturb"
-                            app:tint="?android:attr/textColorPrimary"/> <!-- Tint fixo do tema -->
+                            app:tint="?android:attr/textColorPrimary"/> <!-- Fixed theme tint -->
 
                         <TextView
                             android:id="@+id/tvDndStatus"

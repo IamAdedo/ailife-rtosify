@@ -97,7 +97,7 @@ class AlarmReceiver : BroadcastReceiver() {
     
     private fun handleAlarmTrigger(context: Context, intent: Intent) {
         val alarmId = intent.getStringExtra("alarm_id") ?: return
-        val label = intent.getStringExtra("alarm_label") ?: "Alarm"
+        val label = intent.getStringExtra("alarm_label") ?: context.getString(R.string.alarm_notification_title)
         
         Log.d(TAG, "Alarm triggered: $alarmId, label: $label")
         
@@ -139,7 +139,7 @@ class AlarmReceiver : BroadcastReceiver() {
     
     private fun handleSnooze(context: Context, intent: Intent) {
         val alarmId = intent.getStringExtra("alarm_id") ?: return
-        val label = intent.getStringExtra("alarm_label") ?: "Alarm"
+        val label = intent.getStringExtra("alarm_label") ?: context.getString(R.string.alarm_notification_title)
         
         stopAlarmSound()
         
@@ -270,15 +270,15 @@ class AlarmReceiver : BroadcastReceiver() {
         
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle("Alarm")
-            .setContentText(label.ifEmpty { "Alarm is ringing" })
+            .setContentTitle(context.getString(R.string.alarm_notification_title))
+            .setContentText(label.ifEmpty { context.getString(R.string.alarm_notification_ringing) })
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(false)
             .setOngoing(true)
             .setFullScreenIntent(dismissPendingIntent, true)
-            .addAction(android.R.drawable.ic_delete, "Dismiss", dismissPendingIntent)
-            .addAction(android.R.drawable.ic_media_pause, "Snooze", snoozePendingIntent)
+            .addAction(android.R.drawable.ic_delete, context.getString(R.string.alarm_dismiss), dismissPendingIntent)
+            .addAction(android.R.drawable.ic_media_pause, context.getString(R.string.alarm_snooze), snoozePendingIntent)
             .build()
         
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -291,10 +291,10 @@ class AlarmReceiver : BroadcastReceiver() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Alarms",
+                context.getString(R.string.alarm_channel_name),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Alarm notifications"
+                description = context.getString(R.string.alarm_channel_desc)
                 setSound(null, null) // We handle sound ourselves
                 enableVibration(false) // We handle vibration ourselves
             }

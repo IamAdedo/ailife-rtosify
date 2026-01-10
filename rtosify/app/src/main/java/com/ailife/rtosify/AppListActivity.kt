@@ -43,7 +43,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var toolbar: Toolbar
     private lateinit var fabInstall: FloatingActionButton
 
-    // Diálogo Upload (moved from MainActivity)
+    // Upload Dialog (moved from MainActivity)
     private var uploadDialog: AlertDialog? = null
     private var uploadProgressBar: ProgressBar? = null
     private var uploadPercentageText: TextView? = null
@@ -55,7 +55,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
 
-    // Conexão com o Serviço
+    // Connection to the Service
     private val connection =
             object : ServiceConnection {
                 override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -64,7 +64,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     bluetoothService?.callback = this@AppListActivity
                     isBound = true
 
-                    // Solicita a lista assim que conectar
+                    // Requests the list as soon as connected
                     fetchApps()
                 }
 
@@ -101,7 +101,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         tvEmptyList = findViewById(R.id.tvEmptyList)
         recyclerView = findViewById(R.id.recyclerViewApps)
 
-        // Configura RecyclerView
+        // Configure RecyclerView
         recyclerView.layoutManager = LinearLayoutManager(this)
         adapter = AppAdapter { app -> showUninstallDialog(app) }
         recyclerView.adapter = adapter
@@ -109,7 +109,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         fabInstall = findViewById(R.id.fabInstallApp)
         fabInstall.setOnClickListener { showInstallOptionDialog() }
 
-        // Binda no serviço existente
+        // Bind to the existing service
         val intent = Intent(this, BluetoothService::class.java)
         bindService(intent, connection, Context.BIND_AUTO_CREATE)
     }
@@ -135,7 +135,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         }
     }
 
-    // --- Callbacks do Serviço ---
+    // --- Service Callbacks ---
     override fun onAppListReceived(appsJson: String) {
         lifecycleScope.launch {
             val apps =
@@ -175,7 +175,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 tvEmptyList.text = getString(R.string.applist_error_processing)
                 Toast.makeText(
                                 this@AppListActivity,
-                                getString(R.string.applist_error_processing_list, "Invalid JSON"),
+                                getString(R.string.applist_error_processing_list, getString(R.string.status_invalid_json)),
                                 Toast.LENGTH_LONG
                         )
                         .show()
@@ -183,7 +183,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         }
     }
 
-    // Implementações vazias dos outros callbacks
+    // Empty implementations of other callbacks
     override fun onStatusChanged(status: String) {}
     override fun onDeviceConnected(deviceName: String) {}
     override fun onDeviceDisconnected() {
@@ -218,7 +218,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         return super.onOptionsItemSelected(item)
     }
 
-    // --- Nova Lógica de Instalação/Desinstalação ---
+    // --- New Install/Uninstall Logic ---
 
     private fun showInstallOptionDialog() {
         val options =
@@ -271,12 +271,12 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         when (progress) {
             in 0..99 -> {
                 uploadProgressBar?.progress = progress
-                uploadPercentageText?.text = "$progress%"
+                uploadPercentageText?.text = getString(R.string.status_progress_format, progress)
                 uploadDescriptionText?.text = getString(R.string.upload_transferring)
             }
             100 -> {
                 uploadProgressBar?.progress = 100
-                uploadPercentageText?.text = "100%"
+                uploadPercentageText?.text = getString(R.string.status_progress_format, 100)
                 uploadTitleText?.text = getString(R.string.upload_complete_title)
                 uploadDescriptionText?.text = getString(R.string.upload_complete_message)
                 uploadIconView?.setImageResource(android.R.drawable.stat_sys_upload_done)
@@ -291,7 +291,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 uploadDescriptionText?.text = getString(R.string.upload_failed_message)
                 uploadIconView?.setImageResource(android.R.drawable.stat_notify_error)
                 uploadIconView?.setColorFilter(android.graphics.Color.RED)
-                uploadPercentageText?.text = "FAIL"
+                uploadPercentageText?.text = getString(R.string.status_failed)
                 uploadPercentageText?.setTextColor(android.graphics.Color.RED)
                 uploadOkButton?.visibility = View.VISIBLE
                 uploadOkButton?.text = getString(android.R.string.ok)
@@ -302,7 +302,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private fun dismissUploadDialog() {
         uploadDialog?.dismiss()
         uploadDialog = null
-        // Recarregar a lista após upload bem-sucedido (delay para garantir que o watch processou)
+        // Reload the list after successful upload (delay to ensure the watch processed)
         FetchAppsAfterDelay()
     }
 
@@ -318,14 +318,14 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     bluetoothService?.sendUninstallCommand(app.packageName)
                     Toast.makeText(this, getString(R.string.toast_command_sent), Toast.LENGTH_SHORT)
                             .show()
-                    // Recarregar após um tempo
+                    // Reload after some time
                     FetchAppsAfterDelay()
                 }
                 .setNegativeButton(android.R.string.cancel, null)
                 .show()
     }
 
-    // --- Classes de Adapter e Dados ---
+    // --- Adapter and Data Classes ---
 
     data class AppItem(val name: String, val packageName: String, val iconBase64: String)
 

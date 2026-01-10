@@ -129,7 +129,7 @@ class BluetoothService : Service() {
 
     @Volatile private var isTransferring: Boolean = false
 
-    // Variáveis de Recepção de Arquivo
+    // File Reception Variables
     private var receiveFile: File? = null
     private var receiveFileOutputStream: FileOutputStream? = null
     private var receiveTotalSize: Long = 0
@@ -141,7 +141,7 @@ class BluetoothService : Service() {
     private val notificationMap = ConcurrentHashMap<String, Int>()
     private val notificationDataMap = ConcurrentHashMap<String, NotificationData>()
 
-    // REFATORAÇÃO: Controle mais robusto de notificações
+    // REFACTORING: More robust notification control
     @Volatile private var currentNotificationStatus: String = ""
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -827,7 +827,7 @@ class BluetoothService : Service() {
         // BootReceiver.
         updateForegroundNotification()
 
-        // Inicializa lógica se não estiver conectado
+        // Initialize logic if not connected
         if (!isConnected) {
             initializeLogicFromPrefs()
         }
@@ -865,7 +865,7 @@ class BluetoothService : Service() {
             Log.e(TAG, "Failed to auto-enable Bluetooth: ${e.message}")
         }
 
-        // Se falhar, solicita ao usuário
+        // If failed, prompt user
         mainHandler.post {
             Toast.makeText(this, "Bluetooth required. Please enable it.", Toast.LENGTH_SHORT).show()
             try {
@@ -1064,7 +1064,7 @@ class BluetoothService : Service() {
         globalOutputStream = DataOutputStream(socket.outputStream)
         val inputStream = DataInputStream(socket.inputStream)
 
-        // Define estado de conexão ANTES de atualizar status
+        // Set connection state BEFORE updating status
         isConnected = true
         isTransferring = false
         lastMessageTime = System.currentTimeMillis()
@@ -1178,7 +1178,7 @@ class BluetoothService : Service() {
                 }
             }
         } catch (_: IOException) {
-            // Conexão perdida
+            // Connection lost
         } finally {
             val wasConnected = isConnected
 
@@ -1784,7 +1784,7 @@ class BluetoothService : Service() {
     }
 
     // ========================================================================
-    // STATUS DO WATCH (BATERIA, WIFI, DND)
+    // WATCH STATUS (BATTERY, WIFI, DND)
     // ========================================================================
 
     private fun handleRequestWatchStatus() {
@@ -1793,7 +1793,7 @@ class BluetoothService : Service() {
                 val status = collectWatchStatus()
                 sendMessage(ProtocolHelper.createStatusUpdate(status))
             } catch (e: Exception) {
-                Log.e(TAG, "Erro ao enviar status: ${e.message}")
+                Log.e(TAG, "Error sending status: ${e.message}")
             }
         }
     }
@@ -1850,17 +1850,17 @@ class BluetoothService : Service() {
                         }
                     } else {
                         lastValidWifiSsid = ""
-                        wifiSsid = "Disconnected"
+                        wifiSsid = getString(R.string.wifi_status_disconnected)
                     }
                 } else {
                     lastValidWifiSsid = ""
-                    wifiSsid = "WiFi Disabled"
+                    wifiSsid = getString(R.string.wifi_status_disabled)
                 }
             } else {
-                wifiSsid = "No Permission"
+                wifiSsid = getString(R.string.wifi_status_no_permission)
             }
         } catch (_: Exception) {
-            wifiSsid = "WiFi Error"
+            wifiSsid = getString(R.string.wifi_status_error)
         }
 
         return StatusUpdateData(
@@ -2002,12 +2002,12 @@ class BluetoothService : Service() {
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Erro parser status: ${e.message}")
+            Log.e(TAG, "Status parser error: ${e.message}")
         }
     }
 
     private suspend fun handleRequestWifiScan() {
-        Log.d(TAG, "Solicitando scan de WiFi...")
+        Log.d(TAG, "Requesting WiFi scan...")
         val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
 
         // Trigger a fresh scan if possible
@@ -2016,11 +2016,11 @@ class BluetoothService : Service() {
             // Try privileged trigger as well
             userService?.startWifiScan()
         } catch (e: Exception) {
-            Log.w(TAG, "Falha ao iniciar scan WiFi: ${e.message}")
+            Log.w(TAG, "Failed to start WiFi scan: ${e.message}")
         }
 
         // Wait for scan results to populate (typically 3-4 seconds)
-        Log.d(TAG, "Aguardando 4 segundos para o hardware encontrar redes...")
+        Log.d(TAG, "Waiting 4 seconds for hardware to find networks...")
         delay(4000)
 
         val hasPermission =
@@ -2054,7 +2054,7 @@ class BluetoothService : Service() {
                             .distinctBy { it.ssid }
                             .sortedByDescending { it.signalLevel }
                 } else {
-                    Log.e(TAG, "Sem permissão (Location/Nearby) para scan WiFi")
+                    Log.e(TAG, "No permission (Location/Nearby) for WiFi scan")
                     emptyList()
                 }
 
@@ -2081,7 +2081,7 @@ class BluetoothService : Service() {
             }
         }
 
-        Log.d(TAG, "Enviando ${results.size} resultados de scan WiFi")
+        Log.d(TAG, "Sending ${results.size} WiFi scan results")
         sendMessage(ProtocolHelper.createWifiScanResults(results))
     }
 
@@ -2303,7 +2303,7 @@ class BluetoothService : Service() {
             wm.disconnect()
             wm.enableNetwork(netId, true)
             wm.reconnect()
-            Log.d(TAG, "Conexão legada iniciada para $ssid")
+            Log.d(TAG, "Legacy connection started for $ssid")
         }
     }
 
@@ -3346,7 +3346,7 @@ class BluetoothService : Service() {
     }
 
     private fun handleShutdownCommand() {
-        Log.i(TAG, "🔴 Comando de shutdown recebido")
+        Log.i(TAG, "🔴 Shutdown command received")
         mainHandler.post {
             Toast.makeText(this, "Shutdown command received", Toast.LENGTH_SHORT).show()
         }
@@ -3369,7 +3369,7 @@ class BluetoothService : Service() {
     }
 
     private fun handleRebootCommand() {
-        Log.i(TAG, "🔄 Comando de reboot recebido")
+        Log.i(TAG, "🔄 Reboot command received")
         mainHandler.post {
             Toast.makeText(this, "Reboot command received", Toast.LENGTH_SHORT).show()
         }
@@ -3392,7 +3392,7 @@ class BluetoothService : Service() {
     }
 
     private fun handleLockDeviceCommand() {
-        Log.i(TAG, "🔒 Comando de lock recebido")
+        Log.i(TAG, "🔒 Lock command received")
         mainHandler.post {
             Toast.makeText(this, "Lock command received", Toast.LENGTH_SHORT).show()
         }
@@ -4287,14 +4287,15 @@ class BluetoothService : Service() {
     }
 
     /**
-     * CORREÇÃO DEFINITIVA PARA CANAIS BLOQUEADOS: Ao invés de usar um único ID, usamos um ID
-     * diferente para cada estado (Waiting, Connected, etc).
-     * * Lógica:
-     * 1. Determinamos o Estado Atual -> Novo ID e Novo Canal.
-     * 2. Chamamos startForeground com o NOVO ID. Isso "segura" o serviço e previne crashes.
-     * 3. Se o usuário bloqueou esse canal, o Android não mostra nada (correto).
-     * 4. CRUCIAL: Chamamos .cancel() nos IDs dos estados antigos. Isso garante que a notificação
-     * "Waiting" suma visualmente se mudamos para "Connected", mesmo que "Connected" esteja oculto.
+     * DEFINITIVE FIX FOR BLOCKED CHANNELS: Instead of using a single ID, we use a
+     * different ID for each state (Waiting, Connected, etc).
+     *
+     * Logic:
+     * 1. Determine the Current State -> New ID and New Channel.
+     * 2. Call startForeground with the NEW ID. This "holds" the service and prevents crashes.
+     * 3. If the user blocked this channel, Android shows nothing (correct).
+     * 4. CRUCIAL: Call .cancel() on the IDs of the old states. This ensures that the notification
+     *    visually disappears if we change to "Connected", even if "Connected" is hidden.
      */
     private fun updateForegroundNotification() {
         try {
@@ -4313,7 +4314,7 @@ class BluetoothService : Service() {
                             .setOnlyAlertOnce(true)
                             .build()
 
-            // Inicia/Atualiza o Foreground no ID correto do estado atual
+            // Start/Update Foreground in the correct ID for current state
             if (Build.VERSION.SDK_INT >= 34) {
                 val hasLocation =
                         ContextCompat.checkSelfPermission(
@@ -4336,8 +4337,8 @@ class BluetoothService : Service() {
                 startForeground(targetId, notification)
             }
 
-            // LIMPEZA: Remove visualmente as notificações dos outros estados.
-            // Isso corrige o bug onde "Aguardando" persistia se "Conectado" estivesse bloqueado.
+            // CLEANUP: Visually remove notifications from other states.
+            // This fixes the bug where "Waiting" persisted if "Connected" was blocked.
             if (targetId != NOTIFICATION_ID_WAITING)
                     notificationManager.cancel(NOTIFICATION_ID_WAITING)
             if (targetId != NOTIFICATION_ID_CONNECTED)
@@ -4346,26 +4347,28 @@ class BluetoothService : Service() {
                     notificationManager.cancel(NOTIFICATION_ID_DISCONNECTED)
         } catch (e: Exception) {
             if (DEBUG_NOTIFICATIONS)
-                    Log.e(TAG, "updateForegroundNotification: Erro: ${e.message}", e)
+                    Log.e(TAG, "updateForegroundNotification: Error: ${e.message}", e)
         }
     }
 
-    // Retorna Triple(ID, Channel, Text)
+    // Returns Triple(ID, Channel, Text)
     private fun determineNotificationState(): Triple<Int, String, String> {
         return when {
             isConnected && currentDeviceName != null ->
                     Triple(
                             NOTIFICATION_ID_CONNECTED,
                             CHANNEL_ID_CONNECTED,
-                            "Conectado a $currentDeviceName"
+                            getString(R.string.status_connected_to, currentDeviceName!!)
                     )
             isConnected && currentDeviceName == null ->
-                    Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, "Conectado")
-            currentNotificationStatus.contains("Aguardando", ignoreCase = true) ||
+                    Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, getString(R.string.status_connected))
+            currentNotificationStatus.contains(getString(R.string.status_waiting), ignoreCase = true) ||
                     currentNotificationStatus.contains("Waiting", ignoreCase = true) ||
-                    currentNotificationStatus.contains("Escaneando", ignoreCase = true) ||
+                    currentNotificationStatus.contains(getString(R.string.status_scanning), ignoreCase = true) ||
+                    currentNotificationStatus.contains("Scanning", ignoreCase = true) ||
+                    currentNotificationStatus.contains(getString(R.string.status_searching), ignoreCase = true) ||
                     currentNotificationStatus.contains("Searching", ignoreCase = true) ||
-                    currentNotificationStatus.contains("Iniciado", ignoreCase = true) ||
+                    currentNotificationStatus.contains(getString(R.string.status_started), ignoreCase = true) ||
                     currentNotificationStatus.contains("Started", ignoreCase = true) ||
                     currentNotificationStatus.isEmpty() ->
                     Triple(
@@ -4386,15 +4389,14 @@ class BluetoothService : Service() {
         notificationManager.createNotificationChannel(
                 NotificationChannel(
                         CHANNEL_ID_WAITING,
-                        "Notificação persistente - aguardando conexão",
+                        getString(R.string.notif_channel_wait),
                         NotificationManager.IMPORTANCE_LOW
                 )
         )
-
         notificationManager.createNotificationChannel(
                 NotificationChannel(
                         CHANNEL_ID_CONNECTED,
-                        "Notificação persistente - conectado",
+                        getString(R.string.notif_channel_connected),
                         NotificationManager.IMPORTANCE_LOW
                 )
         )
@@ -4410,7 +4412,7 @@ class BluetoothService : Service() {
         notificationManager.createNotificationChannel(
                 NotificationChannel(
                                 CHANNEL_ID_DISCONNECTION_ALERT,
-                                "Alerta de Desconexão",
+                                getString(R.string.notif_channel_disconnection_alert),
                                 NotificationManager.IMPORTANCE_HIGH
                         )
                         .apply {
@@ -4425,7 +4427,7 @@ class BluetoothService : Service() {
         notificationManager.createNotificationChannel(
                 NotificationChannel(
                         MIRRORED_CHANNEL_ID,
-                        "Notificações do celular",
+                        getString(R.string.notif_channel_mirrored),
                         NotificationManager.IMPORTANCE_HIGH
                 )
         )
