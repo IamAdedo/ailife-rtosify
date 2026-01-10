@@ -123,6 +123,7 @@ object MessageType {
     // Terminal / Shell Command Execution
     const val EXECUTE_SHELL_COMMAND = "execute_shell_command"
     const val SHELL_COMMAND_RESPONSE = "shell_command_response"
+    const val CANCEL_SHELL_COMMAND = "cancel_shell_command"
     const val REQUEST_PERMISSION_INFO = "request_permission_info"
     const val PERMISSION_INFO_RESPONSE = "permission_info_response"
 }
@@ -430,12 +431,19 @@ data class ShellCommandRequest(
 
 data class ShellCommandResponse(
         val sessionId: String,
-        val exitCode: Int,
-        val stdout: String,
-        val stderr: String,
-        val executionTimeMs: Long,
+        val exitCode: Int? = null, // null if still running
+        val stdout: String = "",
+        val stderr: String = "",
+        val executionTimeMs: Long = 0,
         val uid: Int,
-        val permissionLevel: String // "shizuku", "root", or "app"
+        val permissionLevel: String, // "shizuku", "root", or "app"
+        val isComplete: Boolean = false, // true when command finished
+        val isStreaming: Boolean = false, // true if this is partial output
+        val sequenceNumber: Int = 0 // line sequence number for ordering
+)
+
+data class CancelShellCommandRequest(
+        val sessionId: String
 )
 
 data class PermissionInfoData(
@@ -928,6 +936,11 @@ object ProtocolHelper {
     fun createShellCommandResponse(response: ShellCommandResponse): ProtocolMessage {
         val data = gson.toJsonTree(response).asJsonObject
         return ProtocolMessage(type = MessageType.SHELL_COMMAND_RESPONSE, data = data)
+    }
+
+    fun createCancelShellCommand(sessionId: String): ProtocolMessage {
+        val data = gson.toJsonTree(CancelShellCommandRequest(sessionId)).asJsonObject
+        return ProtocolMessage(type = MessageType.CANCEL_SHELL_COMMAND, data = data)
     }
 
     fun createRequestPermissionInfo(): ProtocolMessage {

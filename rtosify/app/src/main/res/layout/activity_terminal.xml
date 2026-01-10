@@ -107,40 +107,96 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="#1E1E1E"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:padding="8dp">
+        android:orientation="vertical">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <!-- Button Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="monospace"
-            android:text="$ "
-            android:textColor="@android:color/holo_green_light"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="8dp"
+            android:paddingTop="4dp">
 
-        <EditText
-            android:id="@+id/etCommand"
-            android:layout_width="0dp"
+            <ImageButton
+                android:id="@+id/btnHistoryUp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_revert"
+                android:contentDescription="Previous command"
+                app:tint="@android:color/white" />
+
+            <Button
+                android:id="@+id/btnCtrlC"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:paddingHorizontal="12dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:text="^C"
+                android:textColor="@android:color/holo_red_light"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                style="@style/Widget.AppCompat.Button.Borderless" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/tvWorkingDir"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:text="/sdcard"
+                android:textColor="#888888"
+                android:textSize="10sp"
+                android:maxLines="1"
+                android:ellipsize="start" />
+        </LinearLayout>
+
+        <!-- Input Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:background="@android:color/transparent"
-            android:fontFamily="monospace"
-            android:hint="Enter command..."
-            android:imeOptions="actionDone"
-            android:inputType="text"
-            android:textColor="@android:color/white"
-            android:textColorHint="#666666"
-            android:textSize="14sp" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="8dp">
 
-        <ImageButton
-            android:id="@+id/btnSend"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_menu_send"
-            android:contentDescription="Send"
-            app:tint="@android:color/holo_green_light" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:text="$ "
+                android:textColor="@android:color/holo_green_light"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/etCommand"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@android:color/transparent"
+                android:fontFamily="monospace"
+                android:hint="Enter command..."
+                android:imeOptions="actionDone"
+                android:inputType="text"
+                android:textColor="@android:color/white"
+                android:textColorHint="#666666"
+                android:textSize="14sp" />
+
+            <ImageButton
+                android:id="@+id/btnSend"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_send"
+                android:contentDescription="Send"
+                app:tint="@android:color/holo_green_light" />
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>

@@ -95,6 +95,11 @@ class BluetoothService : Service() {
     private lateinit var healthDataCollector: HealthDataCollector
     private var liveMeasurementJob: Job? = null
     private var batteryHistoryJob: Job? = null
+
+    // Shell command tracking
+    private val runningShellProcesses = mutableMapOf<String, Process>()
+    private val shellCommandJobs = mutableMapOf<String, Job>()
+    private val shellCommandSequences = mutableMapOf<String, Int>() // Track sequence per session
     private var deviceInfoUpdateJob: Job? = null
     private lateinit var deviceInfoManager: DeviceInfoManager
     private lateinit var watchAlarmManager: WatchAlarmManager
@@ -1167,6 +1172,7 @@ class BluetoothService : Service() {
                     MessageType.UPDATE_RESOLUTION -> handleUpdateResolution(message)
                     MessageType.MIRROR_RES_CHANGE -> handleMirrorResChange(message)
                     MessageType.EXECUTE_SHELL_COMMAND -> handleExecuteShellCommand(message)
+                    MessageType.CANCEL_SHELL_COMMAND -> handleCancelShellCommand(message)
                     MessageType.REQUEST_PERMISSION_INFO -> handleRequestPermissionInfo()
                     else -> Log.w(TAG, "Unknown message type: ${message.type}")
                 }
@@ -5904,109 +5910,142 @@ class BluetoothService : Service() {
 
     // Terminal / Shell Command Handlers
     private fun handleExecuteShellCommand(message: ProtocolMessage) {
-        serviceScope.launch(Dispatchers.IO) {
-            try {
-                val request = ProtocolHelper.extractData<ShellCommandRequest>(message)
-                Log.d(TAG, "Executing shell command: ${request.command}")
+        val request = ProtocolHelper.extractData<ShellCommandRequest>(message)
 
-                // Three-tier execution strategy: Shizuku -> Root -> App context
-                val resultJson: String? = when {
-                    userService != null -> {
-                        Log.d(TAG, "Executing via Shizuku UserService")
-                        userService?.executeShellCommandFull(request.command)
-                    }
-                    Shell.getShell().isRoot -> {
-                        Log.d(TAG, "Executing via libsu root")
-                        executeViaLibsu(request.command, request.sessionId)
-                    }
-                    else -> {
-                        Log.d(TAG, "Executing via app context")
-                        executeViaAppContext(request.command, request.sessionId)
-                    }
-                }
+        // Check if already running a command for this session
+        if (shellCommandJobs.containsKey(request.sessionId)) {
+            Log.w(TAG, "Command already running for session ${request.sessionId}")
+            return
+        }
 
-                if (resultJson != null) {
-                    val resultMap = ProtocolHelper.gson.fromJson(resultJson,
-                        object : com.google.gson.reflect.TypeToken<Map<String, Any>>() {}.type) as Map<String, Any>
+        Log.d(TAG, "Executing shell command: ${request.command}")
 
-                    val response = ShellCommandResponse(
-                        sessionId = request.sessionId,
-                        exitCode = (resultMap["exitCode"] as Double).toInt(),
-                        stdout = resultMap["stdout"] as String,
-                        stderr = resultMap["stderr"] as String,
-                        executionTimeMs = (resultMap["executionTimeMs"] as Double).toLong(),
-                        uid = (resultMap["uid"] as Double).toInt(),
-                        permissionLevel = resultMap["permissionLevel"] as String
-                    )
+        // Initialize sequence counter for this session
+        shellCommandSequences[request.sessionId] = 0
 
-                    sendMessage(ProtocolHelper.createShellCommandResponse(response))
-                    Log.d(TAG, "Shell command executed successfully with exit code: ${response.exitCode}")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error executing shell command: ${e.message}", e)
-                try {
-                    val errorResponse = ShellCommandResponse(
-                        sessionId = ProtocolHelper.extractStringField(message, "sessionId") ?: "",
-                        exitCode = -1,
-                        stdout = "",
-                        stderr = e.message ?: "Unknown error",
-                        executionTimeMs = 0,
-                        uid = android.os.Process.myUid(),
-                        permissionLevel = "app"
-                    )
-                    sendMessage(ProtocolHelper.createShellCommandResponse(errorResponse))
-                } catch (e2: Exception) {
-                    Log.e(TAG, "Failed to send error response: ${e2.message}")
+        // Launch command execution in a coroutine
+        val job = serviceScope.launch(Dispatchers.IO) {
+            val startTime = System.currentTimeMillis()
+            val currentUid = android.os.Process.myUid()
+            val permLevel = when (currentUid) {
+                0 -> "root"
+                2000 -> "shizuku"
+                else -> "app"
+            }
+
+            fun getNextSeq(): Int {
+                synchronized(shellCommandSequences) {
+                    val seq = shellCommandSequences[request.sessionId] ?: 0
+                    shellCommandSequences[request.sessionId] = seq + 1
+                    return seq
                 }
             }
+
+            try {
+                // Execute command and stream output
+                val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", request.command))
+                runningShellProcesses[request.sessionId] = process
+
+                // Read stdout and stderr in parallel
+                val stdoutReader = process.inputStream.bufferedReader()
+                val stderrReader = process.errorStream.bufferedReader()
+
+                // Stream output line by line - launch and track the jobs
+                val stdoutJob = launch {
+                    stdoutReader.useLines { lines ->
+                        lines.forEach { line ->
+                            if (!isActive) return@forEach
+                            sendMessage(ProtocolHelper.createShellCommandResponse(
+                                ShellCommandResponse(
+                                    sessionId = request.sessionId,
+                                    stdout = line,
+                                    uid = currentUid,
+                                    permissionLevel = permLevel,
+                                    isStreaming = true,
+                                    sequenceNumber = getNextSeq()
+                                )
+                            ))
+                        }
+                    }
+                }
+
+                // Stream stderr
+                val stderrJob = launch {
+                    stderrReader.useLines { lines ->
+                        lines.forEach { line ->
+                            if (!isActive) return@forEach
+                            sendMessage(ProtocolHelper.createShellCommandResponse(
+                                ShellCommandResponse(
+                                    sessionId = request.sessionId,
+                                    stderr = line,
+                                    uid = currentUid,
+                                    permissionLevel = permLevel,
+                                    isStreaming = true,
+                                    sequenceNumber = getNextSeq()
+                                )
+                            ))
+                        }
+                    }
+                }
+
+                // Wait for process to complete
+                val exitCode = process.waitFor()
+                val executionTime = System.currentTimeMillis() - startTime
+
+                // CRITICAL: Wait for all output to be sent before sending completion
+                stdoutJob.join()
+                stderrJob.join()
+
+                // Now send final response - this will have the highest sequence number
+                sendMessage(ProtocolHelper.createShellCommandResponse(
+                    ShellCommandResponse(
+                        sessionId = request.sessionId,
+                        exitCode = exitCode,
+                        executionTimeMs = executionTime,
+                        uid = currentUid,
+                        permissionLevel = permLevel,
+                        isComplete = true,
+                        sequenceNumber = getNextSeq()
+                    )
+                ))
+
+                Log.d(TAG, "Command completed with exit code: $exitCode")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error executing command: ${e.message}", e)
+                sendMessage(ProtocolHelper.createShellCommandResponse(
+                    ShellCommandResponse(
+                        sessionId = request.sessionId,
+                        exitCode = -1,
+                        stderr = e.message ?: "Unknown error",
+                        uid = currentUid,
+                        permissionLevel = permLevel,
+                        isComplete = true,
+                        sequenceNumber = getNextSeq()
+                    )
+                ))
+            } finally {
+                runningShellProcesses.remove(request.sessionId)
+                shellCommandJobs.remove(request.sessionId)
+                shellCommandSequences.remove(request.sessionId)
+            }
         }
+
+        shellCommandJobs[request.sessionId] = job
     }
 
-    private fun executeViaLibsu(command: String, sessionId: String): String {
-        val startTime = System.currentTimeMillis()
-        val result = Shell.cmd(command).exec()
-        val executionTime = System.currentTimeMillis() - startTime
+    private fun handleCancelShellCommand(message: ProtocolMessage) {
+        val request = ProtocolHelper.extractData<CancelShellCommandRequest>(message)
+        Log.d(TAG, "Canceling shell command: ${request.sessionId}")
 
-        return ProtocolHelper.gson.toJson(mapOf(
-            "exitCode" to result.code,
-            "stdout" to result.out.joinToString("\n"),
-            "stderr" to result.err.joinToString("\n"),
-            "executionTimeMs" to executionTime,
-            "uid" to 0,
-            "permissionLevel" to "root"
-        ))
-    }
+        // Kill the process
+        runningShellProcesses[request.sessionId]?.destroy()
 
-    private fun executeViaAppContext(command: String, sessionId: String): String {
-        val startTime = System.currentTimeMillis()
-        val currentUid = android.os.Process.myUid()
+        // Cancel the job
+        shellCommandJobs[request.sessionId]?.cancel()
 
-        return try {
-            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
-            val stdout = process.inputStream.bufferedReader().use { it.readText() }
-            val stderr = process.errorStream.bufferedReader().use { it.readText() }
-            val exitCode = process.waitFor()
-            val executionTime = System.currentTimeMillis() - startTime
-
-            ProtocolHelper.gson.toJson(mapOf(
-                "exitCode" to exitCode,
-                "stdout" to stdout,
-                "stderr" to stderr,
-                "executionTimeMs" to executionTime,
-                "uid" to currentUid,
-                "permissionLevel" to "app"
-            ))
-        } catch (e: Exception) {
-            val executionTime = System.currentTimeMillis() - startTime
-            ProtocolHelper.gson.toJson(mapOf(
-                "exitCode" to -1,
-                "stdout" to "",
-                "stderr" to (e.message ?: "Unknown error"),
-                "executionTimeMs" to executionTime,
-                "uid" to currentUid,
-                "permissionLevel" to "app"
-            ))
-        }
+        // Clean up
+        runningShellProcesses.remove(request.sessionId)
+        shellCommandJobs.remove(request.sessionId)
     }
 
     private fun handleRequestPermissionInfo() {

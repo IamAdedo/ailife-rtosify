@@ -30,6 +30,9 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var tvOutput: TextView
     private lateinit var etCommand: EditText
     private lateinit var btnSend: ImageButton
+    private lateinit var btnHistoryUp: ImageButton
+    private lateinit var btnCtrlC: android.widget.Button
+    private lateinit var tvWorkingDir: TextView
     private lateinit var cardPermissionInfo: MaterialCardView
     private lateinit var tvPermissionLevel: TextView
     private lateinit var tvUid: TextView
@@ -40,6 +43,15 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private val commandHistory = mutableListOf<String>()
     private var historyIndex = -1
     private var permissionInfo: PermissionInfoData? = null
+    private var currentWorkingDir = "/sdcard"
+    private var currentSessionId: String? = null
+    private var isCommandRunning = false
+
+    // Message buffering for ordering
+    private val messageBuffer = mutableMapOf<Int, ShellCommandResponse>()
+    private var nextExpectedSeq = 0
+    private var completionMessage: ShellCommandResponse? = null
+    private var removedExecutingLine = false
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -76,6 +88,10 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     override fun onDestroy() {
         super.onDestroy()
+        // Interrupt any running command before exiting
+        if (isCommandRunning) {
+            interruptCommand()
+        }
         if (isBound) {
             bluetoothService?.callback = null
             unbindService(connection)
@@ -90,22 +106,68 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         tvOutput = findViewById(R.id.tvTerminalOutput)
         etCommand = findViewById(R.id.etCommand)
         btnSend = findViewById(R.id.btnSend)
+        btnHistoryUp = findViewById(R.id.btnHistoryUp)
+        btnCtrlC = findViewById(R.id.btnCtrlC)
+        tvWorkingDir = findViewById(R.id.tvWorkingDir)
         cardPermissionInfo = findViewById(R.id.cardPermissionInfo)
         tvPermissionLevel = findViewById(R.id.tvPermissionLevel)
         tvUid = findViewById(R.id.tvUid)
         tvWarning = findViewById(R.id.tvWarning)
+
+        tvWorkingDir.text = currentWorkingDir
+        btnCtrlC.isEnabled = false
     }
 
     private fun setupListeners() {
         btnSend.setOnClickListener {
-            executeCommand()
+            if (!isCommandRunning) {
+                executeCommand()
+            }
         }
 
         etCommand.setOnEditorActionListener { _, actionId, _ ->
-            if (actionId == EditorInfo.IME_ACTION_DONE) {
+            if (actionId == EditorInfo.IME_ACTION_DONE && !isCommandRunning) {
                 executeCommand()
                 true
             } else false
+        }
+
+        btnHistoryUp.setOnClickListener {
+            navigateHistory()
+        }
+
+        btnCtrlC.setOnClickListener {
+            interruptCommand()
+        }
+    }
+
+    private fun navigateHistory() {
+        if (commandHistory.isEmpty()) return
+
+        if (historyIndex < 0) {
+            historyIndex = commandHistory.size - 1
+        } else {
+            historyIndex = (historyIndex - 1).coerceAtLeast(0)
+        }
+
+        if (historyIndex >= 0 && historyIndex < commandHistory.size) {
+            etCommand.setText(commandHistory[historyIndex])
+            etCommand.setSelection(etCommand.text.length)
+        }
+    }
+
+    private fun interruptCommand() {
+        if (!isCommandRunning) return
+
+        currentSessionId?.let { sessionId ->
+            appendOutput("^C", COLOR_ERROR)
+            // Send cancel command to watch
+            bluetoothService?.sendMessage(ProtocolHelper.createCancelShellCommand(sessionId))
+
+            isCommandRunning = false
+            btnSend.isEnabled = true
+            btnCtrlC.isEnabled = false
+            currentSessionId = null
         }
     }
 
@@ -115,78 +177,157 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         // Add to history
         commandHistory.add(command)
-        historyIndex = commandHistory.size
+        historyIndex = -1 // Reset history navigation
 
-        // Display command
-        appendOutput("$ $command", COLOR_COMMAND)
+        // Display command with working directory
+        appendOutput("$currentWorkingDir $ $command", COLOR_COMMAND)
 
         // Clear input
         etCommand.text.clear()
 
+        // Track cd command to update working directory
+        val cdMatch = Regex("^cd\\s+(.+)$").find(command)
+        val targetDir = cdMatch?.groupValues?.get(1)?.trim()
+
+        // Build actual command to execute with working directory context
+        val actualCommand = if (targetDir != null) {
+            // For cd command, change directory and print new pwd
+            "cd ${shellEscape(currentWorkingDir)} && cd $targetDir && pwd"
+        } else {
+            // For other commands, execute in current working directory
+            "cd ${shellEscape(currentWorkingDir)} && $command"
+        }
+
         // Send to watch
         val sessionId = UUID.randomUUID().toString()
+        currentSessionId = sessionId
+        isCommandRunning = true
+        btnSend.isEnabled = false
+        btnCtrlC.isEnabled = true
+
+        // Reset buffering state
+        messageBuffer.clear()
+        nextExpectedSeq = 0
+        completionMessage = null
+        removedExecutingLine = false
+
         bluetoothService?.sendMessage(
-            ProtocolHelper.createExecuteShellCommand(command, sessionId)
+            ProtocolHelper.createExecuteShellCommand(actualCommand, sessionId)
         )
 
         // Show loading indicator
         appendOutput("Executing...", COLOR_INFO)
     }
 
+    private fun shellEscape(path: String): String {
+        return "'${path.replace("'", "'\\''")}'"
+    }
+
     override fun onShellCommandResponse(response: ShellCommandResponse) {
         runOnUiThread {
-            // Remove "Executing..." line by rebuilding output without last line
-            val lines = outputBuilder.toString().split("\n").toMutableList()
-            if (lines.isNotEmpty() && lines.last().contains("Executing...")) {
-                lines.removeAt(lines.size - 1)
-                outputBuilder.clear()
-                lines.forEach { line ->
-                    // Determine color based on content
-                    val color = when {
-                        line.startsWith("$") -> COLOR_COMMAND
-                        line.contains("Exit code: 0") -> COLOR_SUCCESS
-                        line.contains("Exit code:") -> COLOR_ERROR
-                        line.startsWith("RTOSify") || line.contains("level:") -> COLOR_INFO
-                        else -> COLOR_DEFAULT
-                    }
-                    if (line.isNotEmpty()) {
-                        val start = outputBuilder.length
-                        outputBuilder.append(line)
-                        outputBuilder.append("\n")
-                        val end = outputBuilder.length
+            // Buffer the message
+            if (response.isComplete) {
+                completionMessage = response
+            } else {
+                messageBuffer[response.sequenceNumber] = response
+            }
 
-                        outputBuilder.setSpan(
-                            ForegroundColorSpan(color),
-                            start,
-                            end,
-                            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                        )
+            // Process messages in order
+            processBufferedMessages()
+        }
+    }
+
+    private fun processBufferedMessages() {
+        // Process all consecutive messages starting from nextExpectedSeq
+        while (messageBuffer.containsKey(nextExpectedSeq)) {
+            val response = messageBuffer.remove(nextExpectedSeq)!!
+            nextExpectedSeq++
+
+            // Remove "Executing..." on first output
+            if (!removedExecutingLine) {
+                if (outputBuilder.toString().endsWith("Executing...\n")) {
+                    val lines = outputBuilder.toString().split("\n").dropLast(2)
+                    outputBuilder.clear()
+                    lines.forEach { line ->
+                        if (line.isNotEmpty()) {
+                            val color = when {
+                                line.contains(" $ ") -> COLOR_COMMAND
+                                line.startsWith("RTOSify") || line.contains("level:") -> COLOR_INFO
+                                else -> COLOR_DEFAULT
+                            }
+                            val start = outputBuilder.length
+                            outputBuilder.append(line)
+                            outputBuilder.append("\n")
+                            outputBuilder.setSpan(ForegroundColorSpan(color), start, outputBuilder.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        }
+                    }
+                    tvOutput.text = outputBuilder
+                }
+                removedExecutingLine = true
+            }
+
+            // Append stdout
+            if (response.stdout.isNotEmpty()) {
+                appendOutput(response.stdout, COLOR_DEFAULT)
+            }
+
+            // Append stderr
+            if (response.stderr.isNotEmpty()) {
+                appendOutput(response.stderr, COLOR_ERROR)
+            }
+
+            // Auto-scroll
+            scrollView.post { scrollView.fullScroll(View.FOCUS_DOWN) }
+        }
+
+        // Check if we can process completion message
+        val completion = completionMessage
+        if (completion != null && completion.sequenceNumber == nextExpectedSeq) {
+            // All messages before completion have been processed
+            isCommandRunning = false
+            btnSend.isEnabled = true
+            btnCtrlC.isEnabled = false
+            currentSessionId = null
+            completionMessage = null
+
+            // Handle cd command - extract new directory from last output line
+            if (commandHistory.isNotEmpty()) {
+                val lastCmd = commandHistory.last()
+                if (lastCmd.startsWith("cd ") && completion.exitCode == 0) {
+                    // Parse last line as the new directory
+                    val lines = outputBuilder.toString().split("\n")
+                    val newDir = lines.reversed().firstOrNull { it.startsWith("/") }
+                    if (newDir != null) {
+                        // Remove the pwd output
+                        val withoutPwd = lines.dropLast(1).joinToString("\n")
+                        outputBuilder.clear()
+                        outputBuilder.append(withoutPwd)
+                        if (!withoutPwd.endsWith("\n")) outputBuilder.append("\n")
+                        tvOutput.text = outputBuilder
+
+                        currentWorkingDir = newDir
+                        tvWorkingDir.text = currentWorkingDir
+                        appendOutput("Changed directory to: $currentWorkingDir", COLOR_INFO)
                     }
                 }
-                tvOutput.text = outputBuilder
             }
 
-            // Add output
-            if (response.stdout.isNotEmpty()) {
-                appendOutput(response.stdout.trimEnd(), COLOR_DEFAULT)
-            }
-            if (response.stderr.isNotEmpty()) {
-                appendOutput(response.stderr.trimEnd(), COLOR_ERROR)
-            }
-
-            // Add exit code and execution time
-            val statusColor = if (response.exitCode == 0) COLOR_SUCCESS else COLOR_ERROR
+            // Add final status
+            val exitCode = completion.exitCode ?: -1
+            val statusColor = if (exitCode == 0) COLOR_SUCCESS else COLOR_ERROR
             appendOutput(
-                "Exit code: ${response.exitCode} | Time: ${response.executionTimeMs}ms | " +
-                        "UID: ${response.uid} (${response.permissionLevel})",
+                "Exit code: $exitCode | Time: ${completion.executionTimeMs}ms | " +
+                        "UID: ${completion.uid} (${completion.permissionLevel})",
                 statusColor
             )
             appendOutput("", COLOR_DEFAULT)
 
-            // Auto-scroll to bottom
-            scrollView.post {
-                scrollView.fullScroll(View.FOCUS_DOWN)
-            }
+            // Auto-scroll
+            scrollView.post { scrollView.fullScroll(View.FOCUS_DOWN) }
+
+            // Clear buffers
+            messageBuffer.clear()
+            nextExpectedSeq = 0
         }
     }
 
