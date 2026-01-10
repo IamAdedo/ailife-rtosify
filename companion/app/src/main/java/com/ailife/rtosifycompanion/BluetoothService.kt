@@ -1084,8 +1084,8 @@ class BluetoothService : Service() {
 
         val deviceType = prefs.getString("device_type", "PHONE")
         if (deviceType == "WATCH") {
-            startWatchStatusSender()
-            startDeviceInfoSender()
+            // startWatchStatusSender() // Removed for polling refactor
+            // startDeviceInfoSender() // Removed for polling refactor
             // Health data is now request-based, not continuous
         }
 
@@ -1148,6 +1148,11 @@ class BluetoothService : Service() {
                     MessageType.REQUEST_BATTERY_LIVE -> handleRequestBatteryLive()
                     MessageType.REQUEST_BATTERY_STATIC -> handleRequestBatteryStatic()
                     MessageType.PHONE_BATTERY_UPDATE -> handlePhoneBatteryUpdate(message)
+                    MessageType.UPDATE_BATTERY_SETTINGS -> handleUpdateBatterySettings(message)
+                    MessageType.REQUEST_BATTERY_STATIC -> handleRequestBatteryStatic()
+                    MessageType.PHONE_BATTERY_UPDATE -> handlePhoneBatteryUpdate(message)
+                    MessageType.REQUEST_WATCH_STATUS -> handleRequestWatchStatus()
+                    MessageType.REQUEST_DEVICE_INFO_UPDATE -> handleRequestDeviceInfo()
                     MessageType.UPDATE_BATTERY_SETTINGS -> handleUpdateBatterySettings(message)
                     MessageType.CLIPBOARD_SYNC -> handleClipboardSync(message)
                     MessageType.ENABLE_BT_INTERNET -> handleEnableBluetoothInternet(message)
@@ -1774,36 +1779,26 @@ class BluetoothService : Service() {
     // STATUS DO WATCH (BATERIA, WIFI, DND)
     // ========================================================================
 
-    private fun startWatchStatusSender() {
-        statusUpdateJob?.cancel()
-        statusUpdateJob =
-                serviceScope.launch(Dispatchers.IO) {
-                    while (isActive && isConnected) {
-                        try {
-                            val status = collectWatchStatus()
-                            sendMessage(ProtocolHelper.createStatusUpdate(status))
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Erro ao enviar status: ${e.message}")
-                        }
-                        delay(5000)
-                    }
-                }
+    private fun handleRequestWatchStatus() {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val status = collectWatchStatus()
+                sendMessage(ProtocolHelper.createStatusUpdate(status))
+            } catch (e: Exception) {
+                Log.e(TAG, "Erro ao enviar status: ${e.message}")
+            }
+        }
     }
 
-    private fun startDeviceInfoSender() {
-        deviceInfoUpdateJob?.cancel()
-        deviceInfoUpdateJob =
-                serviceScope.launch(Dispatchers.IO) {
-                    while (isActive && isConnected) {
-                        try {
-                            val info = deviceInfoManager.getDeviceInfo(userService)
-                            sendMessage(ProtocolHelper.createDeviceInfoUpdate(info))
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error sending device info: ${e.message}")
-                        }
-                        delay(3000)
-                    }
-                }
+    private fun handleRequestDeviceInfo() {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val info = deviceInfoManager.getDeviceInfo(userService)
+                sendMessage(ProtocolHelper.createDeviceInfoUpdate(info))
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending device info: ${e.message}")
+            }
+        }
     }
 
     @SuppressLint("MissingPermission")

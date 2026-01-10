@@ -2068,6 +2068,14 @@ class BluetoothService : Service() {
         sendMessage(ProtocolHelper.createDeleteFile(path))
     }
 
+    fun requestWatchStatus() {
+        sendMessage(ProtocolHelper.createRequestWatchStatus())
+    }
+
+    fun requestDeviceInfoUpdate() {
+        sendMessage(ProtocolHelper.createRequestDeviceInfoUpdate())
+    }
+
     private suspend fun handleResponseFileList(message: ProtocolMessage) {
         val path = ProtocolHelper.extractStringField(message, "path") ?: "/"
         val filesJson = message.data.get("files").toString()

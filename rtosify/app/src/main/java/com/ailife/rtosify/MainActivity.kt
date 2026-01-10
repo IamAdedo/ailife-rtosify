@@ -35,6 +35,10 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.card.MaterialCardView
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
@@ -214,10 +218,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     bluetoothService?.isConnected == true
             )
         }
+        startWatchStatusPolling()
     }
 
     override fun onPause() {
         super.onPause()
+        stopWatchStatusPolling()
     }
 
     private fun hasMissingPermissions(): Boolean {
@@ -1600,5 +1606,27 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             unbindService(connection)
             isBound = false
         }
+    }
+
+    private var watchStatusPollingJob: Job? = null
+
+    private fun startWatchStatusPolling() {
+        stopWatchStatusPolling()
+        if (!isPhoneMode) return 
+
+        watchStatusPollingJob = MainScope().launch {
+             while (true) {
+                 if (bluetoothService?.isConnected == true) {
+                     bluetoothService?.requestWatchStatus()
+                     bluetoothService?.requestDeviceInfoUpdate()
+                 }
+                 delay(2000) // Poll every 2 seconds
+             }
+        }
+    }
+
+    private fun stopWatchStatusPolling() {
+        watchStatusPollingJob?.cancel()
+        watchStatusPollingJob = null
     }
 }

@@ -115,6 +115,10 @@ object MessageType {
     // Phone Battery (Dedicated)
     const val REQUEST_PHONE_BATTERY = "request_phone_battery"
     const val PHONE_BATTERY_UPDATE = "phone_battery_update"
+
+    // Refactored Polling
+    const val REQUEST_WATCH_STATUS = "request_watch_status"
+    const val REQUEST_DEVICE_INFO_UPDATE = "request_device_info_update"
 }
 
 data class PhoneBatteryData(val level: Int, val isCharging: Boolean)
@@ -883,5 +887,13 @@ object ProtocolHelper {
     fun createPhoneBatteryUpdate(level: Int, isCharging: Boolean): ProtocolMessage {
         val data = gson.toJsonTree(PhoneBatteryData(level, isCharging)).asJsonObject
         return ProtocolMessage(type = MessageType.PHONE_BATTERY_UPDATE, data = data)
+    }
+
+    fun createRequestWatchStatus(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.REQUEST_WATCH_STATUS)
+    }
+
+    fun createRequestDeviceInfoUpdate(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.REQUEST_DEVICE_INFO_UPDATE)
     }
 }
