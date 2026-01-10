@@ -24,8 +24,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         private const val PILL_HEIGHT_EXPANDED_DP = 80
         private const val PILL_WIDTH_COLLAPSED_DP = 150
         private const val PILL_WIDTH_EXPANDED_DP = 380
-        private const val ICON_SIZE_DP = 36
-        private const val STACKED_ICON_SIZE_DP = 28
+        private var ICON_SIZE_DP = 36
+        private var STACKED_ICON_SIZE_DP = 28
         private const val CORNER_RADIUS_DP = 20f
     }
 
@@ -91,7 +91,9 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER
-                    setPadding(dpToPx(12))
+                    val hPadding = dpToPx(pillHeightCollapsed * 0.3f)
+                    val vPadding = dpToPx(pillHeightCollapsed * 0.2f)
+                    setPadding(hPadding, vPadding, hPadding, vPadding)
                 }
 
         // Icon container (for stacked notification icons)
@@ -112,12 +114,14 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER
                     visibility = GONE
-                    setPadding(dpToPx(12))
+                    val vPadding = dpToPx(pillHeightCollapsed * 0.1f)
+                    val hPadding = dpToPx(pillHeightCollapsed * 0.3f)
+                    setPadding(hPadding, vPadding, hPadding, vPadding)
 
                     val closeText =
                             TextView(context).apply {
                                 text = "Close"
-                                textSize = 14f
+                                textSize = pillHeightCollapsed * 0.35f
                                 setTextColor(Color.WHITE)
                                 typeface = Typeface.DEFAULT_BOLD
                             }
@@ -125,7 +129,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                     val arrow =
                             TextView(context).apply {
                                 text = " ▴" // Small up arrow
-                                textSize = 14f
+                                textSize = pillHeightCollapsed * 0.35f
                                 setTextColor(Color.WHITE)
                             }
 
@@ -180,7 +184,9 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
         animateToCollapsed {
             contentContainer.removeAllViews()
-            contentContainer.setPadding(dpToPx(12))
+            val hPadding = dpToPx(pillHeightCollapsed * 0.3f)
+            val vPadding = dpToPx(pillHeightCollapsed * 0.2f)
+            contentContainer.setPadding(hPadding, vPadding, hPadding, vPadding)
 
             // Just show connected state by default in idle
             showConnectedState()
@@ -206,9 +212,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                     }
 
             // Watch icon
+            val iconSize = dpToPx(pillHeightCollapsed * 0.6f)
             val watchIcon =
                     ImageView(context).apply {
-                        layoutParams = LinearLayout.LayoutParams(dpToPx(20), dpToPx(20))
+                        layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
                         setImageResource(R.drawable.ic_smartwatch)
                         setColorFilter(Color.GRAY)
                     }
@@ -227,35 +234,20 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                     val w = width.toFloat()
                                     val h = height.toFloat()
                                     canvas.drawLine(0f, h / 2f, w, h / 2f, paint)
-                                    // Draw a small cross
-                                    canvas.drawLine(
-                                            w / 2f - dpToPx(4),
-                                            h / 2f - dpToPx(4),
-                                            w / 2f + dpToPx(4),
-                                            h / 2f + dpToPx(4),
-                                            paint
-                                    )
-                                    canvas.drawLine(
-                                            w / 2f + dpToPx(4),
-                                            h / 2f - dpToPx(4),
-                                            w / 2f - dpToPx(4),
-                                            h / 2f + dpToPx(4),
-                                            paint
-                                    )
                                 }
                             }
                             .apply {
                                 layoutParams =
-                                        LinearLayout.LayoutParams(dpToPx(30), dpToPx(20)).apply {
-                                            marginStart = dpToPx(4)
-                                            marginEnd = dpToPx(4)
+                                        LinearLayout.LayoutParams(dpToPx(20), dpToPx(10)).apply {
+                                            marginStart = dpToPx(2)
+                                            marginEnd = dpToPx(2)
                                         }
                             }
 
             // Phone icon
             val phoneIcon =
                     ImageView(context).apply {
-                        layoutParams = LinearLayout.LayoutParams(dpToPx(20), dpToPx(20))
+                        layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
                         setImageResource(R.drawable.ic_smartphone)
                         setColorFilter(Color.GRAY)
                     }
@@ -277,9 +269,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         iconContainer.visibility = GONE
 
         animateToCollapsed {
+            val iconSize = dpToPx(pillHeightCollapsed * 0.6f)
             contentContainer.addView(
                     ImageView(context).apply {
-                        layoutParams = LinearLayout.LayoutParams(dpToPx(24), dpToPx(24))
+                        layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
                         setImageResource(
                                 android.R.drawable.stat_sys_data_bluetooth
                         ) // Use generic BT icon
@@ -462,6 +455,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
         expandedContainer.visibility = GONE
         iconContainer.visibility = GONE
+        closeContainer.visibility = GONE
         contentContainer.visibility = VISIBLE
         contentContainer.removeAllViews()
 
@@ -660,7 +654,12 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                     background =
                                             GradientDrawable().apply {
                                                 shape = GradientDrawable.OVAL
-                                                setStroke(dpToPx(2), Color.WHITE)
+                                                val strokeWidth =
+                                                        Math.max(
+                                                                1,
+                                                                dpToPx(STACKED_ICON_SIZE_DP / 14f)
+                                                        )
+                                                setStroke(strokeWidth, Color.WHITE)
                                             }
                                 }
                         iconContainer.addView(icon)
@@ -679,14 +678,19 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                                                 -dpToPx(STACKED_ICON_SIZE_DP / 2)
                                                     }
                                     text = "+${notifications.size - maxIcons}"
-                                    textSize = 11f
+                                    textSize = (STACKED_ICON_SIZE_DP * 0.4f)
                                     setTextColor(Color.WHITE)
                                     gravity = Gravity.CENTER
                                     background =
                                             GradientDrawable().apply {
                                                 shape = GradientDrawable.OVAL
                                                 setColor(Color.parseColor("#FF9500"))
-                                                setStroke(dpToPx(2), Color.WHITE)
+                                                val strokeWidth =
+                                                        Math.max(
+                                                                1,
+                                                                dpToPx(STACKED_ICON_SIZE_DP / 14f)
+                                                        )
+                                                setStroke(strokeWidth, Color.WHITE)
                                             }
                                 }
                         iconContainer.addView(moreText)
@@ -1301,6 +1305,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         pillWidthCollapsed = width
         pillHeightCollapsed = height
 
+        // Update icon sizes relative to new height
+        ICON_SIZE_DP = (height * 0.9f).toInt()
+        STACKED_ICON_SIZE_DP = (height * 0.7f).toInt()
+
         // Re-scale expanded height if needed, keeping it larger than collapsed
         pillHeightExpanded = Math.max(PILL_HEIGHT_EXPANDED_DP, height + 40)
 
@@ -1311,6 +1319,22 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             params.height = dpToPx(pillHeightCollapsed)
             pillContainer.layoutParams = params
             pillContainer.background = createPillBackground()
+
+            // Update contentContainer padding
+            val hPadding = dpToPx(pillHeightCollapsed * 0.3f)
+            val vPadding = dpToPx(pillHeightCollapsed * 0.2f)
+            contentContainer.setPadding(hPadding, vPadding, hPadding, vPadding)
+
+            // Update closeContainer scaling
+            val cvPadding = dpToPx(pillHeightCollapsed * 0.1f)
+            val chPadding = dpToPx(pillHeightCollapsed * 0.3f)
+            closeContainer.setPadding(chPadding, cvPadding, chPadding, cvPadding)
+            for (i in 0 until closeContainer.childCount) {
+                val child = closeContainer.getChildAt(i)
+                if (child is TextView) {
+                    child.textSize = pillHeightCollapsed * 0.35f
+                }
+            }
         }
     }
 

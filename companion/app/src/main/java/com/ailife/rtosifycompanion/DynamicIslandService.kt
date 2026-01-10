@@ -268,13 +268,15 @@ class DynamicIslandService : Service() {
     }
 
     private fun showTransientChargingState(charging: Boolean, animate: Boolean = false) {
+        lastIsCharging = charging
         isShowingTransientState = true
         transientStateRunnable?.let { handler.removeCallbacks(it) }
 
+        // Update visibility and state first
+        updateState()
+
         if (charging) {
             overlayView.showChargingState(batteryPercent, animate)
-        } else {
-            updateState()
         }
 
         val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
@@ -288,6 +290,9 @@ class DynamicIslandService : Service() {
     private fun showTransientConnectionState(connected: Boolean) {
         isShowingTransientState = true
         transientStateRunnable?.let { handler.removeCallbacks(it) }
+
+        // Update visibility and state first
+        updateState()
 
         if (connected) {
             overlayView.showConnectedState() // Could be an expanded version if needed
@@ -321,6 +326,7 @@ class DynamicIslandService : Service() {
             val hasNotifications = notificationQueue.isNotEmpty()
 
             if (hideWhenIdle && !hasNotifications) {
+                overlayView.showIdleState()
                 overlayView.visibility = View.GONE
             } else {
                 overlayView.visibility = View.VISIBLE
@@ -361,6 +367,9 @@ class DynamicIslandService : Service() {
             // Already showing a notification, just update the queue icons
             overlayView.updateNotificationQueue(notificationQueue)
         }
+
+        // Force visibility update to unhide if necessary
+        updateState()
     }
 
     private fun displayNotification(notif: NotificationData) {
