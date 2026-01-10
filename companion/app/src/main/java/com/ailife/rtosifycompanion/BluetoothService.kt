@@ -1166,6 +1166,8 @@ class BluetoothService : Service() {
                     MessageType.REMOTE_INPUT -> handleRemoteInput(message)
                     MessageType.UPDATE_RESOLUTION -> handleUpdateResolution(message)
                     MessageType.MIRROR_RES_CHANGE -> handleMirrorResChange(message)
+                    MessageType.EXECUTE_SHELL_COMMAND -> handleExecuteShellCommand(message)
+                    MessageType.REQUEST_PERMISSION_INFO -> handleRequestPermissionInfo()
                     else -> Log.w(TAG, "Unknown message type: ${message.type}")
                 }
             }
@@ -5897,6 +5899,150 @@ class BluetoothService : Service() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to stop DynamicIslandService: ${e.message}")
+        }
+    }
+
+    // Terminal / Shell Command Handlers
+    private fun handleExecuteShellCommand(message: ProtocolMessage) {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val request = ProtocolHelper.extractData<ShellCommandRequest>(message)
+                Log.d(TAG, "Executing shell command: ${request.command}")
+
+                // Three-tier execution strategy: Shizuku -> Root -> App context
+                val resultJson: String? = when {
+                    userService != null -> {
+                        Log.d(TAG, "Executing via Shizuku UserService")
+                        userService?.executeShellCommandFull(request.command)
+                    }
+                    Shell.getShell().isRoot -> {
+                        Log.d(TAG, "Executing via libsu root")
+                        executeViaLibsu(request.command, request.sessionId)
+                    }
+                    else -> {
+                        Log.d(TAG, "Executing via app context")
+                        executeViaAppContext(request.command, request.sessionId)
+                    }
+                }
+
+                if (resultJson != null) {
+                    val resultMap = ProtocolHelper.gson.fromJson(resultJson,
+                        object : com.google.gson.reflect.TypeToken<Map<String, Any>>() {}.type) as Map<String, Any>
+
+                    val response = ShellCommandResponse(
+                        sessionId = request.sessionId,
+                        exitCode = (resultMap["exitCode"] as Double).toInt(),
+                        stdout = resultMap["stdout"] as String,
+                        stderr = resultMap["stderr"] as String,
+                        executionTimeMs = (resultMap["executionTimeMs"] as Double).toLong(),
+                        uid = (resultMap["uid"] as Double).toInt(),
+                        permissionLevel = resultMap["permissionLevel"] as String
+                    )
+
+                    sendMessage(ProtocolHelper.createShellCommandResponse(response))
+                    Log.d(TAG, "Shell command executed successfully with exit code: ${response.exitCode}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error executing shell command: ${e.message}", e)
+                try {
+                    val errorResponse = ShellCommandResponse(
+                        sessionId = ProtocolHelper.extractStringField(message, "sessionId") ?: "",
+                        exitCode = -1,
+                        stdout = "",
+                        stderr = e.message ?: "Unknown error",
+                        executionTimeMs = 0,
+                        uid = android.os.Process.myUid(),
+                        permissionLevel = "app"
+                    )
+                    sendMessage(ProtocolHelper.createShellCommandResponse(errorResponse))
+                } catch (e2: Exception) {
+                    Log.e(TAG, "Failed to send error response: ${e2.message}")
+                }
+            }
+        }
+    }
+
+    private fun executeViaLibsu(command: String, sessionId: String): String {
+        val startTime = System.currentTimeMillis()
+        val result = Shell.cmd(command).exec()
+        val executionTime = System.currentTimeMillis() - startTime
+
+        return ProtocolHelper.gson.toJson(mapOf(
+            "exitCode" to result.code,
+            "stdout" to result.out.joinToString("\n"),
+            "stderr" to result.err.joinToString("\n"),
+            "executionTimeMs" to executionTime,
+            "uid" to 0,
+            "permissionLevel" to "root"
+        ))
+    }
+
+    private fun executeViaAppContext(command: String, sessionId: String): String {
+        val startTime = System.currentTimeMillis()
+        val currentUid = android.os.Process.myUid()
+
+        return try {
+            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
+            val stdout = process.inputStream.bufferedReader().use { it.readText() }
+            val stderr = process.errorStream.bufferedReader().use { it.readText() }
+            val exitCode = process.waitFor()
+            val executionTime = System.currentTimeMillis() - startTime
+
+            ProtocolHelper.gson.toJson(mapOf(
+                "exitCode" to exitCode,
+                "stdout" to stdout,
+                "stderr" to stderr,
+                "executionTimeMs" to executionTime,
+                "uid" to currentUid,
+                "permissionLevel" to "app"
+            ))
+        } catch (e: Exception) {
+            val executionTime = System.currentTimeMillis() - startTime
+            ProtocolHelper.gson.toJson(mapOf(
+                "exitCode" to -1,
+                "stdout" to "",
+                "stderr" to (e.message ?: "Unknown error"),
+                "executionTimeMs" to executionTime,
+                "uid" to currentUid,
+                "permissionLevel" to "app"
+            ))
+        }
+    }
+
+    private fun handleRequestPermissionInfo() {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Handling permission info request")
+                ensureUserServiceBound()
+
+                val infoJson = userService?.getPermissionInfo() ?: run {
+                    // Fallback to detect locally
+                    val currentUid = android.os.Process.myUid()
+                    val hasRoot = Shell.getShell().isRoot
+
+                    ProtocolHelper.gson.toJson(mapOf(
+                        "level" to if (hasRoot) "root" else "app",
+                        "uid" to currentUid,
+                        "hasShizuku" to false,
+                        "hasRoot" to hasRoot
+                    ))
+                }
+
+                val infoMap = ProtocolHelper.gson.fromJson(infoJson,
+                    object : com.google.gson.reflect.TypeToken<Map<String, Any>>() {}.type) as Map<String, Any>
+
+                val info = PermissionInfoData(
+                    level = infoMap["level"] as String,
+                    uid = (infoMap["uid"] as Double).toInt(),
+                    hasShizuku = infoMap["hasShizuku"] as Boolean,
+                    hasRoot = infoMap["hasRoot"] as Boolean
+                )
+
+                sendMessage(ProtocolHelper.createPermissionInfoResponse(info))
+                Log.d(TAG, "Permission info sent: level=${info.level}, uid=${info.uid}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting permission info: ${e.message}", e)
+            }
         }
     }
 }

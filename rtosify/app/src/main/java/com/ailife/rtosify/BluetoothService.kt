@@ -179,6 +179,8 @@ class BluetoothService : Service() {
         fun onWifiScanResultsReceived(results: List<WifiScanResultData>) {}
         fun onBatteryDetailReceived(data: BatteryDetailData) {}
         fun onDeviceInfoReceived(info: DeviceInfoData) {}
+        fun onShellCommandResponse(response: ShellCommandResponse) {}
+        fun onPermissionInfoReceived(info: PermissionInfoData) {}
     }
 
     interface AlarmCallback {
@@ -826,6 +828,8 @@ class BluetoothService : Service() {
                     MessageType.UPDATE_RESOLUTION -> handleUpdateResolution(message)
                     MessageType.MIRROR_RES_CHANGE -> handleMirrorResChange(message)
                     MessageType.REQUEST_PHONE_BATTERY -> handleRequestPhoneBattery()
+                    MessageType.SHELL_COMMAND_RESPONSE -> handleShellCommandResponse(message)
+                    MessageType.PERMISSION_INFO_RESPONSE -> handlePermissionInfoResponse(message)
                 }
             }
         } catch (_: IOException) {
@@ -3023,5 +3027,26 @@ class BluetoothService : Service() {
         intent.putExtra("height", data.height)
         intent.putExtra("density", data.density)
         sendBroadcast(intent)
+    }
+
+    // Terminal / Shell Command Response Handlers
+    private fun handleShellCommandResponse(message: ProtocolMessage) {
+        try {
+            val response = ProtocolHelper.extractData<ShellCommandResponse>(message)
+            Log.d(TAG, "Received shell command response: exitCode=${response.exitCode}, uid=${response.uid}")
+            callback?.onShellCommandResponse(response)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling shell command response: ${e.message}", e)
+        }
+    }
+
+    private fun handlePermissionInfoResponse(message: ProtocolMessage) {
+        try {
+            val info = ProtocolHelper.extractData<PermissionInfoData>(message)
+            Log.d(TAG, "Received permission info: level=${info.level}, uid=${info.uid}")
+            callback?.onPermissionInfoReceived(info)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling permission info response: ${e.message}", e)
+        }
     }
 }

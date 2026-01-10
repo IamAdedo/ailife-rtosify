@@ -1105,6 +1105,16 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 }
                         ),
                         MenuOption(
+                                "Terminal",
+                                "Execute shell commands on watch",
+                                android.R.drawable.ic_menu_manage,
+                                {
+                                    runIfConnected {
+                                        startActivity(Intent(this, TerminalActivity::class.java))
+                                    }
+                                }
+                        ),
+                        MenuOption(
                                 getString(R.string.menu_watchface),
                                 getString(R.string.wf_title),
                                 android.R.drawable.ic_menu_gallery,

@@ -97,10 +97,10 @@ class UserService : IUserService.Stub() {
             // For "dumpsys batterystats --checkin", simple split is fine.
             val parts = command.split(" ").toTypedArray()
             val process = Runtime.getRuntime().exec(parts)
-            
+
             val output = process.inputStream.bufferedReader().use { it.readText() }
             process.waitFor()
-            
+
             if (process.exitValue() == 0) {
                 output
             } else {
@@ -113,6 +113,63 @@ class UserService : IUserService.Stub() {
             e.printStackTrace()
             ""
         }
+    }
+
+    override fun executeShellCommandFull(command: String): String {
+        Log.d(TAG, "executeShellCommandFull called with: $command")
+        val startTime = System.currentTimeMillis()
+        val currentUid = android.os.Process.myUid()
+
+        return try {
+            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
+            val stdout = process.inputStream.bufferedReader().use { it.readText() }
+            val stderr = process.errorStream.bufferedReader().use { it.readText() }
+            val exitCode = process.waitFor()
+            val executionTime = System.currentTimeMillis() - startTime
+
+            val permLevel = when (currentUid) {
+                0 -> "root"
+                2000 -> "shizuku"
+                else -> "app"
+            }
+
+            val result = mapOf(
+                "exitCode" to exitCode,
+                "stdout" to stdout,
+                "stderr" to stderr,
+                "executionTimeMs" to executionTime,
+                "uid" to currentUid,
+                "permissionLevel" to permLevel
+            )
+            gson.toJson(result)
+        } catch (e: Exception) {
+            val executionTime = System.currentTimeMillis() - startTime
+            val result = mapOf(
+                "exitCode" to -1,
+                "stdout" to "",
+                "stderr" to (e.message ?: "Unknown error"),
+                "executionTimeMs" to executionTime,
+                "uid" to currentUid,
+                "permissionLevel" to "app"
+            )
+            gson.toJson(result)
+        }
+    }
+
+    override fun getPermissionInfo(): String {
+        Log.d(TAG, "getPermissionInfo called")
+        val currentUid = android.os.Process.myUid()
+        val info = mapOf(
+            "level" to when (currentUid) {
+                0 -> "root"
+                2000 -> "shizuku"
+                else -> "app"
+            },
+            "uid" to currentUid,
+            "hasShizuku" to (currentUid == 2000),
+            "hasRoot" to (currentUid == 0)
+        )
+        return gson.toJson(info)
     }
 
     override fun destroy() {

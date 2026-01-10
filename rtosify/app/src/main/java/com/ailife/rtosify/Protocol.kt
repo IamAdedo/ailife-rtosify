@@ -119,6 +119,12 @@ object MessageType {
     // Refactored Polling
     const val REQUEST_WATCH_STATUS = "request_watch_status"
     const val REQUEST_DEVICE_INFO_UPDATE = "request_device_info_update"
+
+    // Terminal / Shell Command Execution
+    const val EXECUTE_SHELL_COMMAND = "execute_shell_command"
+    const val SHELL_COMMAND_RESPONSE = "shell_command_response"
+    const val REQUEST_PERMISSION_INFO = "request_permission_info"
+    const val PERMISSION_INFO_RESPONSE = "permission_info_response"
 }
 
 data class PhoneBatteryData(val level: Int, val isCharging: Boolean)
@@ -415,6 +421,29 @@ data class ResolutionData(
         const val MODE_ASPECT = 2
     }
 }
+
+// Terminal / Shell Command Data Classes
+data class ShellCommandRequest(
+        val command: String,
+        val sessionId: String
+)
+
+data class ShellCommandResponse(
+        val sessionId: String,
+        val exitCode: Int,
+        val stdout: String,
+        val stderr: String,
+        val executionTimeMs: Long,
+        val uid: Int,
+        val permissionLevel: String // "shizuku", "root", or "app"
+)
+
+data class PermissionInfoData(
+        val level: String,
+        val uid: Int,
+        val hasShizuku: Boolean,
+        val hasRoot: Boolean
+)
 
 // Helper functions to create messages
 object ProtocolHelper {
@@ -888,5 +917,25 @@ object ProtocolHelper {
 
     fun createRequestDeviceInfoUpdate(): ProtocolMessage {
         return ProtocolMessage(type = MessageType.REQUEST_DEVICE_INFO_UPDATE)
+    }
+
+    // Terminal / Shell Command Helper Functions
+    fun createExecuteShellCommand(command: String, sessionId: String): ProtocolMessage {
+        val data = gson.toJsonTree(ShellCommandRequest(command, sessionId)).asJsonObject
+        return ProtocolMessage(type = MessageType.EXECUTE_SHELL_COMMAND, data = data)
+    }
+
+    fun createShellCommandResponse(response: ShellCommandResponse): ProtocolMessage {
+        val data = gson.toJsonTree(response).asJsonObject
+        return ProtocolMessage(type = MessageType.SHELL_COMMAND_RESPONSE, data = data)
+    }
+
+    fun createRequestPermissionInfo(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.REQUEST_PERMISSION_INFO)
+    }
+
+    fun createPermissionInfoResponse(info: PermissionInfoData): ProtocolMessage {
+        val data = gson.toJsonTree(info).asJsonObject
+        return ProtocolMessage(type = MessageType.PERMISSION_INFO_RESPONSE, data = data)
     }
 }

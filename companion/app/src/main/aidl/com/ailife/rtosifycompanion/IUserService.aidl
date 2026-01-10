@@ -34,4 +34,6 @@ interface IUserService {
     void setPrimaryClipText(String text) = 24;
     String executeCommand(String command) = 25;
     String runShellCommandWithOutput(String command) = 26;
+    String executeShellCommandFull(String command) = 27;
+    String getPermissionInfo() = 28;
 }
