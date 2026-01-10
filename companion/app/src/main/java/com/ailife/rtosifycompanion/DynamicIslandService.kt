@@ -34,6 +34,7 @@ class DynamicIslandService : Service() {
 
     private var isBluetoothConnected = false
     private var isCharging = false
+    private var lastIsCharging = false
     private var batteryPercent = 0
     private var isShowingTransientState = false
 
@@ -227,35 +228,34 @@ class DynamicIslandService : Service() {
     private fun handleBatteryChanged(intent: Intent) {
         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-        val currentPercent =
+        batteryPercent =
                 if (level >= 0 && scale > 0) {
-                    (level * 100 / scale)
+                    (level * 100 / scale.toFloat()).toInt()
                 } else {
                     0
                 }
 
         val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-        val currentCharging =
+        isCharging =
                 status == BatteryManager.BATTERY_STATUS_CHARGING ||
                         status == BatteryManager.BATTERY_STATUS_FULL
 
-        if (currentCharging != isCharging || (currentCharging && currentPercent != batteryPercent)
-        ) {
-            isCharging = currentCharging
-            batteryPercent = currentPercent
-            if (isCharging) {
-                showTransientChargingState()
-            } else {
-                updateState()
-            }
+        if (isCharging != lastIsCharging) {
+            val wasJustConnected = isCharging && !lastIsCharging
+            lastIsCharging = isCharging
+            showTransientChargingState(isCharging, wasJustConnected)
         }
     }
 
-    private fun showTransientChargingState() {
+    private fun showTransientChargingState(charging: Boolean, animate: Boolean = false) {
         isShowingTransientState = true
         transientStateRunnable?.let { handler.removeCallbacks(it) }
 
-        overlayView.showChargingState(batteryPercent)
+        if (charging) {
+            overlayView.showChargingState(batteryPercent, animate)
+        } else {
+            updateState()
+        }
 
         val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
         transientStateRunnable = Runnable {
@@ -285,7 +285,14 @@ class DynamicIslandService : Service() {
 
     private fun updateState() {
         handler.post {
-            if (isExpanded || isShowingTransientState) return@post
+            if (isShowingTransientState) return@post
+
+            // If expanded and queue is empty, we must collapse
+            if (isExpanded && notificationQueue.isEmpty()) {
+                isExpanded = false
+            }
+
+            if (isExpanded) return@post
 
             when {
                 currentNotification != null -> {
@@ -451,6 +458,7 @@ class DynamicIslandService : Service() {
     }
 
     private fun dismissNotification(key: String) {
+        val wasInQueue = notificationQueue.any { it.key == key }
         notificationQueue.removeAll { it.key == key }
 
         if (currentNotification?.key == key) {
@@ -458,6 +466,14 @@ class DynamicIslandService : Service() {
 
             if (notificationQueue.isNotEmpty()) {
                 displayNotification(notificationQueue[0])
+            } else {
+                updateState()
+            }
+        } else if (wasInQueue) {
+            // If it was in the queue but not current, we might need to refresh icons or expanded
+            // list
+            if (isExpanded) {
+                overlayView.expandToList(notificationQueue)
             } else {
                 updateState()
             }

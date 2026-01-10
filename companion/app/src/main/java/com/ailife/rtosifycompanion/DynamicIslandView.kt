@@ -290,8 +290,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         }
     }
 
-    fun showChargingState(batteryPercent: Int) {
-        if (currentState == State.CHARGING) {
+    fun showChargingState(batteryPercent: Int, animate: Boolean = false) {
+        if (currentState == State.CHARGING && !animate) {
             // Just update the percentage
             updateChargingDisplay(batteryPercent)
             return
@@ -318,7 +318,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 }
 
         // Pill-shaped progress indicator
-        val progressRing = createPillProgress(batteryPercent)
+        val progressRing = createPillProgress(if (animate) 0 else batteryPercent)
         progressRing.tag = "progress_ring"
 
         // Battery percentage text (centered)
@@ -330,7 +330,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                             LayoutParams.WRAP_CONTENT
                                     )
                                     .apply { gravity = Gravity.CENTER }
-                    text = "$batteryPercent%"
+                    text = if (animate) "0%" else "$batteryPercent%"
                     textSize = 16f
                     setTextColor(Color.WHITE)
                     tag = "percent_text"
@@ -339,6 +339,26 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         progressContainer.addView(progressRing)
         progressContainer.addView(percentText)
         contentContainer.addView(progressContainer)
+
+        if (animate) {
+            val animator = ValueAnimator.ofFloat(0f, batteryPercent.toFloat())
+            animator.duration = 1500
+            animator.interpolator = DecelerateInterpolator()
+            animator.addUpdateListener { animation ->
+                val value = animation.animatedValue as Float
+                // Update text
+                percentText.text = "${value.toInt()}%"
+                // Update ring (we need a way to set its percent)
+                val ring = progressRing as? Any
+                try {
+                    val setter = ring?.javaClass?.getMethod("setPercent", Float::class.java)
+                    setter?.invoke(ring, value)
+                } catch (e: Exception) {
+                    // Fallback or handle differently if needed
+                }
+            }
+            animator.start()
+        }
 
         animateToCollapsed {}
     }
@@ -359,13 +379,22 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         }
     }
 
-    private fun createPillProgress(percent: Int): View {
+    private fun createPillProgress(initialPercent: Int): View {
         return object : View(context) {
+                    private var currentPercent: Float = initialPercent.toFloat()
+
+                    fun setPercent(percent: Float) {
+                        currentPercent = percent
+                        invalidate()
+                    }
+
                     override fun onDraw(canvas: Canvas) {
                         super.onDraw(canvas)
 
                         val width = width.toFloat()
                         val height = height.toFloat()
+                        if (width <= 0 || height <= 0) return
+
                         val strokeWidth = dpToPx(3).toFloat()
                         val radius = height / 2f
 
@@ -379,7 +408,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                 }
 
                         // Calculate fill width based on percentage
-                        val fillWidth = width * (percent / 100f)
+                        val fillWidth = width * (currentPercent / 100f)
                         val fillPath =
                                 Path().apply {
                                     val rect = RectF(0f, 0f, fillWidth, height)
