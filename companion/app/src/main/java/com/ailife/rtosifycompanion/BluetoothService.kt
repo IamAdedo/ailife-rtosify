@@ -192,6 +192,10 @@ class BluetoothService : Service() {
         const val ACTION_UPDATE_DI_TIMEOUT = "com.ailife.rtosifycompanion.UPDATE_DI_TIMEOUT"
         const val ACTION_SHOW_IN_DYNAMIC_ISLAND = "com.ailife.rtosifycompanion.SHOW_IN_DI"
         const val ACTION_DISMISS_FROM_DYNAMIC_ISLAND = "com.ailife.rtosifycompanion.DISMISS_FROM_DI"
+        const val ACTION_REQUEST_CONNECTION_STATE =
+                "com.ailife.rtosifycompanion.REQUEST_CONNECTION_STATE"
+        const val ACTION_CONNECTION_STATE_CHANGED =
+                "com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED"
 
         const val EXTRA_NOTIF_JSON = "extra_notif_json"
         const val EXTRA_NOTIF_KEY = "extra_notif_key"
@@ -377,6 +381,19 @@ class BluetoothService : Service() {
                 }
             }
 
+    private val dynamicIslandHandshakeReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (intent?.action == ACTION_REQUEST_CONNECTION_STATE) {
+                        Log.d(TAG, "Dynamic Island requested connection state: $isConnected")
+                        val response = Intent(ACTION_CONNECTION_STATE_CHANGED)
+                        response.putExtra("connected", isConnected)
+                        response.setPackage(packageName)
+                        sendBroadcast(response)
+                    }
+                }
+            }
+
     private val batteryReceiver =
             object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
@@ -477,6 +494,7 @@ class BluetoothService : Service() {
                     addAction(ACTION_CMD_SEND_REPLY)
                 }
         val filterWatch = IntentFilter(ACTION_WATCH_DISMISSED_LOCAL)
+        val filterHandshake = IntentFilter(ACTION_REQUEST_CONNECTION_STATE)
         val filterWifi =
                 IntentFilter().apply {
                     addAction(WifiManager.WIFI_STATE_CHANGED_ACTION)
@@ -503,11 +521,18 @@ class BluetoothService : Service() {
                     filterWifi,
                     ContextCompat.RECEIVER_NOT_EXPORTED
             )
+            ContextCompat.registerReceiver(
+                    this,
+                    dynamicIslandHandshakeReceiver,
+                    filterHandshake,
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+            )
             registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         } else {
             registerReceiver(internalReceiver, filterInternal)
             registerReceiver(watchDismissReceiver, filterWatch)
             registerReceiver(wifiStateReceiver, filterWifi)
+            registerReceiver(dynamicIslandHandshakeReceiver, filterHandshake)
             registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         }
 
@@ -3749,6 +3774,8 @@ class BluetoothService : Service() {
 
             if (notificationStyle == "dynamic_island") {
                 // Route to Dynamic Island
+                performNotificationAlert()
+
                 val intent =
                         Intent(ACTION_SHOW_IN_DYNAMIC_ISLAND).apply {
                             putExtra(EXTRA_NOTIF_JSON, Gson().toJson(notif))
@@ -3800,15 +3827,12 @@ class BluetoothService : Service() {
                             .setDeleteIntent(deletePending)
                             .setPriority(NotificationCompat.PRIORITY_HIGH)
 
-            val wakeScreen = prefs.getBoolean("wake_screen_enabled", false)
+            performNotificationAlert()
+
+            var defaults = NotificationCompat.DEFAULT_ALL
             val vibrate = prefs.getBoolean("vibrate_enabled", false)
             val vibrateInSilent = prefs.getBoolean("vibrate_silent_enabled", false)
 
-            if (wakeScreen) {
-                wakeDeviceScreen()
-            }
-
-            var defaults = NotificationCompat.DEFAULT_ALL
             if (vibrate) {
                 val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
                 val isSilent =
@@ -4094,6 +4118,40 @@ class BluetoothService : Service() {
                     setPackage(packageName)
                 }
         sendBroadcast(intent)
+    }
+
+    private fun performNotificationAlert() {
+        val wakeScreen = prefs.getBoolean("wake_screen_enabled", false)
+        val vibrate = prefs.getBoolean("vibrate_enabled", false)
+        val vibrateInSilent = prefs.getBoolean("vibrate_silent_enabled", false)
+
+        if (wakeScreen) {
+            wakeDeviceScreen()
+        }
+
+        if (vibrate) {
+            val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            val isSilent =
+                    nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+
+            if (!isSilent || vibrateInSilent) {
+                try {
+                    val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        vibrator.vibrate(
+                                android.os.VibrationEffect.createOneShot(
+                                        500,
+                                        android.os.VibrationEffect.DEFAULT_AMPLITUDE
+                                )
+                        )
+                    } else {
+                        @Suppress("DEPRECATION") vibrator.vibrate(500)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to vibrate: ${e.message}")
+                }
+            }
+        }
     }
 
     private fun wakeDeviceScreen() {
@@ -4593,6 +4651,9 @@ class BluetoothService : Service() {
 
         try {
             unregisterReceiver(wifiStateReceiver)
+        } catch (_: Exception) {}
+        try {
+            unregisterReceiver(dynamicIslandHandshakeReceiver)
         } catch (_: Exception) {}
         try {
             unregisterReceiver(batteryReceiver)

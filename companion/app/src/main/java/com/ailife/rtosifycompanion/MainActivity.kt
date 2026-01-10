@@ -26,7 +26,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -47,7 +46,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var appBarLayout: AppBarLayout
     private lateinit var mainContentScrollView: NestedScrollView
     private lateinit var switchService: com.google.android.material.materialswitch.MaterialSwitch
-    private lateinit var switchServiceWatch: com.google.android.material.materialswitch.MaterialSwitch
+    private lateinit var switchServiceWatch:
+            com.google.android.material.materialswitch.MaterialSwitch
 
     // Watch Status UI
     private lateinit var cardWatchStatus: MaterialCardView
@@ -64,7 +64,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var layoutConnectionHeader: LinearLayout
     private lateinit var imgWatchStatus: ImageView
     private lateinit var tvWatchStatusBig: TextView
-
 
     private lateinit var prefs: SharedPreferences
     private var bluetoothService: BluetoothService? = null
@@ -84,36 +83,41 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private var uploadIconView: ImageView? = null
     private var uploadOkButton: Button? = null
 
-    private val connection = object : ServiceConnection {
-        override fun onServiceConnected(className: ComponentName, service: IBinder) {
-            val binder = service as BluetoothService.LocalBinder
-            bluetoothService = binder.getService()
-            bluetoothService?.callback = this@MainActivity
-            isBound = true
+    private val connection =
+            object : ServiceConnection {
+                override fun onServiceConnected(className: ComponentName, service: IBinder) {
+                    val binder = service as BluetoothService.LocalBinder
+                    bluetoothService = binder.getService()
+                    bluetoothService?.callback = this@MainActivity
+                    isBound = true
 
-            val type = prefs.getString("device_type", "PHONE")
-            val isServiceEnabled = prefs.getBoolean("service_enabled", true)
-            
-            if (isServiceEnabled) {
-                if (type == "PHONE") bluetoothService?.startSmartphoneLogic()
-                else bluetoothService?.startWatchLogic()
-            } else {
-                bluetoothService?.stopConnectionLoopOnly()
-                updateStatusUI(getString(R.string.status_stopped), false)
+                    val type = prefs.getString("device_type", "PHONE")
+                    val isServiceEnabled = prefs.getBoolean("service_enabled", true)
+
+                    if (isServiceEnabled) {
+                        if (type == "PHONE") bluetoothService?.startSmartphoneLogic()
+                        else bluetoothService?.startWatchLogic()
+                    } else {
+                        bluetoothService?.stopConnectionLoopOnly()
+                        updateStatusUI(getString(R.string.status_stopped), false)
+                    }
+
+                    updateStatusUI(
+                            bluetoothService?.currentStatus ?: getString(R.string.status_starting),
+                            bluetoothService?.isConnected == true
+                    )
+                }
+
+                override fun onServiceDisconnected(arg0: ComponentName) {
+                    isBound = false
+                    bluetoothService = null
+                }
             }
 
-            updateStatusUI(bluetoothService?.currentStatus ?: getString(R.string.status_starting), bluetoothService?.isConnected == true)
-        }
-
-        override fun onServiceDisconnected(arg0: ComponentName) {
-            isBound = false
-            bluetoothService = null
-        }
-    }
-
-    private val pickApkLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { confirmApkUpload(it) }
-    }
+    private val pickApkLauncher =
+            registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+                uri?.let { confirmApkUpload(it) }
+            }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -137,7 +141,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         setupDndClickListener()
 
         bindToService()
-        
+
         setupServiceToggle()
 
         if (intent?.getBooleanExtra("request_mirror", false) == true) {
@@ -161,16 +165,25 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         if (isBound) {
             bluetoothService?.callback = this
             // Força a atualização da UI com os dados atuais do serviço
-            updateStatusUI(bluetoothService?.currentStatus ?: getString(R.string.status_verifying), bluetoothService?.isConnected == true)
+            updateStatusUI(
+                    bluetoothService?.currentStatus ?: getString(R.string.status_verifying),
+                    bluetoothService?.isConnected == true
+            )
         }
+        syncDynamicIslandService()
     }
 
     private fun hasMissingPermissions(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) !=
+                    PackageManager.PERMISSION_GRANTED ||
+                    ContextCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.BLUETOOTH_CONNECT
+                    ) != PackageManager.PERMISSION_GRANTED
         } else {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) !=
+                    PackageManager.PERMISSION_GRANTED
         }
     }
 
@@ -202,7 +215,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         tvWatchStatusBig = findViewById(R.id.tvWatchStatusBig)
         switchService = findViewById(R.id.switchService)
         switchServiceWatch = findViewById(R.id.switchServiceWatch)
-
 
         updateLocalBtName()
     }
@@ -238,64 +250,79 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         val isEnabled = prefs.getBoolean("service_enabled", true)
         switchService.isChecked = isEnabled
         switchServiceWatch.isChecked = isEnabled
-        
-        val listener = android.widget.CompoundButton.OnCheckedChangeListener { _, isChecked ->
-            // Prevent recursive updates if we were to sync them, but here we just update pref and logic
-            if (prefs.getBoolean("service_enabled", true) == isChecked) return@OnCheckedChangeListener
 
-            prefs.edit().putBoolean("service_enabled", isChecked).apply()
-            
-            // Sync visual state of the other switch just in case
-            switchService.isChecked = isChecked
-            switchServiceWatch.isChecked = isChecked
-            
-            if (isChecked) {
-                // Ensure service is started and bound
-                val intent = Intent(this@MainActivity, BluetoothService::class.java)
-                ContextCompat.startForegroundService(this@MainActivity, intent)
-                if (!isBound) {
-                    bindService(intent, connection, BIND_AUTO_CREATE)
+        val listener =
+                android.widget.CompoundButton.OnCheckedChangeListener { _, isChecked ->
+                    // Prevent recursive updates if we were to sync them, but here we just update
+                    // pref and logic
+                    if (prefs.getBoolean("service_enabled", true) == isChecked)
+                            return@OnCheckedChangeListener
+
+                    prefs.edit().putBoolean("service_enabled", isChecked).apply()
+
+                    // Sync visual state of the other switch just in case
+                    switchService.isChecked = isChecked
+                    switchServiceWatch.isChecked = isChecked
+
+                    if (isChecked) {
+                        // Ensure service is started and bound
+                        val intent = Intent(this@MainActivity, BluetoothService::class.java)
+                        ContextCompat.startForegroundService(this@MainActivity, intent)
+                        if (!isBound) {
+                            bindService(intent, connection, BIND_AUTO_CREATE)
+                        }
+
+                        if (isPhoneMode) bluetoothService?.startSmartphoneLogic()
+                        else bluetoothService?.startWatchLogic()
+
+                        updateStatusUI(getString(R.string.status_starting), false)
+                        syncDynamicIslandService()
+                        Toast.makeText(this@MainActivity, "Service Started", Toast.LENGTH_SHORT)
+                                .show()
+                    } else {
+                        bluetoothService?.stopServiceCompletely()
+                        if (isBound) {
+                            unbindService(connection)
+                            isBound = false
+                            bluetoothService = null
+                        }
+                        updateStatusUI(getString(R.string.status_stopped), false)
+                        syncDynamicIslandService()
+                        Toast.makeText(this, "Service Stopped", Toast.LENGTH_SHORT).show()
+                    }
+                    refreshMenu()
                 }
-                
-                if (isPhoneMode) bluetoothService?.startSmartphoneLogic() 
-                else bluetoothService?.startWatchLogic()
-                
-                updateStatusUI(getString(R.string.status_starting), false)
-                Toast.makeText(this@MainActivity, "Service Started", Toast.LENGTH_SHORT).show()
-            } else {
-                bluetoothService?.stopServiceCompletely()
-                if (isBound) {
-                    unbindService(connection)
-                    isBound = false
-                    bluetoothService = null
-                }
-                updateStatusUI(getString(R.string.status_stopped), false)
-                Toast.makeText(this, "Service Stopped", Toast.LENGTH_SHORT).show()
-            }
-            refreshMenu()
-        }
 
         switchService.setOnCheckedChangeListener(listener)
         switchServiceWatch.setOnCheckedChangeListener(listener)
     }
 
+    private val screenCaptureLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                if (result.resultCode == RESULT_OK && result.data != null) {
+                    val intent =
+                            Intent(this, MirroringService::class.java).apply {
+                                putExtra(MirroringService.EXTRA_RESULT_CODE, result.resultCode)
+                                putExtra(MirroringService.EXTRA_DATA, result.data)
+                            }
+                    ContextCompat.startForegroundService(this, intent)
 
-    private val screenCaptureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == RESULT_OK && result.data != null) {
-            val intent = Intent(this, MirroringService::class.java).apply {
-                putExtra(MirroringService.EXTRA_RESULT_CODE, result.resultCode)
-                putExtra(MirroringService.EXTRA_DATA, result.data)
+                    // Send message to phone to open MirrorActivity
+                    val metrics = resources.displayMetrics
+                    bluetoothService?.sendMessage(
+                            ProtocolHelper.createMirrorStart(
+                                    metrics.widthPixels,
+                                    metrics.heightPixels,
+                                    metrics.densityDpi
+                            )
+                    )
+                }
             }
-            ContextCompat.startForegroundService(this, intent)
-            
-            // Send message to phone to open MirrorActivity
-            val metrics = resources.displayMetrics
-            bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(metrics.widthPixels, metrics.heightPixels, metrics.densityDpi))
-        }
-    }
 
     private fun startWatchMirroring() {
-        val projectionManager = getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager
+        val projectionManager =
+                getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as
+                        android.media.projection.MediaProjectionManager
         screenCaptureLauncher.launch(projectionManager.createScreenCaptureIntent())
     }
 
@@ -313,30 +340,32 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         recyclerViewMenu.layoutManager = LinearLayoutManager(this)
         recyclerViewMenu.isNestedScrollingEnabled = false
 
-        val options = listOf(
-            // Watch app - simplified menu without phone-only features
-            MenuOption(
-                getString(R.string.menu_disconnect),
-                getString(R.string.menu_disconnect_desc),
-                android.R.drawable.ic_menu_close_clear_cancel,
-                // PERMITIDO: O usuário precisa poder parar a busca/serviço mesmo se não conectou
-                {
-                    // Legacy disconnect button removed functionality
-                }
-            ),
-            MenuOption(
-                getString(R.string.perm_title),
-                getString(R.string.perm_not_granted), // Placeholder description
-                android.R.drawable.ic_menu_manage,
-                { startActivity(Intent(this, PermissionActivity::class.java)) }
-            ),
-            MenuOption(
-                getString(R.string.menu_reset_all),
-                getString(R.string.menu_reset_all_desc),
-                android.R.drawable.ic_menu_delete,
-                { resetApp() }
-            )
-        )
+        val options =
+                listOf(
+                        // Watch app - simplified menu without phone-only features
+                        MenuOption(
+                                getString(R.string.menu_disconnect),
+                                getString(R.string.menu_disconnect_desc),
+                                android.R.drawable.ic_menu_close_clear_cancel,
+                                // PERMITIDO: O usuário precisa poder parar a busca/serviço mesmo se
+                                // não conectou
+                                {
+                                    // Legacy disconnect button removed functionality
+                                }
+                        ),
+                        MenuOption(
+                                getString(R.string.perm_title),
+                                getString(R.string.perm_not_granted), // Placeholder description
+                                android.R.drawable.ic_menu_manage,
+                                { startActivity(Intent(this, PermissionActivity::class.java)) }
+                        ),
+                        MenuOption(
+                                getString(R.string.menu_reset_all),
+                                getString(R.string.menu_reset_all_desc),
+                                android.R.drawable.ic_menu_delete,
+                                { resetApp() }
+                        )
+                )
         menuAdapter = MenuAdapter(options.toMutableList())
         recyclerViewMenu.adapter = menuAdapter
     }
@@ -345,94 +374,114 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         recyclerViewMenu.layoutManager = LinearLayoutManager(this)
         recyclerViewMenu.isNestedScrollingEnabled = false
 
-        val options = mutableListOf(
-            MenuOption(
-                "Media Control", // Hardcoded string for now or add to strings.xml later if requested
-                "Control phone playback",
-                android.R.drawable.ic_media_play, // Using a standard system drawable
-                { runIfConnected { startActivity(Intent(this, MediaControlActivity::class.java)) } }
-            ),
-            MenuOption(
-                getString(R.string.menu_mirroring),
-                getString(R.string.menu_mirroring_desc),
-                R.drawable.ic_cast,
-                { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
-            ),
-            MenuOption(
-                "Alarms",
-                "Manage alarms",
-                android.R.drawable.ic_lock_idle_alarm,
-                { startActivity(Intent(this, AlarmManagementActivity::class.java)) }
-            ),
-            MenuOption(
-                "Camera",
-                "Remote Shutter",
-                android.R.drawable.ic_menu_camera,
-                { runIfConnected { startActivity(Intent(this, CameraRemoteActivity::class.java)) } }
-            ),
-            MenuOption(
-                getString(R.string.menu_dialer),
-                getString(R.string.menu_dialer_desc),
-                android.R.drawable.ic_menu_call,
-                { runIfConnected { startActivity(Intent(this, DialerActivity::class.java)) } }
-            )
-        )
+        val options =
+                mutableListOf(
+                        MenuOption(
+                                "Media Control", // Hardcoded string for now or add to strings.xml
+                                // later if requested
+                                "Control phone playback",
+                                android.R
+                                        .drawable
+                                        .ic_media_play, // Using a standard system drawable
+                                {
+                                    runIfConnected {
+                                        startActivity(
+                                                Intent(this, MediaControlActivity::class.java)
+                                        )
+                                    }
+                                }
+                        ),
+                        MenuOption(
+                                getString(R.string.menu_mirroring),
+                                getString(R.string.menu_mirroring_desc),
+                                R.drawable.ic_cast,
+                                { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
+                        ),
+                        MenuOption(
+                                "Alarms",
+                                "Manage alarms",
+                                android.R.drawable.ic_lock_idle_alarm,
+                                { startActivity(Intent(this, AlarmManagementActivity::class.java)) }
+                        ),
+                        MenuOption(
+                                "Camera",
+                                "Remote Shutter",
+                                android.R.drawable.ic_menu_camera,
+                                {
+                                    runIfConnected {
+                                        startActivity(
+                                                Intent(this, CameraRemoteActivity::class.java)
+                                        )
+                                    }
+                                }
+                        ),
+                        MenuOption(
+                                getString(R.string.menu_dialer),
+                                getString(R.string.menu_dialer_desc),
+                                android.R.drawable.ic_menu_call,
+                                {
+                                    runIfConnected {
+                                        startActivity(Intent(this, DialerActivity::class.java))
+                                    }
+                                }
+                        )
+                )
 
         val isConnected = bluetoothService?.isConnected == true
         val isActive = bluetoothService?.isActive() == true
 
         if (isActive || isConnected) {
             options.add(
-                MenuOption(
-                    getString(R.string.menu_disconnect),
-                    getString(R.string.menu_disconnect_desc),
-                    android.R.drawable.ic_menu_close_clear_cancel,
-                    {
-                        bluetoothService?.stopConnectionLoopOnly()
-                        updateStatusUI(getString(R.string.status_stopped), false)
-                    }
-                )
+                    MenuOption(
+                            getString(R.string.menu_disconnect),
+                            getString(R.string.menu_disconnect_desc),
+                            android.R.drawable.ic_menu_close_clear_cancel,
+                            {
+                                bluetoothService?.stopConnectionLoopOnly()
+                                updateStatusUI(getString(R.string.status_stopped), false)
+                            }
+                    )
             )
         } else {
             options.add(
-                MenuOption(
-                    getString(R.string.menu_connect),
-                    getString(R.string.menu_connect_desc),
-                    android.R.drawable.ic_menu_view,
-                    {
-                        bluetoothService?.startWatchLogic()
-                        updateStatusUI(getString(R.string.status_starting), false)
-                    }
-                )
+                    MenuOption(
+                            getString(R.string.menu_connect),
+                            getString(R.string.menu_connect_desc),
+                            android.R.drawable.ic_menu_view,
+                            {
+                                bluetoothService?.startWatchLogic()
+                                updateStatusUI(getString(R.string.status_starting), false)
+                            }
+                    )
             )
         }
 
         options.add(
-            MenuOption(
-                getString(R.string.menu_find_phone),
-                getString(R.string.menu_find_phone_desc),
-                android.R.drawable.ic_menu_search,
-                { runIfConnected { confirmFindPhone() } }
-            )
+                MenuOption(
+                        getString(R.string.menu_find_phone),
+                        getString(R.string.menu_find_phone_desc),
+                        android.R.drawable.ic_menu_search,
+                        { runIfConnected { confirmFindPhone() } }
+                )
         )
         options.add(
-            MenuOption(
-                getString(R.string.perm_title),
-                getString(R.string.perm_shizuku_desc),
-                android.R.drawable.ic_menu_manage,
-                { startActivity(Intent(this, PermissionActivity::class.java)) }
-            )
+                MenuOption(
+                        getString(R.string.perm_title),
+                        getString(R.string.perm_shizuku_desc),
+                        android.R.drawable.ic_menu_manage,
+                        { startActivity(Intent(this, PermissionActivity::class.java)) }
+                )
         )
 
         options.add(
-            MenuOption(
-                getString(R.string.menu_reset_all),
-                getString(R.string.menu_reset_all_desc),
-                android.R.drawable.ic_menu_delete,
-                { resetApp() }
-            )
+                MenuOption(
+                        getString(R.string.menu_reset_all),
+                        getString(R.string.menu_reset_all_desc),
+                        android.R.drawable.ic_menu_delete,
+                        { resetApp() }
+                )
         )
-        
+
         menuAdapter = MenuAdapter(options)
         recyclerViewMenu.adapter = menuAdapter
     }
@@ -445,53 +494,65 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         if (isPhoneMode) {
             options.add(
-                MenuOption(
-                    getString(R.string.perm_title),
-                    getString(R.string.perm_not_granted), 
-                    android.R.drawable.ic_menu_manage,
-                    { startActivity(Intent(this, PermissionActivity::class.java)) }
-                )
+                    MenuOption(
+                            getString(R.string.perm_title),
+                            getString(R.string.perm_not_granted),
+                            android.R.drawable.ic_menu_manage,
+                            { startActivity(Intent(this, PermissionActivity::class.java)) }
+                    )
             )
         } else {
             options.add(
-                MenuOption(
-                    "Media Control",
-                    "Control phone playback",
-                    android.R.drawable.ic_media_play,
-                    { runIfConnected { startActivity(Intent(this, MediaControlActivity::class.java)) } }
-                )
+                    MenuOption(
+                            "Media Control",
+                            "Control phone playback",
+                            android.R.drawable.ic_media_play,
+                            {
+                                runIfConnected {
+                                    startActivity(Intent(this, MediaControlActivity::class.java))
+                                }
+                            }
+                    )
             )
             options.add(
-                MenuOption(
-                    getString(R.string.menu_mirroring),
-                    getString(R.string.menu_mirroring_desc),
-                    R.drawable.ic_cast,
-                    { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
-                )
+                    MenuOption(
+                            getString(R.string.menu_mirroring),
+                            getString(R.string.menu_mirroring_desc),
+                            R.drawable.ic_cast,
+                            { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
+                    )
             )
             options.add(
-                MenuOption(
-                    "Alarms",
-                    "Manage alarms",
-                    android.R.drawable.ic_lock_idle_alarm,
-                    { startActivity(Intent(this, AlarmManagementActivity::class.java)) }
-                )
+                    MenuOption(
+                            "Alarms",
+                            "Manage alarms",
+                            android.R.drawable.ic_lock_idle_alarm,
+                            { startActivity(Intent(this, AlarmManagementActivity::class.java)) }
+                    )
             )
             options.add(
-                MenuOption(
-                    "Camera",
-                    "Remote Shutter",
-                    android.R.drawable.ic_menu_camera,
-                    { runIfConnected { startActivity(Intent(this, CameraRemoteActivity::class.java)) } }
-                )
+                    MenuOption(
+                            "Camera",
+                            "Remote Shutter",
+                            android.R.drawable.ic_menu_camera,
+                            {
+                                runIfConnected {
+                                    startActivity(Intent(this, CameraRemoteActivity::class.java))
+                                }
+                            }
+                    )
             )
             options.add(
-                MenuOption(
-                    getString(R.string.menu_dialer),
-                    getString(R.string.menu_dialer_desc),
-                    android.R.drawable.ic_menu_call,
-                    { runIfConnected { startActivity(Intent(this, DialerActivity::class.java)) } }
-                )
+                    MenuOption(
+                            getString(R.string.menu_dialer),
+                            getString(R.string.menu_dialer_desc),
+                            android.R.drawable.ic_menu_call,
+                            {
+                                runIfConnected {
+                                    startActivity(Intent(this, DialerActivity::class.java))
+                                }
+                            }
+                    )
             )
         }
 
@@ -499,30 +560,30 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         if (!isPhoneMode) {
             options.add(
-                MenuOption(
-                    getString(R.string.menu_find_phone),
-                    getString(R.string.menu_find_phone_desc),
-                    android.R.drawable.ic_menu_search,
-                    { runIfConnected { confirmFindPhone() } }
-                )
+                    MenuOption(
+                            getString(R.string.menu_find_phone),
+                            getString(R.string.menu_find_phone_desc),
+                            android.R.drawable.ic_menu_search,
+                            { runIfConnected { confirmFindPhone() } }
+                    )
             )
             options.add(
-                MenuOption(
-                    getString(R.string.perm_title),
-                    getString(R.string.perm_shizuku_desc),
-                    android.R.drawable.ic_menu_manage,
-                    { startActivity(Intent(this, PermissionActivity::class.java)) }
-                )
+                    MenuOption(
+                            getString(R.string.perm_title),
+                            getString(R.string.perm_shizuku_desc),
+                            android.R.drawable.ic_menu_manage,
+                            { startActivity(Intent(this, PermissionActivity::class.java)) }
+                    )
             )
         }
 
         options.add(
-            MenuOption(
-                getString(R.string.menu_reset_all),
-                getString(R.string.menu_reset_all_desc),
-                android.R.drawable.ic_menu_delete,
-                { resetApp() }
-            )
+                MenuOption(
+                        getString(R.string.menu_reset_all),
+                        getString(R.string.menu_reset_all_desc),
+                        android.R.drawable.ic_menu_delete,
+                        { resetApp() }
+                )
         )
 
         menuAdapter?.updateOptions(options)
@@ -530,16 +591,18 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     private fun confirmFindPhone() {
         AlertDialog.Builder(this)
-            .setTitle(getString(R.string.menu_find_phone))
-            .setMessage(getString(R.string.dialog_find_watch_message)) // Reuse message or add new one
-            .setPositiveButton(getString(R.string.dialog_find_watch_start)) { _, _ ->
-                bluetoothService?.sendMessage(ProtocolHelper.createFindPhone(true))
-            }
-            .setNeutralButton(getString(R.string.dialog_find_watch_stop)) { _, _ ->
-                bluetoothService?.sendMessage(ProtocolHelper.createFindPhone(false))
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+                .setTitle(getString(R.string.menu_find_phone))
+                .setMessage(
+                        getString(R.string.dialog_find_watch_message)
+                ) // Reuse message or add new one
+                .setPositiveButton(getString(R.string.dialog_find_watch_start)) { _, _ ->
+                    bluetoothService?.sendMessage(ProtocolHelper.createFindPhone(true))
+                }
+                .setNeutralButton(getString(R.string.dialog_find_watch_stop)) { _, _ ->
+                    bluetoothService?.sendMessage(ProtocolHelper.createFindPhone(false))
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
     }
 
     private fun bindToService() {
@@ -551,15 +614,18 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun updateStatusUI(status: String, isConnected: Boolean) {
-        val deviceName = bluetoothService?.currentDeviceName ?: getString(R.string.device_name_default)
-        tvHeaderDeviceName.text = if (isConnected) deviceName else getString(R.string.status_waiting)
+        val deviceName =
+                bluetoothService?.currentDeviceName ?: getString(R.string.device_name_default)
+        tvHeaderDeviceName.text =
+                if (isConnected) deviceName else getString(R.string.status_waiting)
         tvHeaderStatus.text = if (isConnected) getString(R.string.status_connected) else status
         tvHeaderStatus.setTextColor(if (isConnected) Color.GREEN else Color.RED)
-        
+
         // Update local BT name
         updateLocalBtName()
 
-        progressBarMain.visibility = if (!isConnected && status.contains("Conectando")) View.VISIBLE else View.INVISIBLE
+        progressBarMain.visibility =
+                if (!isConnected && status.contains("Conectando")) View.VISIBLE else View.INVISIBLE
 
         if (isPhoneMode && isConnected) {
             cardWatchStatus.visibility = View.VISIBLE
@@ -582,7 +648,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         refreshMenu()
     }
 
-    private fun updateWatchStatusCard(battery: Int, isCharging: Boolean, wifi: String, dnd: Boolean) {
+    private fun updateWatchStatusCard(
+            battery: Int,
+            isCharging: Boolean,
+            wifi: String,
+            dnd: Boolean
+    ) {
         tvBatteryPercent.text = "$battery%"
         if (isCharging) {
             imgBatteryIcon.setImageResource(android.R.drawable.ic_lock_idle_charging)
@@ -606,46 +677,48 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     private fun resetApp() {
         AlertDialog.Builder(this)
-            .setTitle(getString(R.string.dialog_reset_all_title))
-            .setMessage(getString(R.string.dialog_reset_all_message))
-            .setPositiveButton(getString(R.string.dialog_reset_all_confirm)) { _, _ ->
-                bluetoothService?.resetApp()
-                startActivity(Intent(this, WelcomeActivity::class.java))
-                finish()
-            }
-            .setNegativeButton(getString(R.string.dialog_reset_all_cancel), null)
-            .show()
+                .setTitle(getString(R.string.dialog_reset_all_title))
+                .setMessage(getString(R.string.dialog_reset_all_message))
+                .setPositiveButton(getString(R.string.dialog_reset_all_confirm)) { _, _ ->
+                    bluetoothService?.resetApp()
+                    startActivity(Intent(this, WelcomeActivity::class.java))
+                    finish()
+                }
+                .setNegativeButton(getString(R.string.dialog_reset_all_cancel), null)
+                .show()
     }
 
     private fun confirmApkUpload(uri: Uri) {
         AlertDialog.Builder(this)
-            .setTitle(getString(R.string.dialog_upload_apk_title))
-            .setMessage(getString(R.string.dialog_upload_apk_message))
-            .setPositiveButton(getString(R.string.dialog_upload_apk_send)) { _, _ ->
-                bluetoothService?.sendApkFile(uri)
-                showUploadDialog()
-            }
-            .setNegativeButton(getString(R.string.dialog_upload_apk_cancel), null)
-            .show()
+                .setTitle(getString(R.string.dialog_upload_apk_title))
+                .setMessage(getString(R.string.dialog_upload_apk_message))
+                .setPositiveButton(getString(R.string.dialog_upload_apk_send)) { _, _ ->
+                    bluetoothService?.sendApkFile(uri)
+                    showUploadDialog()
+                }
+                .setNegativeButton(getString(R.string.dialog_upload_apk_cancel), null)
+                .show()
     }
 
     private fun confirmShutdownWatch() {
         // A verificação de segurança já foi feita no menu (runIfConnected),
         // mas mantemos uma verificação extra por segurança.
         if (bluetoothService?.isConnected != true) {
-            Toast.makeText(this, getString(R.string.toast_watch_not_connected), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_watch_not_connected), Toast.LENGTH_SHORT)
+                    .show()
             return
         }
         AlertDialog.Builder(this)
-            .setTitle(getString(R.string.dialog_shutdown_title))
-            .setMessage(getString(R.string.dialog_shutdown_message))
-            .setIcon(android.R.drawable.ic_dialog_alert)
-            .setPositiveButton(getString(R.string.dialog_shutdown_confirm)) { _, _ ->
-                bluetoothService?.sendShutdownCommand()
-                Toast.makeText(this, getString(R.string.toast_command_sent), Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton(getString(R.string.dialog_shutdown_cancel), null)
-            .show()
+                .setTitle(getString(R.string.dialog_shutdown_title))
+                .setMessage(getString(R.string.dialog_shutdown_message))
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setPositiveButton(getString(R.string.dialog_shutdown_confirm)) { _, _ ->
+                    bluetoothService?.sendShutdownCommand()
+                    Toast.makeText(this, getString(R.string.toast_command_sent), Toast.LENGTH_SHORT)
+                            .show()
+                }
+                .setNegativeButton(getString(R.string.dialog_shutdown_cancel), null)
+                .show()
     }
 
     private fun showUploadDialog() {
@@ -682,7 +755,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             }
             -1 -> {
                 dismissUploadDialog()
-                Toast.makeText(this, getString(R.string.toast_upload_failed), Toast.LENGTH_LONG).show()
+                Toast.makeText(this, getString(R.string.toast_upload_failed), Toast.LENGTH_LONG)
+                        .show()
             }
         }
     }
@@ -697,10 +771,10 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             val btAdapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
             val name = btAdapter?.name ?: "Unknown"
             val text = getString(R.string.bt_name_format, name)
-            
+
             tvLocalBtName.text = text
             tvLocalBtName.visibility = View.VISIBLE
-            
+
             tvLocalBtNameWatch.text = text
             tvLocalBtNameWatch.visibility = View.VISIBLE
         } catch (e: Exception) {
@@ -737,11 +811,18 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         runOnUiThread {
             if (devices.isEmpty()) return@runOnUiThread
             if (isPhoneMode) {
-                val names = devices.map { "${it.name ?: getString(R.string.device_no_name)} (${it.address})" }.toTypedArray()
+                val names =
+                        devices
+                                .map {
+                                    "${it.name ?: getString(R.string.device_no_name)} (${it.address})"
+                                }
+                                .toTypedArray()
                 AlertDialog.Builder(this)
-                    .setTitle(getString(R.string.dialog_select_watch_title))
-                    .setItems(names) { _, which -> bluetoothService?.connectToDevice(devices[which]) }
-                    .show()
+                        .setTitle(getString(R.string.dialog_select_watch_title))
+                        .setItems(names) { _, which ->
+                            bluetoothService?.connectToDevice(devices[which])
+                        }
+                        .show()
             }
         }
     }
@@ -752,10 +833,14 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     override fun onFileListReceived(path: String, filesJson: String) {}
     override fun onAppListReceived(appsJson: String) {}
 
-    override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean) {
-        runOnUiThread {
-            updateWatchStatusCard(batteryLevel, isCharging, wifiSsid, dndEnabled)
-        }
+    override fun onWatchStatusUpdated(
+            batteryLevel: Int,
+            isCharging: Boolean,
+            wifiSsid: String,
+            wifiEnabled: Boolean,
+            dndEnabled: Boolean
+    ) {
+        runOnUiThread { updateWatchStatusCard(batteryLevel, isCharging, wifiSsid, dndEnabled) }
     }
 
     override fun onDestroy() {
@@ -765,6 +850,24 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             bluetoothService?.callback = null
             unbindService(connection)
             isBound = false
+        }
+    }
+
+    private fun syncDynamicIslandService() {
+        val isServiceEnabled = prefs.getBoolean("service_enabled", true)
+        val isDynamicIsland = prefs.getString("notification_style", "android") == "dynamic_island"
+
+        if (isServiceEnabled && isDynamicIsland) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(this)) {
+                if (!DynamicIslandService.isRunning) {
+                    val intent = Intent(this, DynamicIslandService::class.java)
+                    ContextCompat.startForegroundService(this, intent)
+                }
+            }
+        } else {
+            if (DynamicIslandService.isRunning) {
+                stopService(Intent(this, DynamicIslandService::class.java))
+            }
         }
     }
 }

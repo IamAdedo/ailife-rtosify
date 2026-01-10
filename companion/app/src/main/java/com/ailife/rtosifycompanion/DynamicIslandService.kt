@@ -29,11 +29,13 @@ class DynamicIslandService : Service() {
     private var currentNotification: NotificationData? = null
     private var isExpanded = false
     private var collapseRunnable: Runnable? = null
+    private var transientStateRunnable: Runnable? = null
     private val handler = Handler(Looper.getMainLooper())
 
     private var isBluetoothConnected = false
     private var isCharging = false
     private var batteryPercent = 0
+    private var isShowingTransientState = false
 
     private val receiver =
             object : BroadcastReceiver() {
@@ -64,13 +66,11 @@ class DynamicIslandService : Service() {
                         Intent.ACTION_BATTERY_CHANGED -> {
                             handleBatteryChanged(intent)
                         }
-                        "com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED" -> {
-                            isBluetoothConnected = intent.getBooleanExtra("connected", false)
-                            if (!isBluetoothConnected &&
-                                            notificationQueue.isEmpty() &&
-                                            currentNotification == null
-                            ) {
-                                overlayView.showDisconnectedState()
+                        BluetoothService.ACTION_CONNECTION_STATE_CHANGED -> {
+                            val connected = intent.getBooleanExtra("connected", false)
+                            if (connected != isBluetoothConnected) {
+                                isBluetoothConnected = connected
+                                showTransientConnectionState(connected)
                             }
                         }
                     }
@@ -101,9 +101,17 @@ class DynamicIslandService : Service() {
         createOverlayView()
         registerReceivers()
 
-        // Initialize connection state - will be updated via broadcasts
+        // Initialize connection state - request from BluetoothService
         isBluetoothConnected = false
+        requestInitialConnectionState()
         updateState()
+    }
+
+    private fun requestInitialConnectionState() {
+        Log.d(TAG, "Requesting initial connection state from BluetoothService")
+        val intent = Intent(BluetoothService.ACTION_REQUEST_CONNECTION_STATE)
+        intent.setPackage(packageName)
+        sendBroadcast(intent)
     }
 
     private fun createNotificationChannel() {
@@ -149,7 +157,8 @@ class DynamicIslandService : Service() {
                                 layoutFlag,
                                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                                         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
                                 PixelFormat.TRANSLUCENT
                         )
                         .apply {
@@ -218,7 +227,7 @@ class DynamicIslandService : Service() {
     private fun handleBatteryChanged(intent: Intent) {
         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-        batteryPercent =
+        val currentPercent =
                 if (level >= 0 && scale > 0) {
                     (level * 100 / scale)
                 } else {
@@ -226,23 +235,63 @@ class DynamicIslandService : Service() {
                 }
 
         val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-        isCharging =
+        val currentCharging =
                 status == BatteryManager.BATTERY_STATUS_CHARGING ||
                         status == BatteryManager.BATTERY_STATUS_FULL
 
-        updateState()
+        if (currentCharging != isCharging || (currentCharging && currentPercent != batteryPercent)
+        ) {
+            isCharging = currentCharging
+            batteryPercent = currentPercent
+            if (isCharging) {
+                showTransientChargingState()
+            } else {
+                updateState()
+            }
+        }
+    }
+
+    private fun showTransientChargingState() {
+        isShowingTransientState = true
+        transientStateRunnable?.let { handler.removeCallbacks(it) }
+
+        overlayView.showChargingState(batteryPercent)
+
+        val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
+        transientStateRunnable = Runnable {
+            isShowingTransientState = false
+            updateState()
+        }
+        handler.postDelayed(transientStateRunnable!!, timeout)
+    }
+
+    private fun showTransientConnectionState(connected: Boolean) {
+        isShowingTransientState = true
+        transientStateRunnable?.let { handler.removeCallbacks(it) }
+
+        if (connected) {
+            overlayView.showConnectedState() // Could be an expanded version if needed
+        } else {
+            overlayView.showDisconnectedState()
+        }
+
+        val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
+        transientStateRunnable = Runnable {
+            isShowingTransientState = false
+            updateState()
+        }
+        handler.postDelayed(transientStateRunnable!!, timeout)
     }
 
     private fun updateState() {
         handler.post {
-            if (isExpanded) return@post
+            if (isExpanded || isShowingTransientState) return@post
 
             when {
                 currentNotification != null -> {
-                    // Showing a notification - already handled by expand/collapse logic
+                    // Already showing a notification
                 }
                 notificationQueue.isNotEmpty() -> {
-                    // Notifications take priority over connection/charging states
                     overlayView.collapseToIcons(notificationQueue)
                 }
                 isCharging -> {
@@ -252,7 +301,6 @@ class DynamicIslandService : Service() {
                     overlayView.showDisconnectedState()
                 }
                 else -> {
-                    // Just show the pill
                     overlayView.showIdleState()
                 }
             }
@@ -278,6 +326,7 @@ class DynamicIslandService : Service() {
     private fun displayNotification(notif: NotificationData) {
         currentNotification = notif
         isExpanded = false
+        isShowingTransientState = false
 
         // Cancel any pending collapse
         collapseRunnable?.let { handler.removeCallbacks(it) }

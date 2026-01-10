@@ -182,11 +182,94 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         animateToCollapsed {
             contentContainer.removeAllViews()
             contentContainer.setPadding(dpToPx(12))
+
+            // Just show connected state by default in idle
+            showConnectedState()
         }
     }
 
     fun showDisconnectedState() {
+        if (currentState == State.DISCONNECTED) return
         currentState = State.DISCONNECTED
+
+        expandedContainer.visibility = GONE
+        pillContainer.alpha = 1f
+        closeContainer.visibility = GONE
+        contentContainer.removeAllViews()
+        contentContainer.visibility = VISIBLE
+        iconContainer.visibility = GONE
+
+        animateToCollapsed {
+            val container =
+                    LinearLayout(context).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER
+                    }
+
+            // Watch icon
+            val watchIcon =
+                    ImageView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(dpToPx(20), dpToPx(20))
+                        setImageResource(R.drawable.ic_smartwatch)
+                        setColorFilter(Color.GRAY)
+                    }
+
+            // Crossed line visual
+            val crossLine =
+                    object : View(context) {
+                                override fun onDraw(canvas: Canvas) {
+                                    super.onDraw(canvas)
+                                    val paint =
+                                            Paint().apply {
+                                                color = Color.RED
+                                                strokeWidth = dpToPx(2).toFloat()
+                                                isAntiAlias = true
+                                            }
+                                    val w = width.toFloat()
+                                    val h = height.toFloat()
+                                    canvas.drawLine(0f, h / 2f, w, h / 2f, paint)
+                                    // Draw a small cross
+                                    canvas.drawLine(
+                                            w / 2f - dpToPx(4),
+                                            h / 2f - dpToPx(4),
+                                            w / 2f + dpToPx(4),
+                                            h / 2f + dpToPx(4),
+                                            paint
+                                    )
+                                    canvas.drawLine(
+                                            w / 2f + dpToPx(4),
+                                            h / 2f - dpToPx(4),
+                                            w / 2f - dpToPx(4),
+                                            h / 2f + dpToPx(4),
+                                            paint
+                                    )
+                                }
+                            }
+                            .apply {
+                                layoutParams =
+                                        LinearLayout.LayoutParams(dpToPx(30), dpToPx(20)).apply {
+                                            marginStart = dpToPx(4)
+                                            marginEnd = dpToPx(4)
+                                        }
+                            }
+
+            // Phone icon
+            val phoneIcon =
+                    ImageView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(dpToPx(20), dpToPx(20))
+                        setImageResource(R.drawable.ic_smartphone)
+                        setColorFilter(Color.GRAY)
+                    }
+
+            container.addView(watchIcon)
+            container.addView(crossLine)
+            container.addView(phoneIcon)
+            contentContainer.addView(container)
+        }
+    }
+
+    fun showConnectedState() {
+        currentState = State.IDLE // Or a new state if needed, but IDLE implies connected active
         expandedContainer.visibility = GONE
         pillContainer.alpha = 1f
         closeContainer.visibility = GONE
@@ -196,10 +279,12 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
         animateToCollapsed {
             contentContainer.addView(
-                    TextView(context).apply {
-                        text = "Disconnected"
-                        textSize = 12f
-                        setTextColor(Color.WHITE)
+                    ImageView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(dpToPx(24), dpToPx(24))
+                        setImageResource(
+                                android.R.drawable.stat_sys_data_bluetooth
+                        ) // Use generic BT icon
+                        setColorFilter(Color.parseColor("#30D158")) // Apple Green
                     }
             )
         }
