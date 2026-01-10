@@ -203,4 +203,10 @@
     <string name="remote_control_watch_desc">View and control your phone screen from this watch</string>
     <string name="remote_res_matching">Resolution Matching</string>
     <string name="remote_res_matching_desc">Automatically adjust phone resolution to match watch aspect ratio during control</string>
+
+    <!-- Round Screen Warning -->
+    <string name="round_screen_warning_title">Device Compatibility</string>
+    <string name="round_screen_warning_message">Round display is detected. The application is not optimized for your device and features will not work properly.</string>
+    <string name="round_screen_warning_exit">Exit</string>
+    <string name="round_screen_warning_continue">Continue Anyways</string>
 </resources>

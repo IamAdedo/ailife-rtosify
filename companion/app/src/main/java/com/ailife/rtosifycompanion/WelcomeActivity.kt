@@ -82,7 +82,25 @@ class WelcomeActivity : AppCompatActivity() {
             registerReceiver(pairingReceiver, filter)
         }
 
-        checkAndRequestPermissions()
+        if (resources.configuration.isScreenRound) {
+            showRoundScreenWarning()
+        } else {
+            checkAndRequestPermissions()
+        }
+    }
+
+    private fun showRoundScreenWarning() {
+        AlertDialog.Builder(this)
+            .setTitle(R.string.round_screen_warning_title)
+            .setMessage(R.string.round_screen_warning_message)
+            .setCancelable(false)
+            .setPositiveButton(R.string.round_screen_warning_continue) { _, _ ->
+                checkAndRequestPermissions()
+            }
+            .setNegativeButton(R.string.round_screen_warning_exit) { _, _ ->
+                finish()
+            }
+            .show()
     }
 
     override fun onDestroy() {
