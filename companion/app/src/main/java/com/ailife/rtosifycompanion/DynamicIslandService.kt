@@ -312,12 +312,7 @@ class DynamicIslandService : Service() {
         handler.post {
             if (isShowingTransientState) {
                 overlayView.visibility = View.VISIBLE
-                // In transient state, show the corresponding event visual
-                when {
-                    isCharging -> overlayView.showChargingState(batteryPercent)
-                    !isBluetoothConnected -> overlayView.showDisconnectedState()
-                    else -> overlayView.showConnectedState()
-                }
+                // Don't override the transient UI with persistent state logic
                 return@post
             }
 

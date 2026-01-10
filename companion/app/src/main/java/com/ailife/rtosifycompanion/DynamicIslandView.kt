@@ -183,10 +183,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         iconContainer.visibility = GONE
 
         animateToCollapsed {
+            resetContentPadding()
             contentContainer.removeAllViews()
-            val hPadding = dpToPx(pillHeightCollapsed * 0.3f)
-            val vPadding = dpToPx(pillHeightCollapsed * 0.2f)
-            contentContainer.setPadding(hPadding, vPadding, hPadding, vPadding)
 
             // Just show connected state by default in idle
             showConnectedState()
@@ -200,11 +198,12 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         expandedContainer.visibility = GONE
         pillContainer.alpha = 1f
         closeContainer.visibility = GONE
-        contentContainer.removeAllViews()
         contentContainer.visibility = VISIBLE
         iconContainer.visibility = GONE
 
         animateToCollapsed {
+            resetContentPadding()
+            contentContainer.removeAllViews()
             val container =
                     LinearLayout(context).apply {
                         orientation = LinearLayout.HORIZONTAL
@@ -285,11 +284,12 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         expandedContainer.visibility = GONE
         pillContainer.alpha = 1f
         closeContainer.visibility = GONE
-        contentContainer.removeAllViews()
         contentContainer.visibility = VISIBLE
         iconContainer.visibility = GONE
 
         animateToCollapsed {
+            resetContentPadding()
+            contentContainer.removeAllViews()
             val iconSize = dpToPx(pillHeightCollapsed * 0.6f)
             contentContainer.addView(
                     ImageView(context).apply {
@@ -1357,6 +1357,12 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 }
             }
         }
+    }
+
+    private fun resetContentPadding() {
+        val hPadding = dpToPx(pillHeightCollapsed * 0.3f)
+        val vPadding = dpToPx(pillHeightCollapsed * 0.2f)
+        contentContainer.setPadding(hPadding, vPadding, hPadding, vPadding)
     }
 
     private fun dpToPx(dp: Int): Int {
