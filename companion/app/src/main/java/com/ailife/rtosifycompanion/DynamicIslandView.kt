@@ -227,13 +227,34 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                     super.onDraw(canvas)
                                     val paint =
                                             Paint().apply {
-                                                color = Color.RED
-                                                strokeWidth = dpToPx(2).toFloat()
                                                 isAntiAlias = true
+                                                strokeWidth = dpToPx(1.5f).toFloat()
                                             }
                                     val w = width.toFloat()
                                     val h = height.toFloat()
+
+                                    // Draw gray horizontal line
+                                    paint.color = Color.GRAY
                                     canvas.drawLine(0f, h / 2f, w, h / 2f, paint)
+
+                                    // Draw red cross in the middle
+                                    paint.color = Color.RED
+                                    paint.strokeWidth = dpToPx(2).toFloat()
+                                    val crossSize = dpToPx(4).toFloat()
+                                    canvas.drawLine(
+                                            w / 2f - crossSize,
+                                            h / 2f - crossSize,
+                                            w / 2f + crossSize,
+                                            h / 2f + crossSize,
+                                            paint
+                                    )
+                                    canvas.drawLine(
+                                            w / 2f + crossSize,
+                                            h / 2f - crossSize,
+                                            w / 2f - crossSize,
+                                            h / 2f + crossSize,
+                                            paint
+                                    )
                                 }
                             }
                             .apply {
