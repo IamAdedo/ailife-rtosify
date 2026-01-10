@@ -285,7 +285,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
     }
     override fun onScanResult(devices: List<android.bluetooth.BluetoothDevice>) {}
     override fun onUploadProgress(progress: Int) {}
-    override fun onDownloadProgress(progress: Int) {}
+    override fun onDownloadProgress(progress: Int, file: java.io.File?) {}
     override fun onFileListReceived(path: String, filesJson: String) {}
     override fun onAppListReceived(appsJson: String) {}
     override fun onWatchStatusUpdated(

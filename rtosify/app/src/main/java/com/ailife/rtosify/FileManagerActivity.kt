@@ -11,21 +11,20 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.TextView
 import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import org.json.JSONArray
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
+import org.json.JSONArray
 
 class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
@@ -48,27 +47,31 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
     private var transferTitleText: TextView? = null
     private var transferIconView: ImageView? = null
     private var transferOkButton: android.widget.Button? = null
+    private var transferViewFileButton: android.widget.Button? = null
+    private var downloadedFile: File? = null
 
-    private val connection = object : ServiceConnection {
-        override fun onServiceConnected(className: ComponentName, service: IBinder) {
-            val binder = service as BluetoothService.LocalBinder
-            bluetoothService = binder.getService()
-            bluetoothService?.callback = this@FileManagerActivity
-            isBound = true
-            
-            // Initial request
-            requestFileList("/")
-        }
+    private val connection =
+            object : ServiceConnection {
+                override fun onServiceConnected(className: ComponentName, service: IBinder) {
+                    val binder = service as BluetoothService.LocalBinder
+                    bluetoothService = binder.getService()
+                    bluetoothService?.callback = this@FileManagerActivity
+                    isBound = true
 
-        override fun onServiceDisconnected(arg0: ComponentName) {
-            isBound = false
-            bluetoothService = null
-        }
-    }
+                    // Initial request
+                    requestFileList("/")
+                }
 
-    private val pickFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { confirmUpload(it) }
-    }
+                override fun onServiceDisconnected(arg0: ComponentName) {
+                    isBound = false
+                    bluetoothService = null
+                }
+            }
+
+    private val pickFileLauncher =
+            registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+                uri?.let { confirmUpload(it) }
+            }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,33 +89,36 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         progressBarFiles = findViewById(R.id.progressBarFiles)
 
         recyclerViewFiles.layoutManager = LinearLayoutManager(this)
-        recyclerViewFiles.adapter = FileAdapter(currentFiles, 
-            onItemClick = { fileInfo ->
-                if (fileInfo.isDirectory) {
-                    val newPath = if (pathStack.isEmpty()) {
-                        "/" + fileInfo.name
-                    } else {
-                        val current = pathStack.peek()
-                        if (current == "/") "/${fileInfo.name}" else "$current/${fileInfo.name}"
-                    }
-                    requestFileList(newPath)
-                }
-            },
-            onDownloadClick = { fileInfo ->
-                if (!fileInfo.isDirectory) {
-                    val fullPath = getFullPath(fileInfo.name)
-                    bluetoothService?.requestFileDownload(fullPath)
-                    showTransferDialog("Downloading File", "Getting ${fileInfo.name} from watch...")
-                }
-            },
-            onDeleteClick = { fileInfo ->
-                confirmDelete(fileInfo)
-            }
-        )
+        recyclerViewFiles.adapter =
+                FileAdapter(
+                        currentFiles,
+                        onItemClick = { fileInfo ->
+                            if (fileInfo.isDirectory) {
+                                val newPath =
+                                        if (pathStack.isEmpty()) {
+                                            "/" + fileInfo.name
+                                        } else {
+                                            val current = pathStack.peek()
+                                            if (current == "/") "/${fileInfo.name}"
+                                            else "$current/${fileInfo.name}"
+                                        }
+                                requestFileList(newPath)
+                            }
+                        },
+                        onDownloadClick = { fileInfo ->
+                            if (!fileInfo.isDirectory) {
+                                val fullPath = getFullPath(fileInfo.name)
+                                bluetoothService?.requestFileDownload(fullPath)
+                                showTransferDialog(
+                                        "Downloading File",
+                                        "Getting ${fileInfo.name} from watch..."
+                                )
+                            }
+                        },
+                        onDeleteClick = { fileInfo -> confirmDelete(fileInfo) }
+                )
 
-        fabUpload.setOnClickListener {
-            pickFileLauncher.launch("*/*")
-        }
+        fabUpload.setOnClickListener { pickFileLauncher.launch("*/*") }
 
         bindService(Intent(this, BluetoothService::class.java), connection, BIND_AUTO_CREATE)
     }
@@ -129,18 +135,18 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
 
     private fun confirmUpload(uri: Uri) {
         AlertDialog.Builder(this)
-            .setTitle("Upload File")
-            .setMessage("Upload this file to the current directory on the watch?")
-            .setPositiveButton("Upload") { _, _ ->
-                val currentPath = if (pathStack.isEmpty()) "/" else pathStack.peek()
-                // Copy to temp file to get actual File object if needed, 
-                // but let's assume sendFile handles it or we refactor it.
-                // Actually BluetoothService.sendApkFile does temp copy.
-                // Let's use a similar approach for generic upload.
-                uploadFile(uri, currentPath)
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+                .setTitle("Upload File")
+                .setMessage("Upload this file to the current directory on the watch?")
+                .setPositiveButton("Upload") { _, _ ->
+                    val currentPath = if (pathStack.isEmpty()) "/" else pathStack.peek()
+                    // Copy to temp file to get actual File object if needed,
+                    // but let's assume sendFile handles it or we refactor it.
+                    // Actually BluetoothService.sendApkFile does temp copy.
+                    // Let's use a similar approach for generic upload.
+                    uploadFile(uri, currentPath)
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
     }
 
     private fun showTransferDialog(title: String, description: String) {
@@ -155,12 +161,18 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         transferTitleText?.text = title
         transferDescriptionText?.text = description
         transferOkButton?.setOnClickListener { dismissTransferDialog() }
-        
+        transferViewFileButton = dialogView.findViewById(R.id.btnViewFile)
+        transferViewFileButton?.setOnClickListener { viewDownloadedFile() }
+
         transferDialog = AlertDialog.Builder(this).setView(dialogView).setCancelable(false).create()
         transferDialog?.show()
     }
 
-    private fun updateTransferProgress(progress: Int, successTitle: String, successMessage: String) {
+    private fun updateTransferProgress(
+            progress: Int,
+            successTitle: String,
+            successMessage: String
+    ) {
         runOnUiThread {
             when (progress) {
                 in 0..99 -> {
@@ -176,6 +188,10 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
                     transferIconView?.setColorFilter(android.graphics.Color.GREEN)
                     transferProgressBar?.visibility = View.GONE
                     transferOkButton?.visibility = View.VISIBLE
+                    // Show View File button only for downloads when file is available
+                    if (downloadedFile != null) {
+                        transferViewFileButton?.visibility = View.VISIBLE
+                    }
                 }
                 -1 -> {
                     transferProgressBar?.visibility = View.GONE
@@ -194,19 +210,62 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
     private fun dismissTransferDialog() {
         transferDialog?.dismiss()
         transferDialog = null
+        downloadedFile = null
         // Refresh list
         if (!pathStack.isEmpty()) requestFileList(pathStack.peek())
+    }
+
+    private fun viewDownloadedFile() {
+        val file = downloadedFile ?: return
+
+        try {
+            val uri =
+                    androidx.core.content.FileProvider.getUriForFile(
+                            this,
+                            "${applicationContext.packageName}.fileprovider",
+                            file
+                    )
+
+            val intent =
+                    Intent(Intent.ACTION_VIEW).apply {
+                        setDataAndType(uri, getMimeType(file))
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+
+            if (intent.resolveActivity(packageManager) != null) {
+                startActivity(intent)
+            } else {
+                Toast.makeText(this, "No app found to open this file", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error opening file: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun getMimeType(file: File): String {
+        val extension = file.extension.lowercase()
+        return when (extension) {
+            "jpg", "jpeg" -> "image/jpeg"
+            "png" -> "image/png"
+            "gif" -> "image/gif"
+            "pdf" -> "application/pdf"
+            "txt" -> "text/plain"
+            "mp4" -> "video/mp4"
+            "mp3" -> "audio/mpeg"
+            "zip" -> "application/zip"
+            "apk" -> "application/vnd.android.package-archive"
+            else -> "*/*"
+        }
     }
 
     private fun uploadFile(uri: Uri, remoteDir: String) {
         val fileName = getFileNameFromUri(uri) ?: "upload_${System.currentTimeMillis()}"
         val remotePath = if (remoteDir == "/") "/$fileName" else "$remoteDir/$fileName"
-        
+
         contentResolver.openInputStream(uri)?.use { inputStream ->
             val tempFile = File(cacheDir, "temp_upload")
-            tempFile.outputStream().use { outputStream ->
-                inputStream.copyTo(outputStream)
-            }
+            tempFile.outputStream().use { outputStream -> inputStream.copyTo(outputStream) }
             bluetoothService?.sendFile(tempFile, "REGULAR", remotePath)
             showTransferDialog("Uploading File", "Sending $fileName to watch...")
         }
@@ -226,15 +285,17 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
 
     private fun confirmDelete(fileInfo: FileInfo) {
         AlertDialog.Builder(this)
-            .setTitle("Delete ${fileInfo.name}?")
-            .setMessage("Are you sure you want to delete this ${if (fileInfo.isDirectory) "directory" else "file"}?")
-            .setPositiveButton("Delete") { _, _ ->
-                val fullPath = getFullPath(fileInfo.name)
-                bluetoothService?.deleteRemoteFile(fullPath)
-                progressBarFiles.visibility = View.VISIBLE
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
+                .setTitle("Delete ${fileInfo.name}?")
+                .setMessage(
+                        "Are you sure you want to delete this ${if (fileInfo.isDirectory) "directory" else "file"}?"
+                )
+                .setPositiveButton("Delete") { _, _ ->
+                    val fullPath = getFullPath(fileInfo.name)
+                    bluetoothService?.deleteRemoteFile(fullPath)
+                    progressBarFiles.visibility = View.VISIBLE
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
     }
 
     @android.annotation.SuppressLint("GestureBackNavigation")
@@ -273,7 +334,10 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
     override fun onUploadProgress(progress: Int) {
         updateTransferProgress(progress, "Upload Complete", "File transferred successfully!")
     }
-    override fun onDownloadProgress(progress: Int) {
+    override fun onDownloadProgress(progress: Int, file: java.io.File?) {
+        if (progress == 100 && file != null) {
+            downloadedFile = file
+        }
         updateTransferProgress(progress, "Download Complete", "File saved to Downloads folder")
     }
 
@@ -281,7 +345,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         runOnUiThread {
             progressBarFiles.visibility = View.GONE
             tvCurrentPath.text = path
-            
+
             // Manage stack
             if (pathStack.isEmpty() || pathStack.peek() != path) {
                 if (!pathStack.contains(path)) {
@@ -300,18 +364,21 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
                 val jsonArray = JSONArray(filesJson)
                 for (i in 0 until jsonArray.length()) {
                     val obj = jsonArray.getJSONObject(i)
-                    currentFiles.add(FileInfo(
-                        name = obj.getString("name"),
-                        size = obj.getLong("size"),
-                        isDirectory = obj.getBoolean("isDirectory"),
-                        lastModified = obj.getLong("lastModified")
-                    ))
+                    currentFiles.add(
+                            FileInfo(
+                                    name = obj.getString("name"),
+                                    size = obj.getLong("size"),
+                                    isDirectory = obj.getBoolean("isDirectory"),
+                                    lastModified = obj.getLong("lastModified")
+                            )
+                    )
                 }
                 // Sort: Dir first, then name
                 currentFiles.sortWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
                 recyclerViewFiles.adapter?.notifyDataSetChanged()
             } catch (e: Exception) {
-                Toast.makeText(this, "Error parsing file list: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Error parsing file list: ${e.message}", Toast.LENGTH_SHORT)
+                        .show()
             }
         }
     }
@@ -335,24 +402,25 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
     }
 
     class FileAdapter(
-        private val files: List<FileInfo>,
-        private val onItemClick: (FileInfo) -> Unit,
-        private val onDownloadClick: (FileInfo) -> Unit,
-        private val onDeleteClick: (FileInfo) -> Unit
+            private val files: List<FileInfo>,
+            private val onItemClick: (FileInfo) -> Unit,
+            private val onDownloadClick: (FileInfo) -> Unit,
+            private val onDeleteClick: (FileInfo) -> Unit
     ) : RecyclerView.Adapter<FileViewHolder>() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FileViewHolder {
-            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_file, parent, false)
+            val view =
+                    LayoutInflater.from(parent.context).inflate(R.layout.item_file, parent, false)
             return FileViewHolder(view)
         }
 
         override fun onBindViewHolder(holder: FileViewHolder, position: Int) {
             val file = files[position]
             holder.tvName.text = file.name
-            
+
             val sdf = SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
             val dateStr = sdf.format(Date(file.lastModified))
-            
+
             if (file.isDirectory) {
                 holder.imgIcon.setImageResource(android.R.drawable.ic_menu_save) // Folder icon
                 holder.imgIcon.setColorFilter(Color.parseColor("#FFCA28")) // Yellow
@@ -376,7 +444,11 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
             if (size <= 0) return "0 B"
             val units = arrayOf("B", "KB", "MB", "GB", "TB")
             val digitGroups = (Math.log10(size.toDouble()) / Math.log10(1024.0)).toInt()
-            return String.format("%.1f %s", size / Math.pow(1024.0, digitGroups.toDouble()), units[digitGroups])
+            return String.format(
+                    "%.1f %s",
+                    size / Math.pow(1024.0, digitGroups.toDouble()),
+                    units[digitGroups]
+            )
         }
     }
 }

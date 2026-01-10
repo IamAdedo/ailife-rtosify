@@ -1489,7 +1489,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     override fun onFileListReceived(path: String, filesJson: String) {}
 
-    override fun onDownloadProgress(progress: Int) {
+    override fun onDownloadProgress(progress: Int, file: java.io.File?) {
         runOnUiThread { if (uploadDialog?.isShowing == true) updateUploadProgress(progress) }
     }
 

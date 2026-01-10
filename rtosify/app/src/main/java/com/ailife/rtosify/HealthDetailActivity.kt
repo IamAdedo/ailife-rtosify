@@ -25,16 +25,16 @@ import androidx.appcompat.widget.SwitchCompat
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.charts.BarChart
+import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.LimitLine
 import com.github.mikephil.charting.components.XAxis
-import com.github.mikephil.charting.data.Entry
-import com.github.mikephil.charting.data.BarEntry
-import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.BarData
-import com.github.mikephil.charting.data.LineDataSet
 import com.github.mikephil.charting.data.BarDataSet
+import com.github.mikephil.charting.data.BarEntry
+import com.github.mikephil.charting.data.Entry
+import com.github.mikephil.charting.data.LineData
+import com.github.mikephil.charting.data.LineDataSet
 import com.github.mikephil.charting.formatter.ValueFormatter
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.button.MaterialButtonToggleGroup
@@ -44,7 +44,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
@@ -59,7 +58,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     private lateinit var tvCurrentValue: TextView
     private lateinit var tvLastMeasured: TextView
     private lateinit var btnMeasureNow: Button
-    
+
     // Date Navigation
     private lateinit var btnPrevDate: View
     private lateinit var tvCurrentDateRange: TextView
@@ -110,25 +109,28 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
 
-    private val connection = object : ServiceConnection {
-        override fun onServiceConnected(className: ComponentName, service: IBinder) {
-            val binder = service as BluetoothService.LocalBinder
-            bluetoothService = binder.getService()
-            bluetoothService?.callback = this@HealthDetailActivity
-            isBound = true
+    private val connection =
+            object : ServiceConnection {
+                override fun onServiceConnected(className: ComponentName, service: IBinder) {
+                    val binder = service as BluetoothService.LocalBinder
+                    bluetoothService = binder.getService()
+                    bluetoothService?.callback = this@HealthDetailActivity
+                    isBound = true
 
-            // Request initial data
-            requestHistoricalData()
-        }
+                    // Request initial data
+                    requestHistoricalData()
+                }
 
-        override fun onServiceDisconnected(arg0: ComponentName) {
-            isBound = false
-            bluetoothService = null
-        }
-    }
+                override fun onServiceDisconnected(arg0: ComponentName) {
+                    isBound = false
+                    bluetoothService = null
+                }
+            }
 
     enum class Period {
-        DAY, WEEK, MONTH
+        DAY,
+        WEEK,
+        MONTH
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -183,7 +185,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         tvMinValue = findViewById(R.id.tvMinValue)
         tvAvgValue = findViewById(R.id.tvAvgValue)
         tvMaxValue = findViewById(R.id.tvMaxValue)
-        
+
         btnPrevDate = findViewById(R.id.btnPrevDate)
         tvCurrentDateRange = findViewById(R.id.tvCurrentDateRange)
         btnNextDate = findViewById(R.id.btnNextDate)
@@ -198,12 +200,13 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     }
 
     private fun updateToolbarTitle() {
-        supportActionBar?.title = when (healthType) {
-            "STEPS" -> getString(R.string.health_steps_title)
-            "HEART_RATE" -> getString(R.string.health_hr_title)
-            "OXYGEN" -> getString(R.string.health_oxygen_title)
-            else -> getString(R.string.health_title)
-        }
+        supportActionBar?.title =
+                when (healthType) {
+                    "STEPS" -> getString(R.string.health_steps_title)
+                    "HEART_RATE" -> getString(R.string.health_hr_title)
+                    "OXYGEN" -> getString(R.string.health_oxygen_title)
+                    else -> getString(R.string.health_title)
+                }
     }
 
     private fun setupChart() {
@@ -267,16 +270,19 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     }
 
     private fun updateChartXAxisFormatter() {
-        val formatter = object : ValueFormatter() {
-            private val dateFormat = when (currentPeriod) {
-                Period.DAY -> SimpleDateFormat("HH:mm", Locale.getDefault())
-                Period.WEEK, Period.MONTH -> SimpleDateFormat("MM/dd", Locale.getDefault())
-            }
+        val formatter =
+                object : ValueFormatter() {
+                    private val dateFormat =
+                            when (currentPeriod) {
+                                Period.DAY -> SimpleDateFormat("HH:mm", Locale.getDefault())
+                                Period.WEEK, Period.MONTH ->
+                                        SimpleDateFormat("MM/dd", Locale.getDefault())
+                            }
 
-            override fun getFormattedValue(value: Float): String {
-                return dateFormat.format(Date(value.toLong() * 1000))
-            }
-        }
+                    override fun getFormattedValue(value: Float): String {
+                        return dateFormat.format(Date(value.toLong() * 1000))
+                    }
+                }
         chart.xAxis.valueFormatter = formatter
         barChart.xAxis.valueFormatter = formatter
         updateDateRangeText()
@@ -288,12 +294,13 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
 
         togglePeriod.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (isChecked) {
-                currentPeriod = when (checkedId) {
-                    R.id.btnDay -> Period.DAY
-                    R.id.btnWeek -> Period.WEEK
-                    R.id.btnMonth -> Period.MONTH
-                    else -> Period.DAY
-                }
+                currentPeriod =
+                        when (checkedId) {
+                            R.id.btnDay -> Period.DAY
+                            R.id.btnWeek -> Period.WEEK
+                            R.id.btnMonth -> Period.MONTH
+                            else -> Period.DAY
+                        }
                 updateChartXAxisFormatter()
                 setupCards() // Update card visibility
                 requestHistoricalData()
@@ -302,12 +309,8 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     }
 
     private fun setupDateNavigation() {
-        btnPrevDate.setOnClickListener {
-            shiftDateRange(-1)
-        }
-        btnNextDate.setOnClickListener {
-            shiftDateRange(1)
-        }
+        btnPrevDate.setOnClickListener { shiftDateRange(-1) }
+        btnNextDate.setOnClickListener { shiftDateRange(1) }
         updateDateRangeText()
     }
 
@@ -335,7 +338,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
                 current.set(Calendar.MINUTE, 0)
                 current.set(Calendar.SECOND, 0)
                 current.set(Calendar.MILLISECOND, 0)
-                
+
                 now.set(Calendar.HOUR_OF_DAY, 0)
                 now.set(Calendar.MINUTE, 0)
                 now.set(Calendar.SECOND, 0)
@@ -359,20 +362,24 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     }
 
     private fun updateDateRangeText() {
-        val dateFormat = when (currentPeriod) {
-            Period.DAY -> SimpleDateFormat("EEEE, MMM d", Locale.getDefault())
-            Period.WEEK -> {
-                val start = viewingDate.clone() as Calendar
-                start.set(Calendar.DAY_OF_WEEK, start.firstDayOfWeek)
-                val end = start.clone() as Calendar
-                end.add(Calendar.DAY_OF_YEAR, 6)
-                val fmt = SimpleDateFormat("MMM d", Locale.getDefault())
-                return run { tvCurrentDateRange.text = "${fmt.format(start.time)} - ${fmt.format(end.time)}" }
-            }
-            Period.MONTH -> SimpleDateFormat("MMMM yyyy", Locale.getDefault())
-        }
+        val dateFormat =
+                when (currentPeriod) {
+                    Period.DAY -> SimpleDateFormat("EEEE, MMM d", Locale.getDefault())
+                    Period.WEEK -> {
+                        val start = viewingDate.clone() as Calendar
+                        start.set(Calendar.DAY_OF_WEEK, start.firstDayOfWeek)
+                        val end = start.clone() as Calendar
+                        end.add(Calendar.DAY_OF_YEAR, 6)
+                        val fmt = SimpleDateFormat("MMM d", Locale.getDefault())
+                        return run {
+                            tvCurrentDateRange.text =
+                                    "${fmt.format(start.time)} - ${fmt.format(end.time)}"
+                        }
+                    }
+                    Period.MONTH -> SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+                }
         tvCurrentDateRange.text = dateFormat.format(viewingDate.time)
-        
+
         // Disable "Next" button if we're at the current/future date
         val isFuture = isFutureDate()
         btnNextDate.isEnabled = !isFuture
@@ -380,27 +387,27 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     }
 
     private fun setupSwipeRefresh() {
-        swipeRefresh.setOnRefreshListener {
-            requestHistoricalData()
-        }
+        swipeRefresh.setOnRefreshListener { requestHistoricalData() }
     }
 
     private fun setupBottomNavigation() {
         // Set initial selection
-        bottomNavigation.selectedItemId = when (healthType) {
-            "STEPS" -> R.id.nav_steps
-            "HEART_RATE" -> R.id.nav_heart_rate
-            "OXYGEN" -> R.id.nav_oxygen
-            else -> R.id.nav_steps
-        }
+        bottomNavigation.selectedItemId =
+                when (healthType) {
+                    "STEPS" -> R.id.nav_steps
+                    "HEART_RATE" -> R.id.nav_heart_rate
+                    "OXYGEN" -> R.id.nav_oxygen
+                    else -> R.id.nav_steps
+                }
 
         bottomNavigation.setOnItemSelectedListener { item ->
-            val newType = when (item.itemId) {
-                R.id.nav_steps -> "STEPS"
-                R.id.nav_heart_rate -> "HEART_RATE"
-                R.id.nav_oxygen -> "OXYGEN"
-                else -> "STEPS"
-            }
+            val newType =
+                    when (item.itemId) {
+                        R.id.nav_steps -> "STEPS"
+                        R.id.nav_heart_rate -> "HEART_RATE"
+                        R.id.nav_oxygen -> "OXYGEN"
+                        else -> "STEPS"
+                    }
 
             if (newType != healthType) {
                 switchHealthType(newType)
@@ -422,7 +429,8 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             "STEPS" -> {
                 cardCurrentValue.visibility = View.GONE
                 cardTotalStats.visibility = View.VISIBLE
-                cardGoalProgress.visibility = if (currentPeriod == Period.DAY) View.VISIBLE else View.GONE
+                cardGoalProgress.visibility =
+                        if (currentPeriod == Period.DAY) View.VISIBLE else View.GONE
                 fabMeasureNow.visibility = View.GONE
             }
             "HEART_RATE", "OXYGEN" -> {
@@ -444,18 +452,20 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
 
     private fun requestHistoricalData() {
         if (!isBound || bluetoothService == null) {
-            Toast.makeText(this, getString(R.string.toast_watch_not_connected), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_watch_not_connected), Toast.LENGTH_SHORT)
+                    .show()
             swipeRefresh.isRefreshing = false
             return
         }
 
         val (startTime, endTime) = getTimeRange()
-        val type = when (healthType) {
-            "STEPS" -> "STEP"
-            "HEART_RATE" -> "HR"
-            "OXYGEN" -> "OXYGEN"
-            else -> "STEP"
-        }
+        val type =
+                when (healthType) {
+                    "STEPS" -> "STEP"
+                    "HEART_RATE" -> "HR"
+                    "OXYGEN" -> "OXYGEN"
+                    else -> "STEP"
+                }
 
         // Request historical data for the chart
         bluetoothService?.requestHealthHistory(type, startTime, endTime)
@@ -466,7 +476,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
 
     private fun getTimeRange(): Pair<Long, Long> {
         val cal = viewingDate.clone() as Calendar
-        
+
         return when (currentPeriod) {
             Period.DAY -> {
                 cal.set(Calendar.HOUR_OF_DAY, 0)
@@ -503,11 +513,12 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     private fun startLiveMeasurement() {
         if (!isBound || bluetoothService == null) return
 
-        val type = when (healthType) {
-            "HEART_RATE" -> "HR"
-            "OXYGEN" -> "OXYGEN"
-            else -> return
-        }
+        val type =
+                when (healthType) {
+                    "HEART_RATE" -> "HR"
+                    "OXYGEN" -> "OXYGEN"
+                    else -> return
+                }
 
         bluetoothService?.startLiveMeasurement(type)
         isLiveMeasuring = true
@@ -538,18 +549,18 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             barChart.visibility = View.GONE
             tvEmptyData.visibility = View.VISIBLE
             layoutStats.visibility = View.GONE
-            
+
             // Hide stats and goal cards if no data
             cardTotalStats.visibility = View.GONE
             cardGoalProgress.visibility = View.GONE
-            
+
             tvEmptyData.text = getString(R.string.health_no_data)
             return
         }
 
         tvEmptyData.visibility = View.GONE
         layoutStats.visibility = View.VISIBLE
-        
+
         // Restore card visibility based on type and period
         setupCards()
 
@@ -577,11 +588,12 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         val (startTime, endTime) = getTimeRange()
         val dataPoints = historyData.dataPoints.toMutableList()
 
-        val minLevel = when (healthType) {
-            "HEART_RATE" -> 40f
-            "OXYGEN" -> 80f
-            else -> 0f
-        }
+        val minLevel =
+                when (healthType) {
+                    "HEART_RATE" -> 40f
+                    "OXYGEN" -> 80f
+                    else -> 0f
+                }
 
         chart.axisLeft.axisMinimum = minLevel
 
@@ -592,17 +604,16 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             dataPoints.add(HealthDataPoint(endTime, minLevel))
         }
 
-        val entries = dataPoints.map { point ->
-            Entry(point.timestamp.toFloat(), point.value)
-        }
+        val entries = dataPoints.map { point -> Entry(point.timestamp.toFloat(), point.value) }
 
-        val dataSet = LineDataSet(entries, getChartLabel()).apply {
-            color = getChartColor()
-            setDrawCircles(false)
-            lineWidth = 2f
-            valueTextSize = 0f
-            mode = LineDataSet.Mode.CUBIC_BEZIER
-        }
+        val dataSet =
+                LineDataSet(entries, getChartLabel()).apply {
+                    color = getChartColor()
+                    setDrawCircles(false)
+                    lineWidth = 2f
+                    valueTextSize = 0f
+                    mode = LineDataSet.Mode.CUBIC_BEZIER
+                }
 
         chart.data = LineData(dataSet)
         chart.invalidate()
@@ -610,15 +621,16 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
 
     private fun updateBarChart(historyData: HealthHistoryResponse) {
         val (startTime, _) = getTimeRange()
-        
-        val (bucketCount, bucketSizeSeconds) = when (currentPeriod) {
-            Period.DAY -> Pair(24, 3600L)
-            Period.WEEK -> Pair(7, 86400L)
-            Period.MONTH -> Pair(30, 86400L)
-        }
+
+        val (bucketCount, bucketSizeSeconds) =
+                when (currentPeriod) {
+                    Period.DAY -> Pair(24, 3600L)
+                    Period.WEEK -> Pair(7, 86400L)
+                    Period.MONTH -> Pair(30, 86400L)
+                }
 
         val buckets = FloatArray(bucketCount) { 0f }
-        
+
         for (point in historyData.dataPoints) {
             val offset = point.timestamp - startTime
             if (offset >= 0) {
@@ -635,15 +647,17 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             entries.add(BarEntry(timestamp.toFloat(), buckets[i]))
         }
 
-        val dataSet = BarDataSet(entries, getChartLabel()).apply {
-            color = getChartColor()
-            valueTextSize = 0f
-        }
+        val dataSet =
+                BarDataSet(entries, getChartLabel()).apply {
+                    color = getChartColor()
+                    valueTextSize = 0f
+                }
 
         // Add goal line for steps
         barChart.axisLeft.removeAllLimitLines()
         if (currentGoal != null) {
-            val limitLine = LimitLine(currentGoal!!.toFloat(), getString(R.string.health_daily_goal))
+            val limitLine =
+                    LimitLine(currentGoal!!.toFloat(), getString(R.string.health_daily_goal))
             limitLine.lineWidth = 2f
             limitLine.lineColor = Color.GREEN
             limitLine.enableDashedLine(10f, 10f, 0f)
@@ -652,10 +666,8 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             barChart.axisLeft.addLimitLine(limitLine)
         }
 
-        barChart.data = BarData(dataSet).apply {
-            barWidth = bucketSizeSeconds.toFloat() * 0.8f
-        }
-        
+        barChart.data = BarData(dataSet).apply { barWidth = bucketSizeSeconds.toFloat() * 0.8f }
+
         barChart.invalidate()
     }
 
@@ -701,24 +713,27 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
 
     private fun updateCurrentValueCard() {
         lastHealthData?.let { data ->
-            val value = when (healthType) {
-                "HEART_RATE" -> data.heartRate
-                "OXYGEN" -> data.bloodOxygen
-                else -> null
-            }
+            val value =
+                    when (healthType) {
+                        "HEART_RATE" -> data.heartRate
+                        "OXYGEN" -> data.bloodOxygen
+                        else -> null
+                    }
 
-            val timestamp = when (healthType) {
-                "HEART_RATE" -> data.heartRateTimestamp
-                "OXYGEN" -> data.oxygenTimestamp
-                else -> null
-            }
+            val timestamp =
+                    when (healthType) {
+                        "HEART_RATE" -> data.heartRateTimestamp
+                        "OXYGEN" -> data.oxygenTimestamp
+                        else -> null
+                    }
 
             if (value != null) {
-                val unit = when (healthType) {
-                    "HEART_RATE" -> " bpm"
-                    "OXYGEN" -> "%"
-                    else -> ""
-                }
+                val unit =
+                        when (healthType) {
+                            "HEART_RATE" -> " bpm"
+                            "OXYGEN" -> "%"
+                            else -> ""
+                        }
                 tvCurrentValue.text = "$value$unit"
 
                 if (timestamp != null) {
@@ -788,7 +803,8 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         val etWeight = dialogView.findViewById<EditText>(R.id.etWeight)
         val etStepGoal = dialogView.findViewById<EditText>(R.id.etStepGoal)
         val etInterval = dialogView.findViewById<EditText>(R.id.etMonitoringInterval)
-        val switchBackground = dialogView.findViewById<SwitchCompat>(R.id.switchBackgroundMonitoring)
+        val switchBackground =
+                dialogView.findViewById<SwitchCompat>(R.id.switchBackgroundMonitoring)
 
         // Store references for population when settings are received
         settingsDialogAge = etAge
@@ -804,38 +820,44 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
 
         // Show/hide step goal based on type
         dialogView.findViewById<View>(R.id.layoutStepGoal).visibility =
-            if (healthType == "STEPS") View.VISIBLE else View.GONE
+                if (healthType == "STEPS") View.VISIBLE else View.GONE
 
         AlertDialog.Builder(this)
-            .setTitle(getString(R.string.health_settings))
-            .setView(dialogView)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                val gender = spinnerGender.selectedItem.toString()
-                val settings = HealthSettingsUpdate(
-                    stepGoal = if (healthType == "STEPS") etStepGoal.text.toString().toIntOrNull() else null,
-                    interval = etInterval.text.toString().toIntOrNull(),
-                    backgroundEnabled = switchBackground.isChecked,
-                    monitoringTypes = null, // Will be set by watch based on enabled types
-                    age = etAge.text.toString().toIntOrNull(),
-                    gender = gender,
-                    height = etHeight.text.toString().toIntOrNull(),
-                    weight = etWeight.text.toString().toFloatOrNull()
-                )
-                bluetoothService?.updateHealthSettings(settings)
-                Toast.makeText(this, getString(R.string.toast_command_sent), Toast.LENGTH_SHORT).show()
+                .setTitle(getString(R.string.health_settings))
+                .setView(dialogView)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    val gender = spinnerGender.selectedItem.toString()
+                    val settings =
+                            HealthSettingsUpdate(
+                                    stepGoal =
+                                            if (healthType == "STEPS")
+                                                    etStepGoal.text.toString().toIntOrNull()
+                                            else null,
+                                    interval = etInterval.text.toString().toIntOrNull(),
+                                    backgroundEnabled = switchBackground.isChecked,
+                                    monitoringTypes =
+                                            null, // Will be set by watch based on enabled types
+                                    age = etAge.text.toString().toIntOrNull(),
+                                    gender = gender,
+                                    height = etHeight.text.toString().toIntOrNull(),
+                                    weight = etWeight.text.toString().toFloatOrNull()
+                            )
+                    bluetoothService?.updateHealthSettings(settings)
+                    Toast.makeText(this, getString(R.string.toast_command_sent), Toast.LENGTH_SHORT)
+                            .show()
 
-                // Clear dialog view references
-                clearSettingsDialogReferences()
-            }
-            .setNegativeButton(android.R.string.cancel) { _, _ ->
-                // Clear dialog view references
-                clearSettingsDialogReferences()
-            }
-            .setOnDismissListener {
-                // Clear dialog view references when dismissed
-                clearSettingsDialogReferences()
-            }
-            .show()
+                    // Clear dialog view references
+                    clearSettingsDialogReferences()
+                }
+                .setNegativeButton(android.R.string.cancel) { _, _ ->
+                    // Clear dialog view references
+                    clearSettingsDialogReferences()
+                }
+                .setOnDismissListener {
+                    // Clear dialog view references when dismissed
+                    clearSettingsDialogReferences()
+                }
+                .show()
     }
 
     private fun clearSettingsDialogReferences() {
@@ -869,7 +891,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             // Update current value card for HR/Oxygen
             if (healthType == "HEART_RATE" || healthType == "OXYGEN") {
                 updateCurrentValueCard()
-                
+
                 // Show "Measuring..." while session is active
                 if (isLiveMeasuring && healthData.isInstant) {
                     tvLastMeasured.text = "Measuring..."
@@ -879,13 +901,14 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             // Handle errors during live measurement
             healthData.errorState?.let { error ->
                 if (isLiveMeasuring) {
-                    val message = when (error) {
-                        "FALL" -> "Checking sensor contact..."
-                        "HARDWARE" -> "Hardware busy or error"
-                        "APP_NOT_INSTALLED" -> "Tracker app not installed"
-                        "NO_DATA" -> "Measurement timed out"
-                        else -> "Error: $error"
-                    }
+                    val message =
+                            when (error) {
+                                "FALL" -> "Checking sensor contact..."
+                                "HARDWARE" -> "Hardware busy or error"
+                                "APP_NOT_INSTALLED" -> "Tracker app not installed"
+                                "NO_DATA" -> "Measurement timed out"
+                                else -> "Error: $error"
+                            }
                     Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                     isLiveMeasuring = false
                     btnMeasureNow.text = "Measure"
@@ -898,11 +921,13 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             if (!isLiveMeasuring) return@runOnUiThread
             if (healthData.isInstant) return@runOnUiThread
 
-            val value = when (healthType) {
-                "HEART_RATE" -> healthData.heartRate?.toFloat()
-                "OXYGEN" -> healthData.bloodOxygen?.toFloat()
-                else -> null
-            } ?: return@runOnUiThread
+            val value =
+                    when (healthType) {
+                        "HEART_RATE" -> healthData.heartRate?.toFloat()
+                        "OXYGEN" -> healthData.bloodOxygen?.toFloat()
+                        else -> null
+                    }
+                            ?: return@runOnUiThread
 
             // Stop measuring state since we received the stable value
             isLiveMeasuring = false
@@ -925,7 +950,12 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     override fun onHealthSettingsReceived(settings: HealthSettingsUpdate) {
         runOnUiThread {
             if (settings.errorState == "PERMISSION_DENIED") {
-                Toast.makeText(this, "Please enable 'Settings API' in the health app settings", Toast.LENGTH_LONG).show()
+                Toast.makeText(
+                                this,
+                                "Please enable 'Settings API' in the health app settings",
+                                Toast.LENGTH_LONG
+                        )
+                        .show()
                 return@runOnUiThread
             }
 
@@ -939,11 +969,12 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
 
             // Set gender spinner selection
             settings.gender?.let { gender ->
-                val genderIndex = when (gender) {
-                    "Male" -> 0
-                    "Female" -> 1
-                    else -> 2 // Other
-                }
+                val genderIndex =
+                        when (gender) {
+                            "Male" -> 0
+                            "Female" -> 1
+                            else -> 2 // Other
+                        }
                 settingsDialogGender?.setSelection(genderIndex)
             }
         }
@@ -954,7 +985,8 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     override fun onDeviceConnected(deviceName: String) {}
     override fun onDeviceDisconnected() {
         runOnUiThread {
-            Toast.makeText(this, getString(R.string.toast_watch_disconnected), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_watch_disconnected), Toast.LENGTH_SHORT)
+                    .show()
             finish()
         }
     }
@@ -967,7 +999,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     override fun onScanResult(devices: List<BluetoothDevice>) {}
     override fun onAppListReceived(appsJson: String) {}
     override fun onUploadProgress(progress: Int) {}
-    override fun onDownloadProgress(progress: Int) {}
+    override fun onDownloadProgress(progress: Int, file: java.io.File?) {}
     override fun onFileListReceived(path: String, filesJson: String) {}
 
     override fun onPause() {

@@ -163,7 +163,7 @@ class BluetoothService : Service() {
         fun onScanResult(devices: List<BluetoothDevice>)
         fun onAppListReceived(appsJson: String)
         fun onUploadProgress(progress: Int)
-        fun onDownloadProgress(progress: Int)
+        fun onDownloadProgress(progress: Int, file: java.io.File? = null)
         fun onFileListReceived(path: String, filesJson: String)
         fun onWatchStatusUpdated(
                 batteryLevel: Int,
@@ -1574,7 +1574,7 @@ class BluetoothService : Service() {
             if (expectedFileSize > 0) {
                 val progress = (receivedFileSize * 100 / expectedFileSize).toInt().coerceIn(0, 99)
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    callback?.onDownloadProgress(progress)
+                    callback?.onDownloadProgress(progress, null)
                 }
             }
         } catch (e: Exception) {
@@ -1646,7 +1646,7 @@ class BluetoothService : Service() {
                 withContext(kotlinx.coroutines.Dispatchers.Main) { showInstallApkDialog(file) }
             } else {
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    callback?.onDownloadProgress(100)
+                    callback?.onDownloadProgress(100, file)
                     Toast.makeText(
                                     this@BluetoothService,
                                     getString(R.string.upload_complete_title) + ": ${file.name}",

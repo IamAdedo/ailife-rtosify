@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Base64
@@ -13,26 +14,25 @@ import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.appcompat.app.AlertDialog
-import androidx.activity.result.contract.ActivityResultContracts
-import android.net.Uri
-import android.widget.Button
-import android.widget.ImageButton
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import org.json.JSONArray
 import java.io.File
-import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 
 class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
@@ -56,34 +56,37 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private var isBound = false
 
     // Conexão com o Serviço
-    private val connection = object : ServiceConnection {
-        override fun onServiceConnected(className: ComponentName, service: IBinder) {
-            val binder = service as BluetoothService.LocalBinder
-            bluetoothService = binder.getService()
-            bluetoothService?.callback = this@AppListActivity
-            isBound = true
+    private val connection =
+            object : ServiceConnection {
+                override fun onServiceConnected(className: ComponentName, service: IBinder) {
+                    val binder = service as BluetoothService.LocalBinder
+                    bluetoothService = binder.getService()
+                    bluetoothService?.callback = this@AppListActivity
+                    isBound = true
 
-            // Solicita a lista assim que conectar
-            fetchApps()
-        }
+                    // Solicita a lista assim que conectar
+                    fetchApps()
+                }
 
-        override fun onServiceDisconnected(arg0: ComponentName) {
-            isBound = false
-            bluetoothService = null
-        }
-    }
+                override fun onServiceDisconnected(arg0: ComponentName) {
+                    isBound = false
+                    bluetoothService = null
+                }
+            }
 
-    private val pickApkLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { confirmApkUpload(it) }
-    }
+    private val pickApkLauncher =
+            registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+                uri?.let { confirmApkUpload(it) }
+            }
 
     // Extraction launcher (will be implemented next)
-    private val extractAppLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == RESULT_OK) {
-            val apkPath = result.data?.getStringExtra("apk_path")
-            apkPath?.let { confirmApkUpload(Uri.fromFile(File(it))) }
-        }
-    }
+    private val extractAppLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                if (result.resultCode == RESULT_OK) {
+                    val apkPath = result.data?.getStringExtra("apk_path")
+                    apkPath?.let { confirmApkUpload(Uri.fromFile(File(it))) }
+                }
+            }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -119,7 +122,8 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             recyclerView.visibility = View.GONE
             bluetoothService?.requestRemoteAppList()
         } else {
-            Toast.makeText(this, getString(R.string.toast_service_disconnected), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_service_disconnected), Toast.LENGTH_SHORT)
+                    .show()
         }
     }
 
@@ -134,26 +138,27 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     // --- Callbacks do Serviço ---
     override fun onAppListReceived(appsJson: String) {
         lifecycleScope.launch {
-            val apps = withContext(Dispatchers.Default) {
-                try {
-                    val jsonArray = JSONArray(appsJson)
-                    val result = mutableListOf<AppItem>()
+            val apps =
+                    withContext(Dispatchers.Default) {
+                        try {
+                            val jsonArray = JSONArray(appsJson)
+                            val result = mutableListOf<AppItem>()
 
-                    for (i in 0 until jsonArray.length()) {
-                        val obj = jsonArray.getJSONObject(i)
-                        val name = obj.getString("name")
-                        val pkg = obj.getString("package")
-                        val iconBase64 = obj.optString("icon", "")
+                            for (i in 0 until jsonArray.length()) {
+                                val obj = jsonArray.getJSONObject(i)
+                                val name = obj.getString("name")
+                                val pkg = obj.getString("package")
+                                val iconBase64 = obj.optString("icon", "")
 
-                        result.add(AppItem(name, pkg, iconBase64))
+                                result.add(AppItem(name, pkg, iconBase64))
+                            }
+
+                            result.sortBy { it.name.lowercase() }
+                            result
+                        } catch (e: Exception) {
+                            null
+                        }
                     }
-
-                    result.sortBy { it.name.lowercase() }
-                    result
-                } catch (e: Exception) {
-                    null
-                }
-            }
 
             progressBar.visibility = View.GONE
             if (apps != null) {
@@ -168,7 +173,12 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 }
             } else {
                 tvEmptyList.text = getString(R.string.applist_error_processing)
-                Toast.makeText(this@AppListActivity, getString(R.string.applist_error_processing_list, "Invalid JSON"), Toast.LENGTH_LONG).show()
+                Toast.makeText(
+                                this@AppListActivity,
+                                getString(R.string.applist_error_processing_list, "Invalid JSON"),
+                                Toast.LENGTH_LONG
+                        )
+                        .show()
             }
         }
     }
@@ -178,7 +188,8 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     override fun onDeviceConnected(deviceName: String) {}
     override fun onDeviceDisconnected() {
         runOnUiThread {
-            Toast.makeText(this, getString(R.string.toast_watch_disconnected), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_watch_disconnected), Toast.LENGTH_SHORT)
+                    .show()
             finish()
         }
     }
@@ -192,10 +203,10 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     override fun onUploadProgress(progress: Int) {
         runOnUiThread { if (uploadDialog?.isShowing == true) updateUploadProgress(progress) }
     }
-    
+
     override fun onFileListReceived(path: String, filesJson: String) {}
-    
-    override fun onDownloadProgress(progress: Int) {
+
+    override fun onDownloadProgress(progress: Int, file: java.io.File?) {
         runOnUiThread { if (uploadDialog?.isShowing == true) updateUploadProgress(progress) }
     }
 
@@ -210,35 +221,36 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     // --- Nova Lógica de Instalação/Desinstalação ---
 
     private fun showInstallOptionDialog() {
-        val options = arrayOf(
-            getString(R.string.dialog_install_option_apk),
-            getString(R.string.dialog_install_option_extract)
-        )
+        val options =
+                arrayOf(
+                        getString(R.string.dialog_install_option_apk),
+                        getString(R.string.dialog_install_option_extract)
+                )
         AlertDialog.Builder(this)
-            .setTitle(getString(R.string.dialog_install_option_title))
-            .setItems(options) { _, which ->
-                when (which) {
-                    0 -> pickApkLauncher.launch("application/vnd.android.package-archive")
-                    1 -> {
-                        // Start AppPickerActivity (to be created)
-                        val intent = Intent(this, AppPickerActivity::class.java)
-                        extractAppLauncher.launch(intent)
+                .setTitle(getString(R.string.dialog_install_option_title))
+                .setItems(options) { _, which ->
+                    when (which) {
+                        0 -> pickApkLauncher.launch("application/vnd.android.package-archive")
+                        1 -> {
+                            // Start AppPickerActivity (to be created)
+                            val intent = Intent(this, AppPickerActivity::class.java)
+                            extractAppLauncher.launch(intent)
+                        }
                     }
                 }
-            }
-            .show()
+                .show()
     }
 
     private fun confirmApkUpload(uri: Uri) {
         AlertDialog.Builder(this)
-            .setTitle(getString(R.string.dialog_upload_apk_title))
-            .setMessage(getString(R.string.dialog_upload_apk_message))
-            .setPositiveButton(getString(R.string.dialog_upload_apk_send)) { _, _ ->
-                bluetoothService?.sendApkFile(uri)
-                showUploadDialog()
-            }
-            .setNegativeButton(getString(R.string.dialog_upload_apk_cancel), null)
-            .show()
+                .setTitle(getString(R.string.dialog_upload_apk_title))
+                .setMessage(getString(R.string.dialog_upload_apk_message))
+                .setPositiveButton(getString(R.string.dialog_upload_apk_send)) { _, _ ->
+                    bluetoothService?.sendApkFile(uri)
+                    showUploadDialog()
+                }
+                .setNegativeButton(getString(R.string.dialog_upload_apk_cancel), null)
+                .show()
     }
 
     private fun showUploadDialog() {
@@ -300,23 +312,25 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     private fun showUninstallDialog(app: AppItem) {
         AlertDialog.Builder(this)
-            .setTitle(getString(R.string.dialog_uninstall_title))
-            .setMessage(getString(R.string.dialog_uninstall_message, app.name))
-            .setPositiveButton(getString(R.string.menu_uninstall_app)) { _, _ ->
-                bluetoothService?.sendUninstallCommand(app.packageName)
-                Toast.makeText(this, getString(R.string.toast_command_sent), Toast.LENGTH_SHORT).show()
-                // Recarregar após um tempo
-                FetchAppsAfterDelay()
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
+                .setTitle(getString(R.string.dialog_uninstall_title))
+                .setMessage(getString(R.string.dialog_uninstall_message, app.name))
+                .setPositiveButton(getString(R.string.menu_uninstall_app)) { _, _ ->
+                    bluetoothService?.sendUninstallCommand(app.packageName)
+                    Toast.makeText(this, getString(R.string.toast_command_sent), Toast.LENGTH_SHORT)
+                            .show()
+                    // Recarregar após um tempo
+                    FetchAppsAfterDelay()
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
     }
 
     // --- Classes de Adapter e Dados ---
 
     data class AppItem(val name: String, val packageName: String, val iconBase64: String)
 
-    class AppAdapter(private val onUninstallClick: (AppItem) -> Unit) : RecyclerView.Adapter<AppAdapter.AppViewHolder>() {
+    class AppAdapter(private val onUninstallClick: (AppItem) -> Unit) :
+            RecyclerView.Adapter<AppAdapter.AppViewHolder>() {
         private var list = listOf<AppItem>()
 
         fun updateList(newList: List<AppItem>) {
@@ -335,7 +349,8 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         override fun getItemCount() = list.size
 
-        class AppViewHolder(itemView: View, private val onUninstallClick: (AppItem) -> Unit) : RecyclerView.ViewHolder(itemView) {
+        class AppViewHolder(itemView: View, private val onUninstallClick: (AppItem) -> Unit) :
+                RecyclerView.ViewHolder(itemView) {
             private val imgIcon: ImageView = itemView.findViewById(R.id.imgAppIcon)
             private val tvName: TextView = itemView.findViewById(R.id.tvAppName)
             private val tvPkg: TextView = itemView.findViewById(R.id.tvAppPackage)
@@ -349,13 +364,18 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 imgIcon.setImageResource(android.R.drawable.sym_def_app_icon)
 
                 if (item.iconBase64.isNotEmpty()) {
-                    (itemView.context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
+                    (itemView.context as? AppCompatActivity)?.lifecycleScope?.launch(
+                            Dispatchers.IO
+                    ) {
                         try {
                             val decodedString = Base64.decode(item.iconBase64, Base64.DEFAULT)
-                            val decodedByte = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.size)
-                            withContext(Dispatchers.Main) {
-                                imgIcon.setImageBitmap(decodedByte)
-                            }
+                            val decodedByte =
+                                    BitmapFactory.decodeByteArray(
+                                            decodedString,
+                                            0,
+                                            decodedString.size
+                                    )
+                            withContext(Dispatchers.Main) { imgIcon.setImageBitmap(decodedByte) }
                         } catch (e: Exception) {
                             withContext(Dispatchers.Main) {
                                 imgIcon.setImageResource(android.R.drawable.sym_def_app_icon)
