@@ -201,6 +201,7 @@
             android:name=".TerminalActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.Smartwatch" />
 
         <activity

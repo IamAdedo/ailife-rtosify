@@ -30,7 +30,7 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var tvOutput: TextView
     private lateinit var etCommand: EditText
     private lateinit var btnSend: ImageButton
-    private lateinit var btnHistoryUp: ImageButton
+    private lateinit var btnHistoryUp: android.widget.Button
     private lateinit var btnCtrlC: android.widget.Button
     private lateinit var tvWorkingDir: TextView
     private lateinit var cardPermissionInfo: MaterialCardView

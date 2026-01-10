@@ -4,6 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@android:color/black"
+    android:fitsSystemWindows="true"
     android:orientation="vertical">
 
     <!-- Header -->
@@ -118,14 +119,16 @@
             android:paddingHorizontal="8dp"
             android:paddingTop="4dp">
 
-            <ImageButton
+            <Button
                 android:id="@+id/btnHistoryUp"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_menu_revert"
-                android:contentDescription="Previous command"
-                app:tint="@android:color/white" />
+                android:text="↑"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                style="@style/Widget.AppCompat.Button.Borderless" />
 
             <Button
                 android:id="@+id/btnCtrlC"
@@ -164,7 +167,9 @@
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:padding="8dp">
+            android:paddingHorizontal="8dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="12dp">
 
             <TextView
                 android:layout_width="wrap_content"

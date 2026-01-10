@@ -5926,11 +5926,21 @@ class BluetoothService : Service() {
         // Launch command execution in a coroutine
         val job = serviceScope.launch(Dispatchers.IO) {
             val startTime = System.currentTimeMillis()
-            val currentUid = android.os.Process.myUid()
-            val permLevel = when (currentUid) {
-                0 -> "root"
-                2000 -> "shizuku"
+            
+            // Determine execution mode and target UID
+            val hasRoot = Shell.getShell().isRoot
+            val hasShizuku = try { Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED } catch (e: Exception) { false }
+            
+            val execPermLevel = when {
+                hasRoot -> "root"
+                hasShizuku -> "shizuku"
                 else -> "app"
+            }
+            
+            val execUid = when (execPermLevel) {
+                "root" -> 0
+                "shizuku" -> 2000
+                else -> android.os.Process.myUid()
             }
 
             fun getNextSeq(): Int {
@@ -5942,74 +5952,154 @@ class BluetoothService : Service() {
             }
 
             try {
-                // Execute command and stream output
-                val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", request.command))
-                runningShellProcesses[request.sessionId] = process
-
-                // Read stdout and stderr in parallel
-                val stdoutReader = process.inputStream.bufferedReader()
-                val stderrReader = process.errorStream.bufferedReader()
-
-                // Stream output line by line - launch and track the jobs
-                val stdoutJob = launch {
-                    stdoutReader.useLines { lines ->
-                        lines.forEach { line ->
-                            if (!isActive) return@forEach
+                if (execPermLevel == "shizuku" && userService != null) {
+                    // Use UserService for Shizuku (handles privileged execution)
+                    // Note: This is one-shot, but we'll simulate streaming for the phone
+                    val responseJson = userService?.executeShellCommandFull(request.command)
+                    val executionTime = System.currentTimeMillis() - startTime
+                    
+                    if (responseJson != null) {
+                        try {
+                            val json = JSONObject(responseJson)
+                            val stdout = json.optString("stdout", "")
+                            val stderr = json.optString("stderr", "")
+                            val exitCode = json.optInt("exitCode", 0)
+                            
+                            // Send stdout lines
+                            if (stdout.isNotEmpty()) {
+                                stdout.split("\n").forEach { line ->
+                                    if (!isActive) return@forEach
+                                    sendMessage(ProtocolHelper.createShellCommandResponse(
+                                        ShellCommandResponse(
+                                            sessionId = request.sessionId,
+                                            stdout = line,
+                                            uid = execUid,
+                                            permissionLevel = execPermLevel,
+                                            isStreaming = true,
+                                            sequenceNumber = getNextSeq()
+                                        )
+                                    ))
+                                }
+                            }
+                            
+                            // Send stderr lines
+                            if (stderr.isNotEmpty()) {
+                                stderr.split("\n").forEach { line ->
+                                    if (!isActive) return@forEach
+                                    sendMessage(ProtocolHelper.createShellCommandResponse(
+                                        ShellCommandResponse(
+                                            sessionId = request.sessionId,
+                                            stderr = line,
+                                            uid = execUid,
+                                            permissionLevel = execPermLevel,
+                                            isStreaming = true,
+                                            sequenceNumber = getNextSeq()
+                                        )
+                                    ))
+                                }
+                            }
+                            
+                            // Send completion
                             sendMessage(ProtocolHelper.createShellCommandResponse(
                                 ShellCommandResponse(
                                     sessionId = request.sessionId,
-                                    stdout = line,
-                                    uid = currentUid,
-                                    permissionLevel = permLevel,
-                                    isStreaming = true,
+                                    exitCode = exitCode,
+                                    executionTimeMs = executionTime,
+                                    uid = execUid,
+                                    permissionLevel = execPermLevel,
+                                    isComplete = true,
                                     sequenceNumber = getNextSeq()
                                 )
                             ))
+                        } catch (e: Exception) {
+                            throw e
+                        }
+                    } else {
+                        throw Exception("Shizuku UserService returned null")
+                    }
+                } else {
+                    // Execute command and stream output using the best possible shell
+                    val process: Process = if (execPermLevel == "root") {
+                        Runtime.getRuntime().exec(arrayOf("su", "-c", request.command))
+                    } else {
+                        Runtime.getRuntime().exec(arrayOf("sh", "-c", request.command))
+                    }
+                    
+                    runningShellProcesses[request.sessionId] = process
+
+                    // Read stdout and stderr in parallel
+                    val stdoutReader = process.inputStream.bufferedReader()
+                    val stderrReader = process.errorStream.bufferedReader()
+
+                    // Stream output line by line - launch and track the jobs
+                    val stdoutJob = launch {
+                        try {
+                            stdoutReader.useLines { lines ->
+                                lines.forEach { line ->
+                                    if (!isActive) return@forEach
+                                    sendMessage(ProtocolHelper.createShellCommandResponse(
+                                        ShellCommandResponse(
+                                            sessionId = request.sessionId,
+                                            stdout = line,
+                                            uid = execUid,
+                                            permissionLevel = execPermLevel,
+                                            isStreaming = true,
+                                            sequenceNumber = getNextSeq()
+                                        )
+                                    ))
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Stdout reader error: ${e.message}")
                         }
                     }
-                }
 
-                // Stream stderr
-                val stderrJob = launch {
-                    stderrReader.useLines { lines ->
-                        lines.forEach { line ->
-                            if (!isActive) return@forEach
-                            sendMessage(ProtocolHelper.createShellCommandResponse(
-                                ShellCommandResponse(
-                                    sessionId = request.sessionId,
-                                    stderr = line,
-                                    uid = currentUid,
-                                    permissionLevel = permLevel,
-                                    isStreaming = true,
-                                    sequenceNumber = getNextSeq()
-                                )
-                            ))
+                    // Stream stderr
+                    val stderrJob = launch {
+                        try {
+                            stderrReader.useLines { lines ->
+                                lines.forEach { line ->
+                                    if (!isActive) return@forEach
+                                    sendMessage(ProtocolHelper.createShellCommandResponse(
+                                        ShellCommandResponse(
+                                            sessionId = request.sessionId,
+                                            stderr = line,
+                                            uid = execUid,
+                                            permissionLevel = execPermLevel,
+                                            isStreaming = true,
+                                            sequenceNumber = getNextSeq()
+                                        )
+                                    ))
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Stderr reader error: ${e.message}")
                         }
                     }
+
+                    // Wait for process to complete
+                    val exitCode = process.waitFor()
+                    val executionTime = System.currentTimeMillis() - startTime
+
+                    // CRITICAL: Wait for all output to be sent before sending completion
+                    stdoutJob.join()
+                    stderrJob.join()
+
+                    // Now send final response - this will have the highest sequence number
+                    sendMessage(ProtocolHelper.createShellCommandResponse(
+                        ShellCommandResponse(
+                            sessionId = request.sessionId,
+                            exitCode = exitCode,
+                            executionTimeMs = executionTime,
+                            uid = execUid,
+                            permissionLevel = execPermLevel,
+                            isComplete = true,
+                            sequenceNumber = getNextSeq()
+                        )
+                    ))
                 }
 
-                // Wait for process to complete
-                val exitCode = process.waitFor()
-                val executionTime = System.currentTimeMillis() - startTime
-
-                // CRITICAL: Wait for all output to be sent before sending completion
-                stdoutJob.join()
-                stderrJob.join()
-
-                // Now send final response - this will have the highest sequence number
-                sendMessage(ProtocolHelper.createShellCommandResponse(
-                    ShellCommandResponse(
-                        sessionId = request.sessionId,
-                        exitCode = exitCode,
-                        executionTimeMs = executionTime,
-                        uid = currentUid,
-                        permissionLevel = permLevel,
-                        isComplete = true,
-                        sequenceNumber = getNextSeq()
-                    )
-                ))
-
-                Log.d(TAG, "Command completed with exit code: $exitCode")
+                Log.d(TAG, "Command completed (UID: $execUid)")
             } catch (e: Exception) {
                 Log.e(TAG, "Error executing command: ${e.message}", e)
                 sendMessage(ProtocolHelper.createShellCommandResponse(
@@ -6017,8 +6107,8 @@ class BluetoothService : Service() {
                         sessionId = request.sessionId,
                         exitCode = -1,
                         stderr = e.message ?: "Unknown error",
-                        uid = currentUid,
-                        permissionLevel = permLevel,
+                        uid = execUid,
+                        permissionLevel = execPermLevel,
                         isComplete = true,
                         sequenceNumber = getNextSeq()
                     )
