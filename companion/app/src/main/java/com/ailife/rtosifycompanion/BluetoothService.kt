@@ -167,6 +167,7 @@ class BluetoothService : Service() {
                 wifiEnabled: Boolean,
                 dndEnabled: Boolean
         ) {}
+        fun onPhoneBatteryUpdated(battery: Int, isCharging: Boolean) {}
     }
 
     var callback: ServiceCallback? = null
@@ -1146,6 +1147,7 @@ class BluetoothService : Service() {
                     MessageType.CALL_STATE_CHANGED -> handleCallStateChanged(message)
                     MessageType.REQUEST_BATTERY_LIVE -> handleRequestBatteryLive()
                     MessageType.REQUEST_BATTERY_STATIC -> handleRequestBatteryStatic()
+                    MessageType.PHONE_BATTERY_UPDATE -> handlePhoneBatteryUpdate(message)
                     MessageType.UPDATE_BATTERY_SETTINGS -> handleUpdateBatterySettings(message)
                     MessageType.CLIPBOARD_SYNC -> handleClipboardSync(message)
                     MessageType.ENABLE_BT_INTERNET -> handleEnableBluetoothInternet(message)
@@ -1195,6 +1197,21 @@ class BluetoothService : Service() {
             }
 
             withContext(Dispatchers.Main) { callback?.onDeviceDisconnected() }
+        }
+    }
+
+    fun requestPhoneBattery() {
+        sendMessage(ProtocolHelper.createRequestPhoneBattery())
+    }
+
+    private fun handlePhoneBatteryUpdate(message: ProtocolMessage) {
+        try {
+            val data = ProtocolHelper.extractData<PhoneBatteryData>(message)
+            serviceScope.launch(Dispatchers.Main) {
+                callback?.onPhoneBatteryUpdated(data.level, data.isCharging)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing phone battery update: ${e.message}")
         }
     }
 

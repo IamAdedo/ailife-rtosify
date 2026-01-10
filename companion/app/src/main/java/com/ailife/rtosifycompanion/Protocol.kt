@@ -111,7 +111,13 @@ object MessageType {
     const val REMOTE_INPUT = "remote_input"
     const val UPDATE_RESOLUTION = "update_resolution"
     const val MIRROR_RES_CHANGE = "mirror_res_change"
+
+    // Phone Battery (Dedicated)
+    const val REQUEST_PHONE_BATTERY = "request_phone_battery"
+    const val PHONE_BATTERY_UPDATE = "phone_battery_update"
 }
+
+data class PhoneBatteryData(val level: Int, val isCharging: Boolean)
 
 // Data classes for specific message types
 data class CameraFrameData(val imageBase64: String)
@@ -868,5 +874,14 @@ object ProtocolHelper {
         data.addProperty("reset", reset)
         data.addProperty("mode", mode)
         return ProtocolMessage(type = MessageType.UPDATE_RESOLUTION, data = data)
+    }
+
+    fun createRequestPhoneBattery(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.REQUEST_PHONE_BATTERY)
+    }
+
+    fun createPhoneBatteryUpdate(level: Int, isCharging: Boolean): ProtocolMessage {
+        val data = gson.toJsonTree(PhoneBatteryData(level, isCharging)).asJsonObject
+        return ProtocolMessage(type = MessageType.PHONE_BATTERY_UPDATE, data = data)
     }
 }

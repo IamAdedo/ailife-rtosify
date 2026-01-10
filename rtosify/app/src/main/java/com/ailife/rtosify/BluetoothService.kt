@@ -825,6 +825,7 @@ class BluetoothService : Service() {
                     MessageType.REMOTE_INPUT -> handleRemoteInput(message)
                     MessageType.UPDATE_RESOLUTION -> handleUpdateResolution(message)
                     MessageType.MIRROR_RES_CHANGE -> handleMirrorResChange(message)
+                    MessageType.REQUEST_PHONE_BATTERY -> handleRequestPhoneBattery()
                 }
             }
         } catch (_: IOException) {
@@ -1139,6 +1140,21 @@ class BluetoothService : Service() {
 
     fun sendWifiCommand(enable: Boolean) {
         sendMessage(ProtocolHelper.createSetWifi(enable))
+    }
+
+    private fun handleRequestPhoneBattery() {
+        Log.d(TAG, "Handling dedicated phone battery request from Watch")
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val bm = getSystemService(BATTERY_SERVICE) as BatteryManager
+                val batteryLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                val isCharging = bm.isCharging
+                
+                sendMessage(ProtocolHelper.createPhoneBatteryUpdate(batteryLevel, isCharging))
+            } catch (e: Exception) {
+                Log.e(TAG, "Error collecting phone battery data: ${e.message}")
+            }
+        }
     }
 
     // Clipboard sync functions

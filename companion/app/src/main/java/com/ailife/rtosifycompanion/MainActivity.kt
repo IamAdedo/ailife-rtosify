@@ -28,6 +28,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
 import androidx.core.widget.NestedScrollView
+import kotlinx.coroutines.launch
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.AppBarLayout
@@ -64,6 +65,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var layoutConnectionHeader: LinearLayout
     private lateinit var imgWatchStatus: ImageView
     private lateinit var tvWatchStatusBig: TextView
+    private lateinit var tvPhoneBattery: TextView // New UI for Phone Battery
+    private lateinit var imgPhoneBattery: ImageView
 
     private lateinit var prefs: SharedPreferences
     private var bluetoothService: BluetoothService? = null
@@ -171,6 +174,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             )
         }
         syncDynamicIslandService()
+        startPhoneBatteryPolling()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        stopPhoneBatteryPolling()
     }
 
     private fun hasMissingPermissions(): Boolean {
@@ -213,6 +222,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         layoutConnectionHeader = findViewById(R.id.layoutConnectionHeader)
         imgWatchStatus = findViewById(R.id.imgWatchStatus)
         tvWatchStatusBig = findViewById(R.id.tvWatchStatusBig)
+        tvWatchStatusBig = findViewById(R.id.tvWatchStatusBig)
+        tvPhoneBattery = findViewById(R.id.tvPhoneBattery)
+        imgPhoneBattery = findViewById(R.id.imgPhoneBattery)
         switchService = findViewById(R.id.switchService)
         switchServiceWatch = findViewById(R.id.switchServiceWatch)
 
@@ -799,6 +811,41 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 }
             }
         }
+    }
+
+    override fun onPhoneBatteryUpdated(battery: Int, isCharging: Boolean) {
+        runOnUiThread {
+            tvPhoneBattery.text = "$battery%"
+            tvPhoneBattery.visibility = View.VISIBLE
+            imgPhoneBattery.visibility = View.VISIBLE
+            
+            if (isCharging) {
+                 imgPhoneBattery.setImageResource(android.R.drawable.ic_lock_idle_charging)
+            } else {
+                 imgPhoneBattery.setImageResource(R.drawable.ic_battery_full)
+            }
+        }
+    }
+
+    private var phoneBatteryPollingJob: kotlinx.coroutines.Job? = null
+
+    private fun startPhoneBatteryPolling() {
+        stopPhoneBatteryPolling()
+        if (isPhoneMode) return // Don't poll if we are the phone
+
+        phoneBatteryPollingJob = kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+             while (true) {
+                 if (bluetoothService?.isConnected == true) {
+                     bluetoothService?.requestPhoneBattery()
+                 }
+                 kotlinx.coroutines.delay(2000) // Poll every 2 seconds
+             }
+        }
+    }
+
+    private fun stopPhoneBatteryPolling() {
+        phoneBatteryPollingJob?.cancel()
+        phoneBatteryPollingJob = null
     }
     override fun onError(message: String) {
         runOnUiThread {
