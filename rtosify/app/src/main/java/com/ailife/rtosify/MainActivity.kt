@@ -953,7 +953,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         MenuOption(
                                 getString(R.string.menu_watchface),
                                 getString(R.string.wf_title),
-                                android.R.drawable.ic_menu_gallery,
+                                R.drawable.ic_watch_faces,
                                 {
                                     startActivity(
                                             Intent(
@@ -994,7 +994,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         MenuOption(
                                 "Watch Automations",
                                 "Manage watch automated tasks and behaviors",
-                                android.R.drawable.ic_menu_preferences,
+                                R.drawable.ic_watch_automations,
                                 {
                                     startActivity(
                                             Intent(this, WatchAutomationsActivity::class.java)
@@ -1022,7 +1022,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         MenuOption(
                                 getString(R.string.menu_sync_contacts),
                                 getString(R.string.menu_sync_contacts_desc),
-                                android.R.drawable.ic_menu_myplaces,
+                                R.drawable.ic_sync_contacts,
                                 { runIfConnected { bluetoothService?.syncContacts() } }
                         ),
                         MenuOption(
@@ -1077,7 +1077,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         MenuOption(
                                 getString(R.string.menu_health),
                                 "Monitor health metrics",
-                                android.R.drawable.ic_menu_compass,
+                                R.drawable.ic_heart,
                                 {
                                     runIfConnected {
                                         startActivity(
@@ -1107,7 +1107,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         MenuOption(
                                 "Terminal",
                                 "Execute shell commands on watch",
-                                android.R.drawable.ic_menu_manage,
+                                R.drawable.ic_terminal,
                                 {
                                     runIfConnected {
                                         startActivity(Intent(this, TerminalActivity::class.java))
@@ -1117,7 +1117,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         MenuOption(
                                 getString(R.string.menu_watchface),
                                 getString(R.string.wf_title),
-                                android.R.drawable.ic_menu_gallery,
+                                R.drawable.ic_watch_faces,
                                 {
                                     startActivity(
                                             Intent(
@@ -1157,7 +1157,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         MenuOption(
                                 "Watch Automations",
                                 "Manage watch automated tasks and behaviors",
-                                android.R.drawable.ic_menu_preferences,
+                                R.drawable.ic_watch_automations,
                                 {
                                     startActivity(
                                             Intent(this, WatchAutomationsActivity::class.java)
@@ -1179,7 +1179,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         MenuOption(
                                 getString(R.string.menu_sync_contacts),
                                 getString(R.string.menu_sync_contacts_desc),
-                                android.R.drawable.ic_menu_myplaces,
+                                R.drawable.ic_sync_contacts,
                                 { runIfConnected { bluetoothService?.syncContacts() } }
                         )
                 )
