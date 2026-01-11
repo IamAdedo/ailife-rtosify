@@ -92,6 +92,7 @@ object MessageType {
     const val UPDATE_DND_SETTINGS = "update_dnd_settings"
     const val CLIPBOARD_SYNC = "clipboard_sync"
     const val ENABLE_BT_INTERNET = "enable_bt_internet"
+    const val UPDATE_WIFI_RULE = "update_wifi_rule"
     const val UPDATE_BATTERY_SETTINGS = "update_battery_settings"
     const val REQUEST_BATTERY_STATIC = "request_battery_static"
     const val REQUEST_BATTERY_LIVE = "request_battery_live"
@@ -116,8 +117,6 @@ object MessageType {
     const val REQUEST_PHONE_BATTERY = "request_phone_battery"
     const val PHONE_BATTERY_UPDATE = "phone_battery_update"
     
-    // WiFi Rule Synchronization
-    const val UPDATE_WIFI_RULE = "update_wifi_rule"
 
     // Refactored Polling
     const val REQUEST_WATCH_STATUS = "request_watch_status"

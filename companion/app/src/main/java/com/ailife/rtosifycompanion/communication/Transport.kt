@@ -42,6 +42,16 @@ interface CommunicationTransport {
      * Get transport type name for logging/debugging.
      */
     fun getTransportType(): String
+
+    /**
+     * Get the name of the connected remote device.
+     */
+    fun getRemoteDeviceName(): String?
+
+    /**
+     * Get the address/MAC of the connected remote device.
+     */
+    fun getRemoteAddress(): String?
 }
 
 /**

@@ -48,6 +48,8 @@ class TransportManager(
     private var wifiMonitorJob: Job? = null
     private var heartbeatJob: Job? = null
     
+    @Volatile private var isConnectingWifi = false
+    
     @Volatile private var lastMessageTime: Long = 0L
     
     // Message handling
@@ -175,7 +177,14 @@ class TransportManager(
     }
 
     private suspend fun connectWifi(mac: String) {
+        if (isConnectingWifi) return
         try {
+            isConnectingWifi = true
+            updateConnectionState()
+            
+            // Ensure encryption is initialized for this device
+            encryptionManager.setActiveDevice(mac)
+            
             val transport = WifiIntranetTransport(
                 deviceMac = mac,
                 encryptionManager = encryptionManager,
@@ -184,6 +193,7 @@ class TransportManager(
             )
             
             if (transport.connect()) {
+                isConnectingWifi = false
                 wifiTransport = transport
                 updateConnectionState()
                 
@@ -204,8 +214,13 @@ class TransportManager(
                         updateConnectionState()
                     }
                 }
+            } else {
+                isConnectingWifi = false
+                updateConnectionState()
             }
         } catch (e: Exception) {
+            isConnectingWifi = false
+            updateConnectionState()
             // Log.w(TAG, "WiFi connect attempt failed: ${e.message}") 
             // Expected if watch not advertising or on different network
         }
@@ -315,7 +330,13 @@ class TransportManager(
             bt != null && bt.isConnected() -> 
                 ConnectionState.Connected("Bluetooth", bt.getRemoteDeviceName())
             else -> {
-                if (btReconnectJob?.isActive == true) ConnectionState.Connecting else ConnectionState.Disconnected
+                val adapter = BluetoothAdapter.getDefaultAdapter()
+                val isBtConnecting = btReconnectJob?.isActive == true && adapter?.isEnabled == true
+                if (isBtConnecting || isConnectingWifi) {
+                    ConnectionState.Connecting
+                } else {
+                    ConnectionState.Disconnected
+                }
             }
         }
         

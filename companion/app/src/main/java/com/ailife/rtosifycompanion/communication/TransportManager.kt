@@ -48,11 +48,18 @@ class TransportManager(
     // Transport monitoring jobs
     private var btMonitorJob: Job? = null
     private var wifiMonitorJob: Job? = null
+    private var heartbeatJob: Job? = null
+    
+    @Volatile private var isConnectingWifi = false
+    private var lastMessageTime = 0L
+    private val HEARTBEAT_INTERVAL = 20000L
+    private val CONNECTION_TIMEOUT = 60000L
 
     sealed class ConnectionState {
         object Disconnected : ConnectionState()
+        object Connecting : ConnectionState()
         object Waiting : ConnectionState()
-        data class Connected(val type: String, val deviceName: String?) : ConnectionState()
+        data class Connected(val type: String, val deviceName: String?, val deviceMac: String?) : ConnectionState()
     }
 
     /**
@@ -108,24 +115,28 @@ class TransportManager(
 
     private suspend fun handleBluetoothConnection(socket: BluetoothSocket) {
         val deviceName = socket.remoteDevice?.name ?: "Unknown"
-        Log.d(TAG, "Bluetooth connected: $deviceName")
+        val deviceMac = socket.remoteDevice?.address ?: ""
+        Log.d(TAG, "Bluetooth connected: $deviceName ($deviceMac)")
         
         val transport = BluetoothTransport(socket)
         if (transport.connect()) {
             bluetoothTransport = transport
-            startTransportMonitoring(transport, "Bluetooth", deviceName)
-            
-            // Block here while connected
-            try {
-                transport.receive().collect { msg ->
-                    _incomingMessages.send(msg)
+            updateConnectionState()
+            scope.launch {
+                try {
+                    lastMessageTime = System.currentTimeMillis()
+                    startHeartbeatLoop()
+                    transport.receive().collect { msg ->
+                        lastMessageTime = System.currentTimeMillis()
+                        _incomingMessages.send(msg)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Bluetooth receive error", e)
+                } finally {
+                    stopHeartbeatLoop()
+                    bluetoothTransport = null
+                    updateConnectionState()
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Bluetooth receive error", e)
-            } finally {
-                Log.d(TAG, "Bluetooth disconnected")
-                bluetoothTransport = null
-                updateConnectionState()
             }
         } else {
             Log.e(TAG, "Failed to initialize Bluetooth transport")
@@ -142,15 +153,10 @@ class TransportManager(
 
         wifiServerJob = scope.launch(Dispatchers.IO) {
             Log.d(TAG, "Starting WiFi server...")
-            // WiFi server implementation using existing WifiIntranetTransport logic
-            // Note: WifiIntranetTransport constructor might need adjustment or usage here
-            // In original code, it seemed to be created on demand. 
-            // Here we might need a loop similar to BT if it's acting as a server socket acceptor.
             
-            // Based on analyzing `WifiIntranetTransport`, it takes `isServer=true` and blocks in `connect()`.
             while (isActive) {
                 val transport = WifiIntranetTransport(
-                    deviceMac = "", // Not needed for server usually? Or checked against?
+                    deviceMac = "",
                     encryptionManager = encryptionManager,
                     mdnsDiscovery = mdnsDiscovery,
                     isServer = true
@@ -158,23 +164,54 @@ class TransportManager(
                 
                 if (transport.connect()) {
                     wifiTransport = transport
-                    startTransportMonitoring(transport, "WiFi", null)
                     
                     try {
+                        lastMessageTime = System.currentTimeMillis()
+                        startHeartbeatLoop()
                         transport.receive().collect { msg ->
+                            lastMessageTime = System.currentTimeMillis()
                             _incomingMessages.send(msg)
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "WiFi receive error", e)
                     } finally {
-                        Log.d(TAG, "WiFi disconnected")
+                        stopHeartbeatLoop()
                         wifiTransport = null
                         updateConnectionState()
                     }
                 } else {
-                    delay(5000) // Wait before retrying server socket
+                    delay(5000)
                 }
             }
+        }
+    }
+
+    private fun startHeartbeatLoop() {
+        if (heartbeatJob?.isActive == true) return
+        heartbeatJob = scope.launch {
+            while (isActive) {
+                delay(HEARTBEAT_INTERVAL)
+                val connected = (bluetoothTransport?.isConnected() == true) || (wifiTransport?.isConnected() == true)
+                if (!connected) continue
+                
+                val elapsed = System.currentTimeMillis() - lastMessageTime
+                if (elapsed > CONNECTION_TIMEOUT) {
+                    Log.w(TAG, "Connection timeout! $elapsed ms")
+                    stopAll()
+                    break
+                }
+                
+                // Send heartbeat
+                send(ProtocolMessage(type = "heartbeat"))
+            }
+        }
+    }
+
+    private fun stopHeartbeatLoop() {
+        val stillConnected = (bluetoothTransport?.isConnected() == true) || (wifiTransport?.isConnected() == true)
+        if (!stillConnected) {
+            heartbeatJob?.cancel()
+            heartbeatJob = null
         }
     }
 
@@ -220,34 +257,35 @@ class TransportManager(
         
         val newState = when {
             wifi != null && wifi.isConnected() && bt != null && bt.isConnected() -> 
-                ConnectionState.Connected("Dual", bt.bluetoothSocket?.remoteDevice?.name) // Simplify access if possible or store name
+                ConnectionState.Connected("Dual", bt.getRemoteDeviceName(), bt.getRemoteAddress())
             wifi != null && wifi.isConnected() -> 
-                ConnectionState.Connected("WiFi", null)
+                ConnectionState.Connected("WiFi", wifi.getRemoteDeviceName(), wifi.getRemoteAddress())
             bt != null && bt.isConnected() -> 
-                ConnectionState.Connected("Bluetooth", bt.bluetoothSocket?.remoteDevice?.name) // Need access to socket or name
+                ConnectionState.Connected("Bluetooth", bt.getRemoteDeviceName(), bt.getRemoteAddress())
             else -> {
-                if (bluetoothServerJob?.isActive == true) ConnectionState.Waiting else ConnectionState.Disconnected
+                if (isConnectingWifi) {
+                    ConnectionState.Connecting
+                } else if (bluetoothServerJob?.isActive == true) {
+                    ConnectionState.Waiting
+                } else {
+                    ConnectionState.Disconnected
+                }
             }
         }
         
         _connectionState.value = newState
     }
     
-    // Helper to access name from BT transport potentially, or just pass it down
-    private val BluetoothTransport.bluetoothSocket: BluetoothSocket? 
-        get() = try {
-            // Reflection or widen visibility if needed. 
-            // For now, let's assume valid property or just rely on passed name.
-            // Actually, `BluetoothTransport` in companion takes socket in constructor but doesn't expose it public val.
-            // We can just store the name during connection.
-            null 
-        } catch (e: Exception) { null }
+    fun getRemoteDeviceName(): String? {
+        return wifiTransport?.getRemoteDeviceName() ?: bluetoothTransport?.getRemoteDeviceName()
+    }
 
     fun stopAll() {
         bluetoothServerJob?.cancel()
         wifiServerJob?.cancel()
+        heartbeatJob?.cancel()
         
-        scope.launch {
+        scope.launch(NonCancellable) {
             bluetoothTransport?.disconnect()
             wifiTransport?.disconnect()
             bluetoothTransport = null

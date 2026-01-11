@@ -5,9 +5,7 @@ import com.ailife.rtosifycompanion.ProtocolMessage
 import com.ailife.rtosifycompanion.security.EncryptionManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.*
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.IOException
@@ -69,10 +67,24 @@ class WifiIntranetTransport(
     }
 
     private suspend fun connectAsClient(): Boolean {
-        val info = mdnsDiscovery.getDiscoveredServices().first { it.deviceMac == deviceMac }
+        Log.d(TAG, "Attempting to discover service for MAC: $deviceMac")
+        
+        // Start discovery just in case it's not running
+        mdnsDiscovery.startDiscovery()
+        
+        val discoveryResult = withTimeoutOrNull(20000L) {
+            mdnsDiscovery.getDiscoveredServices()
+                .filter { it.deviceMac.equals(deviceMac, ignoreCase = true) }
+                .firstOrNull()
+        }
 
-        Log.d(TAG, "Connecting to ${info.host}:${info.port}")
-        socket = Socket(info.host, info.port)
+        if (discoveryResult == null) {
+            Log.w(TAG, "mDNS discovery timeout for $deviceMac")
+            return false
+        }
+
+        Log.d(TAG, "Connecting to ${discoveryResult.host}:${discoveryResult.port}")
+        socket = Socket(discoveryResult.host, discoveryResult.port)
         setupStreams(socket!!)
         connected = true
         startReceiving()
@@ -185,4 +197,16 @@ class WifiIntranetTransport(
     override fun isConnected(): Boolean = connected
 
     override fun getTransportType(): String = "WiFi Intranet"
+
+    override fun getRemoteDeviceName(): String? = if (isServer) {
+        socket?.inetAddress?.hostAddress
+    } else {
+        deviceMac
+    }
+
+    override fun getRemoteAddress(): String? = if (isServer) {
+        socket?.inetAddress?.hostAddress
+    } else {
+        deviceMac
+    }
 }

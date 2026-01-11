@@ -507,7 +507,7 @@ class BluetoothService : Service() {
                 when (state) {
                     is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected -> {
                         val deviceName = state.deviceName ?: getString(R.string.device_name_default)
-                        handleDeviceConnected(deviceName)
+                        handleDeviceConnected(deviceName, state.deviceMac)
                     }
                     is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Disconnected -> {
                         handleDeviceDisconnected()
@@ -515,6 +515,7 @@ class BluetoothService : Service() {
                     is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Waiting -> {
                         updateStatus(getString(R.string.status_waiting))
                     }
+                    else -> {}
                 }
             }
         }
@@ -909,7 +910,7 @@ class BluetoothService : Service() {
         transportManager.startBluetoothServer(bluetoothAdapter)
     }
 
-    private fun handleDeviceConnected(deviceName: String) {
+    private fun handleDeviceConnected(deviceName: String, mac: String?) {
         if (isConnected) return // Already handling connection
         
         isConnected = true
@@ -929,14 +930,15 @@ class BluetoothService : Service() {
         
         serviceScope.launch(Dispatchers.Main) { callback?.onDeviceConnected(deviceName) }
         
-        // Start heartbeat and automation
+        // Start automation and encryption
         serviceScope.launch {
              // Trigger automation on connection
              onConnectionEstablished()
              
-             // Heartbeat loop
-             Log.d(TAG, "Starting heartbeat loop")
-             heartbeatLoop()
+             // Initialize encryption if MAC is available
+             mac?.let {
+                 initializeEncryptionForDevice(it)
+             }
         }
     }
     
@@ -1547,44 +1549,7 @@ class BluetoothService : Service() {
         notificationManager.notify(NOTIFICATION_ID_DISCONNECTION_ALERT, notification)
     }
 
-    // DELETED: readMessage() - Dead code, never called
     // Message reading is now handled by transport layer
-
-    private suspend fun heartbeatLoop() {
-        while (currentCoroutineContext().isActive) {
-            delay(HEARTBEAT_INTERVAL)
-            if (!isConnected) {
-                Log.d(TAG, "heartbeatLoop: not connected, skipping check")
-                continue
-            }
-            val ellapsed = System.currentTimeMillis() - lastMessageTime
-            if (ellapsed > CONNECTION_TIMEOUT) {
-                Log.w(TAG, "heartbeatLoop: timeout detected! ellapsed=$ellapsed, limit=$CONNECTION_TIMEOUT")
-                forceDisconnect()
-                break
-            }
-            try {
-                sendMessage(ProtocolHelper.createHeartbeat())
-            } catch (_: Exception) {
-                break
-            }
-        }
-    }
-
-    private fun forceDisconnect() {
-        Log.d(TAG, "forceDisconnect: Closing socket and ensuring mirroring stopped.")
-        if (MirroringService.isRunning) {
-            Log.d(TAG, "forceDisconnect: Mirroring is active, stopping it.")
-            val stopIntent = Intent(this, MirroringService::class.java)
-            stopService(stopIntent)
-        }
-        try {
-            bluetoothSocket?.close()
-        } catch (_: Exception) {}
-
-        batteryHistoryJob?.cancel()
-        deviceInfoUpdateJob?.cancel()
-    }
 
     // ===== WiFi Transport Management =====
     
@@ -4114,8 +4079,7 @@ class BluetoothService : Service() {
         statusUpdateJob?.cancel()
 
         val wasConnected = isConnected
-
-        forceDisconnect()
+        stopAllCommunication()
         isConnected = false
         currentDeviceName = null
         bluetoothSocket = null
@@ -4591,8 +4555,20 @@ class BluetoothService : Service() {
         }
 
         mainHandler.removeCallbacksAndMessages(null)
+        stopAllCommunication()
         serviceScope.cancel()
-        forceDisconnect()
+    }
+
+    private fun stopAllCommunication() {
+        if (MirroringService.isRunning) {
+            val stopIntent = Intent(this, MirroringService::class.java)
+            stopService(stopIntent)
+        }
+        
+        batteryHistoryJob?.cancel()
+        deviceInfoUpdateJob?.cancel()
+        
+        transportManager.stopAll()
     }
 
     private fun decodeBase64ToBitmap(base64Str: String): Bitmap? {

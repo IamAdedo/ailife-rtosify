@@ -17,7 +17,7 @@ class MdnsDiscovery(private val context: Context) {
     
     companion object {
         private const val TAG = "MdnsDiscovery"
-        private const val SERVICE_TYPE = "_rtosify._tcp."
+        private const val SERVICE_TYPE = "_rtosify._tcp"
         private const val SERVICE_NAME_PREFIX = "RTOSify"
     }
 
