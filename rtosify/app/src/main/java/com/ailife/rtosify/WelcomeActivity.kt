@@ -238,7 +238,7 @@ class WelcomeActivity : AppCompatActivity() {
             btnRetry.visibility = android.view.View.GONE
 
             val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
-            prefs.edit { putString("device_type", "PHONE") }
+            // RTOSify is phone-only, no need to set device_type
 
             val btManager =
                     getSystemService(BLUETOOTH_SERVICE) as android.bluetooth.BluetoothManager
@@ -521,8 +521,8 @@ class WelcomeActivity : AppCompatActivity() {
 
     // 5. Finalize the process
     private fun finishSetup(type: String) {
+        // RTOSify is phone-only, type parameter is unused
         val globalPrefs = devicePrefManager.getGlobalPrefs()
-        globalPrefs.edit().putString("device_type", type).commit()
 
         if (intent.getBooleanExtra("FOR_NEW_DEVICE", false)) {
             finish()

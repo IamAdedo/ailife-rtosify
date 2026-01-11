@@ -69,3 +69,5 @@ companion/.gradle/
 companion/local.properties
 companion/.idea/
 .vscode/settings.json
+companion/app/outputs/logs/manifest-merger-debug-report.txt
+companion/app/outputs/apk/debug/output-metadata.json

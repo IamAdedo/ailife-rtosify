@@ -91,6 +91,13 @@ class BluetoothService : Service() {
 
     private var lastValidWifiSsid: String = ""
 
+    // WiFi Transport Infrastructure
+    private lateinit var encryptionManager: com.ailife.rtosify.security.EncryptionManager
+    private var mdnsDiscovery: com.ailife.rtosify.communication.MdnsDiscovery? = null
+    private var currentTransport: com.ailife.rtosify.communication.CommunicationTransport? = null
+    private var wifiTransport: com.ailife.rtosify.communication.WifiIntranetTransport? = null
+    private var transportSwitchJob: Job? = null
+
     // Clipboard monitoring
     private var clipboardManager: android.content.ClipboardManager? = null
     private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? =
@@ -193,6 +200,10 @@ class BluetoothService : Service() {
     @Volatile var currentStatus: String = "" // Will be initialized in onCreate
     @Volatile var currentDeviceName: String? = null
     @Volatile var isConnected: Boolean = false
+    
+    fun isWifiTransportActive(): Boolean {
+        return currentTransport is com.ailife.rtosify.communication.WifiIntranetTransport
+    }
 
     private val phoneStateReceiver =
             object : BroadcastReceiver() {
@@ -274,6 +285,11 @@ class BluetoothService : Service() {
         const val CHANNEL_ID_DISCONNECTED = "channel_status_disconnected"
 
         const val INSTALL_CHANNEL_ID = "install_channel"
+        
+        // WiFi Activation Rules
+        const val WIFI_RULE_BT_FALLBACK = 0      // Enable when BT disconnected
+        const val WIFI_RULE_MAINACTIVITY = 1     // Enable when MainActivity open
+        const val WIFI_RULE_ALWAYS = 2           // Enable all the time
         const val MIRRORED_CHANNEL_ID = "mirrored_notifications"
 
         const val ACTION_STOP_SERVICE = "ACTION_STOP_SERVICE"
@@ -353,6 +369,10 @@ class BluetoothService : Service() {
         val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothAdapter = btManager.adapter
         createNotificationChannel()
+        
+        // Initialize WiFi transport infrastructure
+        encryptionManager = com.ailife.rtosify.security.EncryptionManager(this)
+        mdnsDiscovery = com.ailife.rtosify.communication.MdnsDiscovery(this)
 
         val filterInternal =
                 IntentFilter().apply {
@@ -526,11 +546,9 @@ class BluetoothService : Service() {
 
     private fun initializeLogicFromPrefs() {
         if (!prefs.getBoolean("service_enabled", true)) return
-
-        val deviceType = prefs.getString("device_type", null)
-        if (deviceType != null) {
-            if (deviceType == "PHONE") startSmartphoneLogic() else startWatchLogic()
-        }
+        
+        // RTOSify app is phone-only, always start smartphone logic
+        startSmartphoneLogic()
     }
 
     @SuppressLint("MissingPermission")
@@ -774,10 +792,12 @@ class BluetoothService : Service() {
         // Trigger automation on connection
         onConnectionEstablished()
 
-        val deviceType = prefs.getString("device_type", "PHONE")
-        if (deviceType == "WATCH") {
-            startWatchStatusSender()
+        // Initialize encryption for WiFi transport (exchange keys via BT)
+        socket.remoteDevice?.address?.let { deviceMac ->
+            initializeEncryptionForDevice(deviceMac)
         }
+
+        // Phone app doesn't send watch status (only receives it)
 
         try {
             while (currentCoroutineContext().isActive) {
@@ -889,6 +909,91 @@ class BluetoothService : Service() {
         } catch (_: Exception) {}
 
         statusUpdateJob?.cancel()
+    }
+
+    // ===== WiFi Transport Management =====
+    
+    /**
+     * Initialize encryption keys for a device during Bluetooth pairing.
+     */
+    private fun initializeEncryptionForDevice(deviceMac: String) {
+        try {
+            encryptionManager.initializeForDevice(deviceMac)
+            encryptionManager.setActiveDevice(deviceMac)
+            Log.d(TAG, "Encryption initialized for device: $deviceMac")
+            startWifiTransportMonitoring(deviceMac)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize encryption", e)
+        }
+    }
+    
+    /**
+     * Check if WiFi should be activated based on rules.
+     */
+    private fun shouldActivateWifi(): Boolean {
+        val rule = prefs.getInt("wifi_activation_rule", WIFI_RULE_BT_FALLBACK)
+        return when (rule) {
+            WIFI_RULE_ALWAYS -> true
+            WIFI_RULE_MAINACTIVITY -> prefs.getBoolean("mainactivity_visible", false)
+            WIFI_RULE_BT_FALLBACK -> !isConnected
+            else -> false
+        }
+    }
+    
+    /**
+     * Monitor and activate/deactivate WiFi based on rules.
+     */
+    private fun startWifiTransportMonitoring(deviceMac: String) {
+        transportSwitchJob?.cancel()
+        transportSwitchJob = serviceScope.launch {
+            while (isActive) {
+                if (shouldActivateWifi() && wifiTransport == null) {
+                    startWifiTransport(deviceMac)
+                } else if (!shouldActivateWifi() && wifiTransport != null) {
+                    stopWifiTransport()
+                }
+                delay(2000)
+            }
+        }
+    }
+    
+    /**
+     * Start WiFi transport.
+     */
+    private suspend fun startWifiTransport(deviceMac: String) {
+        if (wifiTransport != null) return
+        try {
+            encryptionManager.setActiveDevice(deviceMac)
+            mdnsDiscovery?.registerService(deviceMac, android.os.Build.MODEL, 8765)
+            mdnsDiscovery?.startDiscovery()
+            
+            wifiTransport = com.ailife.rtosify.communication.WifiIntranetTransport(
+                deviceMac, encryptionManager, mdnsDiscovery!!, false, 8765
+            )
+            
+            if (wifiTransport!!.connect()) {
+                currentTransport = wifiTransport
+                Log.d(TAG, "WiFi connected")
+                withContext(Dispatchers.Main) {
+                    callback?.onStatusChanged(getString(R.string.status_bt_wifi_connected))
+                }
+            } else {
+                wifiTransport = null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "WiFi transport error", e)
+            wifiTransport = null
+        }
+    }
+    
+    /**
+     * Stop WiFi transport.
+     */
+    private suspend fun stopWifiTransport() {
+        wifiTransport?.disconnect()
+        wifiTransport = null
+        currentTransport = null
+        Log.d(TAG, "WiFi stopped")
     }
 
     private fun syncSettingsToWatch() {
@@ -2672,6 +2777,15 @@ class BluetoothService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+
+        // Clean up WiFi transport
+        transportSwitchJob?.cancel()
+        serviceScope.launch {
+            wifiTransport?.disconnect()
+            mdnsDiscovery?.stop()
+        }
+        wifiTransport = null
+        currentTransport = null
 
         // Unbind Shizuku UserService
         try {

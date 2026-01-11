@@ -115,8 +115,11 @@ class BluetoothService : Service() {
     private lateinit var prefs: SharedPreferences
     private val PREF_NAME = "AppPrefs"
 
-    private var lastValidWifiSsid: String = ""
-
+    // WiFi Transport Infrastructure
+    private lateinit var encryptionManager: com.ailife.rtosifycompanion.security.EncryptionManager
+    private var mdnsDiscovery: com.ailife.rtosifycompanion.communication.MdnsDiscovery? = null
+    private var currentTransport: com.ailife.rtosifycompanion.communication.CommunicationTransport? = null
+    private var wifiTransport: com.ailife.rtosifycompanion.communication.WifiIntranetTransport? = null
     // Clipboard monitoring
     private var clipboardManager: android.content.ClipboardManager? = null
     private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? =
@@ -480,6 +483,10 @@ class BluetoothService : Service() {
         val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothAdapter = btManager.adapter
         createNotificationChannel()
+        
+        // Initialize WiFi transport infrastructure
+        encryptionManager = com.ailife.rtosifycompanion.security.EncryptionManager(this)
+        mdnsDiscovery = com.ailife.rtosifycompanion.communication.MdnsDiscovery(this)
 
         val filterInternal =
                 IntentFilter().apply {
@@ -1086,16 +1093,24 @@ class BluetoothService : Service() {
         withContext(Dispatchers.Main) { callback?.onDeviceConnected(deviceName) }
 
         serviceScope.launch { heartbeatLoop() }
-
         val deviceType = prefs.getString("device_type", "PHONE")
         if (deviceType == "WATCH") {
             // startWatchStatusSender() // Removed for polling refactor
             // startDeviceInfoSender() // Removed for polling refactor
-            // Health data is now request-based, not continuous
+            // Sync settings on connection
+            syncSettingsToPhone()
         }
 
         // Trigger automation on connection
         onConnectionEstablished()
+
+        // Initialize encryption for WiFi transport (exchange keys via BT)
+        // Watch is always the server
+        socket.remoteDevice?.address?.let { deviceMac ->
+            initializeEncryptionForDevice(deviceMac)
+        }
+
+        serviceScope.launch { heartbeatLoop() }
 
         try {
             while (currentCoroutineContext().isActive) {
@@ -1723,14 +1738,84 @@ class BluetoothService : Service() {
             val stopIntent = Intent(this, MirroringService::class.java)
             stopService(stopIntent)
         }
-
         try {
             bluetoothSocket?.close()
         } catch (_: Exception) {}
 
-        statusUpdateJob?.cancel()
+        batteryHistoryJob?.cancel()
         deviceInfoUpdateJob?.cancel()
-        liveMeasurementJob?.cancel()
+    }
+
+    // ===== WiFi Transport Management =====
+    
+    /**
+     * Initialize encryption for WiFi and start listening as server.
+     * Watch always acts as server.
+     */
+    private fun initializeEncryptionForDevice(deviceMac: String) {
+        try {
+            encryptionManager.initializeForDevice(deviceMac)
+            encryptionManager.setActiveDevice(deviceMac)
+            Log.d(TAG, "Encryption initialized for device: $deviceMac")
+            
+            // Watch always starts WiFi as server
+            serviceScope.launch {
+                startWifiTransportServer(deviceMac)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize encryption", e)
+        }
+    }
+    
+    /**
+     * Start WiFi transport as server (watch).
+     */
+    private suspend fun startWifiTransportServer(deviceMac: String) {
+        if (wifiTransport != null) return
+        
+        try {
+            encryptionManager.setActiveDevice(deviceMac)
+            
+            // Register mDNS service
+            mdnsDiscovery?.registerService(
+                deviceMac = deviceMac,
+                deviceName = android.os.Build.MODEL,
+                port = 8765
+            )
+            
+            wifiTransport = com.ailife.rtosifycompanion.communication.WifiIntranetTransport(
+                deviceMac = deviceMac,
+                encryptionManager = encryptionManager,
+                mdnsDiscovery = mdnsDiscovery!!,
+                isServer = true,  // Watch is server
+                port = 8765
+            )
+            
+            if (wifiTransport!!.connect()) {
+                currentTransport = wifiTransport
+                Log.d(TAG, "WiFi server started successfully")
+            } else {
+                Log.w(TAG, "WiFi server failed to start")
+                wifiTransport = null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting WiFi server", e)
+            wifiTransport = null
+        }
+    }
+    
+    /**
+     * Stop WiFi transport.
+     */
+    private suspend fun stopWifiTransport() {
+        wifiTransport?.disconnect()
+        mdnsDiscovery?.stop()
+        wifiTransport = null
+        currentTransport = null
+        Log.d(TAG, "WiFi transport stopped")
+    }
+
+    private fun syncSettingsToPhone() {
     }
 
     fun sendMessage(message: ProtocolMessage) {
@@ -1836,24 +1921,19 @@ class BluetoothService : Service() {
                         val rawSsid = info.ssid
 
                         if (rawSsid == "<unknown ssid>" || rawSsid.isEmpty()) {
-                            wifiSsid = lastValidWifiSsid.ifEmpty { "Connected" }
+                            wifiSsid = "Connected"
                         } else {
                             val cleanSsid = rawSsid.replace("\"", "")
                             if (cleanSsid != "<unknown ssid>") {
-                                lastValidWifiSsid = cleanSsid
                                 wifiSsid = cleanSsid
-                            } else if (lastValidWifiSsid.isNotEmpty()) {
-                                wifiSsid = lastValidWifiSsid
                             } else {
                                 wifiSsid = "Connected"
                             }
                         }
                     } else {
-                        lastValidWifiSsid = ""
                         wifiSsid = getString(R.string.wifi_status_disconnected)
                     }
                 } else {
-                    lastValidWifiSsid = ""
                     wifiSsid = getString(R.string.wifi_status_disabled)
                 }
             } else {
@@ -4662,6 +4742,11 @@ class BluetoothService : Service() {
     override fun onDestroy() {
         Log.d(TAG, "BluetoothService destroying...")
         isStopping = true
+        
+        // Clean up WiFi transport
+        serviceScope.launch {
+            stopWifiTransport()
+        }
 
         panManager?.close()
         panManager = null

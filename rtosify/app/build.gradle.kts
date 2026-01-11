@@ -64,4 +64,7 @@ dependencies {
 
     // Health charts
     implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
+    // Google Tink for encryption
+    implementation("com.google.crypto.tink:tink-android:1.12.0")
 }

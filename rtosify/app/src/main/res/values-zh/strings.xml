@@ -102,6 +102,13 @@
     <string name="dialog_reset_all_message">这将清除所有设置并返回开始屏幕。是否继续？</string>
     <string name="dialog_reset_all_confirm">重置所有</string>
     <string name="dialog_reset_all_cancel">取消</string>
+    <string name="menu_network_comms">网络通信</string>
+    <string name="menu_network_comms_desc">配置 WiFi 内网设置</string>
+    <string name="network_pair_for_internet">配对互联网连接</string>
+    <string name="network_pair_desc">交换加密密钥以进行安全的 WiFi 通信</string>
+    <string name="network_encryption_info_title">安全连接</string>
+    <string name="network_encryption_info_message">所有通过 WiFi/互联网的消息均使用 AES-256-GCM 加密。\n\n您的通信是安全且私密的。</string>
+    <string name="network_encryption_finish">知道了</string>
 
     <!-- Watch Automations -->
     <string name="watch_automations_title">手表自动化</string>

@@ -133,12 +133,11 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     bluetoothService?.callback = this@MainActivity
                     isBound = true
 
-                    val type = prefs.getString("device_type", "PHONE")
+                    // RTOSify is phone-only, always start smartphone logic
                     val isServiceEnabled = prefs.getBoolean("service_enabled", true)
 
                     if (isServiceEnabled) {
-                        if (type == "PHONE") bluetoothService?.startSmartphoneLogic()
-                        else bluetoothService?.startWatchLogic()
+                        bluetoothService?.startSmartphoneLogic()
                     } else {
                         bluetoothService?.stopConnectionLoopOnly()
                         updateStatusUI(getString(R.string.status_stopped), false)
@@ -161,19 +160,18 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         devicePrefManager = DevicePrefManager(this)
         prefs = devicePrefManager.getGlobalPrefs()
 
-        if (!prefs.contains("device_type") || hasMissingPermissions()) {
-            if (hasMissingPermissions()) {
-                Toast.makeText(
-                                this,
-                                R.string.toast_setup_redirect_missing_perms,
-                                Toast.LENGTH_SHORT
-                        )
-                        .show()
-                android.util.Log.d(
-                        "MainActivity",
-                        "Missing permissions, redirecting to WelcomeActivity"
-                )
-            }
+        // RTOSify is phone-only - only check permissions
+        if (hasMissingPermissions()) {
+            Toast.makeText(
+                            this,
+                            R.string.toast_setup_redirect_missing_perms,
+                            Toast.LENGTH_SHORT
+                    )
+                    .show()
+            android.util.Log.d(
+                    "MainActivity",
+                    "Missing permissions, redirecting to WelcomeActivity"
+            )
             startActivity(Intent(this, WelcomeActivity::class.java))
             finish()
             return
@@ -185,7 +183,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         setSupportActionBar(toolbar)
         supportActionBar?.title = getString(R.string.app_title)
 
-        isPhoneMode = prefs.getString("device_type", "PHONE") == "PHONE"
+        // RTOSify is always phone mode
+        isPhoneMode = true
         setupLayoutMode()
         setupDndClickListener()
         setupWifiClickListener()
@@ -782,8 +781,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     bindService(intent, connection, BIND_AUTO_CREATE)
                 }
 
-                if (isPhoneMode) bluetoothService?.startSmartphoneLogic()
-                else bluetoothService?.startWatchLogic()
+                // RTOSify is phone-only
+                bluetoothService?.startSmartphoneLogic()
 
                 updateStatusUI(getString(R.string.status_starting), false)
                 Toast.makeText(this@MainActivity, R.string.toast_service_started, Toast.LENGTH_SHORT).show()
@@ -1018,6 +1017,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
                         ),
                         MenuOption(
+                                getString(R.string.menu_network_comms),
+                                getString(R.string.menu_network_comms_desc),
+                                android.R.drawable.stat_sys_data_bluetooth,
+                                { startActivity(Intent(this, NetworkSettingsActivity::class.java)) }
+                        ),
+                        MenuOption(
                                 getString(R.string.menu_sync_calendar),
                                 getString(R.string.menu_sync_calendar_desc),
                                 android.R.drawable.ic_menu_today,
@@ -1095,6 +1100,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 getString(R.string.menu_mirroring_desc),
                                 R.drawable.ic_cast,
                                 { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
+                        ),
+                        MenuOption(
+                                getString(R.string.menu_network_comms),
+                                getString(R.string.menu_network_comms_desc),
+                                android.R.drawable.stat_sys_data_bluetooth,
+                                { startActivity(Intent(this, NetworkSettingsActivity::class.java)) }
                         ),
                         MenuOption(
                                 getString(R.string.menu_alarms),
@@ -1232,7 +1243,19 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 }
 
         tvHeaderDeviceName.text = deviceName
-        tvHeaderStatus.text = if (isConnected) getString(R.string.status_connected) else status
+        
+        // Show connection method (Bluetooth/WiFi)
+        if (isConnected) {
+            val connectionMethod = if (bluetoothService?.isWifiTransportActive() == true) {
+                "WiFi"
+            } else {
+                "Bluetooth"
+            }
+            tvHeaderStatus.text = "Connected via $connectionMethod"
+        } else {
+            tvHeaderStatus.text = status
+        }
+        
         tvHeaderStatus.setTextColor(if (isConnected) Color.GREEN else Color.RED)
         progressBarMain.visibility =
                 if (!isConnected && (status.contains("Conectando") || status.contains("Searching")))

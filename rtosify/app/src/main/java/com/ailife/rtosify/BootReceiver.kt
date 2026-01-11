@@ -11,11 +11,11 @@ class BootReceiver : BroadcastReceiver() {
             intent.action == "android.intent.action.QUICKBOOT_POWERON") {
 
             val prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
-            val deviceType = prefs.getString("device_type", null)
-
-            // Só inicia automaticamente se o usuário já tiver configurado o app E autostart estiver habilitado
+            
+            // Only start automatically if autostart is enabled
+            // RTOSify is phone-only so no device_type check needed
             val autostartEnabled = prefs.getBoolean("autostart_on_boot", true)
-            if (deviceType != null && autostartEnabled) {
+            if (autostartEnabled) {
                 val serviceIntent = Intent(context, BluetoothService::class.java)
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

@@ -665,4 +665,29 @@
     <string name="dialog_remove_device_title">Remove Device</string>
     <string name="dialog_remove_device_message">Are you sure you want to remove %s? You will need to pair it again to use it.</string>
     <string name="dialog_remove_device_confirm">Remove</string>
+
+    <!-- Network Communications -->
+    <string name="menu_network_comms">Network Communications</string>
+    <string name="menu_network_comms_desc">Configure WiFi intranet settings</string>
+    <string name="network_settings_title">Network Communications</string>
+    <string name="network_activation_rules_title">WiFi Activation Rules</string>
+    <string name="network_activation_desc">Choose when to use WiFi instead of Bluetooth</string>
+    <string name="network_rule_bt_fallback">Enable when Bluetooth disconnected</string>
+    <string name="network_rule_bt_fallback_desc">Fallback to WiFi if Bluetooth fails</string>
+    <string name="network_rule_mainactivity">Enable when MainActivity open</string>
+    <string name="network_rule_mainactivity_desc">WiFi for high-speed transfers only</string>
+    <string name="network_rule_always">Enable all the time</string>
+    <string name="network_rule_always_desc">Always prefer WiFi over Bluetooth</string>
+    <string name="network_status_title">Connection Status</string>
+    <string name="network_pair_for_internet">Pair for Internet Connection</string>
+    <string name="network_pair_desc">Exchange encryption keys for secure WiFi communication</string>
+    <string name="network_encryption_info_title">Secure Connection</string>
+    <string name="network_encryption_info_message">All messages over WiFi/Internet are encrypted with AES-256-GCM encryption.\n\nYour communication is secure and private.</string>
+    <string name="network_encryption_finish">Got it</string>
+    <string name="network_current_wifi">Current WiFi</string>
+    <string name="network_not_on_wifi">Not connected to WiFi</string>
+    <string name="status_bt_wifi_connected">Bluetooth &amp; WiFi Connected</string>
+    <string name="status_wifi_connected">WiFi Connected</string>
+    <string name="network_encryption_keys">Encryption keys exchanged via Bluetooth pairing</string>
 </resources>
+
