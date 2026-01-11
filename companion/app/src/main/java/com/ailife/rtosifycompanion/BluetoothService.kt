@@ -1198,6 +1198,7 @@ class BluetoothService : Service() {
             MessageType.REQUEST_FILE_DOWNLOAD -> handleRequestFileDownload(message)
             MessageType.DELETE_FILE -> handleDeleteFile(message)
             MessageType.UPDATE_SETTINGS -> handleUpdateSettings(message)
+            MessageType.UPDATE_WIFI_RULE -> handleUpdateWifiRule(message)
             MessageType.REQUEST_HEALTH_DATA -> handleRequestHealthData()
             MessageType.REQUEST_HEALTH_HISTORY -> handleRequestHealthHistory(message)
             MessageType.START_LIVE_MEASUREMENT -> handleStartLiveMeasurement(message)
@@ -1296,6 +1297,15 @@ class BluetoothService : Service() {
             settings.autoWifiEnabled?.let {
                 prefs.edit().putBoolean("auto_wifi_enabled", it).apply()
                 Log.d(TAG, "Auto WiFi setting updated: $it")
+                
+                // Stop WiFi transport if phone disabled it to save battery
+                if (!it && wifiTransport != null) {
+                    serviceScope.launch {
+                        wifiTransport?.disconnect()
+                        wifiTransport = null
+                        Log.d(TAG, "WiFi transport stopped due to phone preference")
+                    }
+                }
             }
             settings.autoDataEnabled?.let {
                 prefs.edit().putBoolean("auto_data_enabled", it).apply()
@@ -1355,6 +1365,18 @@ class BluetoothService : Service() {
             Log.d(TAG, "Automation settings updated from phone")
         } catch (e: Exception) {
             Log.e(TAG, "Error handling settings update: ${e.message}")
+        }
+    }
+    
+    private fun handleUpdateWifiRule(message: ProtocolMessage) {
+        try {
+            val wifiActivationRule = message.data.get("wifiActivationRule")?.asInt
+            wifiActivationRule?.let {
+                activePrefs.edit().putInt("wifi_activation_rule", it).apply()
+                Log.d(TAG, "WiFi activation rule updated: $it")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating WiFi rule", e)
         }
     }
 

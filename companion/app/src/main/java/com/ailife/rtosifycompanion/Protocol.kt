@@ -115,6 +115,9 @@ object MessageType {
     // Phone Battery (Dedicated)
     const val REQUEST_PHONE_BATTERY = "request_phone_battery"
     const val PHONE_BATTERY_UPDATE = "phone_battery_update"
+    
+    // WiFi Rule Synchronization
+    const val UPDATE_WIFI_RULE = "update_wifi_rule"
 
     // Refactored Polling
     const val REQUEST_WATCH_STATUS = "request_watch_status"

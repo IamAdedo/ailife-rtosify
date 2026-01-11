@@ -220,6 +220,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             )
         }
         startWatchStatusPolling()
+        
+        // Trigger WiFi connection if MainActivity rule is set
+        val wifiRule = prefs.getInt("wifi_activation_rule", BluetoothService.WIFI_RULE_BT_FALLBACK)
+        if (wifiRule == BluetoothService.WIFI_RULE_MAINACTIVITY) {
+            bluetoothService?.triggerWifiConnectionForMainActivity()
+        }
     }
 
     override fun onPause() {

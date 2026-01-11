@@ -804,6 +804,10 @@ class BluetoothService : Service() {
 
                     // Trigger automation on connection
                     onConnectionEstablished()
+                    
+                    // Start WiFi transport monitoring
+                    val deviceMac = socket.remoteDevice.address
+                    startWifiTransportMonitoring(deviceMac)
                 }
 
                 try {
@@ -961,25 +965,33 @@ class BluetoothService : Service() {
      * Check if WiFi should be activated based on rules.
      */
     private fun shouldActivateWifi(): Boolean {
-        val rule = prefs.getInt("wifi_activation_rule", WIFI_RULE_BT_FALLBACK)
-        return when (rule) {
+        val rule = activePrefs.getInt("wifi_activation_rule", WIFI_RULE_BT_FALLBACK)
+        val result = when (rule) {
             WIFI_RULE_ALWAYS -> true
             WIFI_RULE_MAINACTIVITY -> prefs.getBoolean("mainactivity_visible", false)
             WIFI_RULE_BT_FALLBACK -> !isConnected
             else -> false
         }
+        Log.d(TAG, "shouldActivateWifi: rule=$rule, result=$result, isConnected=$isConnected")
+        return result
     }
     
     /**
      * Monitor and activate/deactivate WiFi based on rules.
      */
     private fun startWifiTransportMonitoring(deviceMac: String) {
+        Log.d(TAG, "startWifiTransportMonitoring: Starting WiFi monitoring for $deviceMac")
         transportSwitchJob?.cancel()
         transportSwitchJob = serviceScope.launch {
             while (isActive) {
-                if (shouldActivateWifi() && wifiTransport == null) {
+                val shouldActivate = shouldActivateWifi()
+                Log.d(TAG, "WiFi monitoring: shouldActivate=$shouldActivate, wifiTransport=${wifiTransport != null}")
+                
+                if (shouldActivate && wifiTransport == null) {
+                    Log.d(TAG, "WiFi monitoring: Calling startWifiTransport")
                     startWifiTransport(deviceMac)
-                } else if (!shouldActivateWifi() && wifiTransport != null) {
+                } else if (!shouldActivate && wifiTransport != null) {
+                    Log.d(TAG, "WiFi monitoring: Calling stopWifiTransport")
                     stopWifiTransport()
                 }
                 delay(2000)
@@ -991,7 +1003,12 @@ class BluetoothService : Service() {
      * Start WiFi transport.
      */
     fun startWifiTransport(deviceMac: String) {
-        if (wifiTransport != null) return
+        if (wifiTransport != null) {
+            Log.d(TAG, "WiFi transport already active, skipping")
+            return
+        }
+        
+        Log.d(TAG, "startWifiTransport: Starting for mac=$deviceMac")
         serviceScope.launch {
             try {
             encryptionManager.setActiveDevice(deviceMac)
@@ -1080,6 +1097,28 @@ class BluetoothService : Service() {
 
     fun getConnectedDeviceMac(): String? {
         return bluetoothSocket?.remoteDevice?.address
+    }
+    /**
+     * Sync WiFi activation rule to companion.
+     * Called for "Always" and "BT Fallback" rules since phone can't reach companion via Bluetooth.
+     */
+    fun syncWifiRuleToCompanion(rule: Int) {
+        Log.d(TAG, "Syncing WiFi rule to companion: $rule")
+        val data = JsonObject()
+        data.addProperty("wifiActivationRule", rule)
+        sendMessage(ProtocolMessage(type = MessageType.UPDATE_WIFI_RULE, data = data))
+    }
+    
+    /**
+     * Trigger WiFi connection when MainActivity is opened.
+     * Called when WIFI_RULE_MAINACTIVITY is set.
+     */
+    fun triggerWifiConnectionForMainActivity() {
+        val mac = getConnectedDeviceMac()
+        if (mac != null && bluetoothSocket?.isConnected == true) {
+            Log.d(TAG, "MainActivity opened - triggering WiFi connection")
+            startWifiTransport(mac)
+        }
     }
 
     fun getEncryptionKeyForCurrentDevice(): String? {

@@ -148,6 +148,14 @@ class WiFiPairingActivity : AppCompatActivity() {
 
     private fun startPairingFlow() {
         lifecycleScope.launch {
+            // Check if already paired
+            val mac = bluetoothService?.getConnectedDeviceMac()
+            if (mac != null && bluetoothService?.getEncryptionKeyForCurrentDevice() != null) {
+                Log.d(TAG, "Device already paired, showing status")
+                showAlreadyPaired()
+                return@launch
+            }
+            
             try {
                 // Step 1: Key Exchange
                 setCurrentStep(1)
@@ -298,6 +306,22 @@ class WiFiPairingActivity : AppCompatActivity() {
             progressBar.visibility = View.GONE
             btnClose.visibility = View.VISIBLE
             btnRetry.visibility = View.GONE
+        }
+    }
+
+    private fun showAlreadyPaired() {
+        runOnUiThread {
+            tvStatus.text = getString(R.string.wifi_already_paired)
+            tvStatus.setTextColor(android.graphics.Color.GREEN)
+            progressBar.visibility = View.GONE
+            btnClose.visibility = View.VISIBLE
+            btnRetry.visibility = View.VISIBLE
+            btnRetry.text = getString(R.string.wifi_repair)
+            
+            // Show all steps as complete
+            for (i in 1..4) {
+                markStepComplete(i)
+            }
         }
     }
 

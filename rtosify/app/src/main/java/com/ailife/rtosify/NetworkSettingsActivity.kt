@@ -71,8 +71,9 @@ class NetworkSettingsActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-        // Load current setting
-        val currentRule = prefs.getInt("wifi_activation_rule", BluetoothService.WIFI_RULE_BT_FALLBACK)
+        // Load current setting from device prefs
+        val devicePrefs = devicePrefManager.getActiveDevicePrefs()
+        val currentRule = devicePrefs.getInt("wifi_activation_rule", BluetoothService.WIFI_RULE_BT_FALLBACK)
         when (currentRule) {
             BluetoothService.WIFI_RULE_BT_FALLBACK -> checkBoxBtFallback.isChecked = true
             BluetoothService.WIFI_RULE_MAINACTIVITY -> checkBoxMainActivity.isChecked = true
@@ -98,10 +99,23 @@ class NetworkSettingsActivity : AppCompatActivity() {
 
         // Display current WiFi status
         updateWifiStatus()
+        updatePairingButton()
+    }
+    
+    private fun updatePairingButton() {
+        // Check if WiFi is already paired by checking for encryption key
+        val mac = bluetoothService?.getConnectedDeviceMac()
+        val isPaired = mac != null && bluetoothService?.getEncryptionKeyForCurrentDevice() != null
+        
+        if (isPaired) {
+            btnPairForInternet.text = getString(R.string.wifi_already_paired)
+        } else {
+            btnPairForInternet.text = getString(R.string.network_pair_for_internet)
+        }
     }
 
     private fun saveActivationRule() {
-        val prefs = devicePrefManager.getGlobalPrefs()
+        val devicePrefs = devicePrefManager.getActiveDevicePrefs()
         val newRule = when {
             checkBoxAlways.isChecked -> BluetoothService.WIFI_RULE_ALWAYS
             checkBoxMainActivity.isChecked -> BluetoothService.WIFI_RULE_MAINACTIVITY
@@ -109,7 +123,13 @@ class NetworkSettingsActivity : AppCompatActivity() {
             else -> BluetoothService.WIFI_RULE_BT_FALLBACK
         }
         
-        prefs.edit().putInt("wifi_activation_rule", newRule).apply()
+        devicePrefs.edit().putInt("wifi_activation_rule", newRule).apply()
+        
+        // Sync WiFi rule to companion (for "Always" and "BT Fallback" rules)
+        // These need to be synced because phone can't reach companion via Bluetooth when disconnected
+        if (newRule == BluetoothService.WIFI_RULE_ALWAYS || newRule == BluetoothService.WIFI_RULE_BT_FALLBACK) {
+            bluetoothService?.syncWifiRuleToCompanion(newRule)
+        }
         
         val ruleName = when (newRule) {
             BluetoothService.WIFI_RULE_BT_FALLBACK -> getString(R.string.network_rule_bt_fallback)
@@ -160,6 +180,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateWifiStatus()
+        updatePairingButton()
     }
 
     override fun onDestroy() {

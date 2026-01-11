@@ -707,5 +707,7 @@
     <string name="pairing_error_discovery">Could not find device on local network</string>
     <string name="pairing_error_wifi">WiFi connection could not be established</string>
     <string name="pairing_error_test">Encryption verification failed</string>
+    <string name="wifi_already_paired">WiFi Already Paired</string>
+    <string name="wifi_repair">Re-pair</string>
 </resources>
 
