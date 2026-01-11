@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.content.Context
+import android.os.Build
 import android.content.SharedPreferences
 import android.util.Log
 import com.ailife.rtosify.DevicePrefManager
@@ -63,6 +64,7 @@ class TransportManager(
     sealed class ConnectionState {
         object Disconnected : ConnectionState()
         object Connecting : ConnectionState()
+        object Waiting : ConnectionState()
         data class Connected(val type: String, val deviceName: String?) : ConnectionState()
     }
 
@@ -178,22 +180,22 @@ class TransportManager(
 
     private suspend fun connectWifi(mac: String) {
         if (isConnectingWifi) return
+        
+        val transport = WifiIntranetTransport(
+            deviceMac = mac,
+            deviceName = BluetoothAdapter.getDefaultAdapter()?.name ?: Build.MODEL,
+            encryptionManager = encryptionManager,
+            mdnsDiscovery = mdnsDiscovery,
+            isServer = false // Phone is client
+        )
+
         try {
             isConnectingWifi = true
             updateConnectionState()
-            
             // Ensure encryption is initialized for this device
             encryptionManager.setActiveDevice(mac)
             
-            val transport = WifiIntranetTransport(
-                deviceMac = mac,
-                encryptionManager = encryptionManager,
-                mdnsDiscovery = mdnsDiscovery,
-                isServer = false // Phone is client
-            )
-            
             if (transport.connect()) {
-                isConnectingWifi = false
                 wifiTransport = transport
                 updateConnectionState()
                 
@@ -212,17 +214,18 @@ class TransportManager(
                         stopHeartbeatLoop()
                         wifiTransport = null
                         updateConnectionState()
+                        transport.disconnect() // Disconnect the transport when its receive loop ends
                     }
                 }
             } else {
-                isConnectingWifi = false
-                updateConnectionState()
+                transport.disconnect()
             }
         } catch (e: Exception) {
+            Log.e(TAG, "WiFi connect failed: ${e.message}")
+            transport.disconnect()
+        } finally {
             isConnectingWifi = false
             updateConnectionState()
-            // Log.w(TAG, "WiFi connect attempt failed: ${e.message}") 
-            // Expected if watch not advertising or on different network
         }
     }
 
@@ -321,6 +324,7 @@ class TransportManager(
     private fun updateConnectionState() {
         val wifi = wifiTransport
         val bt = bluetoothTransport
+        val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         
         val newState = when {
             wifi != null && wifi.isConnected() && bt != null && bt.isConnected() -> 
@@ -330,10 +334,10 @@ class TransportManager(
             bt != null && bt.isConnected() -> 
                 ConnectionState.Connected("Bluetooth", bt.getRemoteDeviceName())
             else -> {
-                val adapter = BluetoothAdapter.getDefaultAdapter()
-                val isBtConnecting = btReconnectJob?.isActive == true && adapter?.isEnabled == true
-                if (isBtConnecting || isConnectingWifi) {
+                if (isConnectingWifi) {
                     ConnectionState.Connecting
+                } else if (btReconnectJob?.isActive == true && bluetoothAdapter?.isEnabled == true) {
+                    ConnectionState.Waiting
                 } else {
                     ConnectionState.Disconnected
                 }

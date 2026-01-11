@@ -902,8 +902,9 @@ class BluetoothService : Service() {
         // WiFi Server
         val savedMac = prefs.getString("wifi_advertised_mac", null)
         if (savedMac != null) {
-            Log.d(TAG, "Starting WiFi server...")
-            transportManager.startWifiServer()
+            val deviceName = bluetoothAdapter?.name ?: Build.MODEL
+            Log.d(TAG, "Starting WiFi server for $deviceName ($savedMac)...")
+            transportManager.startWifiServer(deviceName, savedMac)
         }
 
         // Bluetooth Server
@@ -1565,7 +1566,8 @@ class BluetoothService : Service() {
             
             // Watch always starts WiFi as server
             serviceScope.launch {
-                transportManager.startWifiServer()
+                val deviceName = bluetoothAdapter?.name ?: android.os.Build.MODEL
+                transportManager.startWifiServer(deviceName, deviceMac)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize encryption", e)
@@ -2201,7 +2203,8 @@ class BluetoothService : Service() {
             
             // Register and start WiFi server with our MAC (deviceMac)
             serviceScope.launch {
-                transportManager.startWifiServer()
+                val deviceName = bluetoothAdapter?.name ?: android.os.Build.MODEL
+                transportManager.startWifiServer(deviceName, deviceMac)
             }
         }
         

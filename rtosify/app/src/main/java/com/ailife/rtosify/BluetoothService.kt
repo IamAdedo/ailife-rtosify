@@ -465,6 +465,11 @@ class BluetoothService : Service() {
                          currentDeviceName = null
                          updateStatus(getString(R.string.status_starting))
                     }
+                    is com.ailife.rtosify.communication.TransportManager.ConnectionState.Waiting -> {
+                         isConnected = false
+                         currentDeviceName = null
+                         updateStatus(getString(R.string.status_stopped))
+                    }
                 }
             }
         }

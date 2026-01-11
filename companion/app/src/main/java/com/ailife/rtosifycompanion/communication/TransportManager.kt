@@ -147,7 +147,7 @@ class TransportManager(
     /**
      * Starts the WiFi server logic.
      */
-    fun startWifiServer() {
+    fun startWifiServer(deviceName: String, deviceMac: String) {
         if (wifiServerJob?.isActive == true) return
         wifiServerJob?.cancel()
 
@@ -156,31 +156,37 @@ class TransportManager(
             
             while (isActive) {
                 val transport = WifiIntranetTransport(
-                    deviceMac = "",
+                    deviceMac = deviceMac,
+                    deviceName = deviceName,
                     encryptionManager = encryptionManager,
                     mdnsDiscovery = mdnsDiscovery,
                     isServer = true
                 )
                 
-                if (transport.connect()) {
-                    wifiTransport = transport
-                    
-                    try {
-                        lastMessageTime = System.currentTimeMillis()
-                        startHeartbeatLoop()
-                        transport.receive().collect { msg ->
-                            lastMessageTime = System.currentTimeMillis()
-                            _incomingMessages.send(msg)
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "WiFi receive error", e)
-                    } finally {
-                        stopHeartbeatLoop()
-                        wifiTransport = null
+                try {
+                    if (transport.connect()) {
+                        wifiTransport = transport
                         updateConnectionState()
+                        
+                        try {
+                            lastMessageTime = System.currentTimeMillis()
+                            startHeartbeatLoop()
+                            transport.receive().collect { msg ->
+                                lastMessageTime = System.currentTimeMillis()
+                                _incomingMessages.send(msg)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "WiFi receive error", e)
+                        } finally {
+                            stopHeartbeatLoop()
+                            wifiTransport = null
+                            updateConnectionState()
+                        }
+                    } else {
+                        delay(2000)
                     }
-                } else {
-                    delay(5000)
+                } finally {
+                    transport.disconnect()
                 }
             }
         }
@@ -265,7 +271,7 @@ class TransportManager(
             else -> {
                 if (isConnectingWifi) {
                     ConnectionState.Connecting
-                } else if (bluetoothServerJob?.isActive == true) {
+                } else if (bluetoothServerJob?.isActive == true && (context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter?.isEnabled == true) {
                     ConnectionState.Waiting
                 } else {
                     ConnectionState.Disconnected

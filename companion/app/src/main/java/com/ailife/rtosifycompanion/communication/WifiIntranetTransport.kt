@@ -18,6 +18,7 @@ import java.net.Socket
  */
 class WifiIntranetTransport(
     private val deviceMac: String,
+    private val deviceName: String,
     private val encryptionManager: EncryptionManager,
     private val mdnsDiscovery: MdnsDiscovery,
     private val isServer: Boolean = false,
@@ -51,17 +52,30 @@ class WifiIntranetTransport(
     }
 
     private suspend fun connectAsServer(): Boolean {
-        Log.d(TAG, "Starting server on port $port")
-        serverSocket = ServerSocket(port)
+        Log.d(TAG, "Starting server on dynamic port...")
+        // Use 0 for dynamic port allocation
+        serverSocket = ServerSocket(0)
+        val localPort = serverSocket!!.localPort
+        Log.d(TAG, "Server listening on port $localPort")
+
+        // Register mDNS service
+        mdnsDiscovery.registerService(deviceMac, deviceName, localPort)
         
-        // Accept connection (blocking)
-        socket = serverSocket?.accept()
-        socket?.let {
-            setupStreams(it)
-            connected = true
-            startReceiving()
-            Log.d(TAG, "Client connected from ${it.inetAddress}")
-            return true
+        try {
+            // Accept connection (blocking)
+            socket = serverSocket?.accept()
+            socket?.let {
+                setupStreams(it)
+                connected = true
+                startReceiving()
+                Log.d(TAG, "Client connected from ${it.inetAddress}")
+                return true
+            }
+        } finally {
+            // Stop advertising once connected or failed
+            // Note: We might want to keep advertising if we support multiple clients, 
+            // but for now one-to-one is fine.
+            mdnsDiscovery.stop() 
         }
         return false
     }
@@ -142,6 +156,8 @@ class WifiIntranetTransport(
         receiveJob?.cancel()
         
         try {
+            mdnsDiscovery.stop()
+            messageChannel.close()
             inputStream?.close()
             outputStream?.close()
             socket?.close()
