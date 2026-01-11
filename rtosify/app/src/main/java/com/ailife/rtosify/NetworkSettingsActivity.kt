@@ -66,14 +66,9 @@ class NetworkSettingsActivity : AppCompatActivity() {
 
         // Pairing button handler
         btnPairForInternet.setOnClickListener {
-            // Trigger encryption key exchange
-            bluetoothService?.let { service ->
-                // The encryption manager should already be initialized
-                // Just show the info dialog
-                showEncryptionDialog()
-            } ?: run {
-                Toast.makeText(this, "Service not connected", Toast.LENGTH_SHORT).show()
-            }
+            // Launch the pairing activity
+            val intent = Intent(this, WiFiPairingActivity::class.java)
+            startActivity(intent)
         }
 
         // Load current setting

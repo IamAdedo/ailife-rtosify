@@ -689,5 +689,23 @@
     <string name="status_bt_wifi_connected">Bluetooth &amp; WiFi Connected</string>
     <string name="status_wifi_connected">WiFi Connected</string>
     <string name="network_encryption_keys">Encryption keys exchanged via Bluetooth pairing</string>
+    
+    <!-- WiFi Pairing Activity -->
+    <string name="pairing_title">WiFi Pairing</string>
+    <string name="pairing_step_key_exchange">Step 1: Exchanging encryption keys</string>
+    <string name="pairing_step_discovery">Step 2: Discovering device on network</string>
+    <string name="pairing_step_connecting">Step 3: Connecting via WiFi</string>
+    <string name="pairing_step_testing">Step 4: Verifying secure connection</string>
+    <string name="pairing_complete">WiFi Pairing Successful!</string>
+    <string name="pairing_failed">WiFi Pairing Failed</string>
+    <string name="pairing_close">Finish</string>
+    <string name="pairing_retry">Retry</string>
+    <string name="pairing_found_device">Found device at: %s</string>
+    <string name="pairing_test_success">Bidirectional encryption verified</string>
+    <string name="pairing_error_no_key">Failed to generate encryption key</string>
+    <string name="pairing_error_key_ack">Device rejected key or timed out</string>
+    <string name="pairing_error_discovery">Could not find device on local network</string>
+    <string name="pairing_error_wifi">WiFi connection could not be established</string>
+    <string name="pairing_error_test">Encryption verification failed</string>
 </resources>
 

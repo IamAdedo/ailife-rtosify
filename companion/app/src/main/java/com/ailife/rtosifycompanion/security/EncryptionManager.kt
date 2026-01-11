@@ -3,10 +3,16 @@ package com.ailife.rtosifycompanion.security
 import android.content.Context
 import android.util.Log
 import com.google.crypto.tink.Aead
+import com.google.crypto.tink.CleartextKeysetHandle
+import com.google.crypto.tink.JsonKeysetReader
+import com.google.crypto.tink.JsonKeysetWriter
 import com.google.crypto.tink.KeysetHandle
 import com.google.crypto.tink.aead.AeadConfig
 import com.google.crypto.tink.aead.AeadKeyTemplates
 import com.google.crypto.tink.integration.android.AndroidKeysetManager
+import android.util.Base64
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.security.GeneralSecurityException
 
 
@@ -137,5 +143,50 @@ class EncryptionManager(private val context: Context) {
         prefs.edit().remove("${KEYSET_NAME}_$deviceMac").apply()
         
         Log.d(TAG, "Removed encryption keys for device: $deviceMac")
+    }
+
+    /**
+     * Export the keyset for a specific device as a Base64 string.
+     * Use this to send the key to the other device via Bluetooth.
+     */
+    fun exportKey(deviceMac: String): String? {
+        val keysetHandle = keysetHandles[deviceMac] ?: run {
+            if (!initializeForDevice(deviceMac)) return null
+            keysetHandles[deviceMac]
+        } ?: return null
+
+        return try {
+            val outputStream = ByteArrayOutputStream()
+            CleartextKeysetHandle.write(keysetHandle, JsonKeysetWriter.withOutputStream(outputStream))
+            Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to export key for $deviceMac", e)
+            null
+        }
+    }
+
+    /**
+     * Import a keyset for a specific device from a Base64 string.
+     * Use this to receive the key from the other device via Bluetooth.
+     */
+    fun importKey(deviceMac: String, keyData: String): Boolean {
+        return try {
+            val keyBytes = Base64.decode(keyData, Base64.NO_WRAP)
+            val inputStream = ByteArrayInputStream(keyBytes)
+            val keysetHandle = CleartextKeysetHandle.read(JsonKeysetReader.withInputStream(inputStream))
+
+            // Save to persistent storage
+            val prefs = context.getSharedPreferences(PREF_FILE_NAME, Context.MODE_PRIVATE)
+            val jsonStream = ByteArrayOutputStream()
+            CleartextKeysetHandle.write(keysetHandle, JsonKeysetWriter.withOutputStream(jsonStream))
+            prefs.edit().putString("${KEYSET_NAME}_$deviceMac", jsonStream.toString()).apply()
+
+            keysetHandles[deviceMac] = keysetHandle
+            Log.d(TAG, "Imported and saved encryption key for device: $deviceMac")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to import key for $deviceMac", e)
+            false
+        }
     }
 }

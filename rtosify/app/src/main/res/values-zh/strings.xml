@@ -110,6 +110,24 @@
     <string name="network_encryption_info_message">所有通过 WiFi/互联网的消息均使用 AES-256-GCM 加密。\n\n您的通信是安全且私密的。</string>
     <string name="network_encryption_finish">知道了</string>
 
+    <!-- WiFi Pairing Activity -->
+    <string name="pairing_title">WiFi 配对</string>
+    <string name="pairing_step_key_exchange">步骤 1：交换加密密钥</string>
+    <string name="pairing_step_discovery">步骤 2：在网络上发现设备</string>
+    <string name="pairing_step_connecting">步骤 3：通过 WiFi 连接</string>
+    <string name="pairing_step_testing">步骤 4：验证安全连接</string>
+    <string name="pairing_complete">WiFi 配对成功！</string>
+    <string name="pairing_failed">WiFi 配对失败</string>
+    <string name="pairing_close">完成</string>
+    <string name="pairing_retry">重试</string>
+    <string name="pairing_found_device">在以下位置发现设备：%s</string>
+    <string name="pairing_test_success">双向加密验证通过</string>
+    <string name="pairing_error_no_key">生成加密密钥失败</string>
+    <string name="pairing_error_key_ack">设备拒绝密钥或超时</string>
+    <string name="pairing_error_discovery">在本地网络上找不到设备</string>
+    <string name="pairing_error_wifi">无法建立 WiFi 连接</string>
+    <string name="pairing_error_test">加密验证失败</string>
+
     <!-- Watch Automations -->
     <string name="watch_automations_title">手表自动化</string>
     <string name="automation_boot_service_title">开机启动服务</string>

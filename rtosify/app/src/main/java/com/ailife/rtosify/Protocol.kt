@@ -126,6 +126,12 @@ object MessageType {
     const val CANCEL_SHELL_COMMAND = "cancel_shell_command"
     const val REQUEST_PERMISSION_INFO = "request_permission_info"
     const val PERMISSION_INFO_RESPONSE = "permission_info_response"
+    
+    // WiFi Pairing and Encryption
+    const val WIFI_KEY_EXCHANGE = "wifi_key_exchange"
+    const val WIFI_KEY_ACK = "wifi_key_ack"
+    const val WIFI_TEST_ENCRYPT = "wifi_test_encrypt"
+    const val WIFI_TEST_ACK = "wifi_test_ack"
 }
 
 data class PhoneBatteryData(val level: Int, val isCharging: Boolean)
@@ -950,5 +956,43 @@ object ProtocolHelper {
     fun createPermissionInfoResponse(info: PermissionInfoData): ProtocolMessage {
         val data = gson.toJsonTree(info).asJsonObject
         return ProtocolMessage(type = MessageType.PERMISSION_INFO_RESPONSE, data = data)
+    }
+
+    fun createCameraStart(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.CAMERA_START)
+    }
+
+    fun createCameraStop(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.CAMERA_STOP)
+    }
+
+    fun createCameraShutter(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.CAMERA_SHUTTER)
+    }
+
+    fun createWifiKeyExchange(deviceMac: String, encryptionKey: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("deviceMac", deviceMac)
+        data.addProperty("encryptionKey", encryptionKey)
+        return ProtocolMessage(type = MessageType.WIFI_KEY_EXCHANGE, data = data)
+    }
+
+    fun createWifiKeyAck(deviceMac: String, success: Boolean): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("deviceMac", deviceMac)
+        data.addProperty("success", success)
+        return ProtocolMessage(type = MessageType.WIFI_KEY_ACK, data = data)
+    }
+
+    fun createWifiTestEncrypt(message: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("message", message)
+        return ProtocolMessage(type = MessageType.WIFI_TEST_ENCRYPT, data = data)
+    }
+
+    fun createWifiTestAck(success: Boolean): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("success", success)
+        return ProtocolMessage(type = MessageType.WIFI_TEST_ACK, data = data)
     }
 }

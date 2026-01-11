@@ -1189,6 +1189,8 @@ class BluetoothService : Service() {
                     MessageType.EXECUTE_SHELL_COMMAND -> handleExecuteShellCommand(message)
                     MessageType.CANCEL_SHELL_COMMAND -> handleCancelShellCommand(message)
                     MessageType.REQUEST_PERMISSION_INFO -> handleRequestPermissionInfo()
+                    MessageType.WIFI_KEY_EXCHANGE -> handleWifiKeyExchange(message)
+                    MessageType.WIFI_TEST_ENCRYPT -> handleWifiTestEncrypt(message)
                     else -> Log.w(TAG, "Unknown message type: ${message.type}")
                 }
             }
@@ -2462,6 +2464,33 @@ class BluetoothService : Service() {
             sendBroadcast(intent)
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error handling camera frame: ${e.message}")
+        }
+    }
+
+    private fun handleWifiKeyExchange(message: ProtocolMessage) {
+        val deviceMac = ProtocolHelper.extractStringField(message, "deviceMac") ?: return
+        val encryptionKey = ProtocolHelper.extractStringField(message, "encryptionKey") ?: return
+        
+        Log.i(TAG, "Received WiFi key exchange request for $deviceMac")
+        val success = encryptionManager.importKey(deviceMac, encryptionKey)
+        if (success) {
+            encryptionManager.setActiveDevice(deviceMac)
+        }
+        
+        sendMessage(ProtocolHelper.createWifiKeyAck(deviceMac, success))
+    }
+
+    private fun handleWifiTestEncrypt(message: ProtocolMessage) {
+        val testContent = ProtocolHelper.extractStringField(message, "message")
+        Log.i(TAG, "Received WiFi encryption test message: $testContent")
+        
+        // Respond with ACK over the same transport (WiFi if it's currently active)
+        sendMessage(ProtocolHelper.createWifiTestAck(true))
+        
+        // Also initiate a test from our side to verify bidirectional
+        serviceScope.launch {
+            delay(500)
+            sendMessage(ProtocolHelper.createWifiTestEncrypt("test_from_companion"))
         }
     }
 

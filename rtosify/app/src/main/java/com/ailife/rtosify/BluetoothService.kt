@@ -63,6 +63,7 @@ import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collect
 import org.json.JSONArray
 import org.json.JSONObject
 import rikka.shizuku.Shizuku
@@ -188,6 +189,9 @@ class BluetoothService : Service() {
         fun onDeviceInfoReceived(info: DeviceInfoData) {}
         fun onShellCommandResponse(response: ShellCommandResponse) {}
         fun onPermissionInfoReceived(info: PermissionInfoData) {}
+        fun onWifiKeyAck(success: Boolean) {}
+        fun onWifiTestAck(success: Boolean) {}
+        fun onWifiTestReceived(message: String) {}
     }
 
     interface AlarmCallback {
@@ -850,6 +854,9 @@ class BluetoothService : Service() {
                     MessageType.REQUEST_PHONE_BATTERY -> handleRequestPhoneBattery()
                     MessageType.SHELL_COMMAND_RESPONSE -> handleShellCommandResponse(message)
                     MessageType.PERMISSION_INFO_RESPONSE -> handlePermissionInfoResponse(message)
+                    MessageType.WIFI_KEY_ACK -> handleWifiKeyAck(message)
+                    MessageType.WIFI_TEST_ACK -> handleWifiTestAck(message)
+                    MessageType.WIFI_TEST_ENCRYPT -> handleWifiTestReceived(message)
                 }
             }
         } catch (_: IOException) {
@@ -1035,6 +1042,42 @@ class BluetoothService : Service() {
                 "Syncing settings to watch: mirroring=${settings.notificationMirroringEnabled}, skipScreenOn=${settings.skipScreenOnEnabled}, ongoing=${settings.forwardOngoingEnabled}, silent=${settings.forwardSilentEnabled}, notifyOnDisconnect=${settings.notifyOnDisconnect}, clipboard=${settings.clipboardSyncEnabled}, wifi=${settings.autoWifiEnabled}, data=${settings.autoDataEnabled}, btTether=${settings.autoBtTetherEnabled}, notifStyle=${settings.notificationStyle}, diTimeout=${settings.dynamicIslandTimeout}, diY=${settings.dynamicIslandY}, diW=${settings.dynamicIslandWidth}, diH=${settings.dynamicIslandHeight}, diHideIdle=${settings.dynamicIslandHideWhenIdle}"
         )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
+    }
+
+    fun getEncryptionKeyForCurrentDevice(): String? {
+        val mac = bluetoothSocket?.remoteDevice?.address ?: return null
+        return encryptionManager.exportKey(mac)
+    }
+
+    fun sendWifiKeyExchange(encryptionKey: String) {
+        val mac = bluetoothSocket?.remoteDevice?.address ?: return
+        sendMessage(ProtocolHelper.createWifiKeyExchange(mac, encryptionKey))
+    }
+
+    fun startMdnsDiscovery(onDeviceFound: (String) -> Unit) {
+        mdnsDiscovery?.stop()
+        val discovery = com.ailife.rtosify.communication.MdnsDiscovery(this)
+        mdnsDiscovery = discovery
+        
+        serviceScope.launch {
+            discovery.getDiscoveredServices().collect { serviceInfo ->
+                // Check if this is the device we are looking for (by MAC)
+                val targetMac = bluetoothSocket?.remoteDevice?.address
+                if (targetMac != null && serviceInfo.deviceMac == targetMac) {
+                    onDeviceFound(serviceInfo.host)
+                }
+            }
+        }
+        discovery.startDiscovery()
+    }
+
+    fun stopMdnsDiscovery() {
+        mdnsDiscovery?.stop()
+        mdnsDiscovery = null
+    }
+
+    fun sendWifiTestMessage(message: String) {
+        sendMessage(ProtocolHelper.createWifiTestEncrypt(message))
     }
 
     fun sendMessage(message: ProtocolMessage) {
@@ -3164,5 +3207,23 @@ class BluetoothService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error handling permission info response: ${e.message}", e)
         }
+    }
+
+    private fun handleWifiKeyAck(message: ProtocolMessage) {
+        val success = ProtocolHelper.extractBooleanField(message, "success")
+        Log.i(TAG, "Received WiFi key ACK: success=$success")
+        callback?.onWifiKeyAck(success)
+    }
+
+    private fun handleWifiTestAck(message: ProtocolMessage) {
+        val success = ProtocolHelper.extractBooleanField(message, "success")
+        Log.i(TAG, "Received WiFi test ACK: success=$success")
+        callback?.onWifiTestAck(success)
+    }
+
+    private fun handleWifiTestReceived(message: ProtocolMessage) {
+        val testContent = ProtocolHelper.extractStringField(message, "message") ?: ""
+        Log.i(TAG, "Received WiFi encryption test message: $testContent")
+        callback?.onWifiTestReceived(testContent)
     }
 }
