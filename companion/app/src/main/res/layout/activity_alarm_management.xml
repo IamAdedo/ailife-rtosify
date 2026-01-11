@@ -17,7 +17,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Alarms"
+            android:text="@string/menu_alarms"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="#FFFFFF" />
@@ -45,7 +45,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_marginTop="40dp"
-        android:text="No alarms"
+        android:text="@string/alarm_no_alarms"
         android:textSize="14sp"
         android:visibility="gone" />
 

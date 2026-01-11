@@ -120,7 +120,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
                     val closeText =
                             TextView(context).apply {
-                                text = "Close"
+                                text = context.getString(R.string.di_close)
                                 textSize = pillHeightCollapsed * 0.35f
                                 setTextColor(Color.WHITE)
                                 typeface = Typeface.DEFAULT_BOLD
@@ -781,7 +781,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                         topMargin = dpToPx(8)
                                         bottomMargin = dpToPx(16)
                                     }
-                    text = "Clear All"
+                    text = context.getString(R.string.di_clear_all)
                     textSize = 14f
                     setTextColor(Color.WHITE)
                     gravity = Gravity.CENTER
@@ -1134,7 +1134,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     private fun showReplyDialog(notif: NotificationData) {
         val input =
                 EditText(context).apply {
-                    hint = "Type your reply..."
+                    hint = context.getString(R.string.di_reply_hint)
                     inputType = InputType.TYPE_CLASS_TEXT
                     setTextColor(Color.WHITE)
                     setHintTextColor(Color.LTGRAY)
@@ -1157,15 +1157,15 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                 context,
                                 android.R.style.Theme_DeviceDefault_Dialog_Alert
                         )
-                        .setTitle("Reply to ${notif.title}")
+                        .setTitle(context.getString(R.string.di_reply_to, notif.title))
                         .setView(container)
-                        .setPositiveButton("Send") { _, _ ->
+                        .setPositiveButton(context.getString(R.string.di_send)) { _, _ ->
                             val replyText = input.text.toString()
                             if (replyText.isNotEmpty()) {
                                 onNotificationReply?.invoke(notif, replyText)
                             }
                         }
-                        .setNegativeButton("Cancel", null)
+                        .setNegativeButton(context.getString(R.string.di_cancel), null)
                         .create()
 
         dialog.window?.setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)

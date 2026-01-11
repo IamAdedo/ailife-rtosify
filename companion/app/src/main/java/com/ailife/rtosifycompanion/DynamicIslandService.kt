@@ -140,11 +140,11 @@ class DynamicIslandService : Service() {
             val channel =
                     NotificationChannel(
                                     CHANNEL_ID,
-                                    "Dynamic Island",
+                                    getString(R.string.di_channel_name),
                                     NotificationManager.IMPORTANCE_LOW
                             )
                             .apply {
-                                description = "Dynamic Island notification overlay"
+                                description = getString(R.string.di_channel_desc)
                                 setShowBadge(false)
                             }
             val manager = getSystemService(NotificationManager::class.java)
@@ -154,8 +154,8 @@ class DynamicIslandService : Service() {
 
     private fun createNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Dynamic Island Active")
-                .setContentText("Showing notifications")
+                .setContentTitle(getString(R.string.di_active_title))
+                .setContentText(getString(R.string.di_active_desc))
                 .setSmallIcon(R.drawable.ic_smartwatch_notification)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)
@@ -472,7 +472,7 @@ class DynamicIslandService : Service() {
                 NotificationMessageData(
                         text = replyText,
                         timestamp = System.currentTimeMillis(),
-                        senderName = "Me" // Matches BluetoothService logic for user replies
+                        senderName = getString(R.string.reply_sender_me) // Matches BluetoothService logic for user replies
                 )
 
         // Update the notification in the queue

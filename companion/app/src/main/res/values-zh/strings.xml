@@ -343,6 +343,7 @@
     <string name="menu_media_control_desc">控制手机播放</string>
     <string name="menu_alarms">闹钟</string>
     <string name="menu_alarms_desc">管理闹钟</string>
+    <string name="alarm_no_alarms">没有闹钟</string>
     <string name="menu_camera">相机</string>
     <string name="menu_camera_desc">远程快门</string>
     <string name="toast_service_started">服务已启动</string>
@@ -357,6 +358,10 @@
     <string name="alarm_delete_message">删除 %1$s 的闹钟？</string>
     <string name="alarm_delete_confirm">删除</string>
     <string name="alarm_once">一次</string>
+    <string name="alarm_set_time">设置时间</string>
+    <string name="alarm_repeat">重复</string>
+    <string name="alarm_label">标签</string>
+    <string name="alarm_name_hint">闹钟名称</string>
     <string name="alarm_label_hint">闹钟标签</string>
     <string name="alarm_day_monday_short">一</string>
     <string name="alarm_day_tuesday_short">二</string>
@@ -402,4 +407,16 @@
     <string name="status_phone_connected">已连接到手机</string>
     <string name="mirror_notif_title">屏幕镜像</string>
     <string name="mirror_notif_text">正在镜像屏幕...</string>
+    
+    <!-- Dynamic Island -->
+    <string name="di_close">关闭</string>
+    <string name="di_clear_all">清除全部</string>
+    <string name="di_reply_hint">输入您的回复...</string>
+    <string name="di_reply_to">回复 %1$s</string>
+    <string name="di_send">发送</string>
+    <string name="di_cancel">取消</string>
+    <string name="di_channel_name">灵动岛</string>
+    <string name="di_channel_desc">灵动岛通知叠加层</string>
+    <string name="di_active_title">灵动岛已激活</string>
+    <string name="di_active_desc">正在显示通知</string>
 </resources>

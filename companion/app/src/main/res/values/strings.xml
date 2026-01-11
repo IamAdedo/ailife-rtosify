@@ -343,6 +343,7 @@
     <string name="menu_media_control_desc">Control phone playback</string>
     <string name="menu_alarms">Alarms</string>
     <string name="menu_alarms_desc">Manage alarms</string>
+    <string name="alarm_no_alarms">No alarms</string>
     <string name="menu_camera">Camera</string>
     <string name="menu_camera_desc">Remote Shutter</string>
     <string name="toast_service_started">Service Started</string>
@@ -357,6 +358,10 @@
     <string name="alarm_delete_message">Delete alarm at %1$s?</string>
     <string name="alarm_delete_confirm">Delete</string>
     <string name="alarm_once">Once</string>
+    <string name="alarm_set_time">Set Time</string>
+    <string name="alarm_repeat">Repeat</string>
+    <string name="alarm_label">Label</string>
+    <string name="alarm_name_hint">Alarm name</string>
     <string name="alarm_label_hint">Alarm Label</string>
     <string name="alarm_day_monday_short">M</string>
     <string name="alarm_day_tuesday_short">T</string>
@@ -402,4 +407,16 @@
     <string name="status_phone_connected">Connected to Phone</string>
     <string name="mirror_notif_title">Screen Mirroring</string>
     <string name="mirror_notif_text">Mirroring screen...</string>
+    
+    <!-- Dynamic Island -->
+    <string name="di_close">Close</string>
+    <string name="di_clear_all">Clear All</string>
+    <string name="di_reply_hint">Type your reply...</string>
+    <string name="di_reply_to">Reply to %1$s</string>
+    <string name="di_send">Send</string>
+    <string name="di_cancel">Cancel</string>
+    <string name="di_channel_name">Dynamic Island</string>
+    <string name="di_channel_desc">Dynamic Island notification overlay</string>
+    <string name="di_active_title">Dynamic Island Active</string>
+    <string name="di_active_desc">Showing notifications</string>
 </resources>
