@@ -74,7 +74,7 @@ class BluetoothService : Service() {
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private var connectionJob: Job? = null
-    private var serverJob: Job? = null
+    // REMOVED: serverJob - phone app no longer acts as server
     private var statusUpdateJob: Job? = null
 
     private var bluetoothAdapter: BluetoothAdapter? = null
@@ -556,37 +556,8 @@ class BluetoothService : Service() {
         startSmartphoneLogic()
     }
 
-    @SuppressLint("MissingPermission")
-    private fun checkAndEnableBluetooth(): Boolean {
-        if (bluetoothAdapter?.isEnabled == true) return true
-
-        Log.w(TAG, "Bluetooth is disabled.")
-        updateStatus("Bluetooth Disabled")
-
-        // Tenta habilitar automaticamente
-        try {
-            if (bluetoothAdapter?.enable() == true) {
-                updateStatus(getString(R.string.status_starting))
-                return false
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to auto-enable Bluetooth: ${e.message}")
-        }
-
-        // Se falhar, solicita ao usuário
-        mainHandler.post {
-            Toast.makeText(this, getString(R.string.toast_bt_required), Toast.LENGTH_SHORT).show()
-            try {
-                val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-            } catch (e: Exception) {
-                Log.e(TAG, "Could not start enable bluetooth intent: ${e.message}")
-            }
-        }
-
-        return false
-    }
+    // REMOVED: checkAndEnableBluetooth() - This method was blocking service operation when BT disabled
+    // Bluetooth checks should only be done in BluetoothTransport, not at service level
 
     @SuppressLint("MissingPermission")
     fun startSmartphoneLogic() {
@@ -594,9 +565,17 @@ class BluetoothService : Service() {
         val lastMac = devicePrefManager.getSelectedDeviceMac()
         if (lastMac != null) {
             val device = bluetoothAdapter?.getRemoteDevice(lastMac)
-            if (device != null) startAutoReconnectLoop(device) else startScanForDevices()
+            if (device != null) {
+                startAutoReconnectLoop(device)
+            } else {
+                Log.e(TAG, "Cannot get Bluetooth device for MAC: $lastMac")
+                updateStatus(getString(R.string.status_disconnected))
+                callback?.onError("Invalid device MAC address")
+            }
         } else {
-            startScanForDevices()
+            Log.e(TAG, "No device MAC configured. User must pair device in WelcomeActivity first.")
+            updateStatus(getString(R.string.status_no_watch_found))
+            callback?.onError(getString(R.string.status_open_app_watch))
         }
     }
 
@@ -605,65 +584,9 @@ class BluetoothService : Service() {
         startSmartphoneLogic()
     }
 
-    @SuppressLint("MissingPermission")
-    fun startScanForDevices() {
-        updateStatus(getString(R.string.status_searching))
-        connectionJob?.cancel()
-        connectionJob =
-                serviceScope.launch {
-                    // Loop while Bluetooth is disabled
-                    while (isActive && !checkAndEnableBluetooth()) {
-                        delay(3000)
-                    }
-                    if (!isActive) return@launch
-
-                    updateStatus(getString(R.string.status_searching))
-
-                    // Wait a bit if we just enabled extensions
-                    if (bluetoothAdapter?.state == BluetoothAdapter.STATE_TURNING_ON) {
-                        delay(2000)
-                    }
-
-                    val pairedDevices = bluetoothAdapter?.bondedDevices ?: emptySet()
-                    val successfulConnections =
-                            mutableListOf<Pair<BluetoothDevice, BluetoothSocket>>()
-                    supervisorScope {
-                        val jobs =
-                                pairedDevices.map { device ->
-                                    async {
-                                        try {
-                                            val socket =
-                                                    device.createRfcommSocketToServiceRecord(
-                                                            APP_UUID
-                                                    )
-                                            socket.connect()
-                                            device to socket
-                                        } catch (_: IOException) {
-                                            null
-                                        }
-                                    }
-                                }
-                        jobs.awaitAll().filterNotNull().forEach { successfulConnections.add(it) }
-                    }
-                    withContext(Dispatchers.Main) {
-                        if (successfulConnections.isEmpty()) {
-                            updateStatus(getString(R.string.status_no_watch_found))
-                            callback?.onError(getString(R.string.status_open_app_watch))
-                        } else if (successfulConnections.size == 1) {
-                            val (device, socket) = successfulConnections[0]
-                            savePreference("last_mac", device.address)
-                            startAutoReconnectLoop(device, socket)
-                        } else {
-                            successfulConnections.forEach {
-                                try {
-                                    it.second.close()
-                                } catch (_: Exception) {}
-                            }
-                            callback?.onScanResult(successfulConnections.map { it.first })
-                        }
-                    }
-                }
-    }
+    // DELETED: startScanForDevices() - Phone should NOT scan for devices
+    // Device MAC is already known from WelcomeActivity pairing
+    // Scanning all paired devices (headphones, cars, etc.) wastes battery and creates security risk
 
     @SuppressLint("MissingPermission")
     fun connectToDevice(device: BluetoothDevice) {
@@ -682,10 +605,7 @@ class BluetoothService : Service() {
                 serviceScope.launch {
                     var socketToUse = initialSocket
                     while (isActive) {
-                        if (!checkAndEnableBluetooth()) {
-                            delay(3000)
-                            continue
-                        }
+                        // REMOVED: Bluetooth safety check - service works regardless of BT state
 
                         try {
                             if (socketToUse == null) {
@@ -710,67 +630,7 @@ class BluetoothService : Service() {
                 }
     }
 
-    @SuppressLint("MissingPermission")
-    fun startWatchLogic() {
-        if (serverJob?.isActive == true) return
-        serverJob?.cancel()
-        serverJob =
-                serviceScope.launch {
-                    updateStatus(getString(R.string.status_waiting))
-                    while (isActive) {
-                        if (!checkAndEnableBluetooth()) {
-                            delay(3000)
-                            continue
-                        }
-
-                        updateStatus(getString(R.string.status_waiting))
-
-                        var serverSocket: BluetoothServerSocket?
-                        try {
-                            serverSocket =
-                                    bluetoothAdapter?.listenUsingRfcommWithServiceRecord(
-                                            APP_NAME,
-                                            APP_UUID
-                                    )
-                        } catch (_: IOException) {
-                            delay(3000)
-                            continue
-                        }
-
-                        var socket: BluetoothSocket? = null
-                        while (socket == null && isActive) {
-                            // Check BT again inside the waiting loop
-                            if (bluetoothAdapter?.isEnabled != true) {
-                                try {
-                                    serverSocket?.close()
-                                } catch (e: Exception) {}
-                                serverSocket = null
-                                break
-                            }
-
-                            try {
-                                socket = serverSocket?.accept(5000)
-                            } catch (_: IOException) {}
-                        }
-
-                        if (serverSocket == null && socket == null) continue
-
-                        if (socket != null) {
-                            try {
-                                serverSocket?.close()
-                            } catch (_: Exception) {}
-                            handleConnectedSocket(
-                                    socket,
-                                    socket.remoteDevice?.name
-                                            ?: getString(R.string.device_name_default)
-                            )
-                            if (isActive) {
-                                updateStatus(getString(R.string.status_waiting))
-                            }
-                        }
-                    }
-                }
-    }
+    // REMOVED: startWatchLogic() - Phone app should never act as watch server
 
     private suspend fun handleConnectedSocket(socket: BluetoothSocket, deviceName: String) {
         this.bluetoothSocket = socket
@@ -905,15 +765,8 @@ class BluetoothService : Service() {
         }
     }
 
-    @Throws(IOException::class)
-    private fun readMessage(inputStream: DataInputStream): ProtocolMessage {
-        val length = inputStream.readInt()
-        if (length !in 0..10_000_000) throw IOException("Invalid message size: $length")
-        val buffer = ByteArray(length)
-        inputStream.readFully(buffer)
-        val json = String(buffer, Charsets.UTF_8)
-        return ProtocolMessage.fromJson(json)
-    }
+    // DELETED: readMessage() - Dead code, never called
+    // Message reading is now handled by transport layer
 
     private suspend fun heartbeatLoop() {
         while (currentCoroutineContext().isActive) {
@@ -2713,12 +2566,12 @@ class BluetoothService : Service() {
     }
 
     fun isActive(): Boolean {
-        return connectionJob?.isActive == true || serverJob?.isActive == true
+        return connectionJob?.isActive == true
     }
 
     fun stopConnectionLoopOnly() {
         connectionJob?.cancel()
-        serverJob?.cancel()
+        // REMOVED: serverJob?.cancel() - phone app no longer has server job
         statusUpdateJob?.cancel()
 
         val wasConnected = isConnected

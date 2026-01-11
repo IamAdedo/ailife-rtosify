@@ -98,8 +98,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     val isServiceEnabled = prefs.getBoolean("service_enabled", true)
 
                     if (isServiceEnabled) {
-                        if (type == "PHONE") bluetoothService?.startSmartphoneLogic()
-                        else bluetoothService?.startWatchLogic()
+                        // Companion app is always watch, never phone
+                        bluetoothService?.startWatchLogic()
                     } else {
                         bluetoothService?.stopConnectionLoopOnly()
                         updateStatusUI(getString(R.string.status_stopped), false)
@@ -284,8 +284,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                             bindService(intent, connection, BIND_AUTO_CREATE)
                         }
 
-                        if (isPhoneMode) bluetoothService?.startSmartphoneLogic()
-                        else bluetoothService?.startWatchLogic()
+                        // Companion app is always watch, never phone
+                        bluetoothService?.startWatchLogic()
 
                         updateStatusUI(getString(R.string.status_starting), false)
                         syncDynamicIslandService()
@@ -854,23 +854,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
     @android.annotation.SuppressLint("MissingPermission")
     override fun onScanResult(devices: List<BluetoothDevice>) {
-        runOnUiThread {
-            if (devices.isEmpty()) return@runOnUiThread
-            if (isPhoneMode) {
-                val names =
-                        devices
-                                .map {
-                                    "${it.name ?: getString(R.string.device_no_name)} (${it.address})"
-                                }
-                                .toTypedArray()
-                AlertDialog.Builder(this)
-                        .setTitle(getString(R.string.dialog_select_watch_title))
-                        .setItems(names) { _, which ->
-                            bluetoothService?.connectToDevice(devices[which])
-                        }
-                        .show()
-            }
-        }
+        // Companion app is watch-only server, never scans for devices
+        // This callback should never be called in watch mode
     }
     override fun onUploadProgress(progress: Int) {
         runOnUiThread { if (uploadDialog?.isShowing == true) updateUploadProgress(progress) }
