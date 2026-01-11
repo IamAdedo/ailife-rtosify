@@ -564,6 +564,10 @@ class BluetoothService : Service() {
         if (connectionJob?.isActive == true) return
         val lastMac = devicePrefManager.getSelectedDeviceMac()
         if (lastMac != null) {
+            // Start WiFi transport monitoring immediately, independent of Bluetooth
+            Log.d(TAG, "Starting WiFi transport monitoring for MAC: $lastMac")
+            startWifiTransportMonitoring(lastMac)
+
             val device = bluetoothAdapter?.getRemoteDevice(lastMac)
             if (device != null) {
                 startAutoReconnectLoop(device)
@@ -604,8 +608,26 @@ class BluetoothService : Service() {
         connectionJob =
                 serviceScope.launch {
                     var socketToUse = initialSocket
+                    var consecutiveFailures = 0
+                    val maxConsecutiveFailures = 10 // Limit retry attempts
+
                     while (isActive) {
-                        // REMOVED: Bluetooth safety check - service works regardless of BT state
+                        // Check if Bluetooth is available before trying to create socket
+                        val isBluetoothAvailable = bluetoothAdapter?.isEnabled == true
+
+                        if (!isBluetoothAvailable) {
+                            Log.w(TAG, "Bluetooth is disabled, cannot establish BT connection")
+                            updateStatus("Bluetooth disabled, waiting for WiFi...")
+                            delay(5000)
+                            consecutiveFailures++
+                            if (consecutiveFailures >= maxConsecutiveFailures) {
+                                Log.e(TAG, "Too many consecutive failures, stopping reconnect attempts")
+                                updateStatus(getString(R.string.status_disconnected))
+                                callback?.onError("Bluetooth is disabled. Enable Bluetooth or use WiFi pairing.")
+                                break
+                            }
+                            continue
+                        }
 
                         try {
                             if (socketToUse == null) {
@@ -613,15 +635,24 @@ class BluetoothService : Service() {
                                 socketToUse = device.createRfcommSocketToServiceRecord(APP_UUID)
                                 socketToUse!!.connect()
                             }
+                            consecutiveFailures = 0 // Reset on success
                             handleConnectedSocket(socketToUse, device.name)
                             socketToUse = null
                             if (isActive) {
                                 updateStatus(getString(R.string.status_starting))
                                 delay(3000)
                             }
-                        } catch (_: IOException) {
+                        } catch (e: IOException) {
+                            Log.w(TAG, "Bluetooth connection failed: ${e.message}")
                             socketToUse = null
+                            consecutiveFailures++
                             if (isActive) {
+                                if (consecutiveFailures >= maxConsecutiveFailures) {
+                                    Log.e(TAG, "Too many consecutive failures, stopping reconnect attempts")
+                                    updateStatus(getString(R.string.status_disconnected))
+                                    callback?.onError("Cannot connect to device. Please check if watch app is running.")
+                                    break
+                                }
                                 updateStatus(getString(R.string.status_starting))
                                 delay(5000)
                             }
@@ -670,10 +701,9 @@ class BluetoothService : Service() {
 
                     // Trigger automation on connection
                     onConnectionEstablished()
-                    
-                    // Start WiFi transport monitoring
-                    val deviceMac = socket.remoteDevice.address
-                    startWifiTransportMonitoring(deviceMac)
+
+                    // WiFi transport monitoring already started in startSmartphoneLogic()
+                    // No need to start it again here
                 }
 
                 try {

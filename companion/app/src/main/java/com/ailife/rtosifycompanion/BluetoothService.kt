@@ -868,11 +868,40 @@ class BluetoothService : Service() {
     fun startWatchLogic() {
         if (serverJob?.isActive == true) return
         serverJob?.cancel()
+
+        // Start WiFi server immediately if MAC is available (independent of Bluetooth)
+        val savedMac = prefs.getString("wifi_advertised_mac", null)
+        if (savedMac != null) {
+            Log.d(TAG, "Starting WiFi server for saved MAC: $savedMac")
+            serviceScope.launch {
+                startWifiTransportServer(savedMac)
+            }
+        } else {
+            Log.d(TAG, "No saved MAC for WiFi, will start after pairing")
+        }
+
         serverJob =
                 serviceScope.launch {
                     updateStatus(getString(R.string.status_waiting))
+                    var consecutiveFailures = 0
+                    val maxConsecutiveFailures = 10 // Limit retry attempts
+
                     while (isActive) {
-                        // REMOVED: Bluetooth safety check - service works regardless of BT state
+                        // Check if Bluetooth is available before trying to create server socket
+                        val isBluetoothAvailable = bluetoothAdapter?.isEnabled == true
+
+                        if (!isBluetoothAvailable) {
+                            Log.w(TAG, "Bluetooth is disabled, cannot start BT server")
+                            updateStatus("Bluetooth disabled, waiting for WiFi...")
+                            delay(5000)
+                            consecutiveFailures++
+                            if (consecutiveFailures >= maxConsecutiveFailures) {
+                                Log.e(TAG, "Too many consecutive failures, stopping server attempts")
+                                updateStatus(getString(R.string.status_disconnected))
+                                break
+                            }
+                            continue
+                        }
 
                         updateStatus(getString(R.string.status_waiting))
 
@@ -883,15 +912,21 @@ class BluetoothService : Service() {
                                             APP_NAME,
                                             APP_UUID
                                     )
-                        } catch (_: IOException) {
+                            consecutiveFailures = 0 // Reset on successful socket creation
+                        } catch (e: IOException) {
+                            Log.w(TAG, "Failed to create Bluetooth server socket: ${e.message}")
+                            consecutiveFailures++
+                            if (consecutiveFailures >= maxConsecutiveFailures) {
+                                Log.e(TAG, "Too many consecutive failures, stopping server attempts")
+                                updateStatus(getString(R.string.status_disconnected))
+                                break
+                            }
                             delay(3000)
                             continue
                         }
 
                         var socket: BluetoothSocket? = null
                         while (socket == null && isActive) {
-                            // REMOVED: Bluetooth check - service works regardless of BT state
-
                             try {
                                 socket = serverSocket?.accept(5000)
                             } catch (_: IOException) {}
