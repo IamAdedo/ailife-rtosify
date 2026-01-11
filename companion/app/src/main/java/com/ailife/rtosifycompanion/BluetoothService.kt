@@ -1104,10 +1104,11 @@ class BluetoothService : Service() {
         // Trigger automation on connection
         onConnectionEstablished()
 
-        // Initialize encryption for WiFi transport (exchange keys via BT)
-        // Watch is always the server
-        socket.remoteDevice?.address?.let { deviceMac ->
-            initializeEncryptionForDevice(deviceMac)
+        // WiFi encryption will be initialized during key exchange
+        // or restored from saved "advertised_mac"
+        val savedMac = prefs.getString("wifi_advertised_mac", null)
+        if (savedMac != null) {
+            initializeEncryptionForDevice(savedMac)
         }
 
         serviceScope.launch { heartbeatLoop() }
@@ -1758,7 +1759,7 @@ class BluetoothService : Service() {
         try {
             encryptionManager.initializeForDevice(deviceMac)
             encryptionManager.setActiveDevice(deviceMac)
-            Log.d(TAG, "Encryption initialized for device: $deviceMac")
+            Log.d(TAG, "initializeEncryptionForDevice: mac=$deviceMac, remote=${bluetoothSocket?.remoteDevice?.address}")
             
             // Watch always starts WiFi as server
             serviceScope.launch {
@@ -1778,6 +1779,7 @@ class BluetoothService : Service() {
         try {
             encryptionManager.setActiveDevice(deviceMac)
             
+            Log.d(TAG, "startWifiTransportServer: registering service with mac=$deviceMac")
             // Register mDNS service
             mdnsDiscovery?.registerService(
                 deviceMac = deviceMac,
@@ -2475,6 +2477,13 @@ class BluetoothService : Service() {
         val success = encryptionManager.importKey(deviceMac, encryptionKey)
         if (success) {
             encryptionManager.setActiveDevice(deviceMac)
+            // Save this MAC as our "advertised MAC" for future registrations
+            prefs.edit().putString("wifi_advertised_mac", deviceMac).apply()
+            
+            // Register and start WiFi server with our MAC (deviceMac)
+            serviceScope.launch {
+                startWifiTransportServer(deviceMac)
+            }
         }
         
         sendMessage(ProtocolHelper.createWifiKeyAck(deviceMac, success))

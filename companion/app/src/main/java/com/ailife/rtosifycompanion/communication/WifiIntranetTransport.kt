@@ -6,6 +6,7 @@ import com.ailife.rtosifycompanion.security.EncryptionManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -68,20 +69,7 @@ class WifiIntranetTransport(
     }
 
     private suspend fun connectAsClient(): Boolean {
-        // Wait for mDNS to discover the service
-        var serviceInfo: MdnsDiscovery.ServiceInfo? = null
-        
-        mdnsDiscovery.getDiscoveredServices().collect { info ->
-            if (info.deviceMac == deviceMac) {
-                serviceInfo = info
-                return@collect
-            }
-        }
-
-        val info = serviceInfo ?: run {
-            Log.e(TAG, "Service not found for MAC: $deviceMac")
-            return false
-        }
+        val info = mdnsDiscovery.getDiscoveredServices().first { it.deviceMac == deviceMac }
 
         Log.d(TAG, "Connecting to ${info.host}:${info.port}")
         socket = Socket(info.host, info.port)

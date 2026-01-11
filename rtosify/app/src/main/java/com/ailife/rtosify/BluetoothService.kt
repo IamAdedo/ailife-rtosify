@@ -796,9 +796,12 @@ class BluetoothService : Service() {
         // Trigger automation on connection
         onConnectionEstablished()
 
-        // Initialize encryption for WiFi transport (exchange keys via BT)
+        // Initialize encryption for WiFi transport
         socket.remoteDevice?.address?.let { deviceMac ->
-            initializeEncryptionForDevice(deviceMac)
+            encryptionManager.initializeForDevice(deviceMac)
+            encryptionManager.setActiveDevice(deviceMac)
+            Log.d(TAG, "Encryption initialized for device: $deviceMac")
+            // startWifiTransportMonitoring(deviceMac) // Don't auto-start here
         }
 
         // Phone app doesn't send watch status (only receives it)
@@ -927,7 +930,7 @@ class BluetoothService : Service() {
         try {
             encryptionManager.initializeForDevice(deviceMac)
             encryptionManager.setActiveDevice(deviceMac)
-            Log.d(TAG, "Encryption initialized for device: $deviceMac")
+            Log.d(TAG, "initializeEncryptionForDevice: mac=$deviceMac, remote=${bluetoothSocket?.remoteDevice?.address}")
             startWifiTransportMonitoring(deviceMac)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize encryption", e)
@@ -967,29 +970,37 @@ class BluetoothService : Service() {
     /**
      * Start WiFi transport.
      */
-    private suspend fun startWifiTransport(deviceMac: String) {
+    fun startWifiTransport(deviceMac: String) {
         if (wifiTransport != null) return
-        try {
+        serviceScope.launch {
+            try {
             encryptionManager.setActiveDevice(deviceMac)
-            mdnsDiscovery?.registerService(deviceMac, android.os.Build.MODEL, 8765)
+            Log.d(TAG, "startWifiTransport: mac=$deviceMac")
+            
+            // Phone is client, it should not register its own service
+            // Discovery is triggered by WiFiPairingActivity or when WiFi rule requires it.
             mdnsDiscovery?.startDiscovery()
             
+            Log.d(TAG, "Creating WifiIntranetTransport for $deviceMac")
             wifiTransport = com.ailife.rtosify.communication.WifiIntranetTransport(
                 deviceMac, encryptionManager, mdnsDiscovery!!, false, 8765
             )
             
+            Log.d(TAG, "Attempting to connect WiFi transport...")
             if (wifiTransport!!.connect()) {
                 currentTransport = wifiTransport
-                Log.d(TAG, "WiFi connected")
+                Log.d(TAG, "WiFi connected successfully")
                 withContext(Dispatchers.Main) {
                     callback?.onStatusChanged(getString(R.string.status_bt_wifi_connected))
                 }
             } else {
+                Log.w(TAG, "WiFi transport failed to connect")
                 wifiTransport = null
             }
         } catch (e: Exception) {
             Log.e(TAG, "WiFi transport error", e)
             wifiTransport = null
+        }
         }
     }
     
@@ -1042,6 +1053,10 @@ class BluetoothService : Service() {
                 "Syncing settings to watch: mirroring=${settings.notificationMirroringEnabled}, skipScreenOn=${settings.skipScreenOnEnabled}, ongoing=${settings.forwardOngoingEnabled}, silent=${settings.forwardSilentEnabled}, notifyOnDisconnect=${settings.notifyOnDisconnect}, clipboard=${settings.clipboardSyncEnabled}, wifi=${settings.autoWifiEnabled}, data=${settings.autoDataEnabled}, btTether=${settings.autoBtTetherEnabled}, notifStyle=${settings.notificationStyle}, diTimeout=${settings.dynamicIslandTimeout}, diY=${settings.dynamicIslandY}, diW=${settings.dynamicIslandWidth}, diH=${settings.dynamicIslandHeight}, diHideIdle=${settings.dynamicIslandHideWhenIdle}"
         )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
+    }
+
+    fun getConnectedDeviceMac(): String? {
+        return bluetoothSocket?.remoteDevice?.address
     }
 
     fun getEncryptionKeyForCurrentDevice(): String? {

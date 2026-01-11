@@ -157,6 +157,7 @@ class WiFiPairingActivity : AppCompatActivity() {
                     return@launch
                 }
 
+                Log.d(TAG, "Step 1: Sending key exchange...")
                 bluetoothService?.sendWifiKeyExchange(key)
                 
                 val keySuccess = withTimeoutOrNull(TimeUnit.SECONDS.toMillis(TIMEOUT_KEY_EXCHANGE)) {
@@ -170,8 +171,9 @@ class WiFiPairingActivity : AppCompatActivity() {
                 markStepComplete(1)
 
                 // Step 2: Discovery
-                setCurrentStep(2)
+                Log.d(TAG, "Step 2: Starting mDNS discovery...")
                 bluetoothService?.startMdnsDiscovery { host ->
+                    Log.d(TAG, "Device found at $host")
                     deviceFoundDeferred.complete(host)
                 }
 
@@ -188,10 +190,19 @@ class WiFiPairingActivity : AppCompatActivity() {
                     tvDiscoveryDetails.visibility = View.VISIBLE
                     tvDiscoveryDetails.text = getString(R.string.pairing_found_device, deviceHost)
                 }
+                
+                // Trigger connection now that we found it
+                val mac = bluetoothService?.getConnectedDeviceMac()
+                if (mac != null) {
+                    Log.d(TAG, "Triggering WiFi connection for $mac")
+                    bluetoothService?.startWifiTransport(mac)
+                }
+                
                 markStepComplete(2)
 
-                // Step 3: Connecting (WiFi transport should activate automatically once discovered)
+                // Step 3: Connecting
                 setCurrentStep(3)
+                Log.d(TAG, "Step 3: Waiting for WiFi transport to become active...")
                 // We wait for isWifiTransportActive to become true
                 val wifiConnected = withTimeoutOrNull(TimeUnit.SECONDS.toMillis(TIMEOUT_WIFI_CONNECT)) {
                     while (true) {
@@ -209,6 +220,7 @@ class WiFiPairingActivity : AppCompatActivity() {
 
                 // Step 4: Testing
                 setCurrentStep(4)
+                Log.d(TAG, "Step 4: Sending encrypted test message...")
                 bluetoothService?.sendWifiTestMessage("pair_test_phone")
                 
                 val testAck = withTimeoutOrNull(TimeUnit.SECONDS.toMillis(TIMEOUT_TEST_ENCRYPT)) {

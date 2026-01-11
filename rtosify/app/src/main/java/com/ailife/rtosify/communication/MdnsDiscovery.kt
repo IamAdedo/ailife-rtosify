@@ -4,9 +4,10 @@ import android.content.Context
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.util.Log
-import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 /**
  * Handles mDNS service discovery for finding paired devices on the local network.
@@ -23,7 +24,7 @@ class MdnsDiscovery(private val context: Context) {
     private val nsdManager: NsdManager =
         context.getSystemService(Context.NSD_SERVICE) as NsdManager
     
-    private val discoveredServices = Channel<ServiceInfo>(Channel.BUFFERED)
+    private val _discoveredServices = MutableSharedFlow<ServiceInfo>(replay = 1)
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
     private var resolveListener: NsdManager.ResolveListener? = null
@@ -126,7 +127,9 @@ class MdnsDiscovery(private val context: Context) {
                     if (mac != null && host != null && port > 0) {
                         val resolved = ServiceInfo(mac, name, host, port)
                         Log.d(TAG, "Resolved service: $resolved")
-                        discoveredServices.trySend(resolved)
+                        CoroutineScope(Dispatchers.IO).launch {
+                            _discoveredServices.emit(resolved)
+                        }
                     }
                 }
             }
@@ -138,7 +141,7 @@ class MdnsDiscovery(private val context: Context) {
     /**
      * Get a flow of discovered services.
      */
-    fun getDiscoveredServices(): Flow<ServiceInfo> = discoveredServices.receiveAsFlow()
+    fun getDiscoveredServices(): Flow<ServiceInfo> = _discoveredServices.asSharedFlow()
 
     /**
      * Stop discovery and unregister service.
