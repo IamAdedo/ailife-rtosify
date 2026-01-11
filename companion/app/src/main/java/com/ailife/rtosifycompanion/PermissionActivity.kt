@@ -920,7 +920,9 @@ class PermissionActivity : AppCompatActivity() {
                             )
                             .show()
                 }
-                .setNeutralButton(R.string.welcome_perms_title) { _, _ -> startActivity(intent) }
+                .setNeutralButton(R.string.perm_button_try_anyways) { dialog: DialogInterface, which: Int ->
+                    startActivity(intent)
+                }
                 .setNegativeButton(R.string.perm_button_activate_shizuku) { _, _ ->
                     grantRestrictedSettingsWithShizuku()
                 }

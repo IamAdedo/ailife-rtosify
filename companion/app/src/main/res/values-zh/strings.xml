@@ -1,0 +1,405 @@
+<resources>
+    <string name="app_name">RTOSify 伴侣</string>
+
+    <!-- App Title -->
+    <string name="app_title">RTOSify</string>
+
+    <!-- Connection Status -->
+    <string name="status_searching">正在搜索…</string>
+    <string name="status_waiting">等待中…</string>
+    <string name="status_connected">已连接</string>
+    <string name="status_disconnected">已断开连接</string>
+    <string name="status_stopped">已停止</string>
+    <string name="status_starting">正在启动…</string>
+    <string name="status_verifying">正在验证…</string>
+    <string name="device_name_default">设备</string>
+
+    <!-- Toast Messages -->
+    <string name="toast_watch_not_connected">手表未连接。</string>
+    <string name="toast_command_sent">命令已发送</string>
+    <string name="toast_upload_failed">上传失败。</string>
+
+    <!-- DND (Do Not Disturb) -->
+    <string name="dnd_on">勿扰开启</string>
+    <string name="dnd_off">勿扰关闭</string>
+    <string name="dnd_normal">正常</string>
+
+    <!-- Battery -->
+    <string name="battery_placeholder">—%</string>
+
+    <!-- Wi-Fi -->
+    <string name="wifi_verifying">正在验证</string>
+    <string name="wifi_placeholder">---</string>
+
+    <!-- Menu Options -->
+    <string name="menu_disconnect">断开连接</string>
+    <string name="menu_disconnect_desc">停止蓝牙服务</string>
+    <string name="menu_connect">连接</string>
+    <string name="menu_connect_desc">启动服务并连接</string>
+    <string name="menu_mirroring">屏幕镜像</string>
+    <string name="menu_mirroring_desc">流式传输屏幕并远程控制</string>
+    <string name="menu_reset_all">重置所有</string>
+    <string name="menu_reset_all_desc">清除设置并返回开始屏幕</string>
+    <string name="dialog_reset_all_title">重置所有设置？</string>
+    <string name="dialog_reset_all_message">这将清除所有设置并返回开始屏幕。是否继续？</string>
+    <string name="dialog_reset_all_confirm">重置所有</string>
+    <string name="dialog_reset_all_cancel">取消</string>
+
+    <!-- Dialog: APK Upload -->
+    <string name="dialog_upload_apk_title">发送 APK？</string>
+    <string name="dialog_upload_apk_message">您想在手表上安装此应用吗？</string>
+    <string name="dialog_upload_apk_send">发送</string>
+    <string name="dialog_upload_apk_cancel">取消</string>
+
+    <!-- Dialog: Shutdown Watch -->
+    <string name="dialog_shutdown_title">关闭智能手表？</string>
+    <string name="dialog_shutdown_message">智能手表将完全断电。\n\n是否继续？</string>
+    <string name="dialog_shutdown_confirm">关机</string>
+    <string name="dialog_shutdown_cancel">取消</string>
+
+    <!-- Dialog: Select Watch -->
+    <string name="dialog_select_watch_title">选择手表</string>
+    <string name="device_no_name">未命名</string>
+
+    <!-- Upload Progress -->
+    <string name="upload_transferring">正在传输文件…</string>
+    <string name="upload_complete_title">上传完成</string>
+    <string name="upload_complete_message">APK 发送成功！</string>
+
+    <!-- Welcome Activity -->
+    <string name="welcome_permission_title">需要权限。</string>
+    <string name="welcome_permission_message">要显示连接到智能手表的 Wi-Fi 网络的 SSID，需要高级位置权限。为此，请在下一个屏幕上选择“始终允许”。</string>
+    <string name="welcome_permission_understood">知道了</string>
+    <string name="welcome_permission_not_now">暂时不要</string>
+
+    <string name="welcome_configuring">正在配置…</string>
+    <string name="welcome_preparing">正在准备您的手表，请稍候。</string>
+
+    <string name="welcome_bt_not_supported">此设备不支持蓝牙</string>
+    <string name="welcome_qr_scan_instruction">在手机上扫描此二维码</string>
+    <string name="welcome_bt_disabled">蓝牙已禁用。请启用它。</string>
+    <string name="welcome_pairing_waiting">在手机上扫描二维码\n等待配对...</string>
+    <string name="welcome_qr_gen_error">无法生成二维码</string>
+    <string name="welcome_finish">完成</string>
+
+    <string name="notification_apk_received_title">收到 APK</string>
+    <string name="notification_apk_received_text">点击安装</string>
+    <string name="notification_config_required_title">需要配置</string>
+    <string name="notification_config_required_text">点击允许安装</string>
+    <string name="notification_error_title">错误</string>
+    <string name="notification_service_title">智能手表</string>
+    <string name="notification_phone_disconnected_title">手机已断开连接</string>
+    <string name="notification_phone_disconnected_text">与手机的连接已丢失。</string>
+
+    <string name="status_no_phone_found">未找到手机。</string>
+    <string name="status_connecting_to">正在连接到 %s…</string>
+    <string name="status_connected_to">已连接到 %s</string>
+    <string name="status_open_app_phone">在手机上打开应用并重试。</string>
+    <string name="applist_error_processing">处理数据时出错。</string>
+
+    <!-- App Management and Notifications -->
+    <string name="applist_title">已安装应用</string>
+    <string name="applist_loading_layout">正在加载列表…</string>
+    <string name="notif_settings_title">通知</string>
+    <string name="notif_mirroring_title">镜像</string>
+    <string name="notif_mirroring_desc">将通知发送到手表</string>
+    <string name="notif_permission_required">需要读取权限</string>
+    <string name="notif_permission_desc">应用需要读取系统通知以将其发送到手表。点击下方解决。</string>
+    <string name="notif_grant_access">授予访问权限</string>
+    <string name="notif_apps_title">应用程序</string>
+    <string name="notif_apps_loading">正在加载应用程序…</string>
+
+    <!-- Permissions Activity -->
+    <string name="perm_title">权限</string>
+    <string name="perm_granted">已授予</string>
+    <string name="perm_not_granted">未授予</string>
+    
+    <string name="perm_bluetooth">蓝牙</string>
+    <string name="perm_bluetooth_desc">扫描和连接所需。</string>
+    
+    <string name="perm_install">安装未知应用</string>
+    <string name="perm_install_desc">安装接收到的 APK 所需。</string>
+    
+    <string name="perm_shizuku">Shizuku</string>
+    <string name="perm_shizuku_desc">提供高级管理功能。</string>
+    
+    <string name="perm_root">Root 访问</string>
+    <string name="perm_root_desc">提供完整的系统访问权限。</string>
+
+    <string name="perm_location">定位服务</string>
+    <string name="perm_location_desc">扫描所需。</string>
+    <string name="perm_location_bg">后台定位</string>
+    <string name="perm_location_bg_desc">允许在屏幕关闭时进行扫描。</string>
+
+    <!-- Find Watch Alarm -->
+    <string name="find_watch_alarm_title">正在查找手表…</string>
+    <string name="find_watch_alarm_message">正在播放大声提示音。找到后按停止。</string>
+    <string name="find_watch_alarm_stop">停止</string>
+    <string name="menu_find_phone">查找手机</string>
+    <string name="menu_find_phone_desc">在手机上播放响亮声音</string>
+    <string name="menu_phone_not_found">手机未连接</string>
+    <string name="dialog_find_watch_message">这将在手机上播放响亮的警报。</string>
+    <string name="dialog_find_watch_start">开始</string>
+    <string name="dialog_find_watch_stop">停止</string>
+
+    <!-- Notification Actions -->
+    <string name="reply_label">回复</string>
+    <string name="reply_sender_me">我</string>
+    
+    <string name="perm_storage">存储访问</string>
+    <string name="perm_storage_desc">浏览和管理文件所需。</string>
+    
+    <string name="perm_post_notif">发布通知</string>
+    <string name="perm_post_notif_desc">需用于在手表上显示提醒。</string>
+    
+    <string name="perm_dnd">勿扰访问</string>
+    <string name="perm_dnd_desc">需用于在设备间同步勿扰状态。</string>
+
+    <string name="perm_calendar">日历同步</string>
+    <string name="perm_calendar_desc">允许将接收到的事件写入系统日历。</string>
+    
+    <string name="perm_contacts">联系人同步</string>
+    <string name="perm_contacts_desc">允许将接收到的联系人写入系统通讯录。</string>
+
+    <!-- Dialer -->
+    <string name="menu_dialer">拨号器</string>
+    <string name="menu_dialer_desc">拨打电话</string>
+    <string name="dialer_call">呼叫</string>
+    <string name="dialer_delete">删除</string>
+    <string name="dialer_calling">正在呼叫 %s...</string>
+
+    <string name="perm_watchface">表盘目录</string>
+    <string name="perm_watchface_desc">需用于直接管理和应用表盘。</string>
+
+    <string name="perm_nearby_wifi">附近 WiFi 设备</string>
+    <string name="perm_nearby_wifi_desc">Android 13+ 扫描 WiFi 网络所需。</string>
+    
+    <string name="perm_accessibility">无障碍服务</string>
+    <string name="perm_accessibility_desc">后台剪贴板同步所需。</string>
+    <string name="accessibility_service_description">允许 RTOSify 伴侣与手机同步剪贴板</string>
+
+    <string name="perm_usage_stats">使用情况访问</string>
+    <string name="perm_usage_stats_desc">需用于显示应用电池使用情况。</string>
+
+    <string name="perm_battery">电池优化</string>
+    <string name="perm_battery_desc">禁用优化以保证后台稳定性。</string>
+
+    <string name="perm_restricted_title">受限设置</string>
+    <string name="perm_restricted_desc">此设置出于安全考虑受 Android 限制。您需要使用 ADB 手动启用。\n\n命令已复制到剪贴板。</string>
+
+    <string name="perm_go_restricted_title">权限受限 (Go 版本)</string>
+    <string name="perm_go_restricted_desc">此权限在 Android Go 版本上受限。您可以尝试无论如何都启用，或使用手动方法。</string>
+    <string name="perm_button_try_anyways">无论如何尝试</string>
+    <string name="perm_button_copy_adb">复制 ADB 命令</string>
+    <string name="perm_button_grant_root_shizuku">使用 Root/Shizuku 激活</string>
+
+    <string name="bt_name_format">蓝牙: %s</string>
+
+    <!-- Remote Monitoring & Control -->
+    <string name="remote_monitor_title">远程监控与控制</string>
+    <string name="remote_mirror_phone">镜像手表到手机</string>
+    <string name="remote_mirror_phone_desc">将此手表的屏幕流式传输到您的手机</string>
+    <string name="remote_control_watch">从手表控制手机</string>
+    <string name="remote_control_watch_desc">从此手表查看并控制您的手机屏幕</string>
+    <string name="remote_res_matching">分辨率匹配</string>
+    <string name="remote_res_matching_desc">控制期间自动调整手机分辨率以匹配手表纵横比</string>
+
+    <!-- Round Screen Warning -->
+    <string name="round_screen_warning_title">设备兼容性</string>
+    <string name="round_screen_warning_message">检测到圆形显示屏。本应用未针对您的设备进行优化，功能可能无法正常工作。</string>
+    <string name="round_screen_warning_exit">退出</string>
+    <string name="round_screen_warning_continue">无论如何继续</string>
+
+    <!-- Permission Activity Additional Strings -->
+    <string name="perm_write_settings">写入系统设置</string>
+    <string name="perm_write_settings_desc">即时连接 WiFi 所需</string>
+    <string name="perm_overlay">显示在其他应用上层</string>
+    <string name="perm_overlay_desc">灵动岛通知叠加层所需</string>
+    <string name="perm_battery_stats">电池统计</string>
+    <string name="perm_battery_stats_desc">访问真实的逐个应用电池消耗数据 (Android 12+)</string>
+    <string name="perm_dump">系统转储 (Dump)</string>
+    <string name="perm_dump_desc">直接访问系统统计信息以获取可靠数据（方法 2）</string>
+    <string name="perm_lock_screen">在锁屏上显示</string>
+    <string name="perm_lock_screen_desc">锁屏上显示灵动岛所需 (小米/MIUI)</string>
+    <string name="perm_toast_lock_screen_instruction">在权限中启用“在锁屏上显示”</string>
+    <string name="perm_dialog_activation_method">选择激活方法：</string>
+    <string name="perm_button_activate_shizuku">使用 Shizuku 激活</string>
+    <string name="perm_toast_command_copied">命令已复制！在您的电脑上运行它。</string>
+    <string name="perm_toast_root_shizuku_required">需要 Root 或 Shizuku。</string>
+    <string name="perm_toast_granting">正在授予 %1$s…</string>
+    <string name="perm_toast_user_service_not_connected">UserService 未连接。请重试。</string>
+    <string name="perm_toast_granted">权限已授予！</string>
+    <string name="perm_toast_failed">失败 (代码: %1$d)。尝试 ADB。</string>
+
+    <string name="perm_toast_failed_open_settings">打开设置失败</string>
+    <string name="perm_toast_command_copied_simple">命令已复制！</string>
+
+    <!-- Bluetooth Service Additional Strings -->
+    <string name="wifi_status_disconnected">已断开连接</string>
+    <string name="wifi_status_disabled">WiFi 已禁用</string>
+    <string name="wifi_status_no_permission">无权限</string>
+    <string name="wifi_status_error">WiFi 错误</string>
+    <string name="wifi_status_connected">已连接</string>
+    <string name="toast_watch_face_set">表盘已设置：%1$s</string>
+    <string name="toast_clipboard_updated">✅ 剪贴板已在手表上更新</string>
+    <string name="toast_failed_update_clipboard">❌ 更新剪贴板失败：%1$s</string>
+    <string name="status_scanning">扫描中...</string>
+    <string name="status_started">已启动</string>
+    <string name="notif_main_icon_set">已设置通知的主图标</string>
+    <string name="notif_messaging_style_applied">已应用消息样式，包含 %1$d 条消息</string>
+    <string name="notif_error_decoding_small_icon">解码小图标时出错：%1$s</string>
+    <string name="notif_decoding_big_picture">解码大图：%1$d 个字符</string>
+    <string name="notif_big_picture_decoded">大图已解码：%1$dx%2$d</string>
+    <string name="notif_error_decoding_big_picture">解码大图时出错：%1$s</string>
+    <string name="notif_refreshed_locally">通知已本地刷新，键：%1$s</string>
+    <string name="notif_executing_action">正在执行通知操作：%1$s 对于通知：%2$s</string>
+    <string name="notif_vibrate_failed">振动失败：%1$s</string>
+    <string name="notif_screen_wake_requested">请求唤醒屏幕 (SCREEN_BRIGHT_WAKE_LOCK)</string>
+    <string name="notif_error_waking_screen">唤醒屏幕时出错：%1$s</string>
+    <string name="notif_sending_reply">发送通知回复：\'%1$s\' 对于通知：%2$s</string>
+    <string name="notif_dynamic_island_sent">通知已发送到灵动岛：%1$s</string>
+    <string name="notif_dynamic_island_service_started">已启动灵动岛服务</string>
+    <string name="notif_dynamic_island_service_stopped">已停止灵动岛服务</string>
+    <string name="notif_dynamic_island_service_start_failed">启动灵动岛服务失败：%1$s</string>
+    <string name="notif_dynamic_island_service_stop_failed">停止灵动岛服务失败：%1$s</string>
+    <string name="notif_dynamic_island_no_overlay_perm">无法启动灵动岛服务：未授予叠加层权限</string>
+    <string name="bt_service_destroying">蓝牙服务正在销毁...</string>
+    <string name="bt_error_unbinding_user_service">解绑 UserService 时出错：%1$s</string>
+    <string name="bt_error_decoding_base64_bitmap">解码 base64 位图时出错：%1$s</string>
+    <string name="bt_error_generating_preview">为 %1$s 生成预览时出错：%2$s</string>
+    <string name="bt_successfully_copied_temp">成功复制到临时文件：%1$s，大小：%2$d</string>
+    <string name="bt_failed_copy_temp">复制到临时文件失败或文件不存在。copied=%1$b</string>
+    <string name="bt_error_load_restricted_bitmap">从受限路径 %1$s 加载位图失败：%2$s</string>
+    <string name="bt_shizuku_copy_attempt">尝试 Shizuku 复制 ZIP 预览：%1$s -> %2$s</string>
+    <string name="bt_shizuku_copy_result">Shizuku 复制结果：%1$b</string>
+    <string name="bt_shizuku_copy_failed">Shizuku 复制失败</string>
+    <string name="bt_error_copy_remote_zip">复制远程 ZIP 预览失败：%1$s</string>
+    <string name="bt_error_extract_zip_preview">从 ZIP 提取预览时出错：%1$s</string>
+    <string name="bt_error_foreground_app">获取前台应用时出错：%1$s</string>
+    <string name="bt_starting_battery_history">开始电池历史记录跟踪。详细：%1$b，间隔：%2$dms</string>
+    <string name="bt_error_saving_battery_history">保存电池历史记录时出错：%1$s</string>
+    <string name="bt_handling_battery_live">处理电池实时请求</string>
+    <string name="bt_error_live_battery">收集实时电池数据时出错：%1$s</string>
+    <string name="bt_handling_battery_static">处理电池静态请求</string>
+    <string name="bt_error_static_battery">收集静态电池数据时出错：%1$s</string>
+    <string name="bt_error_usage_stats_permission">查询使用情况统计信息出错（可能缺少权限）：%1$s</string>
+    <string name="bt_success_reflection_stats">成功：通过反射获取电池统计信息</string>
+    <string name="bt_error_reflection_stats">反射 BatteryStatsManager 失败，尝试下一个方法：%1$s</string>
+    <string name="bt_attempting_system_health">尝试 SystemHealthManager (方法 2)...</string>
+    <string name="bt_requesting_health_snapshots">请求 %1$d 个 UID 的 HealthStats...</string>
+    <string name="bt_system_health_empty">SystemHealthManager 返回了有效统计信息，但过滤后映射为空。</string>
+    <string name="bt_success_system_health">成功：通过 SystemHealthManager 检索到 %1$d 个项目</string>
+    <string name="bt_error_system_health">SystemHealthManager 失败：%1$s</string>
+    <string name="bt_skipping_system_health">跳过方法 2：未授予 BATTERY_STATS 权限。</string>
+    <string name="bt_attempting_direct_dumpsys">尝试直接 dumpsys batterystats (方法 3)...</string>
+    <string name="bt_success_direct_dumpsys">成功：通过直接 Dumpsys 获取电池统计信息</string>
+    <string name="bt_failed_direct_dumpsys">直接 Dumpsys 失败或为空（退出代码：%1$d，长度：%2$d）</string>
+    <string name="bt_error_direct_dumpsys">直接 dumpsys 失败：%1$s</string>
+    <string name="bt_skipping_direct_dumpsys">跳过方法 3：未授予 DUMP 权限。</string>
+    <string name="bt_attempting_shizuku_dumpsys">尝试 Shizuku/Root dumpsys (方法 4)...</string>
+    <string name="bt_success_shizuku_dumpsys">成功：通过 Shizuku 获取电池统计信息</string>
+    <string name="bt_error_shizuku_dumpsys">Shizuku dumpsys 失败：%1$s</string>
+    <string name="bt_success_root_dumpsys">成功：通过 Root 获取电池统计信息</string>
+    <string name="bt_error_root_dumpsys">Root dumpsys 失败：%1$s</string>
+    <string name="bt_fake_data_warning">使用伪造（模拟）电池数据！</string>
+    <string name="bt_fake_data_reason">无法通过 API、直接 Dumpsys、Shizuku 或 Root 获取真实的电池统计信息。</string>
+    <string name="bt_fake_data_estimated">下面显示的值是基于前台时间 + 随机变化估算得出的。</string>
+    <string name="bt_fake_data_log">对 %1$s 使用伪造数据：消耗率=%2$f mAh/h，估算功耗=%3$f mAh</string>
+    <string name="bt_error_power_profile">通过 PowerProfile 获取容量时出错：%1$s</string>
+    <string name="bt_error_capacity_dimen">通过尺寸获取容量时出错：%1$s</string>
+    <string name="bt_incoming_call">来电：%1$s (%2$s)</string>
+    <string name="bt_call_state_changed">通话状态已更改：%1$s</string>
+    <string name="bt_mirror_start">镜像开始：isRequest=%1$b, 宽=%2$d, 高=%3$d, 模式=%4$s</string>
+    <string name="bt_mirror_request_received">收到镜像请求：%1$dx%2$d 模式=%3$s</string>
+    <string name="bt_mirror_aspect_matching">纵横比匹配：物理=%1$dx%2$d，目标纵横比=%3$f</string>
+    <string name="bt_mirror_setting_res">设置分辨率为 %1$dx%2$d (模式=%3$s)</string>
+    <string name="bt_mirror_refresh_signal">镜像正在运行，发送刷新信号</string>
+    <string name="bt_mirror_remote_res_change">收到远程分辨率更改：%1$dx%2$d</string>
+    <string name="bt_incoming_mirror_stream">传入镜像流：%1$dx%2$d</string>
+    <string name="bt_mirror_frame_received">收到镜像帧：大小=%1$dB，关键帧=%2$b</string>
+    <string name="bt_forwarding_touch_event">转发触摸事件到无障碍服务：动作=%1$d，x=%2$f，y=%3$f</string>
+    <string name="bt_executing_shell">执行 Shell 命令：%1$s</string>
+    <string name="bt_shell_already_running">会话 %1$s 的命令已在运行</string>
+    <string name="bt_shell_command_completed">命令已完成 (UID: %1$d)</string>
+    <string name="bt_error_executing_command">执行命令时出错：%1$s</string>
+    <string name="bt_canceling_shell">正在取消 Shell 命令：%1$s</string>
+    <string name="bt_handling_permission_info">处理权限信息请求</string>
+    <string name="bt_permission_info_sent">权限信息已发送：级别=%1$s，uid=%2$d</string>
+    <string name="bt_error_permission_info">获取权限信息时出错：%1$s</string>
+    <string name="sync_calendar_toast">同步了 %1$d 个新日历事件到系统</string>
+    <string name="sync_calendar_error">写入日历事件时出错：%1$s</string>
+    <string name="sync_contacts_toast">同步了 %1$d 个新联系人到系统</string>
+    <string name="sync_contacts_error">写入联系人时出错：%1$s</string>
+    <string name="perm_write_calendar_denied">未授予 WRITE_CALENDAR 权限</string>
+    <string name="perm_write_contacts_denied">未授予 WRITE_CONTACTS 权限</string>
+    <string name="calendar_no_system_found">未找到可写入的系统日历</string>
+    <string name="reset_app_stopped">蓝牙服务已停止</string>
+    <string name="notif_channel_disconnection_alert">断开连接提醒</string>
+    <string name="notif_channel_apk">APKs</string>
+    <string name="notif_channel_wait">常驻通知 - 等待连接</string>
+    <string name="notif_channel_connected">常驻通知 - 已连接</string>
+    <string name="notif_channel_mirrored">手机通知</string>
+    <string name="menu_media_control">媒体控制</string>
+    <string name="menu_media_control_desc">控制手机播放</string>
+    <string name="menu_alarms">闹钟</string>
+    <string name="menu_alarms_desc">管理闹钟</string>
+    <string name="menu_camera">相机</string>
+    <string name="menu_camera_desc">远程快门</string>
+    <string name="toast_service_started">服务已启动</string>
+    <string name="toast_service_stopped">服务已停止</string>
+    <string name="toast_phone_not_connected">手机未连接</string>
+    <string name="status_connecting">正在连接...</string>
+    <string name="alarm_add_title">添加闹钟</string>
+    <string name="alarm_edit_title">编辑闹钟</string>
+    <string name="alarm_save">保存</string>
+    <string name="alarm_cancel">取消</string>
+    <string name="alarm_delete_title">删除闹钟</string>
+    <string name="alarm_delete_message">删除 %1$s 的闹钟？</string>
+    <string name="alarm_delete_confirm">删除</string>
+    <string name="alarm_once">一次</string>
+    <string name="alarm_label_hint">闹钟标签</string>
+    <string name="alarm_day_monday_short">一</string>
+    <string name="alarm_day_tuesday_short">二</string>
+    <string name="alarm_day_wednesday_short">三</string>
+    <string name="alarm_day_thursday_short">四</string>
+    <string name="alarm_day_friday_short">五</string>
+    <string name="alarm_day_saturday_short">六</string>
+    <string name="alarm_day_sunday_short">日</string>
+    <string name="alarm_dismiss">关闭</string>
+    <string name="alarm_snooze">小睡</string>
+    <string name="alarm_notification_title">闹钟</string>
+    <string name="alarm_notification_ringing">闹钟正在响铃</string>
+    <string name="alarm_channel_name">闹钟</string>
+    <string name="alarm_channel_desc">闹钟通知</string>
+    <string name="call_incoming">来电</string>
+    <string name="call_reject">拒绝</string>
+    <string name="call_answer">接听</string>
+    <string name="call_unknown">未知</string>
+    <string name="camera_waiting_video">等待视频...</string>
+    <string name="camera_shutter">快门</string>
+    <string name="camera_viewfinder">取景器</string>
+    <string name="alarm_snooze_10min">小睡 (10分钟)</string>
+    <string name="alarm_default_label">起床</string>
+    <string name="mirror_start">开始镜像</string>
+    <string name="mirror_control_phone">控制手机</string>
+    <string name="mirror_enable_touch">启用触摸</string>
+    <string name="mirror_res_matching">分辨率匹配</string>
+    <string name="mirror_aspect_match">纵横比匹配</string>
+    <string name="welcome_btn_finished">完成设置</string>
+    <string name="welcome_btn_already_paired">已配对</string>
+    <string name="main_bt_prefix">蓝牙: %1$s</string>
+    <string name="main_turn_service_on">开启服务</string>
+    <string name="main_service">服务</string>
+    <string name="dialer_empty_number">号码为空</string>
+    <string name="main_bt_placeholder">蓝牙: ---</string>
+    <string name="call_answered">已接听</string>
+    <string name="toast_not_connected">未连接</string>
+    <string name="media_vol_label">音量</string>
+    <string name="media_btn_play">播放</string>
+    <string name="mirror_stop">停止镜像</string>
+    <string name="mirror_requesting">正在请求手机屏幕...</string>
+    <string name="status_phone_not_connected">手机未连接</string>
+    <string name="status_phone_connected">已连接到手机</string>
+    <string name="mirror_notif_title">屏幕镜像</string>
+    <string name="mirror_notif_text">正在镜像屏幕...</string>
+</resources>

@@ -605,6 +605,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 .setTitle(getString(R.string.menu_find_phone))
                 .setMessage(
                         getString(R.string.dialog_find_watch_message)
+                )
                 .setPositiveButton(getString(R.string.dialog_find_watch_start)) { _, _ ->
                     bluetoothService?.sendMessage(ProtocolHelper.createFindPhone(true))
                 }

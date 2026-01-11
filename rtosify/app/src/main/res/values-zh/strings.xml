@@ -1,0 +1,563 @@
+<resources>
+    <string name="app_name">RTOSify</string>
+
+    <!-- App Title -->
+    <string name="app_title">RTOSify</string>
+
+    <!-- Connection Status -->
+    <string name="status_searching">正在搜索…</string>
+    <string name="status_waiting">等待中…</string>
+    <string name="status_connected">已连接</string>
+    <string name="status_disconnected">已断开连接</string>
+    <string name="status_stopped">已停止</string>
+    <string name="status_starting">正在启动…</string>
+    <string name="status_verifying">正在验证…</string>
+    <string name="status_no_watch_found">未找到手表。</string>
+    <string name="status_open_app_watch">请在手表上打开应用并重试。</string>
+    <string name="status_connecting_to">正在连接到 %s…</string>
+    <string name="status_connected_to">已连接到 %s</string>
+    <string name="status_switching">正在切换设备…</string>
+    <string name="device_name_default">设备</string>
+    <string name="device_picker_title">选择设备</string>
+    <string name="no_devices_paired">尚未配对设备。</string>
+    <string name="device_selected">已选择 %s</string>
+    <string name="pair_new_device">配对新设备</string>
+
+    <!-- Toast Messages -->
+    <string name="toast_watch_not_connected">手表未连接。</string>
+    <string name="toast_watch_disconnected">手表已断开连接！</string>
+    <string name="toast_service_disconnected">服务已断开连接</string>
+    <string name="toast_command_sent">命令已发送</string>
+    <string name="toast_upload_failed">上传失败。</string>
+    <string name="toast_error_open_settings">打开设置时出错。</string>
+
+    <!-- DND (Do Not Disturb) -->
+    <string name="dnd_on">勿扰开启</string>
+    <string name="dnd_off">勿扰关闭</string>
+    <string name="dnd_normal">正常</string>
+    <string name="dnd_dialog_title">勿扰计划与快速时长</string>
+    <string name="dnd_schedule_enable">启用计划</string>
+    <string name="dnd_start_time">开始时间</string>
+    <string name="dnd_end_time">结束时间</string>
+    <string name="dnd_quick_options">快速开启</string>
+    <string name="dnd_duration_1h">1 小时</string>
+    <string name="dnd_duration_2h">2 小时</string>
+    <string name="dnd_duration_custom">自定义</string>
+    <string name="dnd_save_settings">保存设置</string>
+    <string name="dnd_custom_duration_title">自定义时长</string>
+    <string name="dnd_custom_duration_message">输入时长（分钟）：</string>
+
+    <!-- Battery -->
+    <string name="battery_placeholder">—%</string>
+    <string name="battery_capacity_label">容量</string>
+    <string name="battery_capacity_unit">%s mAh</string>
+
+    <!-- Wi-Fi -->
+    <string name="wifi_verifying">正在验证</string>
+    <string name="wifi_placeholder">---</string>
+    <string name="wifi_dialog_title">手表 WiFi 网络</string>
+    <string name="wifi_available_networks">可用网络</string>
+    <string name="wifi_activate_message">激活 WiFi 以查看可用网络</string>
+    <string name="wifi_connected">已连接</string>
+    <string name="wifi_already_connected">已连接到 %s</string>
+    <string name="wifi_connecting">正在连接到 %s…</string>
+
+    <!-- WiFi Password Dialog -->
+    <string name="wifi_password_dialog_title">连接到 %s</string>
+    <string name="wifi_password_message">输入 WiFi 密码：</string>
+    <string name="wifi_password_hint">密码（如果是已保存网络可选）</string>
+    <string name="wifi_connect_with_password">使用密码连接</string>
+    <string name="wifi_connect_saved">连接（使用已保存）</string>
+    <string name="wifi_password_empty_error">密码不能为空</string>
+    <string name="wifi_cancel">取消</string>
+
+    <!-- Menu Options -->
+    <string name="menu_manage_apps">应用管理</string>
+    <string name="menu_manage_apps_desc">查看手表上安装的应用</string>
+    <string name="menu_notifications">通知</string>
+    <string name="menu_notifications_desc">选择哪些应用发送提醒</string>
+    <string name="menu_install_apk">安装 APK</string>
+    <string name="menu_install_apk_desc">发送 .apk 文件到手表</string>
+    <string name="menu_device_mgmt">设备管理</string>
+    <string name="menu_device_mgmt_desc">电源、锁定和查找设备</string>
+    <string name="menu_shutdown_watch">关机</string>
+    <string name="menu_shutdown_watch_desc">完全关闭智能手表电源</string>
+    <string name="menu_reboot_watch">重启</string>
+    <string name="menu_reboot_watch_desc">重新启动智能手表</string>
+    <string name="menu_lock_watch">锁定设备</string>
+    <string name="menu_lock_watch_desc">锁定手表屏幕</string>
+    <string name="menu_find_watch">查找设备</string>
+    <string name="menu_find_watch_desc">在手表上播放响亮声音</string>
+    <string name="menu_disconnect">断开连接</string>
+    <string name="menu_disconnect_desc">停止蓝牙服务</string>
+    <string name="menu_connect">连接</string>
+    <string name="menu_connect_desc">启动服务并连接</string>
+    <string name="menu_mirroring">屏幕镜像</string>
+    <string name="menu_mirroring_desc">流式传输屏幕并远程控制</string>
+    <string name="menu_reset_all">重置所有</string>
+    <string name="menu_reset_all_desc">清除设置并返回开始屏幕</string>
+    <string name="dialog_reset_all_title">重置所有设置？</string>
+    <string name="dialog_reset_all_message">这将清除所有设置并返回开始屏幕。是否继续？</string>
+    <string name="dialog_reset_all_confirm">重置所有</string>
+    <string name="dialog_reset_all_cancel">取消</string>
+
+    <!-- Watch Automations -->
+    <string name="watch_automations_title">手表自动化</string>
+    <string name="automation_boot_service_title">开机启动服务</string>
+    <string name="automation_boot_service_desc">手机开机时自动启动 RTOSify 服务</string>
+    <string name="automation_clipboard_title">同步剪贴板</string>
+    <string name="automation_clipboard_desc">连接时自动在手机和手表之间同步剪贴板</string>
+    <string name="automation_wifi_title">自动 WiFi 控制</string>
+    <string name="automation_wifi_desc">蓝牙断开时手表自动开启 WiFi，重连时关闭</string>
+    <string name="automation_data_title">自动移动数据</string>
+    <string name="automation_data_desc">蓝牙断开时手表自动开启移动数据，重连时关闭</string>
+    <string name="automation_bt_tether_title">自动蓝牙网络共享</string>
+    <string name="automation_bt_tether_desc">连接时启用手机蓝牙网络共享和手表互联网访问</string>
+
+    <!-- Dialog: APK Upload -->
+    <string name="dialog_upload_apk_title">发送 APK？</string>
+    <string name="dialog_upload_apk_message">要在手表上安装此应用吗？</string>
+    <string name="dialog_upload_apk_send">发送</string>
+    <string name="dialog_upload_apk_cancel">取消</string>
+
+    <!-- Dialog: Device Management -->
+    <string name="dialog_device_mgmt_title">设备管理</string>
+    <string name="dialog_shutdown_title">关闭智能手表？</string>
+    <string name="dialog_shutdown_message">智能手表将完全断电。</string>
+    <string name="dialog_shutdown_confirm">关机</string>
+    <string name="dialog_shutdown_cancel">取消</string>
+    <string name="dialog_reboot_title">重启智能手表？</string>
+    <string name="dialog_reboot_message">智能手表将重新启动。</string>
+    <string name="dialog_reboot_confirm">重启</string>
+    <string name="dialog_find_watch_title">查找手表</string>
+    <string name="dialog_find_watch_message">手表将播放响亮的声音。使用此功能定位手表。</string>
+    <string name="dialog_find_watch_start">开始报警</string>
+    <string name="dialog_find_watch_stop">停止报警</string>
+
+    <!-- Dialog: Select Watch -->
+    <string name="dialog_select_watch_title">选择手表</string>
+    <string name="device_no_name">未命名</string>
+
+    <!-- Upload Progress -->
+    <string name="upload_transferring">正在传输文件…</string>
+    <string name="upload_complete_title">上传完成</string>
+    <string name="upload_complete_message">文件已成功发送到手表。</string>
+    <string name="upload_failed_title">上传失败</string>
+    <string name="upload_failed_message">传输过程中出错。请检查连接并重试。</string>
+
+    <!-- App List Activity -->
+    <string name="applist_requesting">正在从手表请求列表…</string>
+    <string name="applist_empty">手表上未找到用户应用。</string>
+    <string name="applist_error_processing">处理数据时出错。</string>
+    <string name="applist_error_processing_list">处理列表时出错：%s</string>
+
+    <!-- Welcome Activity -->
+    <string name="welcome_permission_title">需要权限。</string>
+    <string name="welcome_permission_message">要显示连接到智能手表的 Wi-Fi 网络的 SSID，需要高级位置权限。请在下一个屏幕上选择“始终允许”。</string>
+    <string name="welcome_permission_understood">知道了</string>
+    <string name="welcome_permission_not_now">暂时不要</string>
+
+    <string name="welcome_configuring">正在配置…</string>
+    <string name="welcome_searching">正在搜索您的手表…</string>
+    <string name="welcome_searching_desc">确保您的手表已在蓝牙设置中配对。</string>
+    <string name="welcome_bt_disabled">蓝牙已禁用。请启用以继续。</string>
+    <string name="welcome_watch_found">发现手表：%s\n正在完成设置…</string>
+    <string name="welcome_no_paired_found">未找到已配对的手表。\n请在蓝牙设置中配对您的手表并重启应用。</string>
+
+    <string name="welcome_invalid_mac">无效的 MAC 地址。请使用更新的手表应用。</string>
+    <string name="welcome_invalid_qr_format">无效的二维码格式</string>
+    <string name="welcome_invalid_qr_data">无效的二维码格式：%s</string>
+    <string name="welcome_bt_not_enabled">蓝牙未启用。请启用并重试。</string>
+    <string name="welcome_bt_not_supported">此设备不支持蓝牙</string>
+    <string name="welcome_pairing_failed">配对失败。请重试。</string>
+    <string name="welcome_watch_not_found">未找到手表。请确保它在附近并显示二维码。</string>
+    <string name="welcome_selection_cancelled">选择已取消。请重试。</string>
+    <string name="welcome_watch_ready">手表已配对并准备就绪！\n正在完成设置...</string>
+    <string name="welcome_discovery_error">无法启动蓝牙发现</string>
+    <string name="welcome_bt_permission_denied">蓝牙权限被拒绝</string>
+    <string name="welcome_pairing_info">正在与您的手表配对...\n请在两台设备上确认请求。</string>
+    <string name="welcome_pairing_start_error">无法开始配对。手表在附近吗？</string>
+    <string name="welcome_pairing_choice">您希望如何配对您的手表？</string>
+    <string name="welcome_manual_selection">手动选择</string>
+    <string name="welcome_qr_scan_instruction">扫描手表上的二维码</string>
+    <string name="welcome_searching_qr">正在搜索您的手表...\n请确保它显示着二维码。</string>
+    <string name="welcome_finish">完成设置</string>
+
+    <string name="notification_apk_received_title">收到 APK</string>
+    <string name="notification_apk_received_text">点击安装</string>
+    <string name="notification_config_required_title">需要配置</string>
+    <string name="notification_config_required_text">点击以允许安装</string>
+    <string name="notification_error_title">错误</string>
+    <string name="notification_service_title">智能手表</string>
+
+    <!-- App Management and Notifications -->
+    <string name="applist_title">已安装应用</string>
+    <string name="applist_loading_layout">正在加载列表…</string>
+    <string name="notif_settings_title">通知</string>
+    <string name="notif_mirroring_title">通知转发</string>
+    <string name="notif_mirroring_desc">将通知发送到手表</string>
+    <string name="notif_permission_required">需要读取权限</string>
+    <string name="notif_permission_desc">应用需要读取系统通知以将其发送到手表。点击下方解决。</string>
+    <string name="notif_grant_access">授予访问权限</string>
+    <string name="notif_apps_title">应用程序</string>
+    <string name="notif_apps_loading">正在加载应用程序…</string>
+    <string name="notif_manage_apps_title">管理应用程序</string>
+    <string name="notif_manage_apps_desc">选择哪些应用可以将通知发送到手表</string>
+    <string name="notif_manage_rules_title">通知规则</string>
+    <string name="notif_manage_rules_desc">添加过滤器以控制转发哪些通知</string>
+    <string name="notif_skip_screen_on_title">屏幕亮起时跳过</string>
+    <string name="notif_skip_screen_on_desc">如果您正在使用手机，则不发送提醒</string>
+    <string name="settings_notif_disconnect_title">断开连接时通知</string>
+    <string name="settings_notif_disconnect_desc">如果与手机断开连接，在手表上提醒我</string>
+    <string name="notif_forward_ongoing_title">转发正在进行的通知</string>
+    <string name="notif_forward_ongoing_desc">包括音乐播放器等常驻通知</string>
+    <string name="notif_forward_silent_title">转发静音通知</string>
+    <string name="notif_forward_silent_desc">包括没有声音或振动的通知</string>
+    <string name="notif_wake_screen_title">收到通知唤醒屏幕</string>
+    <string name="notif_wake_screen_desc">收到通知时点亮手表屏幕</string>
+    <string name="notif_vibrate_title">收到通知振动</string>
+    <string name="notif_vibrate_desc">收到通知时振动手表</string>
+    <string name="notif_vibrate_silent_title">静音模式下振动</string>
+    <string name="notif_vibrate_silent_desc">即使手表处于静音/勿扰模式也振动</string>
+    <string name="notif_settings_description">注意：这些设置通常不需要，因为系统会自动处理它们。</string>
+
+    <string name="menu_uninstall_app">卸载</string>
+    <string name="dialog_uninstall_title">卸载应用？</string>
+    <string name="dialog_uninstall_message">您要从手表上卸载 %s 吗？</string>
+    <string name="dialog_install_option_title">安装应用</string>
+    <string name="dialog_install_option_apk">选择 APK 文件</string>
+    <string name="dialog_install_option_extract">从手机提取应用</string>
+    <string name="apppicker_loading_phone">正在加载手机应用…</string>
+    <string name="apppicker_extract_error">提取 APK 出错</string>
+
+    <!-- Permissions Activity -->
+    <string name="perm_title">应用权限</string>
+    <string name="perm_granted">已授予</string>
+    <string name="perm_not_granted">未授予</string>
+    
+    <string name="perm_bluetooth">蓝牙</string>
+    <string name="perm_bluetooth_desc">扫描和连接手表所需。</string>
+    
+    <string name="perm_notifications">通知访问</string>
+    <string name="perm_notifications_desc">将手机通知发送到手表所需。</string>
+    
+    <string name="perm_install">安装未知应用</string>
+    <string name="perm_install_desc">发送和安装 APK 到手表所需。</string>
+    
+    <string name="perm_battery">电池优化</string>
+    <string name="perm_battery_desc">禁用优化以保持后台连接稳定。</string>
+    
+    <string name="perm_shizuku">Shizuku</string>
+    <string name="perm_shizuku_desc">提供无需 Root 的高级管理。</string>
+    
+    <string name="perm_root">Root 访问</string>
+    <string name="perm_root_desc">提供完整系统访问的高级功能。</string>
+
+    <string name="perm_location">定位服务</string>
+    <string name="perm_location_desc">蓝牙扫描所需（Android 限制）。</string>
+    <string name="perm_location_bg">后台定位</string>
+    <string name="perm_location_bg_desc">允许在应用关闭或屏幕关闭时进行扫描和连接。</string>
+    
+    <string name="perm_post_notif">发布通知</string>
+    <string name="perm_post_notif_desc">需用于在手机上显示状态和提醒。</string>
+    
+    <string name="perm_camera">相机访问</string>
+    <string name="perm_camera_desc">扫描手表二维码所需。</string>
+    
+    <string name="perm_dnd">勿扰访问</string>
+    <string name="perm_dnd_desc">需用于在设备间同步勿扰状态。</string>
+
+    <string name="perm_storage">存储访问</string>
+    <string name="perm_storage_desc">浏览和管理文件所需。</string>
+
+    <string name="perm_call">拨打电话</string>
+    <string name="perm_call_desc">需用于从手表发起通话。</string>
+    <string name="perm_calendar">读取日历</string>
+    <string name="perm_calendar_desc">允许应用将日历事件同步到手表。</string>
+    <string name="perm_contacts">读取联系人</string>
+    <string name="perm_contacts_desc">允许应用将联系人同步到手表。</string>
+    <string name="perm_phone_status">手机状态</string>
+    <string name="perm_phone_status_desc">需用于检测来电并在手表上显示。</string>
+    
+    <string name="perm_accessibility">无障碍服务</string>
+    <string name="perm_accessibility_desc">后台剪贴板同步所需。</string>
+    <string name="accessibility_service_description">允许 RTOSify 与配对设备同步剪贴板</string>
+    
+    <string name="menu_sync_calendar">同步日历</string>
+    <string name="menu_sync_calendar_desc">将您的日历事件发送到手表</string>
+    <string name="menu_sync_contacts">同步联系人</string>
+    <string name="menu_sync_contacts_desc">将您的联系人发送到手表</string>
+    <string name="toast_sync_success">%s 同步成功</string>
+    <string name="toast_sync_failed">%s 同步失败</string>
+
+    <string name="find_watch_alarm_stop">停止</string>
+    <string name="find_phone_alarm_title">正在查找手机</string>
+    <string name="find_phone_alarm_message">手表正在寻找这部手机！</string>
+
+    <!-- Notification Actions -->
+    <string name="reply_label">回复</string>
+
+    <!-- Health Data -->
+    <string name="menu_health">健康数据</string>
+    <string name="health_title">健康数据</string>
+
+    <!-- Watch Face Management -->
+    <string name="menu_watchface">表盘</string>
+    <string name="wf_title">表盘管理器</string>
+    <string name="wf_tab_store">商店</string>
+    <string name="wf_tab_local">本地</string>
+    <string name="wf_tab_watch">手表</string>
+    <string name="wf_download">下载</string>
+    <string name="wf_apply">应用到手表</string>
+    <string name="wf_delete">删除</string>
+    <string name="wf_rename">重命名</string>
+    <string name="wf_import">从设备导入</string>
+    <string name="wf_loading">正在加载表盘...</string>
+    <string name="wf_error_load">加载商店出错</string>
+    <string name="wf_downloading">正在下载...</string>
+    <string name="health_steps">步数</string>
+    <string name="health_no_data">无数据</string>
+    <string name="health_steps_title">步数历史</string>
+    <string name="health_hr_title">心率历史</string>
+    <string name="health_oxygen_title">血氧历史</string>
+    <string name="health_period_day">日</string>
+    <string name="health_period_week">周</string>
+    <string name="health_period_month">月</string>
+    <string name="health_daily_goal">每日目标</string>
+    <string name="health_goal_progress">完成 %d%%</string>
+    <string name="health_measure_now">立即测量</string>
+    <string name="health_measuring">正在测量...</string>
+    <string name="health_settings">健康设置</string>
+    <string name="health_step_goal">步数目标</string>
+    <string name="health_monitoring_interval">监测间隔（分钟）</string>
+    <string name="health_error_app_not_installed">未安装 Better Health 应用</string>
+    <string name="health_error_api_disabled">健康 API 未启用</string>
+    <string name="time_just_now">刚刚</string>
+    <string name="time_minutes_ago">%d 分钟前</string>
+    <string name="time_hours_ago">%d 小时前</string>
+    <string name="time_days_ago">%d 天前</string>
+
+    <!-- Gender options -->
+    <string-array name="gender_options">
+        <item>男</item>
+        <item>女</item>
+        <item>其他</item>
+    </string-array>
+    <string name="perm_nearby_wifi">附近 WiFi 设备</string>
+    <string name="perm_nearby_wifi_desc">Android 13+ 扫描 WiFi 网络所需。</string>
+    <string name="wifi_scanning">正在手表上扫描 WiFi…</string>
+
+    <string name="perm_restricted_title">受限设置</string>
+    <string name="perm_restricted_desc">此设置出于安全考虑受 Android 限制。您需要使用 ADB 手动启用。\n\n命令已复制到剪贴板。</string>
+
+    <string name="perm_go_restricted_title">权限受限 (Go 版本)</string>
+    <string name="perm_go_restricted_desc">此权限在 Android Go 版本上受限。您可以尝试无论如何都启用，或使用手动方法。</string>
+    <string name="perm_button_try_anyways">无论如何尝试</string>
+    <string name="perm_button_copy_adb">复制 ADB 命令</string>
+    <string name="perm_button_grant_root_shizuku">使用 Root/Shizuku 激活</string>
+
+    <!-- Device Information -->
+    <string name="device_info_title">设备信息</string>
+    <string name="device_info_model">型号</string>
+    <string name="device_info_android">Android</string>
+    <string name="device_info_ram">内存 (RAM)</string>
+    <string name="device_info_storage">存储</string>
+    <string name="device_info_processor">处理器</string>
+    <string name="device_info_cpu_usage">CPU 使用率</string>
+    <string name="device_info_loading">正在加载…</string>
+    <string name="device_info_usage_format">%d%%</string>
+    <string name="device_info_storage_format">%1$s / %2$s</string>
+    <string name="device_info_ram_format">%1$s / %2$s</string>
+
+    <!-- Remote Monitoring & Control -->
+    <string name="remote_monitor_title">远程监控与控制</string>
+    <string name="remote_mirror_phone">镜像手机到手表</string>
+    <string name="remote_mirror_phone_desc">将此手机的屏幕流式传输到您的手表</string>
+    <string name="remote_control_watch">从手机控制手表</string>
+    <string name="remote_control_watch_desc">从此手机查看并控制您的手表屏幕</string>
+    <string name="remote_res_matching">分辨率匹配</string>
+    <string name="remote_res_matching_desc">控制期间自动调整手表分辨率以匹配手机纵横比</string>
+
+    <!-- Dynamic Island Customization -->
+    <string name="di_vertical_pos">垂直位置 (Y)</string>
+    <string name="di_width">灵动岛宽度</string>
+    <string name="di_height">灵动岛高度</string>
+    <string name="di_hide_idle">空闲时隐藏</string>
+    <string name="di_hide_idle_desc">没有活动通知时隐藏灵动岛</string>
+    <string name="toast_bt_required">需要蓝牙。请启用它。</string>
+    <string name="toast_perm_calendar_not_granted">未授予 READ_CALENDAR 权限</string>
+    <string name="toast_perm_contacts_not_granted">未授予 READ_CONTACTS 权限</string>
+    <string name="toast_uninstall_sending">正在发送卸载：%s</string>
+    <string name="toast_no_calendar_events">未找到即将到来的日历事件</string>
+    <string name="toast_no_contacts_found">未找到联系人</string>
+    <string name="notif_waiting_channel">常驻通知 - 等待连接</string>
+    <string name="notif_connected_channel">常驻通知 - 已连接</string>
+    <string name="notif_mirrored_channel">手机通知</string>
+    <string name="notif_battery_full_title">手表电池已充满</string>
+    <string name="notif_battery_low_title">手表电量低</string>
+    <string name="notif_battery_full_text">手表已充满电！</string>
+    <string name="notif_battery_low_text">手表电量为 %d%%。</string>
+    <string name="status_no_permission">无权限</string>
+    <string name="toast_wifi_no_networks">未找到 WiFi 网络。</string>
+    <string name="wifi_security_secured">加密</string>
+    <string name="wifi_security_open">开放</string>
+    <string name="toast_dnd_sent_format">%1$d %2$s 的勿扰已发送</string>
+    <string name="unit_hour">小时</string>
+    <string name="unit_hours">小时</string>
+    <string name="welcome_qr_scanned">QR 已扫描：%s</string>
+    <string name="welcome_discovery_started">发现已开始：%s</string>
+    <string name="status_progress_format">%d%%</string>
+    <string name="status_failed">失败</string>
+    <string name="status_fail_short">失败</string>
+    <string name="status_invalid_json">无效 JSON</string>
+    <string name="terminal_title">RTOSify 终端 v1.0</string>
+    <string name="terminal_connecting">正在连接到手表…</string>
+    <string name="terminal_executing">正在执行…</string>
+    <string name="terminal_changed_dir">已更改目录到：%s</string>
+    <string name="terminal_exit_code_format">退出代码：%1$d | 时间：%2$dms | UID：%3$s (%4$s)</string>
+    <string name="terminal_perm_level">权限级别：%s</string>
+    <string name="terminal_uid_format">UID: %s</string>
+    <string name="terminal_perm_shizuku">Shizuku (Shell 访问)</string>
+    <string name="terminal_perm_root">Root 访问</string>
+    <string name="terminal_perm_limited">应用上下文 (受限)</string>
+    <string name="terminal_warning_limited">⚠ 权限受限 - 某些命令可能会失败</string>
+    <string name="terminal_disconnected">已从手表断开连接</string>
+    <string name="toast_command_copied">命令已复制！</string>
+    <string name="toast_root_shizuku_required">需要 Root 或 Shizuku。</string>
+    <string name="toast_granting_restricted">正在授予受限设置…</string>
+    <string name="toast_granting_perm">正在授予权限…</string>
+    <string name="toast_grant_failed">失败 (代码: %d)。尝试 ADB。</string>
+    <string name="toast_grant_failed_simple">失败 (代码: %d)。</string>
+    <string name="toast_grant_success">权限已授予！</string>
+    <string name="toast_user_service_not_connected">UserService 未连接。请重试。</string>
+    <string name="toast_open_settings_error">打开设置失败</string>
+    <string name="perm_shizuku_connected">UserService 连接成功</string>
+    <string name="perm_shizuku_disconnected">UserService 已断开连接</string>
+    <string name="perm_shizuku_bind_error">绑定 UserService 失败：%s</string>
+    <string name="perm_restricted_check_error">受限检查错误</string>
+    <string name="toast_open_settings">打开设置</string>
+    <string name="perm_activate_shizuku">使用 Shizuku 激活</string>
+    <string name="health_hr_unit"> bpm</string>
+    <string name="health_oxygen_unit">%%</string>
+    <string name="health_dist_unit">%.1f 公里</string>
+    <string name="health_calories_unit">%d</string>
+    <string name="health_hr_label">心率 (bpm)</string>
+    <string name="health_oxygen_label">血氧 (%%)</string>
+    <string name="health_button_stop">停止</string>
+    <string name="health_button_measure">测量</string>
+    <string name="health_no_recent_data">无近期数据</string>
+    <string name="health_sensor_contact">正在检查传感器接触…</string>
+    <string name="health_hardware_error">硬件忙或出错</string>
+    <string name="health_tracker_not_installed">未安装追踪应用</string>
+    <string name="health_measure_timeout">测量超时</string>
+    <string name="health_error_prefix">错误：%s</string>
+    <string name="health_settings_api_error">请在健康应用设置中启用“Settings API”</string>
+    <string name="battery_charging_full">充满</string>
+    <string name="battery_charging">充电中</string>
+    <string name="battery_discharging">放电中</string>
+    <string name="battery_calculating">计算中…</string>
+    <string name="battery_until_full">%s 后充满</string>
+    <string name="battery_remaining">剩余 %s</string>
+    <string name="battery_current_unit">%.1f mA</string>
+    <string name="battery_voltage_unit">%d mV</string>
+    <string name="battery_temp_unit">%.1f °C</string>
+    <string name="battery_temp_placeholder">-- °C</string>
+    <string name="battery_capacity_placeholder">-- mAh</string>
+    <string name="battery_sort_usage_time">使用时间</string>
+    <string name="battery_sort_power">电池用量 (mAh)</string>
+    <string name="battery_sort_speed">耗电速度 (mA)</string>
+    <string name="battery_sort_by">按%s排序</string>
+    <string name="battery_label_level">电量</string>
+    <string name="battery_label_current">电流 (mA)</string>
+    <string name="battery_no_history">无可用历史记录</string>
+    <string name="battery_notify_below">低于 %d%% 时通知</string>
+
+    <string name="file_manager">文件管理器</string>
+    <string name="file_downloading">正在下载文件</string>
+    <string name="file_getting_from_watch">正在从手表获取 %s…</string>
+    <string name="file_uploading">正在上传文件</string>
+    <string name="file_sending_to_watch">正在发送 %s 到手表…</string>
+    <string name="file_upload_confirm_title">上传文件</string>
+    <string name="file_upload_confirm_desc">上传此文件到手表当前目录？</string>
+    <string name="file_button_upload">上传</string>
+    <string name="file_delete_confirm_title">删除 %s？</string>
+    <string name="file_delete_confirm_desc">您确定要删除此 %s 吗？</string>
+    <string name="file_type_directory">目录</string>
+    <string name="file_type_regular">文件</string>
+    <string name="file_button_delete">删除</string>
+    <string name="file_upload_success_title">上传完成</string>
+    <string name="file_upload_success_desc">文件传输成功！</string>
+    <string name="file_download_success_title">下载完成</string>
+    <string name="file_download_success_desc">文件已保存到下载文件夹</string>
+    <string name="file_error_transfer">传输过程中发生错误。</string>
+    <string name="file_error_no_app">未找到可打开此文件的应用</string>
+    <string name="file_error_open">打开文件出错：%s</string>
+    <string name="file_error_parse">解析文件列表出错：%s</string>
+    <string name="file_info_dir">目录 | %s</string>
+    <string name="file_info_regular">%1$s | %2$s</string>
+
+    <string name="mirror_stop">停止镜像</string>
+    <string name="mirror_start">开始镜像</string>
+    <string name="mirror_requesting_watch">正在请求手表屏幕…</string>
+
+    <string name="wf_local">本地</string>
+    <string name="wf_transferring">正在传输 %s…</string>
+    <string name="wf_transfer_complete">传输完成</string>
+    <string name="wf_setting">正在设置表盘：%s</string>
+    <string name="wf_import_success">已导入 %s</string>
+    <string name="wf_import_fail">导入失败：%s</string>
+
+    <string name="wf_moving_to">移动 %1$s 到 %2$s</string>
+    <string name="wf_folder_name_hint">文件夹名称</string>
+    <string name="wf_create_folder_title">创建文件夹</string>
+    <string name="wf_button_create">创建</string>
+    <string name="wf_header_downloaded">已下载</string>
+    <string name="wf_rename_folder_title">重命名文件夹</string>
+    <string name="wf_rename_title">重命名</string>
+    <string name="wf_delete_fail">删除失败：%s</string>
+    <string name="wf_rename_fail">重命名失败</string>
+    <string name="wf_rename_fail_with_msg">重命名失败：%s</string>
+    <string name="wf_no_faces_on_watch">手表上未找到表盘</string>
+
+    <string name="label_on">开</string>
+    <string name="label_off">关</string>
+
+    <string name="alarm_no_alarms">未设置闹钟</string>
+    <string name="perm_title_placeholder">权限标题</string>
+    <string name="perm_desc_placeholder">使用位置的描述。</string>
+
+    <string name="battery_title">电池详情</string>
+    <string name="battery_current_label">电流</string>
+    <string name="battery_voltage_label">电压</string>
+    <string name="battery_temp_label">温度</string>
+    <string name="battery_history_title">充电历史</string>
+    <string name="battery_current_draw_title">电流消耗 (mA)</string>
+    <string name="battery_notifications_title">通知</string>
+    <string name="battery_full_charge_alert">充满提醒</string>
+    <string name="battery_full_charge_desc">电池达到 100% 时通知</string>
+    <string name="battery_low_charge_alert">低电量提醒</string>
+    <string name="battery_low_charge_desc">低于 %d%% 时通知</string>
+    <string name="battery_low_charge_desc_placeholder">低于 15% 时通知</string>
+    <string name="battery_detailed_logging">详细日志</string>
+    <string name="battery_detailed_logging_desc">每 2 分钟记录一次电流和应用使用情况</string>
+    <string name="battery_top_usage_title">应用用量排行 (24小时)</string>
+    <string name="battery_sort_by_time">按时间排序</string>
+    <string name="battery_usage_empty_msg">使用统计可能需要权限。\n在手表系统设置中配置。</string>
+
+    <string name="health_prev_date">上一日</string>
+    <string name="health_next_date">下一日</string>
+    <string name="health_current_value">当前值</string>
+    <string name="health_measure_button">测量</string>
+    <string name="health_total_stats">总统计</string>
+    <string name="health_label_steps">步数</string>
+    <string name="health_label_distance">距离</string>
+    <string name="health_label_calories">卡路里</string>
+    <string name="health_label_min">最小</string>
+    <string name="health_label_avg">平均</string>
+    <string name="health_label_max">最大</string>
+
+    <string name="wf_name_placeholder">表盘名称</string>
+    <string name="wf_folder_name_placeholder">文件夹名称</string>
+    <string name="app_name_placeholder">应用名称</string>
+    <string name="app_package_placeholder">com.example.app</string>
+</resources>

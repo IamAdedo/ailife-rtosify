@@ -195,16 +195,16 @@ class AlarmManagementActivity : AppCompatActivity() {
                 
                 // Format days
                 if (alarm.daysOfWeek.isEmpty()) {
-                    tvDays.text = getString(R.string.alarm_once)
+                    tvDays.text = itemView.context.getString(R.string.alarm_once)
                 } else {
                     val dayNames = mapOf(
-                        1 to getString(R.string.alarm_day_monday_short),
-                        2 to getString(R.string.alarm_day_tuesday_short),
-                        3 to getString(R.string.alarm_day_wednesday_short),
-                        4 to getString(R.string.alarm_day_thursday_short),
-                        5 to getString(R.string.alarm_day_friday_short),
-                        6 to getString(R.string.alarm_day_saturday_short),
-                        7 to getString(R.string.alarm_day_sunday_short)
+                        1 to itemView.context.getString(R.string.alarm_day_monday_short),
+                        2 to itemView.context.getString(R.string.alarm_day_tuesday_short),
+                        3 to itemView.context.getString(R.string.alarm_day_wednesday_short),
+                        4 to itemView.context.getString(R.string.alarm_day_thursday_short),
+                        5 to itemView.context.getString(R.string.alarm_day_friday_short),
+                        6 to itemView.context.getString(R.string.alarm_day_saturday_short),
+                        7 to itemView.context.getString(R.string.alarm_day_sunday_short)
                     )
                     tvDays.text = (1..7).joinToString(" ") { day ->
                         if (alarm.daysOfWeek.contains(day)) dayNames[day]!! else "·"

@@ -231,15 +231,10 @@
     <string name="perm_toast_granted">Permission granted!</string>
     <string name="perm_toast_failed">Failed (Code: %1$d). Try ADB.</string>
 
-    <string name="perm_go_restricted_title">Go Edition Restriction</string>
-    <string name="perm_go_restricted_desc">This device is running Android Go. Some permissions are restricted and need to be enabled manually.</string>
-    <string name="perm_button_try_anyways">Try Anyways</string>
     <string name="perm_toast_failed_open_settings">Failed to open settings</string>
     <string name="perm_toast_command_copied_simple">Command copied!</string>
-    <string name="perm_button_grant_root_shizuku">Grant via Root/Shizuku</string>
 
     <!-- Bluetooth Service Additional Strings -->
-    <string name="status_connected_to">Connected to %1$s</string>
     <string name="wifi_status_disconnected">Disconnected</string>
     <string name="wifi_status_disabled">WiFi Disabled</string>
     <string name="wifi_status_no_permission">No Permission</string>
@@ -248,14 +243,8 @@
     <string name="toast_watch_face_set">Watch face set: %1$s</string>
     <string name="toast_clipboard_updated">✅ Clipboard updated on watch</string>
     <string name="toast_failed_update_clipboard">❌ Failed to update clipboard: %1$s</string>
-    <string name="reply_sender_me">Me</string>
-    <string name="status_connected">Connected</string>
-    <string name="status_waiting">Waiting...</string>
     <string name="status_scanning">Scanning...</string>
-    <string name="status_searching">Searching...</string>
     <string name="status_started">Started</string>
-    <string name="status_stopped">Stopped</string>
-    <string name="status_disconnected">Disconnected</string>
     <string name="notif_main_icon_set">Main icon set for notification</string>
     <string name="notif_messaging_style_applied">MessagingStyle applied with %1$d messages</string>
     <string name="notif_error_decoding_small_icon">Error decoding small icon: %1$s</string>
@@ -360,10 +349,6 @@
     <string name="toast_service_stopped">Service Stopped</string>
     <string name="toast_phone_not_connected">Phone not connected</string>
     <string name="status_connecting">Connecting...</string>
-    <string name="welcome_qr_scan_instruction">Scan this QR code from the phone app to pair.</string>
-    <string name="welcome_bt_disabled">Bluetooth is disabled. Please enable it.</string>
-    <string name="welcome_pairing_waiting">Waiting for pairing...</string>
-    <string name="welcome_qr_gen_error">Error generating QR code.</string>
     <string name="alarm_add_title">Add Alarm</string>
     <string name="alarm_edit_title">Edit Alarm</string>
     <string name="alarm_save">Save</string>
@@ -386,8 +371,6 @@
     <string name="alarm_notification_ringing">Alarm is ringing</string>
     <string name="alarm_channel_name">Alarms</string>
     <string name="alarm_channel_desc">Alarm notifications</string>
-    <string name="dialer_call">CALL</string>
-    <string name="dialer_delete">DEL</string>
     <string name="call_incoming">Incoming Call</string>
     <string name="call_reject">Reject</string>
     <string name="call_answer">Answer</string>
@@ -408,8 +391,6 @@
     <string name="main_turn_service_on">Turn Service On</string>
     <string name="main_service">Service</string>
     <string name="dialer_empty_number">Empty number</string>
-    <string name="dialer_calling">Calling %1$s...</string>
-    <string name="toast_watch_not_connected">Watch not connected</string>
     <string name="main_bt_placeholder">BT: ---</string>
     <string name="call_answered">Answered</string>
     <string name="toast_not_connected">Not connected</string>
