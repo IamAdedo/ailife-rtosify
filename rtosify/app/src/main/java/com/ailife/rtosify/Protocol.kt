@@ -998,4 +998,10 @@ object ProtocolHelper {
         data.addProperty("success", success)
         return ProtocolMessage(type = MessageType.WIFI_TEST_ACK, data = data)
     }
+
+    fun createUpdateWifiRule(rule: Int): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("rule", rule)
+        return ProtocolMessage(type = MessageType.UPDATE_WIFI_RULE, data = data)
+    }
 }

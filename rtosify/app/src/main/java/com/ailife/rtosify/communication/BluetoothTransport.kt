@@ -138,4 +138,6 @@ class BluetoothTransport(
     override fun isConnected(): Boolean = connected && socket.isConnected
 
     override fun getTransportType(): String = "Bluetooth"
+
+    override fun getRemoteDeviceName(): String? = try { socket.remoteDevice.name } catch (_: Exception) { null }
 }

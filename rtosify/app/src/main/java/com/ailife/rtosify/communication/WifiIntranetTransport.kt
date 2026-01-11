@@ -185,4 +185,6 @@ class WifiIntranetTransport(
     override fun isConnected(): Boolean = connected
 
     override fun getTransportType(): String = "WiFi Intranet"
+
+    override fun getRemoteDeviceName(): String? = socket?.inetAddress?.hostAddress
 }

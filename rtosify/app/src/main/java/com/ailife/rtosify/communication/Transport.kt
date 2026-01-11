@@ -42,6 +42,11 @@ interface CommunicationTransport {
      * Get transport type name for logging/debugging.
      */
     fun getTransportType(): String
+
+    /**
+     * Get remote device name if available.
+     */
+    fun getRemoteDeviceName(): String?
 }
 
 /**

@@ -115,12 +115,11 @@ class BluetoothService : Service() {
     private lateinit var prefs: SharedPreferences
     private val PREF_NAME = "AppPrefs"
 
-    // WiFi Transport Infrastructure
+    // Transport Manager
+    private lateinit var transportManager: com.ailife.rtosifycompanion.communication.TransportManager
     private lateinit var encryptionManager: com.ailife.rtosifycompanion.security.EncryptionManager
     private var mdnsDiscovery: com.ailife.rtosifycompanion.communication.MdnsDiscovery? = null
-    private var bluetoothTransport: com.ailife.rtosifycompanion.communication.BluetoothTransport? = null
-    private var wifiTransport: com.ailife.rtosifycompanion.communication.WifiIntranetTransport? = null
-    private var currentTransport: com.ailife.rtosifycompanion.communication.CommunicationTransport? = null
+
     // Clipboard monitoring
     private var clipboardManager: android.content.ClipboardManager? = null
     private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? =
@@ -488,6 +487,37 @@ class BluetoothService : Service() {
         // Initialize WiFi transport infrastructure
         encryptionManager = com.ailife.rtosifycompanion.security.EncryptionManager(this)
         mdnsDiscovery = com.ailife.rtosifycompanion.communication.MdnsDiscovery(this)
+
+        transportManager = com.ailife.rtosifycompanion.communication.TransportManager(
+            this,
+            serviceScope,
+            encryptionManager,
+            mdnsDiscovery!!
+        )
+
+        serviceScope.launch {
+            transportManager.incomingMessages.collect { message ->
+                lastMessageTime = System.currentTimeMillis()
+                processReceivedMessage(message)
+            }
+        }
+
+        serviceScope.launch {
+            transportManager.connectionState.collect { state ->
+                when (state) {
+                    is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected -> {
+                        val deviceName = state.deviceName ?: getString(R.string.device_name_default)
+                        handleDeviceConnected(deviceName)
+                    }
+                    is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Disconnected -> {
+                        handleDeviceDisconnected()
+                    }
+                    is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Waiting -> {
+                        updateStatus(getString(R.string.status_waiting))
+                    }
+                }
+            }
+        }
 
         val filterInternal =
                 IntentFilter().apply {
@@ -866,185 +896,83 @@ class BluetoothService : Service() {
 
     @SuppressLint("MissingPermission")
     fun startWatchLogic() {
-        if (serverJob?.isActive == true) return
-        serverJob?.cancel()
-
-        // Start WiFi server immediately if MAC is available (independent of Bluetooth)
+        // Start servers via TransportManager
+        
+        // WiFi Server
         val savedMac = prefs.getString("wifi_advertised_mac", null)
         if (savedMac != null) {
-            Log.d(TAG, "Starting WiFi server for saved MAC: $savedMac")
-            serviceScope.launch {
-                startWifiTransportServer(savedMac)
-            }
-        } else {
-            Log.d(TAG, "No saved MAC for WiFi, will start after pairing")
+            Log.d(TAG, "Starting WiFi server...")
+            transportManager.startWifiServer()
         }
 
-        serverJob =
-                serviceScope.launch {
-                    updateStatus(getString(R.string.status_waiting))
-                    var consecutiveFailures = 0
-                    val maxConsecutiveFailures = 10 // Limit retry attempts
-
-                    while (isActive) {
-                        // Check if Bluetooth is available before trying to create server socket
-                        val isBluetoothAvailable = bluetoothAdapter?.isEnabled == true
-
-                        if (!isBluetoothAvailable) {
-                            Log.w(TAG, "Bluetooth is disabled, cannot start BT server")
-                            updateStatus("Bluetooth disabled, waiting for WiFi...")
-                            delay(5000)
-                            consecutiveFailures++
-                            if (consecutiveFailures >= maxConsecutiveFailures) {
-                                Log.e(TAG, "Too many consecutive failures, stopping server attempts")
-                                updateStatus(getString(R.string.status_disconnected))
-                                break
-                            }
-                            continue
-                        }
-
-                        updateStatus(getString(R.string.status_waiting))
-
-                        var serverSocket: BluetoothServerSocket?
-                        try {
-                            serverSocket =
-                                    bluetoothAdapter?.listenUsingRfcommWithServiceRecord(
-                                            APP_NAME,
-                                            APP_UUID
-                                    )
-                            consecutiveFailures = 0 // Reset on successful socket creation
-                        } catch (e: IOException) {
-                            Log.w(TAG, "Failed to create Bluetooth server socket: ${e.message}")
-                            consecutiveFailures++
-                            if (consecutiveFailures >= maxConsecutiveFailures) {
-                                Log.e(TAG, "Too many consecutive failures, stopping server attempts")
-                                updateStatus(getString(R.string.status_disconnected))
-                                break
-                            }
-                            delay(3000)
-                            continue
-                        }
-
-                        var socket: BluetoothSocket? = null
-                        while (socket == null && isActive) {
-                            try {
-                                socket = serverSocket?.accept(5000)
-                            } catch (_: IOException) {}
-                        }
-
-                        if (serverSocket == null && socket == null) continue
-
-                        if (socket != null) {
-                            try {
-                                serverSocket?.close()
-                            } catch (_: Exception) {}
-                            handleConnectedSocket(
-                                    socket,
-                                    socket.remoteDevice?.name
-                                            ?: getString(R.string.device_name_default)
-                            )
-                            if (isActive) {
-                                updateStatus(getString(R.string.status_waiting))
-                            }
-                        }
-                    }
-                }
+        // Bluetooth Server
+        transportManager.startBluetoothServer(bluetoothAdapter)
     }
 
-    private suspend fun handleConnectedSocket(socket: BluetoothSocket, deviceName: String) {
-        this.bluetoothSocket = socket
-        this.bluetoothTransport = com.ailife.rtosifycompanion.communication.BluetoothTransport(socket)
-        this.bluetoothTransport?.connect()
+    private fun handleDeviceConnected(deviceName: String) {
+        if (isConnected) return // Already handling connection
         
-        // Set connection state BEFORE updating status
         isConnected = true
         isTransferring = false
         lastMessageTime = System.currentTimeMillis()
         currentDeviceName = deviceName
-        currentDevice = socket.remoteDevice
-
-        // Atualiza status E notificação simultaneamente
+        
         updateStatus(getString(R.string.status_connected_to, deviceName))
-
-        // Notify Dynamic Island of connection state
+        
+        // Notify Dynamic Island
         sendBroadcast(
-                Intent("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED").apply {
-                    putExtra("connected", true)
-                    setPackage(packageName)
-                }
+            Intent(ACTION_CONNECTION_STATE_CHANGED).apply {
+                putExtra("connected", true)
+                setPackage(packageName)
+            }
         )
-
-        // Notifica callback
-        withContext(Dispatchers.Main) { callback?.onDeviceConnected(deviceName) }
-
-        try {
-            supervisorScope {
-                // Heartbeat loop in this scope
-                launch { 
-                    Log.d(TAG, "Starting heartbeat loop. lastMessageTime=$lastMessageTime")
-                    heartbeatLoop() 
-                }
-                
-                // Initialization tasks in this scope
-                launch {
-                    // REMOVED: device_type check - companion is always watch
-
-                    // Trigger automation on connection
-                    onConnectionEstablished()
-                }
-
-                try {
-                    // This blocks as long as the transport is active
-                    handleTransportMessages(bluetoothTransport!!)
-                } finally {
-                    Log.d(TAG, "Transport loop finished, cancelling connection scope")
-                    this.cancel() // Kills heartbeat and initialization if they are still running
-                }
-            }
-        } catch (e: Exception) {
-            if (e !is CancellationException) {
-                Log.e(TAG, "Bluetooth transport error", e)
-            }
-        } finally {
-            val wasConnected = isConnected
-
-            forceDisconnect()
-            isConnected = false
-            currentDeviceName = null
-
-            // Notify Dynamic Island of disconnection
-            sendBroadcast(
-                    Intent("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED").apply {
-                        putExtra("connected", false)
-                        setPackage(packageName)
-                    }
-            )
-
-            if (wasConnected) {
-                updateStatus(getString(R.string.status_disconnected))
-
-                val shouldNotify = prefs.getBoolean("notify_on_disconnect", false)
-                Log.d(TAG, "Device disconnected. shouldNotify on disconnect: $shouldNotify")
-
-                // Show disconnection alert if enabled
-                if (shouldNotify) {
-                    showDisconnectionNotification()
-                }
-
-                // Trigger automation on disconnection
-                onConnectionLost()
-            }
-
-            withContext(Dispatchers.Main) { callback?.onDeviceDisconnected() }
+        
+        serviceScope.launch(Dispatchers.Main) { callback?.onDeviceConnected(deviceName) }
+        
+        // Start heartbeat and automation
+        serviceScope.launch {
+             // Trigger automation on connection
+             onConnectionEstablished()
+             
+             // Heartbeat loop
+             Log.d(TAG, "Starting heartbeat loop")
+             heartbeatLoop()
         }
     }
-
-    private suspend fun handleTransportMessages(transport: com.ailife.rtosifycompanion.communication.CommunicationTransport) {
-        transport.receive().collect { message ->
-            lastMessageTime = System.currentTimeMillis()
-            processReceivedMessage(message)
+    
+    private fun handleDeviceDisconnected() {
+        if (!isConnected) return
+        
+        val wasConnected = isConnected
+        isConnected = false
+        currentDeviceName = null
+        
+        // Notify Dynamic Island
+        sendBroadcast(
+            Intent(ACTION_CONNECTION_STATE_CHANGED).apply {
+                putExtra("connected", false)
+                setPackage(packageName)
+            }
+        )
+        
+        if (wasConnected) {
+            updateStatus(getString(R.string.status_disconnected))
+            
+            if (prefs.getBoolean("notify_on_disconnect", false)) {
+                showDisconnectionNotification()
+            }
+            
+            onConnectionLost()
         }
+        
+        serviceScope.launch(Dispatchers.Main) { callback?.onDeviceDisconnected() }
+        
+        // Restart servers if needed
+        startWatchLogic()
     }
+
+    // Old connection handling methods removed - replaced by TransportManager
+
 
     private suspend fun processReceivedMessage(message: ProtocolMessage) {
         Log.d(TAG, "📩 Processing message type: ${message.type}")
@@ -1179,10 +1107,9 @@ class BluetoothService : Service() {
                 Log.d(TAG, "Auto WiFi setting updated: $it")
                 
                 // Stop WiFi transport if phone disabled it to save battery
-                if (!it && wifiTransport != null) {
+                if (!it && transportManager.isWifiConnected()) {
                     serviceScope.launch {
-                        wifiTransport?.disconnect()
-                        wifiTransport = null
+                        transportManager.stopWifiServer()
                         Log.d(TAG, "WiFi transport stopped due to phone preference")
                     }
                 }
@@ -1673,103 +1600,30 @@ class BluetoothService : Service() {
             
             // Watch always starts WiFi as server
             serviceScope.launch {
-                startWifiTransportServer(deviceMac)
+                transportManager.startWifiServer()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize encryption", e)
         }
     }
     
-    /**
-     * Start WiFi transport as server (watch).
-     */
-    private suspend fun startWifiTransportServer(deviceMac: String) {
-        if (wifiTransport != null) return
-        
-        try {
-            encryptionManager.setActiveDevice(deviceMac)
-            
-            Log.d(TAG, "startWifiTransportServer: registering service with mac=$deviceMac")
-            // Register mDNS service
-            mdnsDiscovery?.registerService(
-                deviceMac = deviceMac,
-                deviceName = android.os.Build.MODEL,
-                port = 8765
-            )
-            
-            wifiTransport = com.ailife.rtosifycompanion.communication.WifiIntranetTransport(
-                deviceMac = deviceMac,
-                encryptionManager = encryptionManager,
-                mdnsDiscovery = mdnsDiscovery!!,
-                isServer = true,  // Watch is server
-                port = 8765
-            )
-            
-            if (wifiTransport!!.connect()) {
-                currentTransport = wifiTransport
-                Log.d(TAG, "WiFi server started successfully")
-                serviceScope.launch {
-                    handleTransportMessages(wifiTransport!!)
-                }
-            } else {
-                Log.w(TAG, "WiFi server failed to start")
-                wifiTransport = null
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error starting WiFi server", e)
-            wifiTransport = null
-        }
-    }
+    // Legacy startWifiTransportServer removed
+
     
-    /**
-     * Stop WiFi transport.
-     */
-    private suspend fun stopWifiTransport() {
-        wifiTransport?.disconnect()
-        mdnsDiscovery?.stop()
-        wifiTransport = null
-        currentTransport = null
-        Log.d(TAG, "WiFi transport stopped")
-    }
+    // Removed stopWifiTransport
 
     // REMOVED: syncSettingsToPhone() - Empty method, no longer needed
 
     fun sendMessage(message: ProtocolMessage) {
         serviceScope.launch(Dispatchers.IO) {
-            if (!isConnected) return@launch
-
-            // Priority 1: WiFi
-            if (wifiTransport?.isConnected() == true) {
-                if (wifiTransport?.send(message) == true) {
-                    return@launch
-                }
+            if (!transportManager.send(message)) {
+                Log.w(TAG, "sendMessage: Failed to send message type=${message.type}")
             }
-            
-            // Priority 2: Bluetooth (via Transport)
-            if (bluetoothTransport?.isConnected() == true) {
-                if (bluetoothTransport?.send(message) == true) {
-                    return@launch
-                }
-            }
-
-            Log.w(TAG, "sendMessage: All transports failed or disconnected for message type=${message.type}")
         }
     }
 
     private suspend fun sendMessageSync(message: ProtocolMessage) {
-        if (!isConnected) return
-
-        // Priority 1: WiFi
-        if (wifiTransport?.isConnected() == true) {
-            if (wifiTransport?.send(message) == true) {
-                return
-            }
-        }
-        
-        // Priority 2: Bluetooth
-        if (bluetoothTransport?.isConnected() == true) {
-            bluetoothTransport?.send(message)
-        }
+        transportManager.send(message)
     }
 
     // ========================================================================
@@ -2382,7 +2236,7 @@ class BluetoothService : Service() {
             
             // Register and start WiFi server with our MAC (deviceMac)
             serviceScope.launch {
-                startWifiTransportServer(deviceMac)
+                transportManager.startWifiServer()
             }
         }
         
@@ -4374,9 +4228,9 @@ class BluetoothService : Service() {
         return when {
             isConnected && currentDeviceName != null -> {
                 val statusText = when {
-                    wifiTransport?.isConnected() == true && bluetoothTransport?.isConnected() == true ->
+                    transportManager.isWifiConnected() && transportManager.isConnected() ->
                         getString(R.string.status_connected_to, currentDeviceName!!) + " via BT & WiFi"
-                    wifiTransport?.isConnected() == true ->
+                    transportManager.isWifiConnected() ->
                         getString(R.string.status_connected_to, currentDeviceName!!) + " via WiFi"
                     else ->
                         getString(R.string.status_connected_to, currentDeviceName!!) + " via BT"
@@ -4385,9 +4239,9 @@ class BluetoothService : Service() {
             }
             isConnected && currentDeviceName == null -> {
                 val statusText = when {
-                    wifiTransport?.isConnected() == true && bluetoothTransport?.isConnected() == true ->
+                     transportManager.isWifiConnected() && transportManager.isConnected() ->
                         getString(R.string.status_connected) + " via BT & WiFi"
-                    wifiTransport?.isConnected() == true ->
+                    transportManager.isWifiConnected() ->
                         getString(R.string.status_connected) + " via WiFi"
                     else ->
                         getString(R.string.status_connected)
@@ -4697,7 +4551,7 @@ class BluetoothService : Service() {
         
         // Clean up WiFi transport
         serviceScope.launch {
-            stopWifiTransport()
+            transportManager.stopAll()
         }
 
         panManager?.close()
