@@ -79,7 +79,6 @@ class BluetoothService : Service() {
 
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothSocket: BluetoothSocket? = null
-    private var globalOutputStream: DataOutputStream? = null
 
     private val APP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
     private val APP_NAME = "RTOSifyApp"
@@ -91,12 +90,14 @@ class BluetoothService : Service() {
     private val PREF_NAME = "AppPrefs"
 
     private var lastValidWifiSsid: String = ""
+    private var currentConnectionJob: Job? = null
 
     // WiFi Transport Infrastructure
     private lateinit var encryptionManager: com.ailife.rtosify.security.EncryptionManager
     private var mdnsDiscovery: com.ailife.rtosify.communication.MdnsDiscovery? = null
-    private var currentTransport: com.ailife.rtosify.communication.CommunicationTransport? = null
+    private var bluetoothTransport: com.ailife.rtosify.communication.BluetoothTransport? = null
     private var wifiTransport: com.ailife.rtosify.communication.WifiIntranetTransport? = null
+    private var currentTransport: com.ailife.rtosify.communication.CommunicationTransport? = null
     private var transportSwitchJob: Job? = null
 
     // Clipboard monitoring
@@ -773,9 +774,9 @@ class BluetoothService : Service() {
 
     private suspend fun handleConnectedSocket(socket: BluetoothSocket, deviceName: String) {
         this.bluetoothSocket = socket
-        globalOutputStream = DataOutputStream(socket.outputStream)
-        val inputStream = DataInputStream(socket.inputStream)
-
+        this.bluetoothTransport = com.ailife.rtosify.communication.BluetoothTransport(socket)
+        this.bluetoothTransport?.connect()
+        
         // Define estado de conexão ANTES de atualizar status
         isConnected = true
         isTransferring = false
@@ -788,82 +789,35 @@ class BluetoothService : Service() {
         // Notifica callback
         withContext(Dispatchers.Main) { callback?.onDeviceConnected(deviceName) }
 
-        serviceScope.launch { heartbeatLoop() }
-
-        // Sync settings on connection
-        syncSettingsToWatch()
-
-        // Trigger automation on connection
-        onConnectionEstablished()
-
-        // Initialize encryption for WiFi transport
-        socket.remoteDevice?.address?.let { deviceMac ->
-            encryptionManager.initializeForDevice(deviceMac)
-            encryptionManager.setActiveDevice(deviceMac)
-            Log.d(TAG, "Encryption initialized for device: $deviceMac")
-            // startWifiTransportMonitoring(deviceMac) // Don't auto-start here
-        }
-
-        // Phone app doesn't send watch status (only receives it)
-
         try {
-            while (currentCoroutineContext().isActive) {
-                val message = readMessage(inputStream)
-                lastMessageTime = System.currentTimeMillis()
+            supervisorScope {
+                // Heartbeat loop in this scope
+                launch { 
+                    Log.d(TAG, "Starting heartbeat loop. lastMessageTime=$lastMessageTime")
+                    heartbeatLoop() 
+                }
+                
+                // Initialization tasks in this scope
+                launch {
+                    // Sync settings on connection
+                    syncSettingsToWatch()
 
-                when (message.type) {
-                    MessageType.HEARTBEAT -> {
-                        /* IGNORE */
-                    }
-                    MessageType.REQUEST_APPS -> handleRequestApps()
-                    MessageType.RESPONSE_APPS -> handleResponseApps(message)
-                    MessageType.NOTIFICATION_POSTED -> showMirroredNotification(message)
-                    MessageType.NOTIFICATION_REMOVED -> dismissLocalNotification(message)
-                    MessageType.DISMISS_NOTIFICATION -> requestDismissOnPhone(message)
-                    MessageType.EXECUTE_NOTIFICATION_ACTION ->
-                            handleExecuteNotificationAction(message)
-                    MessageType.SEND_NOTIFICATION_REPLY -> handleSendNotificationReply(message)
-                    MessageType.FILE_TRANSFER_START -> handleFileTransferStart(message)
-                    MessageType.FILE_CHUNK -> handleFileChunk(message)
-                    MessageType.FILE_TRANSFER_END -> handleFileTransferEnd(message)
-                    MessageType.SHUTDOWN -> handleShutdownCommand()
-                    MessageType.STATUS_UPDATE -> handleStatusUpdateReceived(message)
-                    MessageType.SET_DND -> handleSetDndCommand(message)
-                    MessageType.FIND_PHONE -> handleFindPhoneCommand(message)
-                    MessageType.MEDIA_CONTROL -> handleMediaControl(message)
-                    MessageType.CAMERA_START -> handleCameraStart()
-                    MessageType.CAMERA_STOP -> handleCameraStop()
-                    MessageType.CAMERA_SHUTTER -> handleCameraShutter()
-                    MessageType.RESPONSE_FILE_LIST -> handleResponseFileList(message)
-                    MessageType.HEALTH_DATA_UPDATE -> handleHealthDataReceived(message)
-                    MessageType.RESPONSE_HEALTH_HISTORY -> handleHealthHistoryReceived(message)
-                    MessageType.RESPONSE_HEALTH_SETTINGS -> handleHealthSettingsReceived(message)
-                    MessageType.RESPONSE_PREVIEW -> handlePreviewReceived(message)
-                    MessageType.MAKE_CALL -> handleMakeCallCommand(message)
-                    MessageType.REJECT_CALL -> handleRejectCallCommand()
-                    MessageType.ANSWER_CALL -> handleAnswerCallCommand()
-                    MessageType.WIFI_SCAN_RESULTS -> handleWifiScanResults(message)
-                    MessageType.CLIPBOARD_SYNC -> handleClipboardReceived(message)
-                    MessageType.BATTERY_DETAIL_UPDATE -> handleBatteryDetailUpdate(message)
-                    MessageType.DEVICE_INFO_UPDATE -> handleDeviceInfoUpdate(message)
-                    MessageType.BATTERY_ALERT -> handleBatteryAlert(message)
-                    MessageType.RESPONSE_ALARMS -> handleResponseAlarms(message)
-                    MessageType.SCREEN_MIRROR_START -> handleMirrorStart(message)
-                    MessageType.SCREEN_MIRROR_STOP -> handleMirrorStop()
-                    MessageType.SCREEN_MIRROR_DATA -> handleMirrorData(message)
-                    MessageType.REMOTE_INPUT -> handleRemoteInput(message)
-                    MessageType.UPDATE_RESOLUTION -> handleUpdateResolution(message)
-                    MessageType.MIRROR_RES_CHANGE -> handleMirrorResChange(message)
-                    MessageType.REQUEST_PHONE_BATTERY -> handleRequestPhoneBattery()
-                    MessageType.SHELL_COMMAND_RESPONSE -> handleShellCommandResponse(message)
-                    MessageType.PERMISSION_INFO_RESPONSE -> handlePermissionInfoResponse(message)
-                    MessageType.WIFI_KEY_ACK -> handleWifiKeyAck(message)
-                    MessageType.WIFI_TEST_ACK -> handleWifiTestAck(message)
-                    MessageType.WIFI_TEST_ENCRYPT -> handleWifiTestReceived(message)
+                    // Trigger automation on connection
+                    onConnectionEstablished()
+                }
+
+                try {
+                    // This blocks as long as the transport is active
+                    handleTransportMessages(bluetoothTransport!!)
+                } finally {
+                    Log.d(TAG, "Transport loop finished, cancelling connection scope")
+                    this.cancel() // Kills heartbeat and initialization if they are still running
                 }
             }
-        } catch (_: IOException) {
-            // Conexão perdida
+        } catch (e: Exception) {
+            if (e !is CancellationException) {
+                Log.e(TAG, "Bluetooth transport error", e)
+            }
         } finally {
             val wasConnected = isConnected
 
@@ -880,6 +834,67 @@ class BluetoothService : Service() {
         }
     }
 
+    private suspend fun handleTransportMessages(transport: com.ailife.rtosify.communication.CommunicationTransport) {
+        transport.receive().collect { message ->
+            lastMessageTime = System.currentTimeMillis()
+            processReceivedMessage(message)
+        }
+    }
+
+    private suspend fun processReceivedMessage(message: ProtocolMessage) {
+        when (message.type) {
+            MessageType.HEARTBEAT -> {
+                /* IGNORE */
+            }
+            MessageType.REQUEST_APPS -> handleRequestApps()
+            MessageType.RESPONSE_APPS -> handleResponseApps(message)
+            MessageType.NOTIFICATION_POSTED -> showMirroredNotification(message)
+            MessageType.NOTIFICATION_REMOVED -> dismissLocalNotification(message)
+            MessageType.DISMISS_NOTIFICATION -> requestDismissOnPhone(message)
+            MessageType.EXECUTE_NOTIFICATION_ACTION ->
+                    handleExecuteNotificationAction(message)
+            MessageType.SEND_NOTIFICATION_REPLY -> handleSendNotificationReply(message)
+            MessageType.FILE_TRANSFER_START -> handleFileTransferStart(message)
+            MessageType.FILE_CHUNK -> handleFileChunk(message)
+            MessageType.FILE_TRANSFER_END -> handleFileTransferEnd(message)
+            MessageType.SHUTDOWN -> handleShutdownCommand()
+            MessageType.STATUS_UPDATE -> handleStatusUpdateReceived(message)
+            MessageType.SET_DND -> handleSetDndCommand(message)
+            MessageType.FIND_PHONE -> handleFindPhoneCommand(message)
+            MessageType.MEDIA_CONTROL -> handleMediaControl(message)
+            MessageType.CAMERA_START -> handleCameraStart()
+            MessageType.CAMERA_STOP -> handleCameraStop()
+            MessageType.CAMERA_SHUTTER -> handleCameraShutter()
+            MessageType.RESPONSE_FILE_LIST -> handleResponseFileList(message)
+            MessageType.HEALTH_DATA_UPDATE -> handleHealthDataReceived(message)
+            MessageType.RESPONSE_HEALTH_HISTORY -> handleHealthHistoryReceived(message)
+            MessageType.RESPONSE_HEALTH_SETTINGS -> handleHealthSettingsReceived(message)
+            MessageType.RESPONSE_PREVIEW -> handlePreviewReceived(message)
+            MessageType.MAKE_CALL -> handleMakeCallCommand(message)
+            MessageType.REJECT_CALL -> handleRejectCallCommand()
+            MessageType.ANSWER_CALL -> handleAnswerCallCommand()
+            MessageType.WIFI_SCAN_RESULTS -> handleWifiScanResults(message)
+            MessageType.CLIPBOARD_SYNC -> handleClipboardReceived(message)
+            MessageType.BATTERY_DETAIL_UPDATE -> handleBatteryDetailUpdate(message)
+            MessageType.DEVICE_INFO_UPDATE -> handleDeviceInfoUpdate(message)
+            MessageType.BATTERY_ALERT -> handleBatteryAlert(message)
+            MessageType.RESPONSE_ALARMS -> handleResponseAlarms(message)
+            MessageType.SCREEN_MIRROR_START -> handleMirrorStart(message)
+            MessageType.SCREEN_MIRROR_STOP -> handleMirrorStop()
+            MessageType.SCREEN_MIRROR_DATA -> handleMirrorData(message)
+            MessageType.REMOTE_INPUT -> handleRemoteInput(message)
+            MessageType.UPDATE_RESOLUTION -> handleUpdateResolution(message)
+            MessageType.MIRROR_RES_CHANGE -> handleMirrorResChange(message)
+            MessageType.REQUEST_PHONE_BATTERY -> handleRequestPhoneBattery()
+            MessageType.SHELL_COMMAND_RESPONSE -> handleShellCommandResponse(message)
+            MessageType.PERMISSION_INFO_RESPONSE -> handlePermissionInfoResponse(message)
+            MessageType.WIFI_KEY_ACK -> handleWifiKeyAck(message)
+            MessageType.WIFI_TEST_ACK -> handleWifiTestAck(message)
+            MessageType.WIFI_TEST_ENCRYPT -> handleWifiTestReceived(message)
+            else -> Log.d(TAG, "Unknown message type: ${message.type}")
+        }
+    }
+
     @Throws(IOException::class)
     private fun readMessage(inputStream: DataInputStream): ProtocolMessage {
         val length = inputStream.readInt()
@@ -893,8 +908,13 @@ class BluetoothService : Service() {
     private suspend fun heartbeatLoop() {
         while (currentCoroutineContext().isActive) {
             delay(HEARTBEAT_INTERVAL)
-            if (!isConnected) continue
-            if (System.currentTimeMillis() - lastMessageTime > CONNECTION_TIMEOUT) {
+            if (!isConnected) {
+                Log.d(TAG, "heartbeatLoop: not connected, skipping check")
+                continue
+            }
+            val ellapsed = System.currentTimeMillis() - lastMessageTime
+            if (ellapsed > CONNECTION_TIMEOUT) {
+                Log.w(TAG, "heartbeatLoop: timeout detected! ellapsed=$ellapsed, limit=$CONNECTION_TIMEOUT")
                 forceDisconnect()
                 break
             }
@@ -990,6 +1010,9 @@ class BluetoothService : Service() {
             if (wifiTransport!!.connect()) {
                 currentTransport = wifiTransport
                 Log.d(TAG, "WiFi connected successfully")
+                serviceScope.launch {
+                    handleTransportMessages(wifiTransport!!)
+                }
                 withContext(Dispatchers.Main) {
                     callback?.onStatusChanged(getString(R.string.status_bt_wifi_connected))
                 }
@@ -1098,36 +1121,38 @@ class BluetoothService : Service() {
     fun sendMessage(message: ProtocolMessage) {
         serviceScope.launch(Dispatchers.IO) {
             if (!isConnected) return@launch
-            val out = globalOutputStream ?: return@launch
-            try {
-                val jsonBytes = message.toBytes()
-                synchronized(out) {
-                    out.writeInt(jsonBytes.size)
-                    out.write(jsonBytes)
-                    out.flush()
+            
+            // Priority 1: WiFi
+            if (wifiTransport?.isConnected() == true) {
+                if (wifiTransport?.send(message) == true) {
+                    return@launch
                 }
-            } catch (e: Exception) {
-                Log.e(
-                        TAG,
-                        "Failed to send message type=${message.type}, size=${message.toBytes().size}: ${e.message}"
-                )
-                forceDisconnect()
             }
+            
+            // Priority 2: Bluetooth (via Transport)
+            if (bluetoothTransport?.isConnected() == true) {
+                if (bluetoothTransport?.send(message) == true) {
+                    return@launch
+                }
+            }
+
+            Log.w(TAG, "sendMessage: All transports failed or disconnected for message type=${message.type}")
         }
     }
 
     private suspend fun sendMessageSync(message: ProtocolMessage) {
         if (!isConnected) return
-        val out = globalOutputStream ?: return
-        try {
-            val jsonBytes = message.toBytes()
-            synchronized(out) {
-                out.writeInt(jsonBytes.size)
-                out.write(jsonBytes)
-                out.flush()
+        
+        // Priority 1: WiFi
+        if (wifiTransport?.isConnected() == true) {
+            if (wifiTransport?.send(message) == true) {
+                return
             }
-        } catch (_: Exception) {
-            forceDisconnect()
+        }
+        
+        // Priority 2: Bluetooth
+        if (bluetoothTransport?.isConnected() == true) {
+            bluetoothTransport?.send(message)
         }
     }
 
@@ -2731,14 +2756,28 @@ class BluetoothService : Service() {
     // Retorna Triple(ID, Channel, Text)
     private fun determineNotificationState(): Triple<Int, String, String> {
         return when {
-            isConnected && currentDeviceName != null ->
-                    Triple(
-                            NOTIFICATION_ID_CONNECTED,
-                            CHANNEL_ID_CONNECTED,
-                            "Connected to $currentDeviceName"
-                    )
-            isConnected && currentDeviceName == null ->
-                    Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, "Connected")
+            isConnected && currentDeviceName != null -> {
+                val statusText = when {
+                    wifiTransport?.isConnected() == true && bluetoothTransport?.isConnected() == true ->
+                        "Connected to $currentDeviceName via BT & WiFi"
+                    wifiTransport?.isConnected() == true ->
+                        "Connected to $currentDeviceName via WiFi"
+                    else ->
+                        "Connected to $currentDeviceName via BT"
+                }
+                Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, statusText)
+            }
+            isConnected && currentDeviceName == null -> {
+                val statusText = when {
+                    wifiTransport?.isConnected() == true && bluetoothTransport?.isConnected() == true ->
+                        "Connected via BT & WiFi"
+                    wifiTransport?.isConnected() == true ->
+                        "Connected via WiFi"
+                    else ->
+                        "Connected"
+                }
+                Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, statusText)
+            }
             currentNotificationStatus.contains("Aguardando", ignoreCase = true) ||
                     currentNotificationStatus.contains("Waiting", ignoreCase = true) ||
                     currentNotificationStatus.contains("Escaneando", ignoreCase = true) ||

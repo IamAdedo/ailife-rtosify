@@ -66,6 +66,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -107,7 +108,6 @@ class BluetoothService : Service() {
     private var bluetoothAdapter: BluetoothAdapter? = null
     private var bluetoothSocket: BluetoothSocket? = null
     private val shizukuLock = Any()
-    private var globalOutputStream: DataOutputStream? = null
 
     private val APP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
     private val APP_NAME = "RTOSifyApp"
@@ -118,8 +118,9 @@ class BluetoothService : Service() {
     // WiFi Transport Infrastructure
     private lateinit var encryptionManager: com.ailife.rtosifycompanion.security.EncryptionManager
     private var mdnsDiscovery: com.ailife.rtosifycompanion.communication.MdnsDiscovery? = null
-    private var currentTransport: com.ailife.rtosifycompanion.communication.CommunicationTransport? = null
+    private var bluetoothTransport: com.ailife.rtosifycompanion.communication.BluetoothTransport? = null
     private var wifiTransport: com.ailife.rtosifycompanion.communication.WifiIntranetTransport? = null
+    private var currentTransport: com.ailife.rtosifycompanion.communication.CommunicationTransport? = null
     // Clipboard monitoring
     private var clipboardManager: android.content.ClipboardManager? = null
     private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? =
@@ -1068,9 +1069,9 @@ class BluetoothService : Service() {
 
     private suspend fun handleConnectedSocket(socket: BluetoothSocket, deviceName: String) {
         this.bluetoothSocket = socket
-        globalOutputStream = DataOutputStream(socket.outputStream)
-        val inputStream = DataInputStream(socket.inputStream)
-
+        this.bluetoothTransport = com.ailife.rtosifycompanion.communication.BluetoothTransport(socket)
+        this.bluetoothTransport?.connect()
+        
         // Set connection state BEFORE updating status
         isConnected = true
         isTransferring = false
@@ -1092,111 +1093,38 @@ class BluetoothService : Service() {
         // Notifica callback
         withContext(Dispatchers.Main) { callback?.onDeviceConnected(deviceName) }
 
-        serviceScope.launch { heartbeatLoop() }
-        val deviceType = prefs.getString("device_type", "PHONE")
-        if (deviceType == "WATCH") {
-            // startWatchStatusSender() // Removed for polling refactor
-            // startDeviceInfoSender() // Removed for polling refactor
-            // Sync settings on connection
-            syncSettingsToPhone()
-        }
-
-        // Trigger automation on connection
-        onConnectionEstablished()
-
-        // WiFi encryption will be initialized during key exchange
-        // or restored from saved "advertised_mac"
-        val savedMac = prefs.getString("wifi_advertised_mac", null)
-        if (savedMac != null) {
-            initializeEncryptionForDevice(savedMac)
-        }
-
-        serviceScope.launch { heartbeatLoop() }
-
         try {
-            while (currentCoroutineContext().isActive) {
-                val message = readMessage(inputStream)
-                lastMessageTime = System.currentTimeMillis()
-
-                Log.d(TAG, "📩 Received message type: ${message.type}")
-
-                when (message.type) {
-                    MessageType.HEARTBEAT -> {
-                        /* IGNORE */
+            supervisorScope {
+                // Heartbeat loop in this scope
+                launch { 
+                    Log.d(TAG, "Starting heartbeat loop. lastMessageTime=$lastMessageTime")
+                    heartbeatLoop() 
+                }
+                
+                // Initialization tasks in this scope
+                launch {
+                    val deviceType = prefs.getString("device_type", "PHONE")
+                    if (deviceType == "WATCH") {
+                        // Track settings sync, etc.
+                        syncSettingsToPhone()
                     }
-                    MessageType.REQUEST_APPS -> handleRequestApps()
-                    MessageType.RESPONSE_APPS -> handleResponseApps(message)
-                    MessageType.NOTIFICATION_POSTED -> showMirroredNotification(message)
-                    MessageType.NOTIFICATION_REMOVED -> dismissLocalNotification(message)
-                    MessageType.DISMISS_NOTIFICATION -> requestDismissOnPhone(message)
-                    MessageType.EXECUTE_NOTIFICATION_ACTION ->
-                            handleExecuteNotificationAction(message)
-                    MessageType.SEND_NOTIFICATION_REPLY -> handleSendNotificationReply(message)
-                    MessageType.FILE_TRANSFER_START -> handleFileTransferStart(message)
-                    MessageType.FILE_CHUNK -> handleFileChunk(message)
-                    MessageType.FILE_TRANSFER_END -> handleFileTransferEnd(message)
-                    MessageType.SHUTDOWN -> handleShutdownCommand()
-                    MessageType.REBOOT -> handleRebootCommand()
-                    MessageType.LOCK_DEVICE -> handleLockDeviceCommand()
-                    MessageType.FIND_DEVICE -> handleFindDeviceCommand(message)
-                    MessageType.STATUS_UPDATE -> handleStatusUpdateReceived(message)
-                    MessageType.SET_DND -> handleSetDndCommand(message)
-                    MessageType.UPDATE_DND_SETTINGS -> handleUpdateDndSettings(message)
-                    MessageType.SET_WIFI -> handleSetWifiCommand(message)
-                    MessageType.REQUEST_WIFI_SCAN -> serviceScope.launch { handleRequestWifiScan() }
-                    MessageType.CONNECT_WIFI -> handleConnectWifi(message)
-                    MessageType.CAMERA_FRAME -> handleCameraFrame(message)
-                    MessageType.REQUEST_FILE_LIST -> handleRequestFileList(message)
-                    MessageType.REQUEST_FILE_DOWNLOAD -> handleRequestFileDownload(message)
-                    MessageType.DELETE_FILE -> handleDeleteFile(message)
-                    MessageType.UPDATE_SETTINGS -> handleUpdateSettings(message)
-                    MessageType.REQUEST_HEALTH_DATA -> handleRequestHealthData()
-                    MessageType.REQUEST_HEALTH_HISTORY -> handleRequestHealthHistory(message)
-                    MessageType.START_LIVE_MEASUREMENT -> handleStartLiveMeasurement(message)
-                    MessageType.STOP_LIVE_MEASUREMENT -> handleStopLiveMeasurement()
-                    MessageType.UPDATE_HEALTH_SETTINGS -> handleUpdateHealthSettings(message)
-                    MessageType.REQUEST_HEALTH_SETTINGS -> handleRequestHealthSettings()
-                    MessageType.SYNC_CALENDAR -> handleSyncCalendar(message)
-                    MessageType.SYNC_CONTACTS -> handleSyncContacts(message)
-                    MessageType.RENAME_FILE -> handleRenameFile(message)
-                    MessageType.MOVE_FILE -> handleMoveFile(message)
-                    MessageType.SET_WATCH_FACE -> handleSetWatchFace(message)
-                    MessageType.CREATE_FOLDER -> handleCreateFolder(message)
-                    MessageType.REQUEST_PREVIEW -> handleRequestPreview(message)
-                    MessageType.UNINSTALL_APP -> handleUninstallApp(message)
-                    MessageType.INCOMING_CALL -> handleIncomingCall(message)
-                    MessageType.CALL_STATE_CHANGED -> handleCallStateChanged(message)
-                    MessageType.REQUEST_BATTERY_LIVE -> handleRequestBatteryLive()
-                    MessageType.REQUEST_BATTERY_STATIC -> handleRequestBatteryStatic()
-                    MessageType.PHONE_BATTERY_UPDATE -> handlePhoneBatteryUpdate(message)
-                    MessageType.UPDATE_BATTERY_SETTINGS -> handleUpdateBatterySettings(message)
-                    MessageType.REQUEST_BATTERY_STATIC -> handleRequestBatteryStatic()
-                    MessageType.PHONE_BATTERY_UPDATE -> handlePhoneBatteryUpdate(message)
-                    MessageType.REQUEST_WATCH_STATUS -> handleRequestWatchStatus()
-                    MessageType.REQUEST_DEVICE_INFO_UPDATE -> handleRequestDeviceInfo()
-                    MessageType.UPDATE_BATTERY_SETTINGS -> handleUpdateBatterySettings(message)
-                    MessageType.CLIPBOARD_SYNC -> handleClipboardSync(message)
-                    MessageType.ENABLE_BT_INTERNET -> handleEnableBluetoothInternet(message)
-                    MessageType.REQUEST_ALARMS -> handleRequestAlarms()
-                    MessageType.ADD_ALARM -> handleAddAlarm(message)
-                    MessageType.UPDATE_ALARM -> handleUpdateAlarm(message)
-                    MessageType.DELETE_ALARM -> handleDeleteAlarm(message)
-                    MessageType.SCREEN_MIRROR_START -> handleMirrorStart(message)
-                    MessageType.SCREEN_MIRROR_STOP -> handleMirrorStop()
-                    MessageType.SCREEN_MIRROR_DATA -> handleMirrorData(message)
-                    MessageType.REMOTE_INPUT -> handleRemoteInput(message)
-                    MessageType.UPDATE_RESOLUTION -> handleUpdateResolution(message)
-                    MessageType.MIRROR_RES_CHANGE -> handleMirrorResChange(message)
-                    MessageType.EXECUTE_SHELL_COMMAND -> handleExecuteShellCommand(message)
-                    MessageType.CANCEL_SHELL_COMMAND -> handleCancelShellCommand(message)
-                    MessageType.REQUEST_PERMISSION_INFO -> handleRequestPermissionInfo()
-                    MessageType.WIFI_KEY_EXCHANGE -> handleWifiKeyExchange(message)
-                    MessageType.WIFI_TEST_ENCRYPT -> handleWifiTestEncrypt(message)
-                    else -> Log.w(TAG, "Unknown message type: ${message.type}")
+
+                    // Trigger automation on connection
+                    onConnectionEstablished()
+                }
+
+                try {
+                    // This blocks as long as the transport is active
+                    handleTransportMessages(bluetoothTransport!!)
+                } finally {
+                    Log.d(TAG, "Transport loop finished, cancelling connection scope")
+                    this.cancel() // Kills heartbeat and initialization if they are still running
                 }
             }
-        } catch (_: IOException) {
-            // Connection lost
+        } catch (e: Exception) {
+            if (e !is CancellationException) {
+                Log.e(TAG, "Bluetooth transport error", e)
+            }
         } finally {
             val wasConnected = isConnected
 
@@ -1228,6 +1156,88 @@ class BluetoothService : Service() {
             }
 
             withContext(Dispatchers.Main) { callback?.onDeviceDisconnected() }
+        }
+    }
+
+    private suspend fun handleTransportMessages(transport: com.ailife.rtosifycompanion.communication.CommunicationTransport) {
+        transport.receive().collect { message ->
+            lastMessageTime = System.currentTimeMillis()
+            processReceivedMessage(message)
+        }
+    }
+
+    private suspend fun processReceivedMessage(message: ProtocolMessage) {
+        Log.d(TAG, "📩 Processing message type: ${message.type}")
+        when (message.type) {
+            MessageType.HEARTBEAT -> {
+                /* IGNORE */
+            }
+            MessageType.REQUEST_APPS -> handleRequestApps()
+            MessageType.RESPONSE_APPS -> handleResponseApps(message)
+            MessageType.NOTIFICATION_POSTED -> showMirroredNotification(message)
+            MessageType.NOTIFICATION_REMOVED -> dismissLocalNotification(message)
+            MessageType.DISMISS_NOTIFICATION -> requestDismissOnPhone(message)
+            MessageType.EXECUTE_NOTIFICATION_ACTION ->
+                    handleExecuteNotificationAction(message)
+            MessageType.SEND_NOTIFICATION_REPLY -> handleSendNotificationReply(message)
+            MessageType.FILE_TRANSFER_START -> handleFileTransferStart(message)
+            MessageType.FILE_CHUNK -> handleFileChunk(message)
+            MessageType.FILE_TRANSFER_END -> handleFileTransferEnd(message)
+            MessageType.SHUTDOWN -> handleShutdownCommand()
+            MessageType.REBOOT -> handleRebootCommand()
+            MessageType.LOCK_DEVICE -> handleLockDeviceCommand()
+            MessageType.FIND_DEVICE -> handleFindDeviceCommand(message)
+            MessageType.STATUS_UPDATE -> handleStatusUpdateReceived(message)
+            MessageType.SET_DND -> handleSetDndCommand(message)
+            MessageType.UPDATE_DND_SETTINGS -> handleUpdateDndSettings(message)
+            MessageType.SET_WIFI -> handleSetWifiCommand(message)
+            MessageType.REQUEST_WIFI_SCAN -> serviceScope.launch { handleRequestWifiScan() }
+            MessageType.CONNECT_WIFI -> handleConnectWifi(message)
+            MessageType.CAMERA_FRAME -> handleCameraFrame(message)
+            MessageType.REQUEST_FILE_LIST -> handleRequestFileList(message)
+            MessageType.REQUEST_FILE_DOWNLOAD -> handleRequestFileDownload(message)
+            MessageType.DELETE_FILE -> handleDeleteFile(message)
+            MessageType.UPDATE_SETTINGS -> handleUpdateSettings(message)
+            MessageType.REQUEST_HEALTH_DATA -> handleRequestHealthData()
+            MessageType.REQUEST_HEALTH_HISTORY -> handleRequestHealthHistory(message)
+            MessageType.START_LIVE_MEASUREMENT -> handleStartLiveMeasurement(message)
+            MessageType.STOP_LIVE_MEASUREMENT -> handleStopLiveMeasurement()
+            MessageType.UPDATE_HEALTH_SETTINGS -> handleUpdateHealthSettings(message)
+            MessageType.REQUEST_HEALTH_SETTINGS -> handleRequestHealthSettings()
+            MessageType.SYNC_CALENDAR -> handleSyncCalendar(message)
+            MessageType.SYNC_CONTACTS -> handleSyncContacts(message)
+            MessageType.RENAME_FILE -> handleRenameFile(message)
+            MessageType.MOVE_FILE -> handleMoveFile(message)
+            MessageType.SET_WATCH_FACE -> handleSetWatchFace(message)
+            MessageType.CREATE_FOLDER -> handleCreateFolder(message)
+            MessageType.REQUEST_PREVIEW -> handleRequestPreview(message)
+            MessageType.UNINSTALL_APP -> handleUninstallApp(message)
+            MessageType.INCOMING_CALL -> handleIncomingCall(message)
+            MessageType.CALL_STATE_CHANGED -> handleCallStateChanged(message)
+            MessageType.REQUEST_BATTERY_LIVE -> handleRequestBatteryLive()
+            MessageType.REQUEST_BATTERY_STATIC -> handleRequestBatteryStatic()
+            MessageType.PHONE_BATTERY_UPDATE -> handlePhoneBatteryUpdate(message)
+            MessageType.REQUEST_WATCH_STATUS -> handleRequestWatchStatus()
+            MessageType.REQUEST_DEVICE_INFO_UPDATE -> handleRequestDeviceInfo()
+            MessageType.UPDATE_BATTERY_SETTINGS -> handleUpdateBatterySettings(message)
+            MessageType.CLIPBOARD_SYNC -> handleClipboardSync(message)
+            MessageType.ENABLE_BT_INTERNET -> handleEnableBluetoothInternet(message)
+            MessageType.REQUEST_ALARMS -> handleRequestAlarms()
+            MessageType.ADD_ALARM -> handleAddAlarm(message)
+            MessageType.UPDATE_ALARM -> handleUpdateAlarm(message)
+            MessageType.DELETE_ALARM -> handleDeleteAlarm(message)
+            MessageType.SCREEN_MIRROR_START -> handleMirrorStart(message)
+            MessageType.SCREEN_MIRROR_STOP -> handleMirrorStop()
+            MessageType.SCREEN_MIRROR_DATA -> handleMirrorData(message)
+            MessageType.REMOTE_INPUT -> handleRemoteInput(message)
+            MessageType.UPDATE_RESOLUTION -> handleUpdateResolution(message)
+            MessageType.MIRROR_RES_CHANGE -> handleMirrorResChange(message)
+            MessageType.EXECUTE_SHELL_COMMAND -> handleExecuteShellCommand(message)
+            MessageType.CANCEL_SHELL_COMMAND -> handleCancelShellCommand(message)
+            MessageType.REQUEST_PERMISSION_INFO -> handleRequestPermissionInfo()
+            MessageType.WIFI_KEY_EXCHANGE -> handleWifiKeyExchange(message)
+            MessageType.WIFI_TEST_ENCRYPT -> handleWifiTestEncrypt(message)
+            else -> Log.w(TAG, "Unknown message type: ${message.type}")
         }
     }
 
@@ -1721,8 +1731,13 @@ class BluetoothService : Service() {
     private suspend fun heartbeatLoop() {
         while (currentCoroutineContext().isActive) {
             delay(HEARTBEAT_INTERVAL)
-            if (!isConnected) continue
-            if (System.currentTimeMillis() - lastMessageTime > CONNECTION_TIMEOUT) {
+            if (!isConnected) {
+                Log.d(TAG, "heartbeatLoop: not connected, skipping check")
+                continue
+            }
+            val ellapsed = System.currentTimeMillis() - lastMessageTime
+            if (ellapsed > CONNECTION_TIMEOUT) {
+                Log.w(TAG, "heartbeatLoop: timeout detected! ellapsed=$ellapsed, limit=$CONNECTION_TIMEOUT")
                 forceDisconnect()
                 break
             }
@@ -1798,6 +1813,9 @@ class BluetoothService : Service() {
             if (wifiTransport!!.connect()) {
                 currentTransport = wifiTransport
                 Log.d(TAG, "WiFi server started successfully")
+                serviceScope.launch {
+                    handleTransportMessages(wifiTransport!!)
+                }
             } else {
                 Log.w(TAG, "WiFi server failed to start")
                 wifiTransport = null
@@ -1824,51 +1842,39 @@ class BluetoothService : Service() {
 
     fun sendMessage(message: ProtocolMessage) {
         serviceScope.launch(Dispatchers.IO) {
-            if (!isConnected) {
-                Log.w(TAG, "sendMessage: not connected, dropping message type=${message.type}")
-                return@launch
-            }
-            val out =
-                    globalOutputStream
-                            ?: run {
-                                Log.w(
-                                        TAG,
-                                        "sendMessage: globalOutputStream is null, dropping message type=${message.type}"
-                                )
-                                return@launch
-                            }
-            try {
-                val jsonBytes = message.toBytes()
-                Log.d(TAG, "sendMessage: type=${message.type}, size=${jsonBytes.size} bytes")
-                synchronized(out) {
-                    out.writeInt(jsonBytes.size)
-                    out.write(jsonBytes)
-                    out.flush()
+            if (!isConnected) return@launch
+
+            // Priority 1: WiFi
+            if (wifiTransport?.isConnected() == true) {
+                if (wifiTransport?.send(message) == true) {
+                    return@launch
                 }
-                Log.d(TAG, "sendMessage: successfully sent type=${message.type}")
-            } catch (e: Exception) {
-                Log.e(
-                        TAG,
-                        "Failed to send message type=${message.type}, size=${message.toBytes().size}: ${e.message}"
-                )
-                e.printStackTrace()
-                forceDisconnect()
             }
+            
+            // Priority 2: Bluetooth (via Transport)
+            if (bluetoothTransport?.isConnected() == true) {
+                if (bluetoothTransport?.send(message) == true) {
+                    return@launch
+                }
+            }
+
+            Log.w(TAG, "sendMessage: All transports failed or disconnected for message type=${message.type}")
         }
     }
 
     private suspend fun sendMessageSync(message: ProtocolMessage) {
         if (!isConnected) return
-        val out = globalOutputStream ?: return
-        try {
-            val jsonBytes = message.toBytes()
-            synchronized(out) {
-                out.writeInt(jsonBytes.size)
-                out.write(jsonBytes)
-                out.flush()
+
+        // Priority 1: WiFi
+        if (wifiTransport?.isConnected() == true) {
+            if (wifiTransport?.send(message) == true) {
+                return
             }
-        } catch (_: Exception) {
-            forceDisconnect()
+        }
+        
+        // Priority 2: Bluetooth
+        if (bluetoothTransport?.isConnected() == true) {
+            bluetoothTransport?.send(message)
         }
     }
 
@@ -4472,14 +4478,28 @@ class BluetoothService : Service() {
     // Returns Triple(ID, Channel, Text)
     private fun determineNotificationState(): Triple<Int, String, String> {
         return when {
-            isConnected && currentDeviceName != null ->
-                    Triple(
-                            NOTIFICATION_ID_CONNECTED,
-                            CHANNEL_ID_CONNECTED,
-                            getString(R.string.status_connected_to, currentDeviceName!!)
-                    )
-            isConnected && currentDeviceName == null ->
-                    Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, getString(R.string.status_connected))
+            isConnected && currentDeviceName != null -> {
+                val statusText = when {
+                    wifiTransport?.isConnected() == true && bluetoothTransport?.isConnected() == true ->
+                        getString(R.string.status_connected_to, currentDeviceName!!) + " via BT & WiFi"
+                    wifiTransport?.isConnected() == true ->
+                        getString(R.string.status_connected_to, currentDeviceName!!) + " via WiFi"
+                    else ->
+                        getString(R.string.status_connected_to, currentDeviceName!!) + " via BT"
+                }
+                Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, statusText)
+            }
+            isConnected && currentDeviceName == null -> {
+                val statusText = when {
+                    wifiTransport?.isConnected() == true && bluetoothTransport?.isConnected() == true ->
+                        getString(R.string.status_connected) + " via BT & WiFi"
+                    wifiTransport?.isConnected() == true ->
+                        getString(R.string.status_connected) + " via WiFi"
+                    else ->
+                        getString(R.string.status_connected)
+                }
+                Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, statusText)
+            }
             currentNotificationStatus.contains(getString(R.string.status_waiting), ignoreCase = true) ||
                     currentNotificationStatus.contains("Waiting", ignoreCase = true) ||
                     currentNotificationStatus.contains(getString(R.string.status_scanning), ignoreCase = true) ||
