@@ -37,7 +37,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Current Connection"
+            android:text="@string/wifi_current_connection"
             android:textStyle="bold"
             android:layout_marginBottom="8dp"/>
 
@@ -59,7 +59,7 @@
         android:id="@+id/tvAvailableTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Available Networks"
+        android:text="@string/wifi_available_networks_title"
         android:textStyle="bold"
         android:layout_marginBottom="8dp"/>
 
@@ -95,7 +95,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Scanning..."/>
+                android:text="@string/wifi_scanning"/>
         </LinearLayout>
     </FrameLayout>
 </LinearLayout>

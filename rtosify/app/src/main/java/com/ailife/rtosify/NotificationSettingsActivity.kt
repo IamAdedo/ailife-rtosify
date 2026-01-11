@@ -201,7 +201,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
     }
 
     private fun setupNotificationStyleSpinner() {
-        val styles = arrayOf("Android Notification", "Dynamic Island")
+        val styles = arrayOf(getString(R.string.notif_style_android), getString(R.string.notif_style_dynamic_island))
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, styles)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerNotificationStyle.adapter = adapter
@@ -232,7 +232,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         // Load saved timeout (default 5 seconds)
         val timeout = activePrefs.getInt("dynamic_island_timeout", 5)
         seekBarTimeout.progress = timeout - 2 // Offset by 2 since min is 2
-        tvTimeoutValue.text = "$timeout seconds"
+        tvTimeoutValue.text = getString(R.string.notif_unit_seconds, timeout)
 
         seekBarTimeout.setOnSeekBarChangeListener(
                 object : SeekBar.OnSeekBarChangeListener {
@@ -243,7 +243,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
                     ) {
                         // Minimum timeout is 2 seconds, max is 10 seconds
                         val timeoutSeconds = progress + 2
-                        tvTimeoutValue.text = "$timeoutSeconds seconds"
+                        tvTimeoutValue.text = getString(R.string.notif_unit_seconds, timeoutSeconds)
                         activePrefs.edit().putInt("dynamic_island_timeout", timeoutSeconds).apply()
                         syncSettings()
                     }
@@ -266,7 +266,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private fun setupYSeekBar() {
         val y = activePrefs.getInt("dynamic_island_y", 8)
         seekBarY.progress = y
-        tvYValue.text = "$y dp"
+        tvYValue.text = getString(R.string.notif_unit_dp, y)
 
         seekBarY.setOnSeekBarChangeListener(
                 object : SeekBar.OnSeekBarChangeListener {
@@ -275,7 +275,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
                             progress: Int,
                             fromUser: Boolean
                     ) {
-                        tvYValue.text = "$progress dp"
+                        tvYValue.text = getString(R.string.notif_unit_dp, progress)
                         activePrefs.edit().putInt("dynamic_island_y", progress).apply()
                         syncSettings()
                     }
@@ -288,7 +288,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private fun setupWidthSeekBar() {
         val width = activePrefs.getInt("dynamic_island_width", 150)
         seekBarWidth.progress = width - 50
-        tvWidthValue.text = "$width dp"
+        tvWidthValue.text = getString(R.string.notif_unit_dp, width)
 
         seekBarWidth.setOnSeekBarChangeListener(
                 object : SeekBar.OnSeekBarChangeListener {
@@ -298,7 +298,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
                             fromUser: Boolean
                     ) {
                         val value = progress + 50
-                        tvWidthValue.text = "$value dp"
+                        tvWidthValue.text = getString(R.string.notif_unit_dp, value)
                         activePrefs.edit().putInt("dynamic_island_width", value).apply()
                         syncSettings()
                     }
@@ -311,7 +311,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private fun setupHeightSeekBar() {
         val height = activePrefs.getInt("dynamic_island_height", 40)
         seekBarHeight.progress = height - 20
-        tvHeightValue.text = "$height dp"
+        tvHeightValue.text = getString(R.string.notif_unit_dp, height)
 
         seekBarHeight.setOnSeekBarChangeListener(
                 object : SeekBar.OnSeekBarChangeListener {
@@ -321,7 +321,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
                             fromUser: Boolean
                     ) {
                         val value = progress + 20
-                        tvHeightValue.text = "$value dp"
+                        tvHeightValue.text = getString(R.string.notif_unit_dp, value)
                         activePrefs.edit().putInt("dynamic_island_height", value).apply()
                         syncSettings()
                     }

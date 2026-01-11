@@ -145,7 +145,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
                     // Let's use a similar approach for generic upload.
                     uploadFile(uri, currentPath)
                 }
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(android.R.string.cancel, null)
                 .show()
     }
 
@@ -177,11 +177,11 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
             when (progress) {
                 in 0..99 -> {
                     transferProgressBar?.progress = progress
-                    transferPercentageText?.text = "$progress%"
+                    transferPercentageText?.text = getString(R.string.status_progress_format, progress)
                 }
                 100 -> {
                     transferProgressBar?.progress = 100
-                    transferPercentageText?.text = "100%"
+                    transferPercentageText?.text = getString(R.string.status_progress_format, 100)
                     transferTitleText?.text = successTitle
                     transferDescriptionText?.text = successMessage
                     transferIconView?.setImageResource(android.R.drawable.stat_sys_upload_done)

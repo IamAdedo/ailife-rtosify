@@ -8,10 +8,10 @@
     <item
         android:id="@+id/nav_heart_rate"
         android:icon="@drawable/ic_heart"
-        android:title="Heart Rate" />
+        android:title="@string/health_hr_short" />
 
     <item
         android:id="@+id/nav_oxygen"
         android:icon="@drawable/ic_oxygen"
-        android:title="SpO2" />
+        android:title="@string/health_oxygen_short" />
 </menu>

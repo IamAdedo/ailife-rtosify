@@ -3,6 +3,7 @@ package com.ailife.rtosify
 import android.Manifest
 import android.bluetooth.BluetoothDevice
 import android.content.ComponentName
+import android.content.DialogInterface
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.SharedPreferences
@@ -164,7 +165,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             if (hasMissingPermissions()) {
                 Toast.makeText(
                                 this,
-                                "Redirecting to setup: Missing permissions",
+                                R.string.toast_setup_redirect_missing_perms,
                                 Toast.LENGTH_SHORT
                         )
                         .show()
@@ -464,7 +465,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                         quickDurationMinutes = mins
                                 )
                         )
-                        Toast.makeText(this, "DND for $mins minutes sent", Toast.LENGTH_SHORT)
+                        Toast.makeText(this, getString(R.string.toast_dnd_mins_sent_format, mins), Toast.LENGTH_SHORT)
                                 .show()
                         parentDialog.dismiss()
                     }
@@ -785,7 +786,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 else bluetoothService?.startWatchLogic()
 
                 updateStatusUI(getString(R.string.status_starting), false)
-                Toast.makeText(this@MainActivity, "Service Started", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainActivity, R.string.toast_service_started, Toast.LENGTH_SHORT).show()
             } else {
                 bluetoothService?.stopServiceCompletely()
                 if (isBound) {
@@ -794,7 +795,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     bluetoothService = null
                 }
                 updateStatusUI(getString(R.string.status_stopped), false)
-                Toast.makeText(this, "Service Stopped", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.toast_service_stopped, Toast.LENGTH_SHORT).show()
             }
             refreshMenu()
         }
@@ -894,16 +895,18 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 }
 
                 itemView.setOnLongClickListener {
-                    AlertDialog.Builder(this)
-                            .setTitle("Remove Device")
-                            .setMessage("Are you sure you want to remove ${device.name}?")
-                            .setPositiveButton("Remove") { _, _ ->
-                                devicePrefManager.removePairedDevice(device.mac)
-                                showDevicePicker() // Refresh
-                                dialog.dismiss()
-                            }
-                            .setNegativeButton("Cancel", null)
-                            .show()
+                    val builder = AlertDialog.Builder(this@MainActivity)
+                    builder.setTitle(R.string.dialog_remove_device_title)
+                    builder.setMessage(getString(R.string.dialog_remove_device_message, device.name))
+                    builder.setPositiveButton(R.string.dialog_remove_device_confirm, object : DialogInterface.OnClickListener {
+                        override fun onClick(d: DialogInterface?, which: Int) {
+                            devicePrefManager.removePairedDevice(device.mac)
+                            showDevicePicker() // Refresh
+                            dialog.dismiss()
+                        }
+                    })
+                    builder.setNegativeButton(android.R.string.cancel, null)
+                    builder.show()
                     true
                 }
 
@@ -983,8 +986,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 }
                         ),
                         MenuOption(
-                                "File Manager",
-                                "Browse and manage watch files",
+                                getString(R.string.menu_file_manager),
+                                getString(R.string.menu_file_manager_desc),
                                 android.R.drawable.ic_menu_save,
                                 {
                                     runIfConnected {
@@ -993,8 +996,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 }
                         ),
                         MenuOption(
-                                "Watch Automations",
-                                "Manage watch automated tasks and behaviors",
+                                getString(R.string.menu_watch_automation),
+                                getString(R.string.menu_watch_automation_desc),
                                 R.drawable.ic_watch_automations,
                                 {
                                     startActivity(
@@ -1077,7 +1080,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         ),
                         MenuOption(
                                 getString(R.string.menu_health),
-                                "Monitor health metrics",
+                                getString(R.string.menu_health_desc),
                                 R.drawable.ic_heart,
                                 {
                                     runIfConnected {
@@ -1094,8 +1097,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
                         ),
                         MenuOption(
-                                "Alarms",
-                                "Manage watch alarms",
+                                getString(R.string.menu_alarms),
+                                getString(R.string.menu_alarms_desc),
                                 android.R.drawable.ic_lock_idle_alarm,
                                 {
                                     runIfConnected {
@@ -1106,8 +1109,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 }
                         ),
                         MenuOption(
-                                "Terminal",
-                                "Execute shell commands on watch",
+                                getString(R.string.menu_terminal),
+                                getString(R.string.menu_terminal_desc),
                                 R.drawable.ic_terminal,
                                 {
                                     runIfConnected {
@@ -1146,8 +1149,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 }
                         ),
                         MenuOption(
-                                "File Manager",
-                                "Browse and manage watch files",
+                                getString(R.string.menu_file_manager),
+                                getString(R.string.menu_file_manager_desc),
                                 android.R.drawable.ic_menu_save,
                                 {
                                     runIfConnected {
@@ -1156,8 +1159,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 }
                         ),
                         MenuOption(
-                                "Watch Automations",
-                                "Manage watch automated tasks and behaviors",
+                                getString(R.string.menu_watch_automation),
+                                getString(R.string.menu_watch_automation_desc),
                                 R.drawable.ic_watch_automations,
                                 {
                                     startActivity(

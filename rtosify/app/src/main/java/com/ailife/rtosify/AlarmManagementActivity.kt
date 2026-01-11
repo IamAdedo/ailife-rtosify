@@ -160,9 +160,9 @@ class AlarmManagementActivity : AppCompatActivity() {
         }
         
         AlertDialog.Builder(this)
-            .setTitle(if (existingAlarm == null) "Add Alarm" else "Edit Alarm")
+            .setTitle(if (existingAlarm == null) getString(R.string.alarm_add_title) else getString(R.string.alarm_edit_title))
             .setView(dialogView)
-            .setPositiveButton("Save") { _, _ ->
+            .setPositiveButton(R.string.alarm_save) { _, _ ->
                 val hour = timePicker.hour
                 val minute = timePicker.minute
                 val label = etLabel.text.toString()
@@ -194,19 +194,19 @@ class AlarmManagementActivity : AppCompatActivity() {
                 // Show loading
                 progressBar.visibility = View.VISIBLE
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.alarm_cancel, null)
             .show()
     }
     
     private fun confirmDelete(alarm: AlarmData) {
         AlertDialog.Builder(this)
-            .setTitle("Delete Alarm")
-            .setMessage("Delete alarm at ${String.format("%02d:%02d", alarm.hour, alarm.minute)}?")
-            .setPositiveButton("Delete") { _, _ ->
+            .setTitle(R.string.alarm_delete_title)
+            .setMessage(getString(R.string.alarm_delete_confirm, String.format("%02d:%02d", alarm.hour, alarm.minute)))
+            .setPositiveButton(R.string.alarm_delete) { _, _ ->
                 bluetoothService?.deleteAlarm(alarm.id)
                 progressBar.visibility = View.VISIBLE
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.alarm_cancel, null)
             .show()
     }
     
@@ -260,9 +260,17 @@ class AlarmManagementActivity : AppCompatActivity() {
                 tvTime.text = String.format("%02d:%02d", alarm.hour, alarm.minute)
                 
                 // Format days
-                val dayNames = mapOf(1 to "M", 2 to "T", 3 to "W", 4 to "T", 5 to "F", 6 to "S", 7 to "S")
+                val dayNames = mapOf(
+                    1 to itemView.context.getString(R.string.alarm_day_short_mon),
+                    2 to itemView.context.getString(R.string.alarm_day_short_tue),
+                    3 to itemView.context.getString(R.string.alarm_day_short_wed),
+                    4 to itemView.context.getString(R.string.alarm_day_short_thu),
+                    5 to itemView.context.getString(R.string.alarm_day_short_fri),
+                    6 to itemView.context.getString(R.string.alarm_day_short_sat),
+                    7 to itemView.context.getString(R.string.alarm_day_short_sun)
+                )
                 if (alarm.daysOfWeek.isEmpty()) {
-                    tvDays.text = "Once"
+                    tvDays.text = itemView.context.getString(R.string.alarm_once)
                 } else {
                     tvDays.text = (1..7).joinToString(" ") { day ->
                         if (alarm.daysOfWeek.contains(day)) dayNames[day]!! else "·"

@@ -104,7 +104,7 @@
                         style="@style/Widget.Material3.Button.TonalButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Start Mirroring"
+                        android:text="@string/mirror_start"
                         app:icon="@drawable/ic_cast"/>
 
                 </LinearLayout>
@@ -146,7 +146,7 @@
                         style="@style/Widget.Material3.Button.TonalButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="View Watch Screen"
+                        android:text="@string/mirror_view_watch"
                         android:layout_marginBottom="16dp"
                         app:icon="@drawable/ic_settings_remote"/>
 
@@ -167,13 +167,13 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Enable Touch Control"
+                                android:text="@string/mirror_enable_touch"
                                 android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Allow controlling the watch with touch"
+                                android:text="@string/mirror_enable_touch_desc"
                                 android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                                 android:textColor="?android:attr/textColorSecondary" />
                         </LinearLayout>
@@ -247,13 +247,13 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Match Aspect Ratio"
+                                android:text="@string/mirror_match_aspect"
                                 android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Fit screen shape without full resize"
+                                android:text="@string/mirror_match_aspect_desc"
                                 android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                                 android:textColor="?android:attr/textColorSecondary" />
                         </LinearLayout>

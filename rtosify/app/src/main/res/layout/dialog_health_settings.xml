@@ -14,7 +14,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Body Specifications"
+            android:text="@string/health_body_specs"
             android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
             android:layout_marginBottom="16dp" />
 
@@ -28,7 +28,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Age (years)"
+                android:text="@string/health_age_years"
                 android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
                 android:layout_marginBottom="4dp" />
 
@@ -51,7 +51,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Gender"
+                android:text="@string/health_gender"
                 android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
                 android:layout_marginBottom="4dp" />
 
@@ -72,7 +72,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Height (cm)"
+                android:text="@string/health_height_cm"
                 android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
                 android:layout_marginBottom="4dp" />
 
@@ -95,7 +95,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Weight (kg)"
+                android:text="@string/health_weight_kg"
                 android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
                 android:layout_marginBottom="4dp" />
 
@@ -119,7 +119,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Health Monitoring"
+            android:text="@string/health_monitoring_title"
             android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
             android:layout_marginTop="8dp"
             android:layout_marginBottom="16dp" />
@@ -182,7 +182,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Background Monitoring"
+                android:text="@string/health_background_monitoring"
                 android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
             <androidx.appcompat.widget.SwitchCompat

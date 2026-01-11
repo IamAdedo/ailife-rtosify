@@ -29,7 +29,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:fontFamily="monospace"
-            android:text="Terminal"
+            android:text="@string/menu_terminal"
             android:textColor="@android:color/white"
             android:textSize="24sp"
             android:textStyle="bold" />
@@ -187,7 +187,7 @@
                 android:layout_weight="1"
                 android:background="@android:color/transparent"
                 android:fontFamily="monospace"
-                android:hint="Enter command..."
+                android:hint="@string/terminal_input_hint"
                 android:imeOptions="actionDone"
                 android:inputType="text"
                 android:textColor="@android:color/white"

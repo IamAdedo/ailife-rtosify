@@ -53,7 +53,7 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
         app:srcCompat="@android:drawable/ic_menu_upload"
-        android:contentDescription="Upload File" />
+        android:contentDescription="@string/file_uploading" />
 
     <ProgressBar
         android:id="@+id/progressBarFiles"

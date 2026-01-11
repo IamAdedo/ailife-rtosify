@@ -8,7 +8,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Set Time"
+        android:text="@string/alarm_set_time"
         android:textSize="16sp"
         android:textStyle="bold"
         android:layout_marginBottom="8dp" />
@@ -23,7 +23,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Repeat on"
+        android:text="@string/alarm_repeat_on"
         android:textSize="16sp"
         android:textStyle="bold"
         android:layout_marginTop="16dp"
@@ -40,55 +40,55 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="M" />
+            android:text="@string/alarm_day_short_mon" />
 
         <CheckBox
             android:id="@+id/cbTuesday"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="T" />
+            android:text="@string/alarm_day_short_tue" />
 
         <CheckBox
             android:id="@+id/cbWednesday"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="W" />
+            android:text="@string/alarm_day_short_wed" />
 
         <CheckBox
             android:id="@+id/cbThursday"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="T" />
+            android:text="@string/alarm_day_short_thu" />
 
         <CheckBox
             android:id="@+id/cbFriday"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="F" />
+            android:text="@string/alarm_day_short_fri" />
 
         <CheckBox
             android:id="@+id/cbSaturday"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="S" />
+            android:text="@string/alarm_day_short_sat" />
 
         <CheckBox
             android:id="@+id/cbSunday"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="S" />
+            android:text="@string/alarm_day_short_sun" />
     </LinearLayout>
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Label (Optional)"
+        android:text="@string/alarm_label_optional"
         android:textSize="16sp"
         android:textStyle="bold"
         android:layout_marginTop="16dp"
@@ -98,7 +98,7 @@
         android:id="@+id/etAlarmLabel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Alarm name"
+        android:hint="@string/alarm_name_hint"
         android:inputType="text"
         android:maxLines="1" />
 

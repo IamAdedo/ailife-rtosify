@@ -346,7 +346,7 @@ class WelcomeActivity : AppCompatActivity() {
         if (adapter == null || !adapter.isEnabled) {
             Toast.makeText(
                             this,
-                            "Bluetooth is not enabled. Please enable it and try again.",
+                            R.string.toast_bt_not_enabled,
                             Toast.LENGTH_LONG
                     )
                     .show()
@@ -427,7 +427,7 @@ class WelcomeActivity : AppCompatActivity() {
         if (adapter == null || !adapter.isEnabled) {
             Toast.makeText(
                             this,
-                            "Bluetooth is not enabled. Please enable it and try again.",
+                            R.string.toast_bt_not_enabled,
                             Toast.LENGTH_LONG
                     )
                     .show()

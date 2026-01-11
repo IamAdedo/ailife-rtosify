@@ -54,7 +54,7 @@
             android:id="@+id/btnRetry"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Retry Search"
+            android:text="@string/welcome_retry"
             android:layout_marginBottom="8dp"
             android:visibility="gone" />
 
@@ -62,7 +62,7 @@
             android:id="@+id/btnScanQr"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Scan QR Code"
+            android:text="@string/welcome_scan_qr"
             android:visibility="visible" />
 
         <!-- Os cards foram removidos para simplificar o processo automático -->

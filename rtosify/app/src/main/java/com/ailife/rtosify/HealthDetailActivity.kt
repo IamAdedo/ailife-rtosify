@@ -826,7 +826,11 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
                 .setTitle(getString(R.string.health_settings))
                 .setView(dialogView)
                 .setPositiveButton(android.R.string.ok) { _, _ ->
-                    val gender = spinnerGender.selectedItem.toString()
+                    val gender = when(spinnerGender.selectedItemPosition) {
+                        0 -> "Male"
+                        1 -> "Female"
+                        else -> "Other"
+                    }
                     val settings =
                             HealthSettingsUpdate(
                                     stepGoal =
@@ -907,6 +911,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
                                 "HARDWARE" -> getString(R.string.health_hardware_error)
                                 "APP_NOT_INSTALLED" -> getString(R.string.health_tracker_not_installed)
                                 "NO_DATA" -> getString(R.string.health_measure_timeout)
+                                "NOT_ON_WRIST" -> getString(R.string.health_not_on_wrist)
                                 else -> getString(R.string.health_error_prefix, error)
                             }
                     Toast.makeText(this, message, Toast.LENGTH_SHORT).show()

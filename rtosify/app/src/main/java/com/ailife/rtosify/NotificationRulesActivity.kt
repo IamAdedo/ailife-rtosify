@@ -195,10 +195,10 @@ class NotificationRulesActivity : AppCompatActivity() {
 
         val dialog =
                 AlertDialog.Builder(this)
-                        .setTitle(if (existingRule == null) "Add Rule" else "Edit Rule")
+                        .setTitle(if (existingRule == null) R.string.notif_manage_rules_title else R.string.rule_edit)
                         .setView(dialogView)
-                        .setPositiveButton("Save", null) // Set to null initially
-                        .setNegativeButton("Cancel", null)
+                        .setPositiveButton(R.string.rule_save, null) // Set to null initially
+                        .setNegativeButton(R.string.alarm_cancel, null)
                         .create()
 
         dialog.setOnShowListener {
@@ -210,7 +210,7 @@ class NotificationRulesActivity : AppCompatActivity() {
 
                 // Validation
                 if (packageName.isEmpty()) {
-                    editPackageName.error = "Package name is required"
+                    editPackageName.error = getString(R.string.rule_package_required)
                     return@setOnClickListener
                 }
 
@@ -247,21 +247,21 @@ class NotificationRulesActivity : AppCompatActivity() {
 
     private fun showDeleteConfirmDialog(rule: NotificationRule) {
         AlertDialog.Builder(this)
-                .setTitle("Delete Rule")
-                .setMessage("Are you sure you want to delete this rule for ${rule.packageName}?")
-                .setPositiveButton("Delete") { _, _ ->
+                .setTitle(R.string.rule_delete_title)
+                .setMessage(getString(R.string.rule_delete_msg, rule.packageName))
+                .setPositiveButton(R.string.label_delete) { _, _ ->
                     val currentRules = adapter.getRules().toMutableList()
                     currentRules.removeAll { it.id == rule.id }
                     saveRules(currentRules)
                 }
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(R.string.alarm_cancel, null)
                 .show()
     }
 
     private fun showAppSelectionDialog(onAppSelected: (String) -> Unit) {
         val progressDialog =
                 AlertDialog.Builder(this)
-                        .setMessage("Loading apps...")
+                        .setMessage(R.string.rule_loading_apps)
                         .setCancelable(false)
                         .create()
         progressDialog.show()
@@ -307,9 +307,9 @@ class NotificationRulesActivity : AppCompatActivity() {
 
         val dialog =
                 AlertDialog.Builder(this)
-                        .setTitle("Select App")
+                        .setTitle(R.string.app_select_title)
                         .setView(dialogView)
-                        .setNegativeButton("Cancel", null)
+                        .setNegativeButton(R.string.alarm_cancel, null)
                         .create()
 
         val adapter =
@@ -407,19 +407,23 @@ class NotificationRulesAdapter(
 
         fun bind(rule: NotificationRule) {
             tvPackageName.text = rule.packageName
-            tvMode.text = rule.mode.uppercase()
+            tvMode.text = when(rule.mode) {
+                "whitelist" -> itemView.context.getString(R.string.rule_whitelist)
+                "blacklist" -> itemView.context.getString(R.string.rule_blacklist)
+                else -> rule.mode.uppercase()
+            }
 
             val patterns = mutableListOf<String>()
             if (rule.titlePattern.isNotEmpty()) {
-                patterns.add("Title: ${rule.titlePattern}")
+                patterns.add(itemView.context.getString(R.string.rule_title_filter, rule.titlePattern))
             }
             if (rule.contentPattern.isNotEmpty()) {
-                patterns.add("Content: ${rule.contentPattern}")
+                patterns.add(itemView.context.getString(R.string.rule_content_filter, rule.contentPattern))
             }
 
             tvPatterns.text =
                     if (patterns.isEmpty()) {
-                        "No pattern filters"
+                        itemView.context.getString(R.string.rule_no_filters)
                     } else {
                         patterns.joinToString("\n")
                     }

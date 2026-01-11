@@ -119,7 +119,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="General Settings"
+                        android:text="@string/notif_general_settings"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="?android:attr/textColorPrimary"
@@ -292,7 +292,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Notification Behavior"
+                        android:text="@string/notif_behavior"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="?android:attr/textColorPrimary"
@@ -439,7 +439,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Dynamic Island"
+                        android:text="@string/notif_dynamic_island"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="?android:attr/textColorPrimary"
@@ -454,7 +454,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Notification Style"
+                            android:text="@string/notif_style"
                             android:textSize="15sp"
                             android:textStyle="bold"
                             android:textColor="?android:attr/textColorPrimary"/>
@@ -462,7 +462,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Choose how notifications appear on the watch"
+                            android:text="@string/notif_style_desc"
                             android:textSize="12sp"
                             android:textColor="?android:attr/textColorSecondary"
                             android:layout_marginTop="4dp"/>
@@ -492,7 +492,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Auto-collapse Timeout"
+                                android:text="@string/notif_auto_collapse"
                                 android:textSize="15sp"
                                 android:textStyle="bold"
                                 android:textColor="?android:attr/textColorPrimary"/>
@@ -501,7 +501,7 @@
                                 android:id="@+id/tvTimeoutValue"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="5 seconds"
+                                android:text="@string/notif_unit_seconds_placeholder"
                                 android:textSize="14sp"
                                 android:textColor="?android:attr/colorAccent"
                                 android:layout_marginTop="4dp"/>
@@ -524,7 +524,7 @@
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
                                     android:layout_weight="1"
-                                    android:text="2s"
+                                    android:text="@string/notif_unit_seconds_2"
                                     android:textSize="11sp"
                                     android:textColor="?android:attr/textColorSecondary"
                                     android:gravity="start"/>
@@ -533,7 +533,7 @@
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
                                     android:layout_weight="1"
-                                    android:text="10s"
+                                    android:text="@string/notif_unit_seconds_10"
                                     android:textSize="11sp"
                                     android:textColor="?android:attr/textColorSecondary"
                                     android:gravity="end"/>
@@ -595,7 +595,7 @@
                                 android:id="@+id/tvYValue"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="8 dp"
+                                android:text="@string/notif_unit_dp_8"
                                 android:textSize="14sp"
                                 android:textColor="?android:attr/colorAccent"
                                 android:layout_marginTop="4dp"/>
@@ -628,7 +628,7 @@
                                 android:id="@+id/tvWidthValue"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="150 dp"
+                                android:text="@string/notif_unit_dp_150"
                                 android:textSize="14sp"
                                 android:textColor="?android:attr/colorAccent"
                                 android:layout_marginTop="4dp"/>
@@ -661,7 +661,7 @@
                                 android:id="@+id/tvHeightValue"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="40 dp"
+                                android:text="@string/notif_unit_dp_40"
                                 android:textSize="14sp"
                                 android:textColor="?android:attr/colorAccent"
                                 android:layout_marginTop="4dp"/>

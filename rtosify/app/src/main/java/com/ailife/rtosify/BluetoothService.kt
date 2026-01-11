@@ -1875,7 +1875,7 @@ class BluetoothService : Service() {
                         PackageManager.PERMISSION_GRANTED
         ) {
             mainHandler.post {
-                Toast.makeText(this, "Permission READ_CONTACTS not granted", Toast.LENGTH_SHORT)
+                Toast.makeText(this, R.string.toast_perm_contacts_not_granted, Toast.LENGTH_SHORT)
                         .show()
             }
             return
@@ -2442,7 +2442,7 @@ class BluetoothService : Service() {
     fun sendUninstallCommand(packageName: String) {
         android.util.Log.d(TAG, "Sending uninstall command for: $packageName")
         mainHandler.post {
-            Toast.makeText(this, "Sending uninstall: $packageName", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_uninstall_sending, packageName), Toast.LENGTH_SHORT).show()
         }
         sendMessage(ProtocolHelper.createUninstallApp(packageName))
     }

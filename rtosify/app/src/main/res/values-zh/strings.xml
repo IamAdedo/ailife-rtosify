@@ -58,6 +58,8 @@
     <string name="wifi_dialog_title">手表 WiFi 网络</string>
     <string name="wifi_available_networks">可用网络</string>
     <string name="wifi_activate_message">激活 WiFi 以查看可用网络</string>
+    <string name="wifi_current_connection">当前连接</string>
+    <string name="wifi_available_networks_title">可用网络</string>
     <string name="wifi_connected">已连接</string>
     <string name="wifi_already_connected">已连接到 %s</string>
     <string name="wifi_connecting">正在连接到 %s…</string>
@@ -113,6 +115,15 @@
     <string name="automation_data_desc">蓝牙断开时手表自动开启移动数据，重连时关闭</string>
     <string name="automation_bt_tether_title">自动蓝牙网络共享</string>
     <string name="automation_bt_tether_desc">连接时启用手机蓝牙网络共享和手表互联网访问</string>
+    <string name="menu_health_desc">监测健康指标</string>
+    <string name="menu_alarms">闹钟</string>
+    <string name="menu_alarms_desc">管理手表闹钟</string>
+    <string name="menu_terminal">终端</string>
+    <string name="menu_terminal_desc">在手表上执行 Shell 命令</string>
+    <string name="menu_file_manager">文件管理器</string>
+    <string name="menu_file_manager_desc">浏览和管理手表文件</string>
+    <string name="menu_watch_automation">手表自动化</string>
+    <string name="menu_watch_automation_desc">管理手表自动化任务和行为</string>
 
     <!-- Dialog: APK Upload -->
     <string name="dialog_upload_apk_title">发送 APK？</string>
@@ -137,6 +148,8 @@
     <!-- Dialog: Select Watch -->
     <string name="dialog_select_watch_title">选择手表</string>
     <string name="device_no_name">未命名</string>
+    <string name="welcome_retry">重试搜索</string>
+    <string name="welcome_scan_qr">扫描二维码</string>
 
     <!-- Upload Progress -->
     <string name="upload_transferring">正在传输文件…</string>
@@ -205,6 +218,18 @@
     <string name="notif_manage_apps_desc">选择哪些应用可以将通知发送到手表</string>
     <string name="notif_manage_rules_title">通知规则</string>
     <string name="notif_manage_rules_desc">添加过滤器以控制转发哪些通知</string>
+    <string name="rule_add">添加规则</string>
+    <string name="rule_edit">编辑规则</string>
+    <string name="rule_save">保存</string>
+    <string name="rule_package_required">包名是必填项</string>
+    <string name="rule_delete_title">删除规则</string>
+    <string name="rule_delete_msg">确定要删除 %s 的这条规则吗？</string>
+    <string name="rule_title_filter">标题: %s</string>
+    <string name="rule_content_filter">内容: %s</string>
+    <string name="rule_no_filters">无模式过滤器</string>
+    <string name="app_select_title">选择应用</string>
+    <string name="app_search_hint">搜索应用...</string>
+    <string name="app_show_system">显示系统应用</string>
     <string name="notif_skip_screen_on_title">屏幕亮起时跳过</string>
     <string name="notif_skip_screen_on_desc">如果您正在使用手机，则不发送提醒</string>
     <string name="settings_notif_disconnect_title">断开连接时通知</string>
@@ -220,6 +245,25 @@
     <string name="notif_vibrate_silent_title">静音模式下振动</string>
     <string name="notif_vibrate_silent_desc">即使手表处于静音/勿扰模式也振动</string>
     <string name="notif_settings_description">注意：这些设置通常不需要，因为系统会自动处理它们。</string>
+    <string name="notif_general_settings">通用设置</string>
+    <string name="notif_behavior">通知行为</string>
+    <string name="notif_dynamic_island">灵动岛</string>
+    <string name="notif_style_android">安卓通知</string>
+    <string name="notif_style_dynamic_island">灵动岛</string>
+    <string name="notif_style">通知样式</string>
+    <string name="notif_style_desc">选择通知在手表上的显示方式</string>
+    <string name="notif_auto_collapse">自动折叠超时</string>
+    <string name="notif_unit_seconds">%d 秒</string>
+    <string name="notif_unit_dp">%d dp</string>
+    <string name="notif_unit_seconds_placeholder">5 秒</string>
+    <string name="notif_unit_seconds_2">2s</string>
+    <string name="notif_unit_seconds_10">10s</string>
+    <string name="notif_unit_dp_8">8 dp</string>
+    <string name="notif_unit_dp_150">150 dp</string>
+    <string name="notif_unit_dp_40">40 dp</string>
+    <string name="di_vertical_pos">垂直位置 (Y)</string>
+    <string name="di_width">灵动岛宽度</string>
+    <string name="di_height">灵动岛高度</string>
 
     <string name="menu_uninstall_app">卸载</string>
     <string name="dialog_uninstall_title">卸载应用？</string>
@@ -379,9 +423,6 @@
     <string name="remote_res_matching_desc">控制期间自动调整手表分辨率以匹配手机纵横比</string>
 
     <!-- Dynamic Island Customization -->
-    <string name="di_vertical_pos">垂直位置 (Y)</string>
-    <string name="di_width">灵动岛宽度</string>
-    <string name="di_height">灵动岛高度</string>
     <string name="di_hide_idle">空闲时隐藏</string>
     <string name="di_hide_idle_desc">没有活动通知时隐藏灵动岛</string>
     <string name="toast_bt_required">需要蓝牙。请启用它。</string>
@@ -451,6 +492,7 @@
     <string name="health_tracker_not_installed">未安装追踪应用</string>
     <string name="health_measure_timeout">测量超时</string>
     <string name="health_error_prefix">错误：%s</string>
+    <string name="health_not_on_wrist">手表不在手腕上</string>
     <string name="health_settings_api_error">请在健康应用设置中启用“Settings API”</string>
     <string name="battery_charging_full">充满</string>
     <string name="battery_charging">充电中</string>
@@ -499,6 +541,11 @@
     <string name="mirror_stop">停止镜像</string>
     <string name="mirror_start">开始镜像</string>
     <string name="mirror_requesting_watch">正在请求手表屏幕…</string>
+    <string name="mirror_view_watch">查看手表屏幕</string>
+    <string name="mirror_enable_touch">启用触摸控制</string>
+    <string name="mirror_enable_touch_desc">允许通过触摸控制手表</string>
+    <string name="mirror_match_aspect">匹配纵横比</string>
+    <string name="mirror_match_aspect_desc">在不完全调整大小的情况下适应屏幕形状</string>
 
     <string name="wf_local">本地</string>
     <string name="wf_transferring">正在传输 %s…</string>
@@ -555,9 +602,67 @@
     <string name="health_label_min">最小</string>
     <string name="health_label_avg">平均</string>
     <string name="health_label_max">最大</string>
+    <string name="health_hr_short">心率</string>
+    <string name="health_oxygen_short">血氧</string>
 
     <string name="wf_name_placeholder">表盘名称</string>
     <string name="wf_folder_name_placeholder">文件夹名称</string>
     <string name="app_name_placeholder">应用名称</string>
     <string name="app_package_placeholder">com.example.app</string>
+    <string name="terminal_input_hint">输入命令...</string>
+
+    <!-- Project-wide/Common Toast Message Updates -->
+    <string name="toast_bt_not_enabled">蓝牙未启用。请启用并重试。</string>
+    <string name="toast_setup_redirect_missing_perms">正在重定向到设置：缺少权限</string>
+    <string name="toast_service_started">服务已启动</string>
+    <string name="toast_service_stopped">服务已停止</string>
+    <string name="toast_dnd_mins_sent_format">已发送 %d 分钟勿扰模式指令</string>
+
+    <!-- Alarms -->
+    <string name="alarm_edit_title">编辑闹钟</string>
+    <string name="alarm_add_title">添加闹钟</string>
+    <string name="alarm_set_time">设置时间</string>
+    <string name="alarm_name_hint">闹钟名称</string>
+    <string name="alarm_repeat_on">重复</string>
+    <string name="alarm_label_optional">标签（可选）</string>
+    <string name="alarm_save">保存</string>
+    <string name="alarm_cancel">取消</string>
+    <string name="alarm_delete_title">删除闹钟</string>
+    <string name="alarm_delete_confirm">删除 %s 的闹钟？</string>
+    <string name="alarm_delete">删除</string>
+    <string name="alarm_once">一次性</string>
+    <string name="alarm_day_short_mon">一</string>
+    <string name="alarm_day_short_tue">二</string>
+    <string name="alarm_day_short_wed">三</string>
+    <string name="alarm_day_short_thu">四</string>
+    <string name="alarm_day_short_fri">五</string>
+    <string name="alarm_day_short_sat">六</string>
+    <string name="alarm_day_short_sun">日</string>
+
+    <!-- Health Dialog -->
+    <string name="health_body_specs">身体指标</string>
+    <string name="health_age_years">年龄（岁）</string>
+    <string name="health_gender">性别</string>
+    <string name="health_height_cm">身高 (cm)</string>
+    <string name="health_weight_kg">体重 (kg)</string>
+    <string name="health_background_monitoring">后台监测</string>
+    <string name="health_monitoring_title">健康监测</string>
+
+    <!-- Notification Rules -->
+    <string name="rule_package_name">应用包名</string>
+    <string name="rule_select_app">选择</string>
+    <string name="rule_mode">模式</string>
+    <string name="rule_whitelist">白名单</string>
+    <string name="rule_blacklist">黑名单</string>
+    <string name="rule_patterns_title">模式过滤器（可选）</string>
+    <string name="rule_patterns_desc">留空则匹配该应用的所有通知</string>
+    <string name="rule_no_rules_desc">未配置规则。\n点击 + 添加规则。</string>
+    <string name="rule_loading_apps">正在加载应用…</string>
+    <string name="rule_title_pattern_hint">标题模式</string>
+    <string name="rule_content_pattern_hint">内容模式</string>
+    <string name="label_edit">编辑</string>
+    <string name="label_delete">删除</string>
+    <string name="dialog_remove_device_title">移除设备</string>
+    <string name="dialog_remove_device_message">您确定要移除 %s 吗？移除后需要重新配对才能使用。</string>
+    <string name="dialog_remove_device_confirm">移除</string>
 </resources>

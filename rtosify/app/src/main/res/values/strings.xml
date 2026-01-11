@@ -58,6 +58,8 @@
     <string name="wifi_dialog_title">Watch WiFi Networks</string>
     <string name="wifi_available_networks">Available Networks</string>
     <string name="wifi_activate_message">Activate WiFi to see available networks</string>
+    <string name="wifi_current_connection">Current Connection</string>
+    <string name="wifi_available_networks_title">Available Networks</string>
     <string name="wifi_connected">Connected</string>
     <string name="wifi_already_connected">Already connected to %s</string>
     <string name="wifi_connecting">Connecting to %s…</string>
@@ -113,6 +115,15 @@
     <string name="automation_data_desc">Watch auto-enables mobile data when Bluetooth disconnects, disables when reconnects</string>
     <string name="automation_bt_tether_title">Auto Bluetooth Tethering</string>
     <string name="automation_bt_tether_desc">Enable phone BT tethering and watch internet access when connected</string>
+    <string name="menu_health_desc">Monitor health metrics</string>
+    <string name="menu_alarms">Alarms</string>
+    <string name="menu_alarms_desc">Manage watch alarms</string>
+    <string name="menu_terminal">Terminal</string>
+    <string name="menu_terminal_desc">Execute shell commands on watch</string>
+    <string name="menu_file_manager">File Manager</string>
+    <string name="menu_file_manager_desc">Browse and manage watch files</string>
+    <string name="menu_watch_automation">Watch Automations</string>
+    <string name="menu_watch_automation_desc">Manage watch automated tasks and behaviors</string>
 
     <!-- Dialog: APK Upload -->
     <string name="dialog_upload_apk_title">Send APK?</string>
@@ -137,6 +148,8 @@
     <!-- Dialog: Select Watch -->
     <string name="dialog_select_watch_title">Select Watch</string>
     <string name="device_no_name">Unnamed</string>
+    <string name="welcome_retry">Retry Search</string>
+    <string name="welcome_scan_qr">Scan QR Code</string>
 
     <!-- Upload Progress -->
     <string name="upload_transferring">Transferring file…</string>
@@ -205,6 +218,18 @@
     <string name="notif_manage_apps_desc">Select which apps can send notifications to the watch</string>
     <string name="notif_manage_rules_title">Notification Rules</string>
     <string name="notif_manage_rules_desc">Add filters to control which notifications are forwarded</string>
+    <string name="rule_add">Add Rule</string>
+    <string name="rule_edit">Edit Rule</string>
+    <string name="rule_save">Save</string>
+    <string name="rule_package_required">Package name is required</string>
+    <string name="rule_delete_title">Delete Rule</string>
+    <string name="rule_delete_msg">Are you sure you want to delete this rule for %s?</string>
+    <string name="rule_title_filter">Title: %s</string>
+    <string name="rule_content_filter">Content: %s</string>
+    <string name="rule_no_filters">No pattern filters</string>
+    <string name="app_select_title">Select App</string>
+    <string name="app_search_hint">Search apps...</string>
+    <string name="app_show_system">Show system apps</string>
     <string name="notif_skip_screen_on_title">Skip when screen on</string>
     <string name="notif_skip_screen_on_desc">Do not send alerts if you\'re using the phone</string>
     <string name="settings_notif_disconnect_title">Notify on disconnect</string>
@@ -220,6 +245,25 @@
     <string name="notif_vibrate_silent_title">Vibrate in silent mode</string>
     <string name="notif_vibrate_silent_desc">Vibrate even if the watch is in silent/DND mode</string>
     <string name="notif_settings_description">Note: These settings are generally not required as the system handles them automatically.</string>
+    <string name="notif_general_settings">General Settings</string>
+    <string name="notif_behavior">Notification Behavior</string>
+    <string name="notif_dynamic_island">Dynamic Island</string>
+    <string name="notif_style_android">Android Notification</string>
+    <string name="notif_style_dynamic_island">Dynamic Island</string>
+    <string name="notif_style">Notification Style</string>
+    <string name="notif_style_desc">Choose how notifications appear on the watch</string>
+    <string name="notif_auto_collapse">Auto-collapse Timeout</string>
+    <string name="notif_unit_seconds">%d seconds</string>
+    <string name="notif_unit_dp">%d dp</string>
+    <string name="notif_unit_seconds_placeholder">5 seconds</string>
+    <string name="notif_unit_seconds_2">2s</string>
+    <string name="notif_unit_seconds_10">10s</string>
+    <string name="notif_unit_dp_8">8 dp</string>
+    <string name="notif_unit_dp_150">150 dp</string>
+    <string name="notif_unit_dp_40">40 dp</string>
+    <string name="di_vertical_pos">Vertical Position (Y)</string>
+    <string name="di_width">Pill Width</string>
+    <string name="di_height">Pill Height</string>
 
     <string name="menu_uninstall_app">Uninstall</string>
     <string name="dialog_uninstall_title">Uninstall App?</string>
@@ -379,9 +423,6 @@
     <string name="remote_res_matching_desc">Automatically adjust watch resolution to match phone aspect ratio during control</string>
 
     <!-- Dynamic Island Customization -->
-    <string name="di_vertical_pos">Vertical Position (Y)</string>
-    <string name="di_width">Pill Width</string>
-    <string name="di_height">Pill Height</string>
     <string name="di_hide_idle">Hide when idle</string>
     <string name="di_hide_idle_desc">Hide the pill when there are no active notifications</string>
     <string name="toast_bt_required">Bluetooth required. Please enable it.</string>
@@ -451,6 +492,7 @@
     <string name="health_tracker_not_installed">Tracker app not installed</string>
     <string name="health_measure_timeout">Measurement timed out</string>
     <string name="health_error_prefix">Error: %s</string>
+    <string name="health_not_on_wrist">Watch is not on wrist</string>
     <string name="health_settings_api_error">Please enable ‘Settings API’ in the health app settings</string>
     <string name="battery_charging_full">Full</string>
     <string name="battery_charging">Charging</string>
@@ -499,6 +541,11 @@
     <string name="mirror_stop">Stop Mirroring</string>
     <string name="mirror_start">Start Mirroring</string>
     <string name="mirror_requesting_watch">Requesting watch screen…</string>
+    <string name="mirror_view_watch">View Watch Screen</string>
+    <string name="mirror_enable_touch">Enable Touch Control</string>
+    <string name="mirror_enable_touch_desc">Allow controlling the watch with touch</string>
+    <string name="mirror_match_aspect">Match Aspect Ratio</string>
+    <string name="mirror_match_aspect_desc">Fit screen shape without full resize</string>
 
     <string name="wf_local">Local</string>
     <string name="wf_transferring">Transferring %s…</string>
@@ -555,9 +602,67 @@
     <string name="health_label_min">Min</string>
     <string name="health_label_avg">Avg</string>
     <string name="health_label_max">Max</string>
+    <string name="health_hr_short">Heart Rate</string>
+    <string name="health_oxygen_short">SpO2</string>
 
     <string name="wf_name_placeholder">Watch Face Name</string>
     <string name="wf_folder_name_placeholder">Folder Name</string>
     <string name="app_name_placeholder">App Name</string>
     <string name="app_package_placeholder">com.example.app</string>
+    <string name="terminal_input_hint">Enter command...</string>
+
+    <!-- Project-wide/Common Toast Message Updates -->
+    <string name="toast_bt_not_enabled">Bluetooth is not enabled. Please enable it and try again.</string>
+    <string name="toast_setup_redirect_missing_perms">Redirecting to setup: Missing permissions</string>
+    <string name="toast_service_started">Service Started</string>
+    <string name="toast_service_stopped">Service Stopped</string>
+    <string name="toast_dnd_mins_sent_format">DND for %d minutes sent</string>
+
+    <!-- Alarms -->
+    <string name="alarm_edit_title">Edit Alarm</string>
+    <string name="alarm_add_title">Add Alarm</string>
+    <string name="alarm_set_time">Set Time</string>
+    <string name="alarm_name_hint">Alarm name</string>
+    <string name="alarm_repeat_on">Repeat on</string>
+    <string name="alarm_label_optional">Label (Optional)</string>
+    <string name="alarm_save">Save</string>
+    <string name="alarm_cancel">Cancel</string>
+    <string name="alarm_delete_title">Delete Alarm</string>
+    <string name="alarm_delete_confirm">Delete alarm at %s?</string>
+    <string name="alarm_delete">Delete</string>
+    <string name="alarm_once">Once</string>
+    <string name="alarm_day_short_mon">M</string>
+    <string name="alarm_day_short_tue">T</string>
+    <string name="alarm_day_short_wed">W</string>
+    <string name="alarm_day_short_thu">T</string>
+    <string name="alarm_day_short_fri">F</string>
+    <string name="alarm_day_short_sat">S</string>
+    <string name="alarm_day_short_sun">S</string>
+
+    <!-- Health Dialog -->
+    <string name="health_body_specs">Body Specifications</string>
+    <string name="health_age_years">Age (years)</string>
+    <string name="health_gender">Gender</string>
+    <string name="health_height_cm">Height (cm)</string>
+    <string name="health_weight_kg">Weight (kg)</string>
+    <string name="health_background_monitoring">Background Monitoring</string>
+    <string name="health_monitoring_title">Health Monitoring</string>
+
+    <!-- Notification Rules -->
+    <string name="rule_package_name">Package Name</string>
+    <string name="rule_select_app">Select</string>
+    <string name="rule_mode">Mode</string>
+    <string name="rule_whitelist">Whitelist</string>
+    <string name="rule_blacklist">Blacklist</string>
+    <string name="rule_patterns_title">Pattern Filters (optional)</string>
+    <string name="rule_patterns_desc">Leave empty to match all notifications from the app</string>
+    <string name="rule_no_rules_desc">No rules configured.\nTap + to add a rule.</string>
+    <string name="rule_loading_apps">Loading apps…</string>
+    <string name="rule_title_pattern_hint">Title Pattern</string>
+    <string name="rule_content_pattern_hint">Content Pattern</string>
+    <string name="label_edit">Edit</string>
+    <string name="label_delete">Delete</string>
+    <string name="dialog_remove_device_title">Remove Device</string>
+    <string name="dialog_remove_device_message">Are you sure you want to remove %s? You will need to pair it again to use it.</string>
+    <string name="dialog_remove_device_confirm">Remove</string>
 </resources>

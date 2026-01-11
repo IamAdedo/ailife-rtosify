@@ -48,7 +48,7 @@
                 android:id="@+id/tvEmptyList"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="No rules configured.\nTap + to add a rule."
+                android:text="@string/rule_no_rules_desc"
                 android:textSize="16sp"
                 android:textColor="?android:attr/textColorSecondary"
                 android:layout_gravity="center"
@@ -72,7 +72,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:contentDescription="Add rule"
+        android:contentDescription="@string/rule_add"
         app:srcCompat="@android:drawable/ic_input_add"/>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

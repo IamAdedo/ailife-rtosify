@@ -10,7 +10,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Package Name"
+        android:text="@string/rule_package_name"
         android:textSize="14sp"
         android:textStyle="bold"
         android:textColor="?android:attr/textColorPrimary"/>
@@ -25,7 +25,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="Package Name"
+            android:hint="@string/rule_package_name"
             app:boxBackgroundMode="outline"
             app:helperText="e.g., com.whatsapp">
 
@@ -41,7 +41,7 @@
             android:id="@+id/btnSelectApp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Select"
+            android:text="@string/rule_select_app"
             android:layout_marginStart="8dp"
             android:layout_marginTop="4dp"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
@@ -50,7 +50,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Mode"
+        android:text="@string/rule_mode"
         android:textSize="14sp"
         android:textStyle="bold"
         android:layout_marginTop="16dp"
@@ -69,7 +69,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Whitelist"
+            android:text="@string/rule_whitelist"
             android:textColor="@android:color/holo_green_dark"
             android:layout_marginEnd="4dp"
             android:minHeight="48dp"
@@ -80,7 +80,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Blacklist"
+            android:text="@string/rule_blacklist"
             android:textColor="@android:color/holo_red_dark"
             android:layout_marginStart="4dp"
             android:minHeight="48dp"
@@ -90,7 +90,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Pattern Filters (optional)"
+        android:text="@string/rule_patterns_title"
         android:textSize="14sp"
         android:textStyle="bold"
         android:layout_marginTop="16dp"
@@ -99,7 +99,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Leave empty to match all notifications from the app"
+        android:text="@string/rule_patterns_desc"
         android:textSize="12sp"
         android:layout_marginTop="4dp"
         android:textColor="?android:attr/textColorSecondary"/>
@@ -107,7 +107,7 @@
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Title Pattern"
+        android:hint="@string/rule_title_pattern_hint"
         android:layout_marginTop="8dp"
         app:boxBackgroundMode="outline"
         app:helperText="Text to match in notification title">
@@ -123,7 +123,7 @@
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Content Pattern"
+        android:hint="@string/rule_content_pattern_hint"
         android:layout_marginTop="8dp"
         app:boxBackgroundMode="outline"
         app:helperText="Text to match in notification content">
