@@ -784,7 +784,13 @@ class BluetoothService : Service() {
         currentDeviceName = deviceName
 
         // Atualiza status E notificação simultaneamente
-        updateStatus(getString(R.string.status_connected_to, deviceName))
+        val connectionStatus = when {
+            bluetoothTransport != null && wifiTransport != null -> "Connected via Bluetooth & WiFi"
+            wifiTransport != null -> "Connected via WiFi"
+            bluetoothTransport != null -> getString(R.string.status_connected_to, deviceName)
+            else -> getString(R.string.status_connected_to, deviceName)
+        }
+        updateStatus(connectionStatus)
 
         // Notifica callback
         withContext(Dispatchers.Main) { callback?.onDeviceConnected(deviceName) }
@@ -985,18 +991,42 @@ class BluetoothService : Service() {
         transportSwitchJob = serviceScope.launch {
             while (isActive) {
                 val shouldActivate = shouldActivateWifi()
-                Log.d(TAG, "WiFi monitoring: shouldActivate=$shouldActivate, wifiTransport=${wifiTransport != null}")
+               val hadWiFi = wifiTransport != null
+                Log.d(TAG, "WiFi monitoring: shouldActivate=$shouldActivate, wifiTransport=$hadWiFi")
                 
                 if (shouldActivate && wifiTransport == null) {
                     Log.d(TAG, "WiFi monitoring: Calling startWifiTransport")
                     startWifiTransport(deviceMac)
+                    // Update status to show dual transport
+                    delay(1000) // Wait for WiFi to connect
+                    updateConnectionStatus()
                 } else if (!shouldActivate && wifiTransport != null) {
                     Log.d(TAG, "WiFi monitoring: Calling stopWifiTransport")
                     stopWifiTransport()
+                    updateConnectionStatus()
+                } else if (shouldActivate && wifiTransport != null) {
+                    // WiFi is active and should be - update status periodically
+                    updateConnectionStatus()
                 }
                 delay(2000)
             }
         }
+    }
+    
+    private fun updateConnectionStatus() {
+        val deviceName = currentDeviceName ?: return
+        val hasBt = bluetoothTransport != null
+        val hasWifi = wifiTransport != null
+        Log.d(TAG, "updateConnectionStatus: BT=$hasBt, WiFi=$hasWifi")
+        
+        val status = when {
+            hasBt && hasWifi -> "Connected via Bluetooth & WiFi to $deviceName"
+            hasWifi -> "Connected via WiFi to $deviceName"
+            hasBt -> getString(R.string.status_connected_to, deviceName)
+            else -> getString(R.string.status_connected_to, deviceName)
+        }
+        Log.d(TAG, "updateConnectionStatus: Setting status to: $status")
+        updateStatus(status)
     }
     
     /**
@@ -2717,6 +2747,8 @@ class BluetoothService : Service() {
 
         currentStatus = text
         currentNotificationStatus = text
+        
+        Log.d(TAG, "updateStatus: text='$text', callback=${callback != null}")
 
         mainHandler.post {
             try {
@@ -2724,6 +2756,7 @@ class BluetoothService : Service() {
             } catch (e: Exception) {
                 if (DEBUG_NOTIFICATIONS) Log.e(TAG, "updateStatus erro: ${e.message}")
             }
+            Log.d(TAG, "updateStatus mainHandler: calling callback?.onStatusChanged")
             callback?.onStatusChanged(text)
         }
     }

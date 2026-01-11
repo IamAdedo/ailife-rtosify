@@ -1250,17 +1250,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         tvHeaderDeviceName.text = deviceName
         
-        // Show connection method (Bluetooth/WiFi)
-        if (isConnected) {
-            val connectionMethod = if (bluetoothService?.isWifiTransportActive() == true) {
-                "WiFi"
-            } else {
-                "Bluetooth"
-            }
-            tvHeaderStatus.text = "Connected via $connectionMethod"
-        } else {
-            tvHeaderStatus.text = status
-        }
+        // Use the status from BluetoothService (which handles dual transport correctly)
+        tvHeaderStatus.text = status
         
         tvHeaderStatus.setTextColor(if (isConnected) Color.GREEN else Color.RED)
         progressBarMain.visibility =
@@ -1488,7 +1479,11 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     override fun onStatusChanged(status: String) {
-        runOnUiThread { updateStatusUI(status, bluetoothService?.isConnected == true) }
+        android.util.Log.d("MainActivity", "onStatusChanged received: status='$status'")
+        runOnUiThread { 
+            android.util.Log.d("MainActivity", "onStatusChanged runOnUiThread: calling updateStatusUI")
+            updateStatusUI(status, bluetoothService?.isConnected == true) 
+        }
     }
     override fun onDeviceConnected(deviceName: String) {
         runOnUiThread { updateStatusUI(getString(R.string.status_connected), true) }
