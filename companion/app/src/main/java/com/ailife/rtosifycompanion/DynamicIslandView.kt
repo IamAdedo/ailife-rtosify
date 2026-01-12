@@ -279,7 +279,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         }
     }
 
-    fun showConnectedState() {
+    fun showConnectedState(transportType: String = "") {
         currentState = State.IDLE // Or a new state if needed, but IDLE implies connected active
         expandedContainer.visibility = GONE
         pillContainer.alpha = 1f
@@ -291,15 +291,38 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             resetContentPadding()
             contentContainer.removeAllViews()
             val iconSize = dpToPx(pillHeightCollapsed * 0.6f)
-            contentContainer.addView(
-                    ImageView(context).apply {
-                        layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
-                        setImageResource(
-                                android.R.drawable.stat_sys_data_bluetooth
-                        ) // Use generic BT icon
-                        setColorFilter(Color.parseColor("#30D158")) // Apple Green
+            val container = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+            
+            if (transportType.contains("Dual")) {
+                container.addView(ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(iconSize, iconSize).apply {
+                        marginEnd = dpToPx(4)
                     }
-            )
+                    setImageResource(R.drawable.ic_bluetooth)
+                    setColorFilter(Color.parseColor("#30D158"))
+                })
+                container.addView(ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
+                    setImageResource(R.drawable.ic_wifi)
+                    setColorFilter(Color.parseColor("#30D158"))
+                })
+            } else if (transportType.contains("WiFi")) {
+                container.addView(ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
+                    setImageResource(R.drawable.ic_wifi)
+                    setColorFilter(Color.parseColor("#30D158"))
+                })
+            } else {
+                container.addView(ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
+                    setImageResource(R.drawable.ic_bluetooth)
+                    setColorFilter(Color.parseColor("#30D158"))
+                })
+            }
+            contentContainer.addView(container)
         }
     }
 

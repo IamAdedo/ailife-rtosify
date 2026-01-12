@@ -67,6 +67,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var tvWatchStatusBig: TextView
     private lateinit var tvPhoneBattery: TextView // New UI for Phone Battery
     private lateinit var imgPhoneBattery: ImageView
+    private lateinit var imgHeaderBt: ImageView
+    private lateinit var imgHeaderWifi: ImageView
 
     private lateinit var prefs: SharedPreferences
     private var bluetoothService: BluetoothService? = null
@@ -107,7 +109,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
                     updateStatusUI(
                             bluetoothService?.currentStatus ?: getString(R.string.status_starting),
-                            bluetoothService?.isConnected == true
+                            bluetoothService?.isConnected == true,
+                            bluetoothService?.currentTransportType ?: ""
                     )
                 }
 
@@ -170,7 +173,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             // Force UI update with current service data
             updateStatusUI(
                     bluetoothService?.currentStatus ?: getString(R.string.status_verifying),
-                    bluetoothService?.isConnected == true
+                    bluetoothService?.isConnected == true,
+                    bluetoothService?.currentTransportType ?: ""
             )
         }
         syncDynamicIslandService()
@@ -227,6 +231,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         imgPhoneBattery = findViewById(R.id.imgPhoneBattery)
         switchService = findViewById(R.id.switchService)
         switchServiceWatch = findViewById(R.id.switchServiceWatch)
+        imgHeaderBt = findViewById(R.id.imgHeaderBt)
+        imgHeaderWifi = findViewById(R.id.imgHeaderWifi)
 
         updateLocalBtName()
     }
@@ -624,7 +630,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         bindService(intent, connection, BIND_AUTO_CREATE)
     }
 
-    private fun updateStatusUI(status: String, isConnected: Boolean) {
+    private fun updateStatusUI(status: String, isConnected: Boolean, transportType: String = "") {
         val deviceName =
                 bluetoothService?.currentDeviceName ?: getString(R.string.device_name_default)
         tvHeaderDeviceName.text =
@@ -637,6 +643,15 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         progressBarMain.visibility =
                 if (!isConnected && status.contains(getString(R.string.status_connecting))) View.VISIBLE else View.INVISIBLE
+
+        // Update transport icons
+        if (isConnected) {
+            imgHeaderBt.visibility = if (transportType.contains("Bluetooth") || transportType.contains("Dual")) View.VISIBLE else View.GONE
+            imgHeaderWifi.visibility = if (transportType.contains("WiFi") || transportType.contains("Dual")) View.VISIBLE else View.GONE
+        } else {
+            imgHeaderBt.visibility = View.GONE
+            imgHeaderWifi.visibility = View.GONE
+        }
 
         if (isPhoneMode && isConnected) {
             cardWatchStatus.visibility = View.VISIBLE
@@ -795,10 +810,10 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     override fun onStatusChanged(status: String) {
-        runOnUiThread { updateStatusUI(status, bluetoothService?.isConnected == true) }
+        runOnUiThread { updateStatusUI(status, bluetoothService?.isConnected == true, bluetoothService?.currentTransportType ?: "") }
     }
-    override fun onDeviceConnected(deviceName: String) {
-        runOnUiThread { updateStatusUI(getString(R.string.status_connected), true) }
+    override fun onDeviceConnected(deviceName: String, transportType: String) {
+        runOnUiThread { updateStatusUI(getString(R.string.status_connected), true, transportType) }
     }
     override fun onDeviceDisconnected() {
         runOnUiThread {
@@ -869,7 +884,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             isCharging: Boolean,
             wifiSsid: String,
             wifiEnabled: Boolean,
-            dndEnabled: Boolean
+            dndEnabled: Boolean,
+            ipAddress: String?
     ) {
         runOnUiThread { updateWatchStatusCard(batteryLevel, isCharging, wifiSsid, dndEnabled) }
     }

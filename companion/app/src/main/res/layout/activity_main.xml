@@ -178,13 +178,37 @@
                         android:layout_marginTop="2dp"
                         android:visibility="visible"/>
 
-                    <TextView
-                        android:id="@+id/tvHeaderStatus"
+                    <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/status_disconnected"
-                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                        android:textColor="?android:attr/textColorSecondary"/> <!-- Default color to avoid error -->
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+                        <TextView
+                            android:id="@+id/tvHeaderStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/status_disconnected"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                            android:textColor="?android:attr/textColorSecondary"/>
+                        <ImageView
+                            android:id="@+id/imgHeaderBt"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:layout_marginStart="8dp"
+                            android:src="@drawable/ic_bluetooth"
+                            app:tint="?android:attr/textColorSecondary"
+                            android:visibility="gone"
+                            tools:visibility="visible"/>
+                        <ImageView
+                            android:id="@+id/imgHeaderWifi"
+                            android:layout_width="16dp"
+                            android:layout_height="16dp"
+                            android:layout_marginStart="4dp"
+                            android:src="@drawable/ic_wifi"
+                            app:tint="?android:attr/textColorSecondary"
+                            android:visibility="gone"
+                            tools:visibility="visible"/>
+                    </LinearLayout>
                 </LinearLayout>
 
                 <com.google.android.material.materialswitch.MaterialSwitch

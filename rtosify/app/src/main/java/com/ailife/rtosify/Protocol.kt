@@ -190,7 +190,8 @@ data class StatusUpdateData(
         val charging: Boolean,
         val dnd: Boolean,
         val wifi: String,
-        val wifiEnabled: Boolean = true
+        val wifiEnabled: Boolean = true,
+        val ipAddress: String? = null
 )
 
 data class FileTransferData(

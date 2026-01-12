@@ -25,6 +25,9 @@ class NetworkSettingsActivity : AppCompatActivity() {
     private lateinit var checkBoxMainActivity: CheckBox
     private lateinit var checkBoxAlways: CheckBox
     private lateinit var tvCurrentWifi: TextView
+    private lateinit var tvPhoneIp: TextView
+    private lateinit var tvWatchWifi: TextView
+    private lateinit var tvWatchIp: TextView
     private lateinit var devicePrefManager: DevicePrefManager
     
     private var bluetoothService: BluetoothService? = null
@@ -34,12 +37,40 @@ class NetworkSettingsActivity : AppCompatActivity() {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as? BluetoothService.LocalBinder
             bluetoothService = binder?.getService()
+            bluetoothService?.callback = serviceCallback
             serviceBound = true
+            runOnUiThread { updateWifiStatus() }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
+            bluetoothService?.callback = null
             bluetoothService = null
             serviceBound = false
+        }
+    }
+
+    private val serviceCallback = object : BluetoothService.ServiceCallback {
+        override fun onStatusChanged(status: String) {}
+        override fun onDeviceConnected(deviceName: String) {}
+        override fun onDeviceDisconnected() {}
+        override fun onError(message: String) {}
+        override fun onScanResult(devices: List<android.bluetooth.BluetoothDevice>) {}
+        override fun onAppListReceived(appsJson: String) {}
+        override fun onUploadProgress(progress: Int) {}
+        override fun onDownloadProgress(progress: Int, file: java.io.File?) {}
+        override fun onFileListReceived(path: String, filesJson: String) {}
+        override fun onWatchStatusUpdated(
+            batteryLevel: Int,
+            isCharging: Boolean,
+            wifiSsid: String,
+            wifiEnabled: Boolean,
+            dndEnabled: Boolean,
+            ipAddress: String?
+        ) {
+            runOnUiThread {
+                tvWatchWifi.text = if (wifiEnabled) wifiSsid else "Disabled"
+                tvWatchIp.text = ipAddress ?: "N/A"
+            }
         }
     }
 
@@ -63,6 +94,9 @@ class NetworkSettingsActivity : AppCompatActivity() {
         checkBoxMainActivity = findViewById(R.id.checkBoxMainActivity)
         checkBoxAlways = findViewById(R.id.checkBoxAlways)
         tvCurrentWifi = findViewById(R.id.tvCurrentWifi)
+        tvPhoneIp = findViewById(R.id.tvPhoneIp)
+        tvWatchWifi = findViewById(R.id.tvWatchWifi)
+        tvWatchIp = findViewById(R.id.tvWatchIp)
 
         // Pairing button handler
         btnPairForInternet.setOnClickListener {
@@ -80,22 +114,30 @@ class NetworkSettingsActivity : AppCompatActivity() {
             BluetoothService.WIFI_RULE_ALWAYS -> checkBoxAlways.isChecked = true
         }
 
-        // Checkbox logic: "Always" disables others
-        checkBoxAlways.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                checkBoxBtFallback.isEnabled = false
-                checkBoxMainActivity.isEnabled = false
+        // Checkbox logic: make them mutually exclusive
+        checkBoxAlways.setOnClickListener {
+            if (checkBoxAlways.isChecked) {
                 checkBoxBtFallback.isChecked = false
                 checkBoxMainActivity.isChecked = false
-                saveActivationRule()
-            } else {
-                checkBoxBtFallback.isEnabled = true
-                checkBoxMainActivity.isEnabled = true
             }
+            saveActivationRule()
         }
 
-        checkBoxBtFallback.setOnCheckedChangeListener { _, _ -> saveActivationRule() }
-        checkBoxMainActivity.setOnCheckedChangeListener { _, _ -> saveActivationRule() }
+        checkBoxBtFallback.setOnClickListener {
+            if (checkBoxBtFallback.isChecked) {
+                checkBoxAlways.isChecked = false
+                checkBoxMainActivity.isChecked = false
+            }
+            saveActivationRule()
+        }
+
+        checkBoxMainActivity.setOnClickListener {
+            if (checkBoxMainActivity.isChecked) {
+                checkBoxAlways.isChecked = false
+                checkBoxBtFallback.isChecked = false
+            }
+            saveActivationRule()
+        }
 
         // Display current WiFi status
         updateWifiStatus()
@@ -151,29 +193,29 @@ class NetworkSettingsActivity : AppCompatActivity() {
     }
 
     private fun updateWifiStatus() {
-        val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            val network: Network? = connectivityManager.activeNetwork
-            val capabilities = connectivityManager.getNetworkCapabilities(network)
-            
-            if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true) {
-                val wifiInfo = wifiManager.connectionInfo
-                val ssid = wifiInfo.ssid.replace("\"", "")
-                tvCurrentWifi.text = if (ssid != "<unknown ssid>") ssid else getString(R.string.network_not_on_wifi)
+        val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        if (wm.isWifiEnabled) {
+            val info = wm.connectionInfo
+            if (info != null && info.supplicantState == android.net.wifi.SupplicantState.COMPLETED) {
+                val ssid = info.ssid.replace("\"", "")
+                tvCurrentWifi.text = if (ssid == "<unknown ssid>") "Connected" else ssid
+                
+                // Update Phone IP
+                val ip = info.ipAddress
+                tvPhoneIp.text = if (ip == 0) "N/A" else String.format(
+                    "%d.%d.%d.%d",
+                    (ip and 0xff),
+                    (ip shr 8 and 0xff),
+                    (ip shr 16 and 0xff),
+                    (ip shr 24 and 0xff)
+                )
             } else {
                 tvCurrentWifi.text = getString(R.string.network_not_on_wifi)
+                tvPhoneIp.text = "N/A"
             }
         } else {
-            @Suppress("DEPRECATION")
-            val wifiInfo = wifiManager.connectionInfo
-            if (wifiInfo != null && wifiManager.isWifiEnabled) {
-                val ssid = wifiInfo.ssid.replace("\"", "")
-                tvCurrentWifi.text = if (ssid.isNotEmpty()) ssid else getString(R.string.network_not_on_wifi)
-            } else {
-                tvCurrentWifi.text = getString(R.string.network_not_on_wifi)
-            }
+            tvCurrentWifi.text = "WiFi Disabled"
+            tvPhoneIp.text = "N/A"
         }
     }
 

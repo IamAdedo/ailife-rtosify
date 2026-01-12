@@ -173,7 +173,8 @@ class BluetoothService : Service() {
                 isCharging: Boolean,
                 wifiSsid: String,
                 wifiEnabled: Boolean,
-                dndEnabled: Boolean
+                dndEnabled: Boolean,
+                ipAddress: String? = null
         ) {}
         fun onHealthDataUpdated(healthData: HealthDataUpdate) {}
         fun onHealthHistoryReceived(historyData: HealthHistoryResponse) {}
@@ -898,8 +899,28 @@ class BluetoothService : Service() {
                 battery = batteryLevel,
                 charging = isCharging,
                 dnd = dndEnabled,
-                wifi = wifiSsid
+                wifi = wifiSsid,
+                wifiEnabled = true, // Phone app usually implies enabled if we reached here
+                ipAddress = getIpAddress()
         )
+    }
+
+    private fun getIpAddress(): String? {
+        return try {
+            val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+            val ip = wm.connectionInfo.ipAddress
+            if (ip == 0) null else {
+                String.format(
+                        "%d.%d.%d.%d",
+                        (ip and 0xff),
+                        (ip shr 8 and 0xff),
+                        (ip shr 16 and 0xff),
+                        (ip shr 24 and 0xff)
+                )
+            }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private suspend fun handleStatusUpdateReceived(message: ProtocolMessage) {
@@ -911,7 +932,8 @@ class BluetoothService : Service() {
                         status.charging,
                         status.wifi,
                         status.wifiEnabled,
-                        status.dnd
+                        status.dnd,
+                        status.ipAddress
                 )
             }
         } catch (e: Exception) {

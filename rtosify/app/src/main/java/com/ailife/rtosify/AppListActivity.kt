@@ -210,6 +210,15 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         runOnUiThread { if (uploadDialog?.isShowing == true) updateUploadProgress(progress) }
     }
 
+    override fun onWatchStatusUpdated(
+            batteryLevel: Int,
+            isCharging: Boolean,
+            wifiSsid: String,
+            wifiEnabled: Boolean,
+            dndEnabled: Boolean,
+            ipAddress: String?
+    ) {}
+
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == android.R.id.home) {
             finish()

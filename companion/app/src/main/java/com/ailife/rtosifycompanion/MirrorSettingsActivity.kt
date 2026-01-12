@@ -222,7 +222,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
     override fun onStatusChanged(status: String) {
         runOnUiThread { updateUI(bluetoothService?.isConnected == true) }
     }
-    override fun onDeviceConnected(deviceName: String) {
+    override fun onDeviceConnected(deviceName: String, transportType: String) {
         runOnUiThread { updateUI(true) }
     }
     override fun onDeviceDisconnected() {
@@ -236,5 +236,5 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
     override fun onDownloadProgress(progress: Int) {}
     override fun onFileListReceived(path: String, filesJson: String) {}
     override fun onAppListReceived(appsJson: String) {}
-    override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean) {}
+    override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean, ipAddress: String?) {}
 }

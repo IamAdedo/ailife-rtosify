@@ -1546,7 +1546,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             isCharging: Boolean,
             wifiSsid: String,
             wifiEnabled: Boolean,
-            dndEnabled: Boolean
+            dndEnabled: Boolean,
+            ipAddress: String?
     ) {
         currentWifiSsid = wifiSsid
         runOnUiThread {

@@ -160,7 +160,7 @@ class BluetoothService : Service() {
 
     interface ServiceCallback {
         fun onStatusChanged(status: String)
-        fun onDeviceConnected(deviceName: String)
+        fun onDeviceConnected(deviceName: String, transportType: String)
         fun onDeviceDisconnected()
         fun onError(message: String)
         fun onScanResult(devices: List<BluetoothDevice>)
@@ -173,7 +173,8 @@ class BluetoothService : Service() {
                 isCharging: Boolean,
                 wifiSsid: String,
                 wifiEnabled: Boolean,
-                dndEnabled: Boolean
+                dndEnabled: Boolean,
+                ipAddress: String? = null
         ) {}
         fun onPhoneBatteryUpdated(battery: Int, isCharging: Boolean) {}
     }
@@ -182,6 +183,7 @@ class BluetoothService : Service() {
 
     @Volatile var currentStatus: String = "" // Will be initialized in onCreate
     @Volatile var currentDeviceName: String? = null
+    @Volatile var currentTransportType: String = ""
     @Volatile var isConnected: Boolean = false
 
     // JSON Protocol - message types defined in Protocol.kt
@@ -507,7 +509,7 @@ class BluetoothService : Service() {
                 when (state) {
                     is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected -> {
                         val deviceName = state.deviceName ?: getString(R.string.device_name_default)
-                        handleDeviceConnected(deviceName, state.deviceMac)
+                        handleDeviceConnected(deviceName, state.deviceMac, state.type)
                     }
                     is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Disconnected -> {
                         handleDeviceDisconnected()
@@ -916,13 +918,14 @@ class BluetoothService : Service() {
         transportManager.startBluetoothServerWatchdog(bluetoothAdapter)
     }
 
-    private fun handleDeviceConnected(deviceName: String, mac: String?) {
-        if (isConnected) return // Already handling connection
+    private fun handleDeviceConnected(deviceName: String, mac: String?, transportType: String = "") {
+        if (isConnected && currentTransportType == transportType) return 
         
         isConnected = true
         isTransferring = false
         lastMessageTime = System.currentTimeMillis()
         currentDeviceName = deviceName
+        currentTransportType = transportType
         
         updateStatus(getString(R.string.status_connected_to, deviceName))
         
@@ -930,11 +933,12 @@ class BluetoothService : Service() {
         sendBroadcast(
             Intent(ACTION_CONNECTION_STATE_CHANGED).apply {
                 putExtra("connected", true)
+                putExtra("transport", transportType)
                 setPackage(packageName)
             }
         )
         
-        serviceScope.launch(Dispatchers.Main) { callback?.onDeviceConnected(deviceName) }
+        serviceScope.launch(Dispatchers.Main) { callback?.onDeviceConnected(deviceName, transportType) }
         
         // Start automation and encryption
         serviceScope.launch {
@@ -1188,10 +1192,11 @@ class BluetoothService : Service() {
     
     private fun handleUpdateWifiRule(message: ProtocolMessage) {
         try {
-            val wifiActivationRule = message.data.get("wifiActivationRule")?.asInt
+            val wifiActivationRule = message.data.get("rule")?.asInt
             wifiActivationRule?.let {
                 prefs.edit().putInt("wifi_activation_rule", it).apply()
-                Log.d(TAG, "WiFi activation rule updated to: $it (stored for reference)")
+                transportManager.updateWifiRule(it)
+                Log.d(TAG, "WiFi activation rule updated to: $it")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error updating WiFi rule", e)
@@ -1682,8 +1687,27 @@ class BluetoothService : Service() {
                 charging = isCharging,
                 dnd = dndEnabled,
                 wifi = wifiSsid,
-                wifiEnabled = wifiEnabled
+                wifiEnabled = wifiEnabled,
+                ipAddress = getIpAddress()
         )
+    }
+
+    private fun getIpAddress(): String? {
+        return try {
+            val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+            val ip = wm.connectionInfo.ipAddress
+            if (ip == 0) null else {
+                String.format(
+                        "%d.%d.%d.%d",
+                        (ip and 0xff),
+                        (ip shr 8 and 0xff),
+                        (ip shr 16 and 0xff),
+                        (ip shr 24 and 0xff)
+                )
+            }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     // ========================================================================

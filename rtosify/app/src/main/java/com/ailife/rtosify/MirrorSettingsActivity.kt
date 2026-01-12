@@ -293,6 +293,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
             isCharging: Boolean,
             wifiSsid: String,
             wifiEnabled: Boolean,
-            dndEnabled: Boolean
+            dndEnabled: Boolean,
+            ipAddress: String?
     ) {}
 }

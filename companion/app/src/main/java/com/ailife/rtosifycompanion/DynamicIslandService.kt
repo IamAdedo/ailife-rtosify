@@ -37,6 +37,7 @@ class DynamicIslandService : Service() {
     private var lastIsCharging = false
     private var batteryPercent = 0
     private var isShowingTransientState = false
+    private var currentTransport = ""
 
     private val receiver =
             object : BroadcastReceiver() {
@@ -68,9 +69,11 @@ class DynamicIslandService : Service() {
                         }
                         BluetoothService.ACTION_CONNECTION_STATE_CHANGED -> {
                             val connected = intent.getBooleanExtra("connected", false)
-                            if (connected != isBluetoothConnected) {
+                            val transport = intent.getStringExtra("transport") ?: ""
+                            if (connected != isBluetoothConnected || transport != currentTransport) {
                                 isBluetoothConnected = connected
-                                showTransientConnectionState(connected)
+                                currentTransport = transport
+                                showTransientConnectionState(connected, transport)
                             }
                         }
                     }
@@ -287,7 +290,7 @@ class DynamicIslandService : Service() {
         handler.postDelayed(transientStateRunnable!!, timeout)
     }
 
-    private fun showTransientConnectionState(connected: Boolean) {
+    private fun showTransientConnectionState(connected: Boolean, transportType: String = "") {
         isShowingTransientState = true
         transientStateRunnable?.let { handler.removeCallbacks(it) }
 
@@ -295,7 +298,7 @@ class DynamicIslandService : Service() {
         updateState()
 
         if (connected) {
-            overlayView.showConnectedState() // Could be an expanded version if needed
+            overlayView.showConnectedState(transportType) // Could be an expanded version if needed
         } else {
             overlayView.showDisconnectedState()
         }

@@ -28,6 +28,11 @@ class TransportManager(
         private const val TAG = "TransportManager"
         private val APP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
         private const val APP_NAME = "RTOSifyApp"
+
+        // WiFi Activation Rules
+        const val WIFI_RULE_BT_FALLBACK = 0
+        const val WIFI_RULE_MAINACTIVITY = 1
+        const val WIFI_RULE_ALWAYS = 2
     }
 
     private var bluetoothTransport: BluetoothTransport? = null
@@ -52,6 +57,12 @@ class TransportManager(
     private var btServerWatchdog: Job? = null
     
     @Volatile private var isConnectingWifi = false
+    @Volatile private var currentWifiRule: Int = WIFI_RULE_BT_FALLBACK
+    
+    // Save these for server restart
+    private var lastDeviceName: String? = null
+    private var lastLocalMac: String? = null
+    private var lastRemoteMac: String? = null
 
     sealed class ConnectionState {
         object Disconnected : ConnectionState()
@@ -147,6 +158,10 @@ class TransportManager(
      * Starts the WiFi server logic.
      */
     fun startWifiServer(deviceName: String, localMac: String, remoteMac: String) {
+        lastDeviceName = deviceName
+        lastLocalMac = localMac
+        lastRemoteMac = remoteMac
+        
         if (wifiServerJob?.isActive == true) return
         wifiServerJob?.cancel()
 
@@ -208,12 +223,24 @@ class TransportManager(
                 try {
                     val hasKey = encryptionManager.hasKey(remoteMac)
                     val serverRunning = wifiServerJob?.isActive == true
+                    val btConnected = bluetoothTransport?.isConnected() == true
                     
-                    // Check WiFi activation rule (companion should always accept connections)
-                    // We don't enforce rules on server side, but we check if keys exist
-                    if (hasKey && !serverRunning) {
-                        Log.w(TAG, "WiFi server watchdog: server stopped but keys exist - restarting")
-                        startWifiServer(deviceName, localMac, remoteMac)
+                    // Logic based on rules
+                    val shouldBeRunning = when (currentWifiRule) {
+                        WIFI_RULE_ALWAYS -> true
+                        WIFI_RULE_BT_FALLBACK -> !btConnected
+                        WIFI_RULE_MAINACTIVITY -> true // We expect manual start/stop for this, or just keep it running if requested
+                        else -> !btConnected
+                    }
+
+                    if (hasKey) {
+                        if (shouldBeRunning && !serverRunning) {
+                            Log.w(TAG, "WiFi server watchdog: should be running but stopped - starting")
+                            startWifiServer(deviceName, localMac, remoteMac)
+                        } else if (!shouldBeRunning && serverRunning) {
+                            Log.d(TAG, "WiFi server watchdog: should NOT be running but is - stopping")
+                            stopWifiServer()
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "WiFi server watchdog error (non-fatal): ${e.message}", e)
@@ -321,6 +348,36 @@ class TransportManager(
             bluetoothTransport = null
             wifiTransport = null
             updateConnectionState()
+        }
+    }
+
+    fun updateWifiRule(rule: Int) {
+        if (currentWifiRule != rule) {
+            currentWifiRule = rule
+            Log.d(TAG, "WiFi rule updated to: $rule")
+            
+            // Trigger an immediate check if we have enough info
+            val deviceName = lastDeviceName
+            val localMac = lastLocalMac
+            val remoteMac = lastRemoteMac
+            
+            if (deviceName != null && localMac != null && remoteMac != null) {
+                scope.launch {
+                    val btConnected = bluetoothTransport?.isConnected() == true
+                    val shouldBeRunning = when (currentWifiRule) {
+                        WIFI_RULE_ALWAYS -> true
+                        WIFI_RULE_BT_FALLBACK -> !btConnected
+                        WIFI_RULE_MAINACTIVITY -> true 
+                        else -> !btConnected
+                    }
+                    
+                    if (shouldBeRunning) {
+                        startWifiServer(deviceName, localMac, remoteMac)
+                    } else {
+                        stopWifiServer()
+                    }
+                }
+            }
         }
     }
 }

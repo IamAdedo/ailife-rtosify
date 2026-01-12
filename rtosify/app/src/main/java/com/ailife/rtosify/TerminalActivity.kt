@@ -411,4 +411,12 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     override fun onUploadProgress(progress: Int) {}
     override fun onDownloadProgress(progress: Int, file: java.io.File?) {}
     override fun onFileListReceived(path: String, filesJson: String) {}
+    override fun onWatchStatusUpdated(
+        batteryLevel: Int,
+        isCharging: Boolean,
+        wifiSsid: String,
+        wifiEnabled: Boolean,
+        dndEnabled: Boolean,
+        ipAddress: String?
+    ) {}
 }

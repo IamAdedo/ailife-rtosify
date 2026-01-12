@@ -385,7 +385,8 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
             isCharging: Boolean,
             wifiSsid: String,
             wifiEnabled: Boolean,
-            dndEnabled: Boolean
+            dndEnabled: Boolean,
+            ipAddress: String?
     ) {}
     override fun onPreviewReceived(path: String, imageBase64: String?) {
         if (imageBase64 != null) {
