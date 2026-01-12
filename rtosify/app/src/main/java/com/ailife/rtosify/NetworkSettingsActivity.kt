@@ -105,7 +105,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
     private fun updatePairingButton() {
         // Check if WiFi is already paired by checking for encryption key
         val mac = bluetoothService?.getConnectedDeviceMac()
-        val isPaired = mac != null && bluetoothService?.getEncryptionKeyForCurrentDevice() != null
+        val isPaired = mac != null && bluetoothService?.isPairedWithCurrentDevice() == true
         
         if (isPaired) {
             btnPairForInternet.text = getString(R.string.wifi_already_paired)

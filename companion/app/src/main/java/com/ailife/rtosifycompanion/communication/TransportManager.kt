@@ -83,31 +83,32 @@ class TransportManager(
                     continue
                 }
 
-                var serverSocket: BluetoothServerSocket? = null
-                try {
-                    serverSocket = bluetoothAdapter.listenUsingRfcommWithServiceRecord(APP_NAME, APP_UUID)
-                    consecutiveFailures = 0
+                val serverSocket = try {
+                    bluetoothAdapter.listenUsingRfcommWithServiceRecord(APP_NAME, APP_UUID)
                 } catch (e: IOException) {
                     Log.w(TAG, "Failed to create BT server socket: ${e.message}")
                     consecutiveFailures++
                     delay(3000)
-                    if (consecutiveFailures >= maxConsecutiveFailures) {
-                        Log.e(TAG, "Too many BT server failures")
-                        break
-                    }
+                    if (consecutiveFailures >= maxConsecutiveFailures) break
                     continue
                 }
-
-                var socket: BluetoothSocket? = null
-                while (socket == null && isActive) {
-                    try {
-                        socket = serverSocket?.accept(5000)
-                    } catch (_: IOException) {}
-                }
-
-                if (socket != null) {
+                
+                consecutiveFailures = 0
+                
+                try {
+                    while (isActive) {
+                        val socket = try {
+                            serverSocket?.accept(5000)
+                        } catch (_: IOException) {
+                            null
+                        }
+                        
+                        if (socket != null) {
+                            handleBluetoothConnection(socket)
+                        }
+                    }
+                } finally {
                     try { serverSocket?.close() } catch (_: Exception) {}
-                    handleBluetoothConnection(socket)
                 }
             }
         }
@@ -122,21 +123,20 @@ class TransportManager(
         if (transport.connect()) {
             bluetoothTransport = transport
             updateConnectionState()
-            scope.launch {
-                try {
+            try {
+                lastMessageTime = System.currentTimeMillis()
+                startHeartbeatLoop()
+                transport.receive().collect { msg ->
                     lastMessageTime = System.currentTimeMillis()
-                    startHeartbeatLoop()
-                    transport.receive().collect { msg ->
-                        lastMessageTime = System.currentTimeMillis()
-                        _incomingMessages.send(msg)
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Bluetooth receive error", e)
-                } finally {
-                    stopHeartbeatLoop()
-                    bluetoothTransport = null
-                    updateConnectionState()
+                    _incomingMessages.send(msg)
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Bluetooth receive error", e)
+            } finally {
+                Log.d(TAG, "Bluetooth disconnected")
+                bluetoothTransport = null
+                checkHeartbeatStatus() // Only stop if no transports left
+                updateConnectionState()
             }
         } else {
             Log.e(TAG, "Failed to initialize Bluetooth transport")
@@ -147,16 +147,17 @@ class TransportManager(
     /**
      * Starts the WiFi server logic.
      */
-    fun startWifiServer(deviceName: String, deviceMac: String) {
+    fun startWifiServer(deviceName: String, localMac: String, remoteMac: String) {
         if (wifiServerJob?.isActive == true) return
         wifiServerJob?.cancel()
 
         wifiServerJob = scope.launch(Dispatchers.IO) {
-            Log.d(TAG, "Starting WiFi server...")
+            Log.d(TAG, "Starting WiFi server for local=$localMac, remote=$remoteMac")
             
             while (isActive) {
                 val transport = WifiIntranetTransport(
-                    deviceMac = deviceMac,
+                    remoteMac = remoteMac,
+                    localMac = localMac,
                     deviceName = deviceName,
                     encryptionManager = encryptionManager,
                     mdnsDiscovery = mdnsDiscovery,
@@ -164,6 +165,9 @@ class TransportManager(
                 )
                 
                 try {
+                    // Pre-emptively set active device for encryption
+                    encryptionManager.setActiveDevice(remoteMac)
+                    
                     if (transport.connect()) {
                         wifiTransport = transport
                         updateConnectionState()
@@ -178,13 +182,15 @@ class TransportManager(
                         } catch (e: Exception) {
                             Log.e(TAG, "WiFi receive error", e)
                         } finally {
-                            stopHeartbeatLoop()
                             wifiTransport = null
+                            checkHeartbeatStatus() // Only stop if no transports left
                             updateConnectionState()
                         }
                     } else {
                         delay(2000)
                     }
+                } catch (e: Exception) {
+                    Log.e(TAG, "WiFi connection error", e)
                 } finally {
                     transport.disconnect()
                 }
@@ -214,10 +220,14 @@ class TransportManager(
     }
 
     private fun stopHeartbeatLoop() {
-        val stillConnected = (bluetoothTransport?.isConnected() == true) || (wifiTransport?.isConnected() == true)
-        if (!stillConnected) {
-            heartbeatJob?.cancel()
-            heartbeatJob = null
+        Log.d(TAG, "Stopping heartbeat loop")
+        heartbeatJob?.cancel()
+        heartbeatJob = null
+    }
+
+    private fun checkHeartbeatStatus() {
+        if (bluetoothTransport == null && wifiTransport == null) {
+            stopHeartbeatLoop()
         }
     }
 

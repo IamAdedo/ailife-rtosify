@@ -9,7 +9,6 @@ import com.google.crypto.tink.JsonKeysetWriter
 import com.google.crypto.tink.KeysetHandle
 import com.google.crypto.tink.aead.AeadConfig
 import com.google.crypto.tink.aead.AeadKeyTemplates
-import com.google.crypto.tink.integration.android.AndroidKeysetManager
 import android.util.Base64
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -26,7 +25,7 @@ class EncryptionManager(private val context: Context) {
     
     companion object {
         private const val TAG = "EncryptionManager"
-        private const val KEYSET_NAME = "rtosify_wifi_encryption_keyset"
+        private const val KEYSET_NAME = "rtosify_wifi_v2_keyset"
         private const val PREF_FILE_NAME = "rtosify_encryption_keys"
         private const val MASTER_KEY_ALIAS = "rtosify_master_key"
     }
@@ -42,6 +41,14 @@ class EncryptionManager(private val context: Context) {
             Log.e(TAG, "Failed to register Tink AEAD config", e)
         }
     }
+    
+    /**
+     * Check if a keyset exists for a specific device.
+     */
+    fun hasKey(deviceMac: String): Boolean {
+        val prefs = context.getSharedPreferences(PREF_FILE_NAME, Context.MODE_PRIVATE)
+        return prefs.contains("${KEYSET_NAME}_$deviceMac") || keysetHandles.containsKey(deviceMac)
+    }
 
     /**
      * Initialize or load encryption keyset for a specific device (by MAC address).
@@ -49,14 +56,27 @@ class EncryptionManager(private val context: Context) {
      */
     fun initializeForDevice(deviceMac: String): Boolean {
         return try {
-            val keysetHandle = AndroidKeysetManager.Builder()
-                .withSharedPref(context, "${KEYSET_NAME}_$deviceMac", "$PREF_FILE_NAME")
-                .withKeyTemplate(AeadKeyTemplates.AES256_GCM)
-                .withMasterKeyUri("android-keystore://$MASTER_KEY_ALIAS")
-                .build()
-                .keysetHandle
+            val prefs = context.getSharedPreferences(PREF_FILE_NAME, Context.MODE_PRIVATE)
+            val json = prefs.getString("${KEYSET_NAME}_$deviceMac", null)
+            
+            var keysetHandle: KeysetHandle? = null
+            if (json != null) {
+                try {
+                    keysetHandle = CleartextKeysetHandle.read(JsonKeysetReader.withString(json))
+                } catch (e: Exception) {
+                    Log.w(TAG, "Malformed keyset for $deviceMac, will regenerate")
+                }
+            }
+            
+            if (keysetHandle == null) {
+                val handle = KeysetHandle.generateNew(AeadKeyTemplates.AES256_GCM)
+                val outputStream = ByteArrayOutputStream()
+                CleartextKeysetHandle.write(handle, JsonKeysetWriter.withOutputStream(outputStream))
+                prefs.edit().putString("${KEYSET_NAME}_$deviceMac", outputStream.toString("UTF-8")).apply()
+                keysetHandle = handle
+            }
 
-            keysetHandles[deviceMac] = keysetHandle
+            keysetHandles[deviceMac] = keysetHandle!!
             Log.d(TAG, "Initialized encryption for device: $deviceMac")
             true
         } catch (e: Exception) {
@@ -110,6 +130,25 @@ class EncryptionManager(private val context: Context) {
     }
 
     /**
+     * Encrypt data for a specific device.
+     */
+    fun encrypt(deviceMac: String, plaintext: ByteArray, associatedData: ByteArray = ByteArray(0)): ByteArray? {
+        val handle = keysetHandles[deviceMac]
+        if (handle == null) {
+            Log.e(TAG, "Cannot encrypt: No keyset for $deviceMac")
+            return null
+        }
+        
+        return try {
+            val a = handle.getPrimitive(Aead::class.java)
+            a.encrypt(plaintext, associatedData)
+        } catch (e: GeneralSecurityException) {
+            Log.e(TAG, "Encryption failed for $deviceMac", e)
+            null
+        }
+    }
+
+    /**
      * Decrypt data received over WiFi.
      * 
      * @param ciphertext The encrypted data
@@ -127,6 +166,25 @@ class EncryptionManager(private val context: Context) {
             currentAead.decrypt(ciphertext, associatedData)
         } catch (e: GeneralSecurityException) {
             Log.e(TAG, "Decryption failed", e)
+            null
+        }
+    }
+
+    /**
+     * Decrypt data from a specific device.
+     */
+    fun decrypt(deviceMac: String, ciphertext: ByteArray, associatedData: ByteArray = ByteArray(0)): ByteArray? {
+        val handle = keysetHandles[deviceMac]
+        if (handle == null) {
+            Log.e(TAG, "Cannot decrypt: No keyset for $deviceMac")
+            return null
+        }
+        
+        return try {
+            val a = handle.getPrimitive(Aead::class.java)
+            a.decrypt(ciphertext, associatedData)
+        } catch (e: GeneralSecurityException) {
+            Log.e(TAG, "Decryption failed for $deviceMac", e)
             null
         }
     }
@@ -175,29 +233,11 @@ class EncryptionManager(private val context: Context) {
             val inputStream = ByteArrayInputStream(keyBytes)
             val keysetHandle = CleartextKeysetHandle.read(JsonKeysetReader.withInputStream(inputStream))
 
-            // Save to persistent storage using AndroidKeysetManager to ensure it's encrypted
-            AndroidKeysetManager.Builder()
-                .withSharedPref(context, "${KEYSET_NAME}_$deviceMac", "$PREF_FILE_NAME")
-                .withKeyTemplate(AeadKeyTemplates.AES256_GCM)
-                .withMasterKeyUri("android-keystore://$MASTER_KEY_ALIAS")
-                .build()
-                .keysetHandle // This might overwrite or fail if already exists, let's be careful
-
-            // Actually, AndroidKeysetManager is for generating or loading. 
-            // To manually SAVE a keysetHandle to the same location AndroidKeysetManager expects:
+            // Save to persistent storage
             val prefs = context.getSharedPreferences(PREF_FILE_NAME, Context.MODE_PRIVATE)
-            val outputStream = ByteArrayOutputStream()
-            keysetHandle.write(JsonKeysetWriter.withOutputStream(outputStream), 
-                AndroidKeysetManager.Builder()
-                    .withSharedPref(context, "unused", "unused")
-                    .withMasterKeyUri("android-keystore://$MASTER_KEY_ALIAS")
-                    .build().keysetHandle.getPrimitive(Aead::class.java)) 
-            // This is getting complicated. Let's use a simpler approach for now:
-            // Just store the raw keyset JSON in the same Pref file.
-            
             val jsonStream = ByteArrayOutputStream()
             CleartextKeysetHandle.write(keysetHandle, JsonKeysetWriter.withOutputStream(jsonStream))
-            prefs.edit().putString("${KEYSET_NAME}_$deviceMac", jsonStream.toString()).apply()
+            prefs.edit().putString("${KEYSET_NAME}_$deviceMac", jsonStream.toString("UTF-8")).apply()
 
             keysetHandles[deviceMac] = keysetHandle
             Log.d(TAG, "Imported and saved encryption key for device: $deviceMac")

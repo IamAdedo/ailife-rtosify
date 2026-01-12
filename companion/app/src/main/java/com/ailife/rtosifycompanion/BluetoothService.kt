@@ -900,11 +900,12 @@ class BluetoothService : Service() {
         // Start servers via TransportManager
         
         // WiFi Server
-        val savedMac = prefs.getString("wifi_advertised_mac", null)
-        if (savedMac != null) {
+        val watchMac = prefs.getString("wifi_advertised_mac", null)
+        val phoneMac = prefs.getString("paired_phone_mac", null)
+        if (watchMac != null && phoneMac != null) {
             val deviceName = bluetoothAdapter?.name ?: Build.MODEL
-            Log.d(TAG, "Starting WiFi server for $deviceName ($savedMac)...")
-            transportManager.startWifiServer(deviceName, savedMac)
+            Log.d(TAG, "Starting WiFi server for local=$watchMac, remote=$phoneMac")
+            transportManager.startWifiServer(deviceName, watchMac, phoneMac)
         }
 
         // Bluetooth Server
@@ -1566,8 +1567,9 @@ class BluetoothService : Service() {
             
             // Watch always starts WiFi as server
             serviceScope.launch {
+                val watchMac = prefs.getString("wifi_advertised_mac", "") ?: ""
                 val deviceName = bluetoothAdapter?.name ?: android.os.Build.MODEL
-                transportManager.startWifiServer(deviceName, deviceMac)
+                transportManager.startWifiServer(deviceName, watchMac, deviceMac)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize encryption", e)
@@ -2191,24 +2193,29 @@ class BluetoothService : Service() {
     }
 
     private fun handleWifiKeyExchange(message: ProtocolMessage) {
-        val deviceMac = ProtocolHelper.extractStringField(message, "deviceMac") ?: return
+        val phoneMac = ProtocolHelper.extractStringField(message, "deviceMac") ?: bluetoothSocket?.remoteDevice?.address ?: return
+        val watchMac = ProtocolHelper.extractStringField(message, "targetMac") ?: ""
         val encryptionKey = ProtocolHelper.extractStringField(message, "encryptionKey") ?: return
         
-        Log.i(TAG, "Received WiFi key exchange request for $deviceMac")
-        val success = encryptionManager.importKey(deviceMac, encryptionKey)
+        Log.i(TAG, "Received WiFi key exchange request from $phoneMac for watch $watchMac")
+        val success = encryptionManager.importKey(phoneMac, encryptionKey)
         if (success) {
-            encryptionManager.setActiveDevice(deviceMac)
-            // Save this MAC as our "advertised MAC" for future registrations
-            prefs.edit().putString("wifi_advertised_mac", deviceMac).apply()
+            encryptionManager.setActiveDevice(phoneMac)
             
-            // Register and start WiFi server with our MAC (deviceMac)
+            // Save MACs for future restarts
+            prefs.edit().apply {
+                putString("wifi_advertised_mac", watchMac)
+                putString("paired_phone_mac", phoneMac)
+            }.apply()
+            
+            // Start WiFi server
             serviceScope.launch {
                 val deviceName = bluetoothAdapter?.name ?: android.os.Build.MODEL
-                transportManager.startWifiServer(deviceName, deviceMac)
+                transportManager.startWifiServer(deviceName, watchMac, phoneMac)
             }
         }
         
-        sendMessage(ProtocolHelper.createWifiKeyAck(deviceMac, success))
+        sendMessage(ProtocolHelper.createWifiKeyAck(phoneMac, success))
     }
 
     private fun handleWifiTestEncrypt(message: ProtocolMessage) {

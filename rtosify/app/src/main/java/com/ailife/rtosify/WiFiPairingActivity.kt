@@ -150,7 +150,7 @@ class WiFiPairingActivity : AppCompatActivity() {
         lifecycleScope.launch {
             // Check if already paired
             val mac = bluetoothService?.getConnectedDeviceMac()
-            if (mac != null && bluetoothService?.getEncryptionKeyForCurrentDevice() != null) {
+            if (mac != null && bluetoothService?.isPairedWithCurrentDevice() == true) {
                 Log.d(TAG, "Device already paired, showing status")
                 showAlreadyPaired()
                 return@launch

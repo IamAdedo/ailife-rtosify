@@ -972,9 +972,10 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.CAMERA_SHUTTER)
     }
 
-    fun createWifiKeyExchange(deviceMac: String, encryptionKey: String): ProtocolMessage {
+    fun createWifiKeyExchange(localMac: String, targetMac: String, encryptionKey: String): ProtocolMessage {
         val data = JsonObject()
-        data.addProperty("deviceMac", deviceMac)
+        data.addProperty("deviceMac", localMac)
+        data.addProperty("targetMac", targetMac)
         data.addProperty("encryptionKey", encryptionKey)
         return ProtocolMessage(type = MessageType.WIFI_KEY_EXCHANGE, data = data)
     }

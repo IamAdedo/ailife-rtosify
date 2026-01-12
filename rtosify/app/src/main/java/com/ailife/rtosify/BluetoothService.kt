@@ -204,6 +204,11 @@ class BluetoothService : Service() {
         return transportManager.isWifiConnected()
     }
 
+    fun isPairedWithCurrentDevice(): Boolean {
+        val mac = getConnectedDeviceMac() ?: return false
+        return encryptionManager.hasKey(mac)
+    }
+
     fun getConnectedDeviceMac(): String? {
         val lastMac = devicePrefManager.getSelectedDeviceMac()
         // We'll trust the preference if connected, or return null if not or unknown
@@ -218,8 +223,11 @@ class BluetoothService : Service() {
     }
 
     fun sendWifiKeyExchange(key: String) {
-        val mac = getConnectedDeviceMac() ?: return
-        sendMessage(ProtocolHelper.createWifiKeyExchange(mac, key))
+        val watchMac = getConnectedDeviceMac() ?: return
+        // We try to get local MAC, but if restricted, a dummy or empty one will be used 
+        // as long as it's consistent for the encryption key lookup.
+        val phoneMac = BluetoothAdapter.getDefaultAdapter()?.address ?: ""
+        sendMessage(ProtocolHelper.createWifiKeyExchange(phoneMac, watchMac, key))
     }
 
     fun startMdnsDiscovery(callback: (String) -> Unit) {

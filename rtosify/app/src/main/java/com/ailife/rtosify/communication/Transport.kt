@@ -47,6 +47,11 @@ interface CommunicationTransport {
      * Get remote device name if available.
      */
     fun getRemoteDeviceName(): String?
+
+    /**
+     * Get the address/MAC of the connected remote device.
+     */
+    fun getRemoteAddress(): String?
 }
 
 /**

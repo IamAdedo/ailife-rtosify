@@ -17,12 +17,12 @@ import java.net.Socket
  * All messages are encrypted using EncryptionManager.
  */
 class WifiIntranetTransport(
-    private val deviceMac: String,
+    private val remoteMac: String,
+    private val localMac: String,
     private val deviceName: String,
     private val encryptionManager: EncryptionManager,
     private val mdnsDiscovery: MdnsDiscovery,
-    private val isServer: Boolean = false,
-    private val port: Int = 8765
+    private val isServer: Boolean = false
 ) : CommunicationTransport {
 
     companion object {
@@ -57,8 +57,8 @@ class WifiIntranetTransport(
         val localPort = serverSocket!!.localPort
         Log.d(TAG, "Server listening on port $localPort")
 
-        // Register mDNS service
-        mdnsDiscovery.registerService(deviceMac, deviceName, localPort)
+        // Register mDNS service with our own MAC
+        mdnsDiscovery.registerService(localMac, deviceName, localPort)
         
         try {
             // Accept connection (blocking)
@@ -77,19 +77,19 @@ class WifiIntranetTransport(
     }
 
     private suspend fun connectAsClient(): Boolean {
-        Log.d(TAG, "Attempting to discover service for MAC: $deviceMac")
+        Log.d(TAG, "Attempting to discover service for MAC: $remoteMac")
         
         // Start discovery just in case it's not running
         mdnsDiscovery.startDiscovery()
         
         val discoveryResult: MdnsDiscovery.ServiceInfo? = withTimeoutOrNull(20000L) { // Increased to 20s
             mdnsDiscovery.getDiscoveredServices()
-                .filter { it.deviceMac.equals(deviceMac, ignoreCase = true) }
+                .filter { it.deviceMac.equals(remoteMac, ignoreCase = true) }
                 .firstOrNull()
         }
 
         if (discoveryResult == null) {
-            Log.w(TAG, "mDNS discovery timeout for $deviceMac")
+            Log.w(TAG, "mDNS discovery timeout for $remoteMac")
             return false
         }
 
@@ -128,7 +128,8 @@ class WifiIntranetTransport(
                     input.readFully(encryptedBytes)
 
                     // Decrypt
-                    val decryptedBytes = encryptionManager.decrypt(encryptedBytes)
+                    // Decrypt using the remote device's MAC
+                    val decryptedBytes = encryptionManager.decrypt(remoteMac, encryptedBytes)
                     if (decryptedBytes == null) {
                         Log.e(TAG, "Failed to decrypt message")
                         continue
@@ -185,8 +186,8 @@ class WifiIntranetTransport(
             // Serialize message
             val jsonBytes = message.toBytes()
             
-            // Encrypt
-            val encryptedBytes = encryptionManager.encrypt(jsonBytes)
+            // Encrypt using the remote device's MAC
+            val encryptedBytes = encryptionManager.encrypt(remoteMac, jsonBytes)
             if (encryptedBytes == null) {
                 Log.e(TAG, "Failed to encrypt message")
                 return@withContext false
@@ -213,5 +214,7 @@ class WifiIntranetTransport(
 
     override fun getTransportType(): String = "WiFi Intranet"
 
-    override fun getRemoteDeviceName(): String? = socket?.inetAddress?.hostAddress
+    override fun getRemoteDeviceName(): String? = deviceName
+
+    override fun getRemoteAddress(): String? = remoteMac
 }

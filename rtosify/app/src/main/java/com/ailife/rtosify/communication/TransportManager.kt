@@ -65,7 +65,7 @@ class TransportManager(
         object Disconnected : ConnectionState()
         object Connecting : ConnectionState()
         object Waiting : ConnectionState()
-        data class Connected(val type: String, val deviceName: String?) : ConnectionState()
+        data class Connected(val type: String, val deviceName: String?, val deviceMac: String? = null) : ConnectionState()
     }
 
     /**
@@ -143,8 +143,8 @@ class TransportManager(
                 Log.e(TAG, "Bluetooth receive error", e)
             } finally {
                 Log.d(TAG, "Bluetooth disconnected")
-                stopHeartbeatLoop()
                 bluetoothTransport = null
+                checkHeartbeatStatus() // Only stop if no transports left
                 updateConnectionState()
             }
         } else {
@@ -182,8 +182,9 @@ class TransportManager(
         if (isConnectingWifi) return
         
         val transport = WifiIntranetTransport(
-            deviceMac = mac,
-            deviceName = BluetoothAdapter.getDefaultAdapter()?.name ?: Build.MODEL,
+            remoteMac = mac,
+            localMac = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter?.address ?: "",
+            deviceName = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter?.name ?: Build.MODEL,
             encryptionManager = encryptionManager,
             mdnsDiscovery = mdnsDiscovery,
             isServer = false // Phone is client
@@ -211,8 +212,8 @@ class TransportManager(
                     } catch (e: Exception) {
                         Log.e(TAG, "WiFi receive error", e)
                     } finally {
-                        stopHeartbeatLoop()
                         wifiTransport = null
+                        checkHeartbeatStatus() // Only stop if no transports left
                         updateConnectionState()
                         transport.disconnect() // Disconnect the transport when its receive loop ends
                     }
@@ -317,8 +318,15 @@ class TransportManager(
     }
 
     private fun stopHeartbeatLoop() {
+        Log.d(TAG, "Stopping heartbeat loop")
         heartbeatJob?.cancel()
         heartbeatJob = null
+    }
+
+    private fun checkHeartbeatStatus() {
+        if (bluetoothTransport == null && wifiTransport == null) {
+            stopHeartbeatLoop()
+        }
     }
     
     private fun updateConnectionState() {
@@ -328,11 +336,11 @@ class TransportManager(
         
         val newState = when {
             wifi != null && wifi.isConnected() && bt != null && bt.isConnected() -> 
-                ConnectionState.Connected("Dual", bt.getRemoteDeviceName()) 
+                ConnectionState.Connected("Dual", bt.getRemoteDeviceName(), bt.getRemoteAddress()) 
             wifi != null && wifi.isConnected() -> 
-                ConnectionState.Connected("WiFi", wifi.getRemoteDeviceName())
+                ConnectionState.Connected("WiFi", wifi.getRemoteDeviceName(), wifi.getRemoteAddress())
             bt != null && bt.isConnected() -> 
-                ConnectionState.Connected("Bluetooth", bt.getRemoteDeviceName())
+                ConnectionState.Connected("Bluetooth", bt.getRemoteDeviceName(), bt.getRemoteAddress())
             else -> {
                 if (isConnectingWifi) {
                     ConnectionState.Connecting
