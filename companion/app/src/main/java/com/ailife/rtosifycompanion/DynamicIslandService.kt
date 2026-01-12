@@ -284,14 +284,18 @@ class DynamicIslandService : Service() {
 
         // Only auto-hide if the setting is enabled
         val hideWhenIdle = prefs.getBoolean("dynamic_island_hide_idle", false)
-        if (hideWhenIdle) {
-            val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
-            transientStateRunnable = Runnable {
-                isShowingTransientState = false
-                updateState()
-            }
-            handler.postDelayed(transientStateRunnable!!, timeout)
+        // Always schedule auto-hide reset to avoid getting stuck in transient state
+        val timeout = if (hideWhenIdle) {
+            prefs.getInt("dynamic_island_timeout", 5) * 1000L
+        } else {
+            3000L // Default short timeout even if not hiding, to return to normal persistent logic
         }
+
+        transientStateRunnable = Runnable {
+            isShowingTransientState = false
+            updateState()
+        }
+        handler.postDelayed(transientStateRunnable!!, timeout)
         // If hideWhenIdle is false, transient state stays visible until next state change
     }
 
@@ -310,14 +314,18 @@ class DynamicIslandService : Service() {
 
         // Only auto-hide if the setting is enabled
         val hideWhenIdle = prefs.getBoolean("dynamic_island_hide_idle", false)
-        if (hideWhenIdle) {
-            val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
-            transientStateRunnable = Runnable {
-                isShowingTransientState = false
-                updateState()
-            }
-            handler.postDelayed(transientStateRunnable!!, timeout)
+        // Always schedule auto-hide reset to avoid getting stuck in transient state
+        val timeout = if (hideWhenIdle) {
+            prefs.getInt("dynamic_island_timeout", 5) * 1000L
+        } else {
+            3000L // Default short timeout even if not hiding, to return to normal persistent logic
         }
+
+        transientStateRunnable = Runnable {
+            isShowingTransientState = false
+            updateState()
+        }
+        handler.postDelayed(transientStateRunnable!!, timeout)
         // If hideWhenIdle is false, transient state stays visible until next state change
     }
 

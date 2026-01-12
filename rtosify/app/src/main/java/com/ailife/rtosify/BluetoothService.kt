@@ -420,8 +420,11 @@ class BluetoothService : Service() {
                             // updateHealthSettings() - Removed as per user request (irrelevant for transport refactor)
                             // syncSettingsToWatch() - Replaced by specific updates or implemented above if needed
                             // For now, assuming health settings are the primary settings to sync
-                            // Check if clipboard monitoring needs to be started/stopped
+                            
+                            // SYNC ALL AUTOMATION AND DI SETTINGS
                             if (isConnected) {
+                                sendAutomationSettings()
+                                
                                 if (activePrefs.getBoolean("clipboard_sync_enabled", false)) {
                                     startClipboardMonitoring()
                                 } else {
@@ -1247,7 +1250,14 @@ class BluetoothService : Service() {
                         autoWifiEnabled = activePrefs.getBoolean("auto_wifi_enabled", false),
                         autoDataEnabled = activePrefs.getBoolean("auto_data_enabled", false),
                         autoBtTetherEnabled =
-                                activePrefs.getBoolean("auto_bt_tether_enabled", false)
+                                activePrefs.getBoolean("auto_bt_tether_enabled", false),
+                        // New Dynamic Island settings
+                        notificationStyle = activePrefs.getString("notification_style", "android"),
+                        dynamicIslandTimeout = activePrefs.getInt("dynamic_island_timeout", 5),
+                        dynamicIslandY = activePrefs.getInt("dynamic_island_y", 8),
+                        dynamicIslandWidth = activePrefs.getInt("dynamic_island_width", 150),
+                        dynamicIslandHeight = activePrefs.getInt("dynamic_island_height", 40),
+                        dynamicIslandHideWhenIdle = activePrefs.getBoolean("dynamic_island_hide_idle", false)
                 )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
     }
