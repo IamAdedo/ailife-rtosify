@@ -64,20 +64,16 @@ class WifiIntranetTransport(
         // Register mDNS service with our own MAC
         mdnsDiscovery.registerService(localMac, deviceName, localPort)
         
-        try {
-            // Accept connection (blocking)
-            socket = serverSocket?.accept()
-            socket?.let {
-                setupStreams(it)
-                connected = true
-                lastReceiveTime = System.currentTimeMillis()
-                startReceiving()
-                startKeepalive()
-                Log.d(TAG, "Client connected from ${it.inetAddress}")
-                return true
-            }
-        } finally {
-            mdnsDiscovery.stop()
+        // Accept connection (blocking)
+        socket = serverSocket?.accept()
+        socket?.let {
+            setupStreams(it)
+            connected = true
+            lastReceiveTime = System.currentTimeMillis()
+            startReceiving()
+            startKeepalive()
+            Log.d(TAG, "Client connected from ${it.inetAddress}")
+            return true
         }
         return false
     }
@@ -85,32 +81,31 @@ class WifiIntranetTransport(
     private suspend fun connectAsClient(): Boolean {
         Log.d(TAG, "Attempting to discover service for MAC: $remoteMac")
         
-        // Start discovery just in case it's not running
         mdnsDiscovery.startDiscovery()
         
         return withTimeoutOrNull(20000L) {
-            var success = false
-            // Collect emissions and try each one
-            mdnsDiscovery.getDiscoveredServices()
+            val success = mdnsDiscovery.getDiscoveredServices()
                 .filter { it.deviceMac.equals(remoteMac, ignoreCase = true) }
-                .collect { discoveryResult ->
+                .map { discoveryResult ->
                     Log.d(TAG, "Testing discovered service: ${discoveryResult.host}:${discoveryResult.port}")
                     try {
-                        socket = Socket(discoveryResult.host, discoveryResult.port)
-                        setupStreams(socket!!)
+                        val s = Socket()
+                        s.connect(java.net.InetSocketAddress(discoveryResult.host, discoveryResult.port), 5000)
+                        socket = s
+                        setupStreams(s)
                         connected = true
                         lastReceiveTime = System.currentTimeMillis()
                         startReceiving()
                         startKeepalive()
                         Log.d(TAG, "Successfully connected to ${discoveryResult.host}:${discoveryResult.port}")
-                        success = true
-                        cancel() // Stop collecting and return from withTimeoutOrNull
+                        true
                     } catch (e: Exception) {
                         Log.w(TAG, "Connection to ${discoveryResult.host}:${discoveryResult.port} failed: ${e.message}")
-                        // Continue collecting/searching
+                        false
                     }
                 }
-            success
+                .firstOrNull { it }
+            success == true
         } ?: false
     }
 
