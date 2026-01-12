@@ -53,6 +53,9 @@ class TransportManager(
     
     @Volatile private var lastMessageTime: Long = 0L
     
+    @Volatile private var wifiTemporarilyDisabled = false
+    @Volatile private var wifiForceForPairing = false
+    
     // Message handling
     private val _incomingMessages = Channel<ProtocolMessage>(Channel.BUFFERED)
     val incomingMessages: Flow<ProtocolMessage> = _incomingMessages.receiveAsFlow()
@@ -163,7 +166,12 @@ class TransportManager(
                 if (shouldConnectWifi()) {
                     // Try to connect if not connected
                     if (wifiTransport == null || !wifiTransport!!.isConnected()) {
-                        connectWifi(deviceMac)
+                        val connected = connectWifi(deviceMac)
+                        if (!connected) {
+                            // Wait longer after failed attempt before retrying
+                            delay(10000)
+                            continue
+                        }
                     }
                 } else {
                     // Reduce activity if rule says no
@@ -178,8 +186,8 @@ class TransportManager(
         }
     }
 
-    private suspend fun connectWifi(mac: String) {
-        if (isConnectingWifi) return
+    private suspend fun connectWifi(mac: String): Boolean {
+        if (isConnectingWifi) return false
         
         val transport = WifiIntranetTransport(
             remoteMac = mac,
@@ -218,12 +226,15 @@ class TransportManager(
                         transport.disconnect() // Disconnect the transport when its receive loop ends
                     }
                 }
+                return true
             } else {
                 transport.disconnect()
+                return false
             }
         } catch (e: Exception) {
             Log.e(TAG, "WiFi connect failed: ${e.message}")
             transport.disconnect()
+            return false
         } finally {
             isConnectingWifi = false
             updateConnectionState()
@@ -231,6 +242,12 @@ class TransportManager(
     }
 
     private fun shouldConnectWifi(): Boolean {
+        // Force WiFi on during pairing
+        if (wifiForceForPairing) return true
+        
+        // Don't connect if temporarily disabled (e.g., during re-pairing)
+        if (wifiTemporarilyDisabled) return false
+        
         // Check rules from logic
         val prefs = devicePrefManager.getActiveDevicePrefs()
         val rule = prefs.getInt("wifi_activation_rule", WIFI_RULE_BT_FALLBACK)
@@ -357,4 +374,29 @@ class TransportManager(
     
 
     fun isWifiConnected(): Boolean = wifiTransport?.isConnected() == true
+    
+    fun temporarilyDisableWifi() {
+        wifiTemporarilyDisabled = true
+        scope.launch {
+            wifiTransport?.disconnect()
+            wifiTransport = null
+            updateConnectionState()
+        }
+    }
+    
+    fun reenableWifi() {
+        wifiTemporarilyDisabled = false
+        // WiFi monitoring loop will pick it up automatically
+    }
+    
+    fun forceWifiForPairing(mac: String) {
+        wifiForceForPairing = true
+        Log.d(TAG, "Forcing WiFi for pairing: $mac")
+        // WiFi monitoring loop will pick it up automatically
+    }
+    
+    fun stopForcedWifiPairing() {
+        wifiForceForPairing = false
+        Log.d(TAG, "Stopped forcing WiFi for pairing")
+    }
 }

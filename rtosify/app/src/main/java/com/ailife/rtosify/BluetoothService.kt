@@ -249,11 +249,16 @@ class BluetoothService : Service() {
         mdnsDiscovery?.stop()
     }
 
-    fun startWifiTransport(mac: String) {
-        // TransportManager already monitors WiFi based on rules, but we can force re-sync
-        // In the context of Pairing, we might want to ensure rules allow it.
-        // For now, let's just trigger the monitor if it's not and rely on TransportManager.
-        transportManager.isMainActivityVisible = true // Hack to force rule if set to MainActivity
+    fun forceWifiForPairing(mac: String) {
+        // Force WiFi on during pairing, regardless of rules
+        transportManager.forceWifiForPairing(mac)
+        Log.d(TAG, "Forcing WiFi connection for pairing: $mac")
+    }
+
+    fun stopForcedWifiPairing() {
+        // Stop forcing WiFi after pairing completes
+        transportManager.stopForcedWifiPairing()
+        Log.d(TAG, "Stopped forcing WiFi for pairing")
     }
 
     fun sendWifiTestMessage(content: String) {
@@ -266,6 +271,20 @@ class BluetoothService : Service() {
 
     fun syncWifiRuleToCompanion(rule: Int) {
         sendMessage(ProtocolHelper.createUpdateWifiRule(rule))
+    }
+
+    private var wifiTemporarilyDisabled = false
+
+    fun temporarilyDisableWifi() {
+        wifiTemporarilyDisabled = true
+        transportManager.temporarilyDisableWifi()
+        Log.d(TAG, "WiFi temporarily disabled for re-pairing")
+    }
+
+    fun reenableWifi() {
+        wifiTemporarilyDisabled = false
+        transportManager.reenableWifi()
+        Log.d(TAG, "WiFi re-enabled after re-pairing")
     }
 
     private val phoneStateReceiver =
@@ -458,8 +477,16 @@ class BluetoothService : Service() {
                     is com.ailife.rtosify.communication.TransportManager.ConnectionState.Connected -> {
                          isConnected = true
                          currentDeviceName = state.deviceName ?: getString(R.string.device_name_default)
-                         updateStatus(getString(R.string.status_connected_to, currentDeviceName))
-                         Log.d(TAG, "Device connected: $currentDeviceName")
+                         
+                         // Show transport type in status
+                         val statusText = when (state.type) {
+                             "Dual" -> getString(R.string.status_connected_to_dual, currentDeviceName)
+                             "WiFi" -> getString(R.string.status_connected_to_wifi, currentDeviceName)
+                             "Bluetooth" -> getString(R.string.status_connected_to_bt, currentDeviceName)
+                             else -> getString(R.string.status_connected_to, currentDeviceName)
+                         }
+                         updateStatus(statusText)
+                         Log.d(TAG, "Device connected via ${state.type}: $currentDeviceName")
                          
                          // Start periodic status updates when connected
                          if (statusUpdateJob?.isActive != true) {

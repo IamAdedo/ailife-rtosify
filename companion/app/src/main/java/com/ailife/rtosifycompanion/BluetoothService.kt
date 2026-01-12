@@ -1184,7 +1184,7 @@ class BluetoothService : Service() {
             val wifiActivationRule = message.data.get("wifiActivationRule")?.asInt
             wifiActivationRule?.let {
                 prefs.edit().putInt("wifi_activation_rule", it).apply()
-                Log.d(TAG, "WiFi activation rule updated: $it")
+                Log.d(TAG, "WiFi activation rule updated to: $it (stored for reference)")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error updating WiFi rule", e)

@@ -168,13 +168,19 @@ class WiFiPairingActivity : AppCompatActivity() {
             try {
                 // Step 1: Key Exchange
                 setCurrentStep(1)
+                
+                // Temporarily disable WiFi to ensure key exchange happens over Bluetooth
+                bluetoothService?.temporarilyDisableWifi()
+                delay(500) // Give WiFi time to disconnect
+                
                 val key = bluetoothService?.getEncryptionKeyForCurrentDevice()
                 if (key == null) {
+                    bluetoothService?.reenableWifi()
                     showError(getString(R.string.pairing_error_no_key))
                     return@launch
                 }
 
-                Log.d(TAG, "Step 1: Sending key exchange...")
+                Log.d(TAG, "Step 1: Sending key exchange over Bluetooth...")
                 bluetoothService?.sendWifiKeyExchange(key)
                 
                 val keySuccess = withTimeoutOrNull(TimeUnit.SECONDS.toMillis(TIMEOUT_KEY_EXCHANGE)) {
@@ -182,9 +188,13 @@ class WiFiPairingActivity : AppCompatActivity() {
                 } ?: false
 
                 if (!keySuccess) {
+                    bluetoothService?.reenableWifi()
                     showError(getString(R.string.pairing_error_key_ack))
                     return@launch
                 }
+                
+                // Re-enable WiFi now that key exchange is complete
+                bluetoothService?.reenableWifi()
                 markStepComplete(1)
 
                 // Step 2: Discovery
@@ -208,11 +218,11 @@ class WiFiPairingActivity : AppCompatActivity() {
                     tvDiscoveryDetails.text = getString(R.string.pairing_found_device, deviceHost)
                 }
                 
-                // Trigger connection now that we found it
+                // Trigger connection now that we found it - force WiFi on for pairing
                 val mac = bluetoothService?.getConnectedDeviceMac()
                 if (mac != null) {
-                    Log.d(TAG, "Triggering WiFi connection for $mac")
-                    bluetoothService?.startWifiTransport(mac)
+                    Log.d(TAG, "Forcing WiFi connection for pairing: $mac")
+                    bluetoothService?.forceWifiForPairing(mac)
                 }
                 
                 markStepComplete(2)
@@ -260,6 +270,10 @@ class WiFiPairingActivity : AppCompatActivity() {
                 }
                 
                 markStepComplete(4)
+                
+                // Stop forcing WiFi - let rules take over
+                bluetoothService?.stopForcedWifiPairing()
+                
                 showSuccess()
 
             } catch (e: Exception) {
