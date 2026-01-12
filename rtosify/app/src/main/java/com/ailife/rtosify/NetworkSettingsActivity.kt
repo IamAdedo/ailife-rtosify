@@ -17,6 +17,10 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class NetworkSettingsActivity : AppCompatActivity() {
 
@@ -32,6 +36,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
     
     private var bluetoothService: BluetoothService? = null
     private var serviceBound = false
+    private var watchStatusPollingJob: Job? = null
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -227,13 +232,37 @@ class NetworkSettingsActivity : AppCompatActivity() {
         super.onResume()
         updateWifiStatus()
         updatePairingButton()
+        startWatchStatusPolling()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        stopWatchStatusPolling()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        stopWatchStatusPolling()
         if (serviceBound) {
             unbindService(serviceConnection)
             serviceBound = false
         }
+    }
+    
+    private fun startWatchStatusPolling() {
+        stopWatchStatusPolling()
+        watchStatusPollingJob = MainScope().launch {
+            while (true) {
+                if (bluetoothService?.isConnected == true) {
+                    bluetoothService?.requestWatchStatus()
+                }
+                delay(2000) // Poll every 2 seconds
+            }
+        }
+    }
+    
+    private fun stopWatchStatusPolling() {
+        watchStatusPollingJob?.cancel()
+        watchStatusPollingJob = null
     }
 }

@@ -282,12 +282,17 @@ class DynamicIslandService : Service() {
             overlayView.showChargingState(batteryPercent, animate)
         }
 
-        val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
-        transientStateRunnable = Runnable {
-            isShowingTransientState = false
-            updateState()
+        // Only auto-hide if the setting is enabled
+        val hideWhenIdle = prefs.getBoolean("dynamic_island_hide_idle", false)
+        if (hideWhenIdle) {
+            val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
+            transientStateRunnable = Runnable {
+                isShowingTransientState = false
+                updateState()
+            }
+            handler.postDelayed(transientStateRunnable!!, timeout)
         }
-        handler.postDelayed(transientStateRunnable!!, timeout)
+        // If hideWhenIdle is false, transient state stays visible until next state change
     }
 
     private fun showTransientConnectionState(connected: Boolean, transportType: String = "") {
@@ -303,12 +308,17 @@ class DynamicIslandService : Service() {
             overlayView.showDisconnectedState()
         }
 
-        val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
-        transientStateRunnable = Runnable {
-            isShowingTransientState = false
-            updateState()
+        // Only auto-hide if the setting is enabled
+        val hideWhenIdle = prefs.getBoolean("dynamic_island_hide_idle", false)
+        if (hideWhenIdle) {
+            val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
+            transientStateRunnable = Runnable {
+                isShowingTransientState = false
+                updateState()
+            }
+            handler.postDelayed(transientStateRunnable!!, timeout)
         }
-        handler.postDelayed(transientStateRunnable!!, timeout)
+        // If hideWhenIdle is false, transient state stays visible until next state change
     }
 
     private fun updateState() {

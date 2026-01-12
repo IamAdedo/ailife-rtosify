@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.libsu.core)
     implementation(libs.jsoup)
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    implementation("androidx.lifecycle:lifecycle-process:2.6.2")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 

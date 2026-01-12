@@ -51,6 +51,9 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.net.toUri
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
@@ -268,7 +271,7 @@ class BluetoothService : Service() {
     }
 
     fun triggerWifiConnectionForMainActivity() {
-        transportManager.isMainActivityVisible = true
+        transportManager.isAppInForeground = true
     }
 
     fun syncWifiRuleToCompanion(rule: Int) {
@@ -579,8 +582,34 @@ class BluetoothService : Service() {
 
         // Bind to Shizuku UserService if available (for Android 10+ clipboard)
         bindUserServiceIfNeeded()
+        
+        // Register app lifecycle callbacks to track foreground/background state
+        // This enables the WiFi rule "when app open" to work correctly
+        // Register process lifecycle observer to track app foreground/background state
+        // This correctly handles the entire app process, not individual activities
+        registerProcessLifecycleObserver()
 
         if (DEBUG_NOTIFICATIONS) Log.d(TAG, "onCreate: Service created")
+    }
+    
+    private fun registerProcessLifecycleObserver() {
+        ProcessLifecycleOwner.get().lifecycle.addObserver(
+            object : DefaultLifecycleObserver {
+                override fun onStart(owner: LifecycleOwner) {
+                    // App process came to foreground
+                    Log.d(TAG, "App process entered foreground")
+                    transportManager.isAppInForeground = true
+                    transportManager.triggerWifiReevaluation()
+                }
+                
+                override fun onStop(owner: LifecycleOwner) {
+                    // App process went to background
+                    Log.d(TAG, "App process entered background")
+                    transportManager.isAppInForeground = false
+                    transportManager.triggerWifiReevaluation()
+                }
+            }
+        )
     }
 
     private fun bindUserServiceIfNeeded() {
@@ -2449,24 +2478,38 @@ class BluetoothService : Service() {
     // Retorna Triple(ID, Channel, Text)
     private fun determineNotificationState(): Triple<Int, String, String> {
         return when {
-            isConnected && currentDeviceName != null -> {
+            isConnected -> {
                 val state = transportManager.connectionState.value
-                val statusText = if (state is com.ailife.rtosify.communication.TransportManager.ConnectionState.Connected && state.type == "WiFi") {
-                     "Connected via WiFi"
-                } else {
-                     "Connected to $currentDeviceName via BT"
-                }
-                Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, statusText)
-            }
-            isConnected && currentDeviceName == null -> {
-                    val state = transportManager.connectionState.value
-                    val statusText = if (state is com.ailife.rtosify.communication.TransportManager.ConnectionState.Connected) {
-                        when (state.type) {
-                            "Dual" -> "Connected via BT & WiFi"
-                            "WiFi" -> "Connected via WiFi"
-                            else -> "Connected"
+                val statusText = if (state is com.ailife.rtosify.communication.TransportManager.ConnectionState.Connected) {
+                    when (state.type) {
+                        "Dual" -> if (currentDeviceName != null) {
+                            "Connected to $currentDeviceName via WiFi + Bluetooth"
+                        } else {
+                            "Connected via WiFi + Bluetooth"
                         }
-                    } else "Connected"
+                        "WiFi" -> if (currentDeviceName != null) {
+                            "Connected to $currentDeviceName via WiFi"
+                        } else {
+                            "Connected via WiFi"
+                        }
+                        "Bluetooth" -> if (currentDeviceName != null) {
+                            "Connected to $currentDeviceName via Bluetooth"
+                        } else {
+                            "Connected via Bluetooth"
+                        }
+                        else -> if (currentDeviceName != null) {
+                            "Connected to $currentDeviceName"
+                        } else {
+                            "Connected"
+                        }
+                    }
+                } else {
+                    if (currentDeviceName != null) {
+                        "Connected to $currentDeviceName"
+                    } else {
+                        "Connected"
+                    }
+                }
                 Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, statusText)
             }
             currentNotificationStatus.contains("Aguardando", ignoreCase = true) ||

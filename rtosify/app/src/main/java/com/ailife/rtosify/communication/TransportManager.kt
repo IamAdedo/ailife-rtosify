@@ -263,15 +263,15 @@ class TransportManager(
             if (!btConnected) shouldEnable = true
         }
         
-        // MainActivity rule
+        // App foreground rule (when any app UI is visible)
         if ((rule and WIFI_RULE_MAINACTIVITY) != 0) {
-            if (isMainActivityVisible) shouldEnable = true
+            if (isAppInForeground) shouldEnable = true
         }
         
         return shouldEnable
     }
     
-    var isMainActivityVisible: Boolean = false
+    var isAppInForeground: Boolean = false
         set(value) {
             field = value
             // Force re-eval needs to happen in trigger

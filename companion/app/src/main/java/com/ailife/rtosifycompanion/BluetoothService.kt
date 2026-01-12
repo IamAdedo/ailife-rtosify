@@ -1657,29 +1657,42 @@ class BluetoothService : Service() {
 
                     if (info != null && info.supplicantState == SupplicantState.COMPLETED) {
                         val rawSsid = info.ssid
+                        Log.d(TAG, "WiFi Status: rawSsid='$rawSsid', supplicantState=${info.supplicantState}")
 
-                        if (rawSsid == "<unknown ssid>" || rawSsid.isEmpty()) {
-                            wifiSsid = "Connected"
-                        } else {
-                            val cleanSsid = rawSsid.replace("\"", "")
-                            if (cleanSsid != "<unknown ssid>") {
-                                wifiSsid = cleanSsid
-                            } else {
-                                wifiSsid = "Connected"
+                        // Handle various SSID formats and edge cases
+                        wifiSsid = when {
+                            rawSsid.isNullOrEmpty() -> "Connected"
+                            rawSsid == "<unknown ssid>" -> "Connected"
+                            rawSsid == "\"<unknown ssid>\"" -> "Connected"
+                            rawSsid == "0x" -> "Connected" // Some devices return this
+                            else -> {
+                                // Remove quotes if present
+                                val cleanSsid = rawSsid.replace("\"", "").trim()
+                                if (cleanSsid.isEmpty() || cleanSsid == "<unknown ssid>") {
+                                    "Connected"
+                                } else {
+                                    cleanSsid
+                                }
                             }
                         }
                     } else {
                         wifiSsid = getString(R.string.wifi_status_disconnected)
+                        Log.d(TAG, "WiFi Status: Not connected, info=$info, supplicantState=${info?.supplicantState}")
                     }
                 } else {
                     wifiSsid = getString(R.string.wifi_status_disabled)
                 }
             } else {
                 wifiSsid = getString(R.string.wifi_status_no_permission)
+                Log.w(TAG, "WiFi Status: No location permission")
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             wifiSsid = getString(R.string.wifi_status_error)
+            Log.e(TAG, "WiFi Status: Error collecting status", e)
         }
+
+        val ipAddress = getIpAddress()
+        Log.d(TAG, "WiFi Status collected: ssid='$wifiSsid', enabled=$wifiEnabled, ip=$ipAddress")
 
         return StatusUpdateData(
                 battery = batteryLevel,
@@ -1687,24 +1700,41 @@ class BluetoothService : Service() {
                 dnd = dndEnabled,
                 wifi = wifiSsid,
                 wifiEnabled = wifiEnabled,
-                ipAddress = getIpAddress()
+                ipAddress = ipAddress
         )
     }
 
     private fun getIpAddress(): String? {
         return try {
-            val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
-            val ip = wm.connectionInfo.ipAddress
-            if (ip == 0) null else {
-                String.format(
+            val wm = applicationContext.getSystemService(WIFI_SERVICE) as? WifiManager
+            if (wm == null) {
+                Log.w(TAG, "WiFi IP: WifiManager is null")
+                return null
+            }
+            
+            val connectionInfo = wm.connectionInfo
+            if (connectionInfo == null) {
+                Log.w(TAG, "WiFi IP: connectionInfo is null")
+                return null
+            }
+            
+            val ip = connectionInfo.ipAddress
+            if (ip == 0) {
+                Log.d(TAG, "WiFi IP: IP address is 0 (not connected or no IP assigned)")
+                null
+            } else {
+                val ipString = String.format(
                         "%d.%d.%d.%d",
                         (ip and 0xff),
                         (ip shr 8 and 0xff),
                         (ip shr 16 and 0xff),
                         (ip shr 24 and 0xff)
                 )
+                Log.d(TAG, "WiFi IP: Retrieved IP address: $ipString")
+                ipString
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e(TAG, "WiFi IP: Error getting IP address", e)
             null
         }
     }
