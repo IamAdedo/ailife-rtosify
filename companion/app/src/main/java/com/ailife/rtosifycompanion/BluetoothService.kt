@@ -1094,8 +1094,15 @@ class BluetoothService : Service() {
             MessageType.REQUEST_PERMISSION_INFO -> handleRequestPermissionInfo()
             MessageType.WIFI_KEY_EXCHANGE -> handleWifiKeyExchange(message)
             MessageType.WIFI_TEST_ENCRYPT -> handleWifiTestEncrypt(message)
+            MessageType.SYNC_PHONE_STATE -> handleSyncPhoneState(message)
             else -> Log.w(TAG, "Unknown message type: ${message.type}")
         }
+    }
+
+    private fun handleSyncPhoneState(message: ProtocolMessage) {
+        val isForeground = ProtocolHelper.extractBooleanField(message, "isForeground")
+        Log.d(TAG, "Syncing phone foreground state: $isForeground")
+        transportManager.updatePhoneForegroundState(isForeground)
     }
 
     fun requestPhoneBattery() {

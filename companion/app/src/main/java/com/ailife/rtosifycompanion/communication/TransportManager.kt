@@ -59,6 +59,21 @@ class TransportManager(
     @Volatile private var isConnectingWifi = false
     @Volatile private var currentWifiRule: Int = WIFI_RULE_BT_FALLBACK
     @Volatile private var wifiPairingMode = false  // Force WiFi server during pairing
+    @Volatile private var isPhoneAppOpen = false   // Tracks if phone app is in foreground
+
+    fun updatePhoneForegroundState(isOpen: Boolean) {
+        isPhoneAppOpen = isOpen
+        // Trigger immediate check in watchdog
+        val name = lastDeviceName
+        val local = lastLocalMac
+        val remote = lastRemoteMac
+        if (name != null && local != null && remote != null) {
+            scope.launch {
+                wifiServerWatchdog?.cancel()
+                startWifiServerWatchdog(null, name, local, remote)
+            }
+        }
+    }
 
     fun updateWifiRule(rule: Int) {
         currentWifiRule = rule
@@ -248,7 +263,7 @@ class TransportManager(
                     val shouldBeRunning = when {
                         wifiPairingMode -> true  // Always run during pairing
                         (currentWifiRule and WIFI_RULE_ALWAYS) != 0 -> true
-                        (currentWifiRule and WIFI_RULE_MAINACTIVITY) != 0 -> true
+                        (currentWifiRule and WIFI_RULE_MAINACTIVITY) != 0 -> isPhoneAppOpen
                         (currentWifiRule and WIFI_RULE_BT_FALLBACK) != 0 -> !btConnected
                         else -> false
                     }

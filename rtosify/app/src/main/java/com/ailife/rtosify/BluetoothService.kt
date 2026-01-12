@@ -306,6 +306,10 @@ class BluetoothService : Service() {
 
     fun triggerWifiConnectionForMainActivity() {
         transportManager.isAppInForeground = true
+        // Sync state to watch
+        if (isConnected) {
+            sendMessage(ProtocolHelper.createSyncPhoneState(true))
+        }
     }
 
     fun syncWifiRuleToCompanion(rule: Int) {
@@ -538,6 +542,9 @@ class BluetoothService : Service() {
                          if (statusUpdateJob?.isActive != true) {
                              startPeriodicUpdates()
                          }
+                         
+                         // Sync foreground state immediately on connection
+                         sendMessage(ProtocolHelper.createSyncPhoneState(transportManager.isAppInForeground))
                     }
                     is com.ailife.rtosify.communication.TransportManager.ConnectionState.Disconnected -> {
                          isConnected = false
@@ -641,6 +648,11 @@ class BluetoothService : Service() {
                     Log.d(TAG, "App process entered foreground")
                     transportManager.isAppInForeground = true
                     transportManager.triggerWifiReevaluation()
+                    
+                    // Sync state to watch
+                    if (isConnected) {
+                        sendMessage(ProtocolHelper.createSyncPhoneState(true))
+                    }
                 }
                 
                 override fun onStop(owner: LifecycleOwner) {
@@ -648,6 +660,11 @@ class BluetoothService : Service() {
                     Log.d(TAG, "App process entered background")
                     transportManager.isAppInForeground = false
                     transportManager.triggerWifiReevaluation()
+                    
+                    // Sync state to watch
+                    if (isConnected) {
+                        sendMessage(ProtocolHelper.createSyncPhoneState(false))
+                    }
                 }
             }
         )

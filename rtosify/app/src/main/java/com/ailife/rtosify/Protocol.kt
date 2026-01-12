@@ -135,6 +135,9 @@ object MessageType {
     const val WIFI_KEY_ACK = "wifi_key_ack"
     const val WIFI_TEST_ENCRYPT = "wifi_test_encrypt"
     const val WIFI_TEST_ACK = "wifi_test_ack"
+    
+    // Sync phone foreground state
+    const val SYNC_PHONE_STATE = "sync_phone_state"
 }
 
 data class PhoneBatteryData(val level: Int, val isCharging: Boolean)
@@ -1006,5 +1009,11 @@ object ProtocolHelper {
         val data = JsonObject()
         data.addProperty("rule", rule)
         return ProtocolMessage(type = MessageType.UPDATE_WIFI_RULE, data = data)
+    }
+
+    fun createSyncPhoneState(isForeground: Boolean): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("isForeground", isForeground)
+        return ProtocolMessage(type = MessageType.SYNC_PHONE_STATE, data = data)
     }
 }

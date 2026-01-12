@@ -223,7 +223,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         
         // Trigger WiFi connection if MainActivity rule is set
         val wifiRule = prefs.getInt("wifi_activation_rule", BluetoothService.WIFI_RULE_BT_FALLBACK)
-        if (wifiRule == BluetoothService.WIFI_RULE_MAINACTIVITY) {
+        if ((wifiRule and BluetoothService.WIFI_RULE_MAINACTIVITY) != 0) {
             bluetoothService?.triggerWifiConnectionForMainActivity()
         }
     }
