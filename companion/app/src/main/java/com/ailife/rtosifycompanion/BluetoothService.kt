@@ -148,6 +148,39 @@ class BluetoothService : Service() {
     @Volatile private var currentNotificationStatus: String = ""
 
     private val mainHandler = Handler(Looper.getMainLooper())
+    
+    // Bluetooth enforcement
+    private val btEnforcementHandler = Handler(Looper.getMainLooper())
+    private val btEnforcementRunnable = object : Runnable {
+        override fun run() {
+            if (prefs.getBoolean("force_bt_enabled", false)) {
+                val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+                val adapter = bluetoothManager.adapter
+                if (adapter != null && !adapter.isEnabled) {
+                    Log.i(TAG, "Force Bluetooth Enabled is active and Bluetooth is disabled. Attempting to enable...")
+                    
+                    // Trigger screen wake
+                    wakeScreenForBluetooth()
+                    
+                    // Attempt to enable
+                    try {
+                        @SuppressLint("MissingPermission")
+                        val success = adapter.enable()
+                        if (!success) {
+                            Log.w(TAG, "adapter.enable() returned false, triggering REQUEST_ENABLE activity")
+                            triggerBluetoothEnableRequest()
+                        } else {
+                            Log.i(TAG, "adapter.enable() success (legacy or authorized)")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error enabling Bluetooth: ${e.message}")
+                        triggerBluetoothEnableRequest()
+                    }
+                }
+            }
+            btEnforcementHandler.postDelayed(this, 10000) // Check every 10 seconds
+        }
+    }
 
     private val notificationManager: NotificationManager by lazy {
         getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -598,6 +631,10 @@ class BluetoothService : Service() {
         watchAlarmManager = WatchAlarmManager(this)
 
         Log.d(TAG, "BluetoothService created")
+        
+        if (prefs.getBoolean("force_bt_enabled", false)) {
+            startBluetoothEnforcement()
+        }
 
         // Bind to Shizuku UserService if available
         bindUserServiceIfNeeded()
@@ -1072,7 +1109,44 @@ class BluetoothService : Service() {
                 callback?.onPhoneBatteryUpdated(data.level, data.isCharging)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error parsing phone battery update: ${e.message}")
+            Log.e(TAG, "Error parsing phone battery update: ${e.message}", e)
+        }
+    }
+
+    private fun startBluetoothEnforcement() {
+        Log.d(TAG, "Starting Bluetooth enforcement")
+        btEnforcementHandler.removeCallbacks(btEnforcementRunnable)
+        btEnforcementHandler.post(btEnforcementRunnable)
+    }
+
+    private fun stopBluetoothEnforcement() {
+        Log.d(TAG, "Stopping Bluetooth enforcement")
+        btEnforcementHandler.removeCallbacks(btEnforcementRunnable)
+    }
+
+    private fun wakeScreenForBluetooth() {
+        try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (!powerManager.isInteractive) {
+                val wakeLock = powerManager.newWakeLock(
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                    "rtosify:BtEnforceWakeLock"
+                )
+                wakeLock.acquire(3000)
+                Log.d(TAG, "Screen woken up for Bluetooth enforcement")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to wake screen: ${e.message}")
+        }
+    }
+
+    private fun triggerBluetoothEnableRequest() {
+        val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start ACTION_REQUEST_ENABLE: ${e.message}")
         }
     }
 
@@ -1178,6 +1252,15 @@ class BluetoothService : Service() {
             settings.dynamicIslandHideWhenIdle?.let {
                 prefs.edit().putBoolean("dynamic_island_hide_idle", it).apply()
                 Log.d(TAG, "Dynamic Island Hide When Idle updated: $it")
+            }
+            settings.forceBtEnabled?.let {
+                prefs.edit().putBoolean("force_bt_enabled", it).apply()
+                Log.d(TAG, "Force Bluetooth setting updated: $it")
+                if (it) {
+                    startBluetoothEnforcement()
+                } else {
+                    stopBluetoothEnforcement()
+                }
             }
 
             // Notify DynamicIslandService of settings change

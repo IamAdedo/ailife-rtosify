@@ -250,7 +250,8 @@ data class SettingsUpdateData(
         val dynamicIslandY: Int? = null,
         val dynamicIslandWidth: Int? = null,
         val dynamicIslandHeight: Int? = null,
-        val dynamicIslandHideWhenIdle: Boolean? = null
+        val dynamicIslandHideWhenIdle: Boolean? = null,
+        val forceBtEnabled: Boolean? = null
 )
 
 data class HealthDataUpdate(

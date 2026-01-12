@@ -118,6 +118,8 @@
     <string name="automation_data_desc">Watch auto-enables mobile data when Bluetooth disconnects, disables when reconnects</string>
     <string name="automation_bt_tether_title">Auto Bluetooth Tethering</string>
     <string name="automation_bt_tether_desc">Enable phone BT tethering and watch internet access when connected</string>
+    <string name="automation_force_bt_title">Force Bluetooth Enabled</string>
+    <string name="automation_force_bt_desc">Automatically re-enable Bluetooth if it is disabled</string>
     <string name="menu_health_desc">Monitor health metrics</string>
     <string name="menu_alarms">Alarms</string>
     <string name="menu_alarms_desc">Manage watch alarms</string>
@@ -445,7 +447,7 @@
     <string name="toast_wifi_no_networks">No WiFi networks found.</string>
     <string name="wifi_security_secured">Secured</string>
     <string name="wifi_security_open">Open</string>
-    <string name="toast_dnd_sent_format">DND for %d %s sent</string>
+    <string name="toast_dnd_sent_format">DND for %1$d %2$s sent</string>
     <string name="unit_hour">hour</string>
     <string name="unit_hours">hours</string>
     <string name="welcome_qr_scanned">QR Scanned: %s</string>

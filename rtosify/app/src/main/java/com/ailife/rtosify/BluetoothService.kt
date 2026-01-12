@@ -36,6 +36,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import android.provider.CalendarContract
 import android.provider.ContactsContract
 import android.provider.Settings
@@ -154,6 +155,39 @@ class BluetoothService : Service() {
     @Volatile private var currentNotificationStatus: String = ""
 
     private val mainHandler = Handler(Looper.getMainLooper())
+    
+    // Bluetooth enforcement
+    private val btEnforcementHandler = Handler(Looper.getMainLooper())
+    private val btEnforcementRunnable = object : Runnable {
+        override fun run() {
+            if (activePrefs.getBoolean("force_bt_enabled", false)) {
+                val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+                val adapter = bluetoothManager.adapter
+                if (adapter != null && !adapter.isEnabled) {
+                    Log.i(TAG, "Force Bluetooth Enabled is active and Bluetooth is disabled. Attempting to enable...")
+                    
+                    // Trigger screen wake
+                    wakeScreenForBluetooth()
+                    
+                    // Attempt to enable
+                    try {
+                        @SuppressLint("MissingPermission")
+                        val success = adapter.enable()
+                        if (!success) {
+                            Log.w(TAG, "adapter.enable() returned false, triggering REQUEST_ENABLE activity")
+                            triggerBluetoothEnableRequest()
+                        } else {
+                            Log.i(TAG, "adapter.enable() success (legacy or authorized)")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error enabling Bluetooth: ${e.message}")
+                        triggerBluetoothEnableRequest()
+                    }
+                }
+            }
+            btEnforcementHandler.postDelayed(this, 10000) // Check every 10 seconds
+        }
+    }
 
     private val notificationManager: NotificationManager by lazy {
         getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -593,6 +627,10 @@ class BluetoothService : Service() {
         registerProcessLifecycleObserver()
 
         if (DEBUG_NOTIFICATIONS) Log.d(TAG, "onCreate: Service created")
+        
+        if (activePrefs.getBoolean("force_bt_enabled", false)) {
+            startBluetoothEnforcement()
+        }
     }
     
     private fun registerProcessLifecycleObserver() {
@@ -1257,9 +1295,54 @@ class BluetoothService : Service() {
                         dynamicIslandY = activePrefs.getInt("dynamic_island_y", 8),
                         dynamicIslandWidth = activePrefs.getInt("dynamic_island_width", 150),
                         dynamicIslandHeight = activePrefs.getInt("dynamic_island_height", 40),
-                        dynamicIslandHideWhenIdle = activePrefs.getBoolean("dynamic_island_hide_idle", false)
+                        dynamicIslandHideWhenIdle = activePrefs.getBoolean("dynamic_island_hide_idle", false),
+                        forceBtEnabled = activePrefs.getBoolean("force_bt_enabled", false)
                 )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
+        
+        // Local enforcement update
+        if (activePrefs.getBoolean("force_bt_enabled", false)) {
+            startBluetoothEnforcement()
+        } else {
+            stopBluetoothEnforcement()
+        }
+    }
+
+    private fun startBluetoothEnforcement() {
+        Log.d(TAG, "Starting Bluetooth enforcement")
+        btEnforcementHandler.removeCallbacks(btEnforcementRunnable)
+        btEnforcementHandler.post(btEnforcementRunnable)
+    }
+
+    private fun stopBluetoothEnforcement() {
+        Log.d(TAG, "Stopping Bluetooth enforcement")
+        btEnforcementHandler.removeCallbacks(btEnforcementRunnable)
+    }
+
+    private fun wakeScreenForBluetooth() {
+        try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (!powerManager.isInteractive) {
+                val wakeLock = powerManager.newWakeLock(
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                    "rtosify:BtEnforceWakeLock"
+                )
+                wakeLock.acquire(3000)
+                Log.d(TAG, "Screen woken up for Bluetooth enforcement")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to wake screen: ${e.message}")
+        }
+    }
+
+    private fun triggerBluetoothEnableRequest() {
+        val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start ACTION_REQUEST_ENABLE: ${e.message}")
+        }
     }
 
     private fun handleSetDndCommand(message: ProtocolMessage) {

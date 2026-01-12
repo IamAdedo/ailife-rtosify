@@ -45,6 +45,47 @@ class RtosifyAccessibilityService : android.accessibilityservice.AccessibilitySe
     }
     
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event == null) return
+        
+        // Handle Bluetooth enablement dialogs
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || 
+            event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            handleBluetoothDialog(event)
+        }
+    }
+
+    private fun handleBluetoothDialog(event: AccessibilityEvent) {
+        val rootNode = rootInActiveWindow ?: return
+        
+        // Check for Bluetooth allow dialog
+        // Common texts: "An app wants to turn on Bluetooth", "Allow", "Turn on"
+        
+        // Find if "Bluetooth" is mentioned in the window
+        val bluetoothNodes = rootNode.findAccessibilityNodeInfosByText("Bluetooth")
+        if (bluetoothNodes.isEmpty()) {
+            val btNodes = rootNode.findAccessibilityNodeInfosByText("BT")
+            if (btNodes.isEmpty()) return
+        }
+        
+        Log.d(TAG, "Potential Bluetooth dialog detected, searching for Allow/Turn on buttons...")
+
+        // Keywords for buttons to click
+        val keywords = listOf("Allow", "Turn on", "ON", "OK")
+        
+        for (keyword in keywords) {
+            val buttons = rootNode.findAccessibilityNodeInfosByText(keyword)
+            for (button in buttons) {
+                if (button.isClickable && (button.className?.contains("Button", ignoreCase = true) == true)) {
+                    // Extra check: only click if it's a relatively short text (buttons usually are)
+                    val text = button.text?.toString() ?: ""
+                    if (text.length < 20) {
+                        Log.i(TAG, "✅ Found Bluetooth enable button: '$text', clicking...")
+                        button.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        return
+                    }
+                }
+            }
+        }
     }
 
     override fun onInterrupt() {

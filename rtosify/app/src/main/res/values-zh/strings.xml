@@ -140,6 +140,8 @@
     <string name="automation_data_desc">蓝牙断开时手表自动开启移动数据，重连时关闭</string>
     <string name="automation_bt_tether_title">自动蓝牙网络共享</string>
     <string name="automation_bt_tether_desc">连接时启用手机蓝牙网络共享和手表互联网访问</string>
+    <string name="automation_force_bt_title">强制启用蓝牙</string>
+    <string name="automation_force_bt_desc">蓝牙关闭时自动重新启用</string>
     <string name="menu_health_desc">监测健康指标</string>
     <string name="menu_alarms">闹钟</string>
     <string name="menu_alarms_desc">管理手表闹钟</string>

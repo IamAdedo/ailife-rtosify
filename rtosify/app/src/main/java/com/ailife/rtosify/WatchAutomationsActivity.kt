@@ -15,6 +15,7 @@ class WatchAutomationsActivity : AppCompatActivity() {
     private lateinit var switchAutoWifi: SwitchMaterial
     private lateinit var switchAutoData: SwitchMaterial
     private lateinit var switchAutoBtTether: SwitchMaterial
+    private lateinit var switchForceBt: SwitchMaterial
 
     private lateinit var devicePrefManager: DevicePrefManager
     private lateinit var globalPrefs: SharedPreferences
@@ -39,6 +40,7 @@ class WatchAutomationsActivity : AppCompatActivity() {
         setupAutoWifiSwitch()
         setupAutoDataSwitch()
         setupAutoBtTetherSwitch()
+        setupForceBtSwitch()
     }
 
     private fun initViews() {
@@ -47,6 +49,7 @@ class WatchAutomationsActivity : AppCompatActivity() {
         switchAutoWifi = findViewById(R.id.switchAutoWifi)
         switchAutoData = findViewById(R.id.switchAutoData)
         switchAutoBtTether = findViewById(R.id.switchAutoBtTether)
+        switchForceBt = findViewById(R.id.switchForceBt)
     }
 
     private fun setupBootServiceSwitch() {
@@ -89,6 +92,15 @@ class WatchAutomationsActivity : AppCompatActivity() {
         switchAutoBtTether.isChecked = isEnabled
         switchAutoBtTether.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean("auto_bt_tether_enabled", isChecked).apply()
+            sendAutomationUpdate()
+        }
+    }
+
+    private fun setupForceBtSwitch() {
+        val isEnabled = activePrefs.getBoolean("force_bt_enabled", false)
+        switchForceBt.isChecked = isEnabled
+        switchForceBt.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("force_bt_enabled", isChecked).apply()
             sendAutomationUpdate()
         }
     }
