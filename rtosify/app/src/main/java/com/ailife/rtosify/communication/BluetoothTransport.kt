@@ -21,6 +21,8 @@ class BluetoothTransport(
 
     companion object {
         private const val TAG = "BluetoothTransport"
+        private const val KEEPALIVE_INTERVAL = 5000L  // 5 seconds
+        private const val KEEPALIVE_TIMEOUT = 15000L  // 15 seconds
     }
 
     private var inputStream: DataInputStream? = null
@@ -28,7 +30,9 @@ class BluetoothTransport(
     
     private val messageChannel = Channel<ProtocolMessage>(Channel.BUFFERED)
     private var receiveJob: Job? = null
+    private var keepaliveJob: Job? = null
     private var connected = false
+    private var lastReceiveTime = 0L
 
     override suspend fun connect(): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -37,7 +41,9 @@ class BluetoothTransport(
             }
             setupStreams()
             connected = true
+            lastReceiveTime = System.currentTimeMillis()
             startReceiving()
+            startKeepalive()
             Log.d(TAG, "Bluetooth connected")
             true
         } catch (e: Exception) {
@@ -65,6 +71,12 @@ class BluetoothTransport(
                         break
                     }
 
+                    if (length == -1) {
+                        // Keepalive received
+                        lastReceiveTime = System.currentTimeMillis()
+                        continue
+                    }
+                    
                     if (length !in 0..10_000_000) {
                         Log.e(TAG, "Invalid message size: $length")
                         break
@@ -73,6 +85,9 @@ class BluetoothTransport(
                     // Read data
                     val bytes = ByteArray(length)
                     input.readFully(bytes)
+                    
+                    // Update receive time for keepalive
+                    lastReceiveTime = System.currentTimeMillis()
 
                     // Parse ProtocolMessage
                     val json = String(bytes, Charsets.UTF_8)
@@ -86,10 +101,39 @@ class BluetoothTransport(
             }
         }
     }
+    
+    private fun startKeepalive() {
+        keepaliveJob = CoroutineScope(Dispatchers.IO).launch {
+            while (isActive && connected) {
+                delay(KEEPALIVE_INTERVAL)
+                
+                val elapsed = System.currentTimeMillis() - lastReceiveTime
+                if (elapsed > KEEPALIVE_TIMEOUT) {
+                    Log.w(TAG, "BT keepalive timeout: ${elapsed}ms since last receive")
+                    disconnect()
+                    break
+                }
+                
+                // Send keepalive ping (-1 message length)
+                try {
+                    val output = outputStream ?: break
+                    synchronized(output) {
+                        output.writeInt(-1)
+                        output.flush()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Keepalive send failed", e)
+                    disconnect()
+                    break
+                }
+            }
+        }
+    }
 
     override suspend fun disconnect() {
         connected = false
         receiveJob?.cancel()
+        keepaliveJob?.cancel()
         
         try {
             messageChannel.close()

@@ -24,11 +24,15 @@ class MdnsDiscovery(private val context: Context) {
     private val nsdManager: NsdManager =
         context.getSystemService(Context.NSD_SERVICE) as NsdManager
     
-    private val _discoveredServices = MutableSharedFlow<ServiceInfo>(replay = 0, extraBufferCapacity = 10)
+    private val _discoveredServices = MutableSharedFlow<ServiceInfo>(replay = 1, extraBufferCapacity = 10)
     private val discoveredServicesCache = mutableMapOf<String, ServiceInfo>()
+    
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
     private var resolveListener: NsdManager.ResolveListener? = null
+
+    private var isDiscovering = false
+    private var isRegistered = false
 
     data class ServiceInfo(
         val deviceMac: String,
@@ -44,6 +48,11 @@ class MdnsDiscovery(private val context: Context) {
      * @param port The TCP port to advertise
      */
     fun registerService(deviceMac: String, deviceName: String, port: Int) {
+        if (isRegistered) {
+            Log.w(TAG, "Service already registered, unregistering first")
+            unregisterService()
+        }
+
         val serviceInfo = NsdServiceInfo().apply {
             serviceName = "${SERVICE_NAME_PREFIX}_${deviceMac.replace(":", "")}"
             serviceType = SERVICE_TYPE
@@ -73,16 +82,33 @@ class MdnsDiscovery(private val context: Context) {
         }
 
         nsdManager.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, registrationListener)
+        isRegistered = true
+    }
+
+    private fun unregisterService() {
+        try {
+            registrationListener?.let { nsdManager.unregisterService(it) }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unregistering service", e)
+        }
+        registrationListener = null
+        isRegistered = false
     }
 
     /**
      * Start discovering mDNS services on the local network.
      */
     fun startDiscovery() {
+        if (isDiscovering) {
+            Log.d(TAG, "Discovery already running")
+            return
+        }
+        
         // Clear cached services to avoid stale IPs after network changes
         discoveredServicesCache.clear()
         Log.d(TAG, "Cleared mDNS service cache")
         
+        isDiscovering = true
         discoveryListener = object : NsdManager.DiscoveryListener {
             override fun onDiscoveryStarted(serviceType: String?) {
                 Log.d(TAG, "Discovery started for: $serviceType")
@@ -112,7 +138,6 @@ class MdnsDiscovery(private val context: Context) {
 
         nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
     }
-
     /**
      * Resolve a discovered service to get its host and port.
      */
@@ -146,6 +171,16 @@ class MdnsDiscovery(private val context: Context) {
         nsdManager.resolveService(service, resolveListener)
     }
 
+    private fun stopDiscovery() {
+        try {
+            discoveryListener?.let { nsdManager.stopServiceDiscovery(it) }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping discovery", e)
+        }
+        discoveryListener = null
+        isDiscovering = false
+    }
+
     /**
      * Get a flow of discovered services.
      */
@@ -155,15 +190,8 @@ class MdnsDiscovery(private val context: Context) {
      * Stop discovery and unregister service.
      */
     fun stop() {
-        try {
-            discoveryListener?.let { nsdManager.stopServiceDiscovery(it) }
-            registrationListener?.let { nsdManager.unregisterService(it) }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error stopping mDNS", e)
-        }
-        
-        discoveryListener = null
-        registrationListener = null
+        stopDiscovery()
+        unregisterService()
         resolveListener = null
     }
 }

@@ -27,6 +27,8 @@ class WifiIntranetTransport(
 
     companion object {
         private const val TAG = "WifiTransport"
+        private const val KEEPALIVE_INTERVAL = 5000L  // 5 seconds
+        private const val KEEPALIVE_TIMEOUT = 15000L  // 15 seconds
     }
 
     private var socket: Socket? = null
@@ -36,7 +38,9 @@ class WifiIntranetTransport(
     
     private val messageChannel = Channel<ProtocolMessage>(Channel.BUFFERED)
     private var receiveJob: Job? = null
+    private var keepaliveJob: Job? = null
     private var connected = false
+    private var lastReceiveTime = 0L
 
     override suspend fun connect(): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -66,7 +70,9 @@ class WifiIntranetTransport(
             socket?.let {
                 setupStreams(it)
                 connected = true
+                lastReceiveTime = System.currentTimeMillis()
                 startReceiving()
+                startKeepalive()
                 Log.d(TAG, "Client connected from ${it.inetAddress}")
                 return true
             }
@@ -82,27 +88,30 @@ class WifiIntranetTransport(
         // Start discovery just in case it's not running
         mdnsDiscovery.startDiscovery()
         
-        val discoveryResult: MdnsDiscovery.ServiceInfo? = withTimeoutOrNull(20000L) { // Increased to 20s
+        return withTimeoutOrNull(20000L) {
+            var success = false
+            // Collect emissions and try each one
             mdnsDiscovery.getDiscoveredServices()
                 .filter { it.deviceMac.equals(remoteMac, ignoreCase = true) }
-                .firstOrNull()
-        }
-
-        if (discoveryResult == null) {
-            Log.w(TAG, "mDNS discovery timeout for $remoteMac")
-            return false
-        }
-
-        val host = discoveryResult.host
-        val port = discoveryResult.port
-
-        Log.d(TAG, "Connecting to $host:$port")
-        socket = Socket(host, port)
-        setupStreams(socket!!)
-        connected = true
-        startReceiving()
-        Log.d(TAG, "Connected to server")
-        return true
+                .collect { discoveryResult ->
+                    Log.d(TAG, "Testing discovered service: ${discoveryResult.host}:${discoveryResult.port}")
+                    try {
+                        socket = Socket(discoveryResult.host, discoveryResult.port)
+                        setupStreams(socket!!)
+                        connected = true
+                        lastReceiveTime = System.currentTimeMillis()
+                        startReceiving()
+                        startKeepalive()
+                        Log.d(TAG, "Successfully connected to ${discoveryResult.host}:${discoveryResult.port}")
+                        success = true
+                        cancel() // Stop collecting and return from withTimeoutOrNull
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Connection to ${discoveryResult.host}:${discoveryResult.port} failed: ${e.message}")
+                        // Continue collecting/searching
+                    }
+                }
+            success
+        } ?: false
     }
 
     private fun setupStreams(socket: Socket) {
@@ -117,7 +126,19 @@ class WifiIntranetTransport(
                 
                 while (isActive && connected) {
                     // Read encrypted message length
-                    val length = input.readInt()
+                    val length = try {
+                        input.readInt()
+                    } catch (e: Exception) {
+                        Log.d(TAG, "Socket closed or error reading length: ${e.message}")
+                        break
+                    }
+                    
+                    if (length == -1) {
+                        // Keepalive received
+                        lastReceiveTime = System.currentTimeMillis()
+                        continue
+                    }
+                    
                     if (length !in 0..10_000_000) {
                         Log.e(TAG, "Invalid message size: $length")
                         break
@@ -126,6 +147,9 @@ class WifiIntranetTransport(
                     // Read encrypted data
                     val encryptedBytes = ByteArray(length)
                     input.readFully(encryptedBytes)
+                    
+                    // Update receive time for keepalive
+                    lastReceiveTime = System.currentTimeMillis()
 
                     // Decrypt
                     // Decrypt using the remote device's MAC
@@ -148,12 +172,41 @@ class WifiIntranetTransport(
         }
     }
 
+    private fun startKeepalive() {
+        keepaliveJob = CoroutineScope(Dispatchers.IO).launch {
+            while (isActive && connected) {
+                delay(KEEPALIVE_INTERVAL)
+                
+                val elapsed = System.currentTimeMillis() - lastReceiveTime
+                if (elapsed > KEEPALIVE_TIMEOUT) {
+                    Log.w(TAG, "WiFi keepalive timeout: ${elapsed}ms since last receive")
+                    disconnect()
+                    break
+                }
+                
+                // Send keepalive ping (-1 message length)
+                try {
+                    val output = outputStream ?: break
+                    synchronized(output) {
+                        output.writeInt(-1)
+                        output.flush()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "WiFi keepalive send failed", e)
+                    disconnect()
+                    break
+                }
+            }
+        }
+    }
+
     /**
      * Disconnect and clean up resources.
      */
     override suspend fun disconnect() {
         connected = false
         receiveJob?.cancel()
+        keepaliveJob?.cancel()
         
         try {
             mdnsDiscovery.stop()

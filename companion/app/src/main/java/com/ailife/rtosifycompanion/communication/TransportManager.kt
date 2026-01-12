@@ -45,18 +45,13 @@ class TransportManager(
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
-    // Transport monitoring jobs
     private var btMonitorJob: Job? = null
     private var wifiMonitorJob: Job? = null
     private var wifiServerMonitorJob: Job? = null
     private var wifiServerWatchdog: Job? = null
     private var btServerWatchdog: Job? = null
-    private var heartbeatJob: Job? = null
     
     @Volatile private var isConnectingWifi = false
-    private var lastMessageTime = 0L
-    private val HEARTBEAT_INTERVAL = 20000L
-    private val CONNECTION_TIMEOUT = 60000L
 
     sealed class ConnectionState {
         object Disconnected : ConnectionState()
@@ -131,17 +126,13 @@ class TransportManager(
                 updateConnectionState()
                 
                 try {
-                    lastMessageTime = System.currentTimeMillis()
-                    startHeartbeatLoop()
                     transport.receive().collect { msg ->
-                        lastMessageTime = System.currentTimeMillis()
                         _incomingMessages.send(msg)
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "BT receive error", e)
                 } finally {
                     bluetoothTransport = null
-                    checkHeartbeatStatus()
                     updateConnectionState()
                 }
             }
@@ -183,17 +174,13 @@ class TransportManager(
                         updateConnectionState()
                         
                         try {
-                            lastMessageTime = System.currentTimeMillis()
-                            startHeartbeatLoop()
                             transport.receive().collect { msg ->
-                                lastMessageTime = System.currentTimeMillis()
                                 _incomingMessages.send(msg)
                             }
                         } catch (e: Exception) {
                             Log.e(TAG, "WiFi receive error", e)
                         } finally {
                             wifiTransport = null
-                            checkHeartbeatStatus() // Only stop if no transports left
                             updateConnectionState()
                         }
                     } else {
@@ -263,39 +250,6 @@ class TransportManager(
                 
                 delay(5000) // Check every 5 seconds
             }
-        }
-    }
-
-    private fun startHeartbeatLoop() {
-        if (heartbeatJob?.isActive == true) return
-        heartbeatJob = scope.launch {
-            while (isActive) {
-                delay(HEARTBEAT_INTERVAL)
-                val connected = (bluetoothTransport?.isConnected() == true) || (wifiTransport?.isConnected() == true)
-                if (!connected) continue
-                
-                val elapsed = System.currentTimeMillis() - lastMessageTime
-                if (elapsed > CONNECTION_TIMEOUT) {
-                    Log.w(TAG, "Connection timeout! $elapsed ms")
-                    stopAll()
-                    break
-                }
-                
-                // Send heartbeat
-                send(ProtocolMessage(type = "heartbeat"))
-            }
-        }
-    }
-
-    private fun stopHeartbeatLoop() {
-        Log.d(TAG, "Stopping heartbeat loop")
-        heartbeatJob?.cancel()
-        heartbeatJob = null
-    }
-
-    private fun checkHeartbeatStatus() {
-        if (bluetoothTransport == null && wifiTransport == null) {
-            stopHeartbeatLoop()
         }
     }
 
