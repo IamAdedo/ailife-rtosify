@@ -48,6 +48,9 @@ class TransportManager(
     // Transport monitoring jobs
     private var btMonitorJob: Job? = null
     private var wifiMonitorJob: Job? = null
+    private var wifiServerMonitorJob: Job? = null
+    private var wifiServerWatchdog: Job? = null
+    private var btServerWatchdog: Job? = null
     private var heartbeatJob: Job? = null
     
     @Volatile private var isConnectingWifi = false
@@ -98,49 +101,54 @@ class TransportManager(
                 try {
                     while (isActive) {
                         val socket = try {
-                            serverSocket?.accept(5000)
-                        } catch (_: IOException) {
-                            null
+                            serverSocket.accept()
+                        } catch (e: IOException) {
+                            Log.w(TAG, "BT accept failed: ${e.message}")
+                            break
                         }
-                        
-                        if (socket != null) {
-                            handleBluetoothConnection(socket)
+
+                        socket?.let {
+                            handleBluetoothConnection(it)
                         }
                     }
                 } finally {
-                    try { serverSocket?.close() } catch (_: Exception) {}
+                    try {
+                        serverSocket.close()
+                    } catch (e: IOException) {
+                        Log.e(TAG, "Error closing BT server socket", e)
+                    }
                 }
             }
         }
     }
 
     private suspend fun handleBluetoothConnection(socket: BluetoothSocket) {
-        val deviceName = socket.remoteDevice?.name ?: "Unknown"
-        val deviceMac = socket.remoteDevice?.address ?: ""
-        Log.d(TAG, "Bluetooth connected: $deviceName ($deviceMac)")
-        
         val transport = BluetoothTransport(socket)
-        if (transport.connect()) {
-            bluetoothTransport = transport
-            updateConnectionState()
-            try {
-                lastMessageTime = System.currentTimeMillis()
-                startHeartbeatLoop()
-                transport.receive().collect { msg ->
-                    lastMessageTime = System.currentTimeMillis()
-                    _incomingMessages.send(msg)
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Bluetooth receive error", e)
-            } finally {
-                Log.d(TAG, "Bluetooth disconnected")
-                bluetoothTransport = null
-                checkHeartbeatStatus() // Only stop if no transports left
+        
+        try {
+            if (transport.connect()) {
+                bluetoothTransport = transport
                 updateConnectionState()
+                
+                try {
+                    lastMessageTime = System.currentTimeMillis()
+                    startHeartbeatLoop()
+                    transport.receive().collect { msg ->
+                        lastMessageTime = System.currentTimeMillis()
+                        _incomingMessages.send(msg)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "BT receive error", e)
+                } finally {
+                    bluetoothTransport = null
+                    checkHeartbeatStatus()
+                    updateConnectionState()
+                }
             }
-        } else {
-            Log.e(TAG, "Failed to initialize Bluetooth transport")
-            try { socket.close() } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.e(TAG, "BT connection error", e)
+        } finally {
+            transport.disconnect()
         }
     }
 
@@ -166,6 +174,8 @@ class TransportManager(
                 
                 try {
                     // Pre-emptively set active device for encryption
+                    val hasKey = encryptionManager.hasKey(remoteMac)
+                    Log.d(TAG, "WiFi server accepting connection from $remoteMac, hasKey=$hasKey")
                     encryptionManager.setActiveDevice(remoteMac)
                     
                     if (transport.connect()) {
@@ -194,6 +204,64 @@ class TransportManager(
                 } finally {
                     transport.disconnect()
                 }
+            }
+        }
+    }
+    
+    /**
+     * WiFi Server Watchdog - monitors and auto-restarts WiFi server if it stops
+     */
+    fun startWifiServerWatchdog(context: Context, deviceName: String, localMac: String, remoteMac: String) {
+        if (wifiServerWatchdog?.isActive == true) return
+        wifiServerWatchdog?.cancel()
+        
+        wifiServerWatchdog = scope.launch(Dispatchers.IO) {
+            Log.d(TAG, "Starting WiFi server watchdog")
+            while (isActive) {
+                try {
+                    val hasKey = encryptionManager.hasKey(remoteMac)
+                    val serverRunning = wifiServerJob?.isActive == true
+                    
+                    // Check WiFi activation rule (companion should always accept connections)
+                    // We don't enforce rules on server side, but we check if keys exist
+                    if (hasKey && !serverRunning) {
+                        Log.w(TAG, "WiFi server watchdog: server stopped but keys exist - restarting")
+                        startWifiServer(deviceName, localMac, remoteMac)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "WiFi server watchdog error (non-fatal): ${e.message}", e)
+                    // Continue running despite errors
+                }
+                
+                delay(5000) // Check every 5 seconds
+            }
+        }
+    }
+    
+    /**
+     * Bluetooth Server Watchdog - monitors and auto-restarts Bluetooth server if it stops
+     */
+    fun startBluetoothServerWatchdog(bluetoothAdapter: BluetoothAdapter?) {
+        if (btServerWatchdog?.isActive == true) return
+        btServerWatchdog?.cancel()
+        
+        btServerWatchdog = scope.launch(Dispatchers.IO) {
+            Log.d(TAG, "Starting Bluetooth server watchdog")
+            while (isActive) {
+                try {
+                    val serverRunning = bluetoothServerJob?.isActive == true
+                    val btEnabled = bluetoothAdapter?.isEnabled == true
+                    
+                    if (btEnabled && !serverRunning) {
+                        Log.w(TAG, "BT server watchdog: server stopped but BT enabled - restarting")
+                        startBluetoothServer(bluetoothAdapter)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "BT server watchdog error (non-fatal): ${e.message}", e)
+                    // Continue running despite errors
+                }
+                
+                delay(5000) // Check every 5 seconds
             }
         }
     }
@@ -248,23 +316,21 @@ class TransportManager(
      */
     suspend fun send(message: ProtocolMessage): Boolean {
         // Priority 1: WiFi
-        val wifi = wifiTransport
-        if (wifi != null && wifi.isConnected()) {
-            if (wifi.send(message)) return true
-        }
-
-        // Priority 2: Bluetooth
-        val bt = bluetoothTransport
-        if (bt != null && bt.isConnected()) {
-            if (bt.send(message)) return true
+        wifiTransport?.let {
+            if (it.isConnected()) {
+                return it.send(message)
+            }
         }
         
-        Log.w(TAG, "Send failed: No connected transport")
+        // Priority 2: Bluetooth
+        bluetoothTransport?.let {
+            if (it.isConnected()) {
+                return it.send(message)
+            }
+        }
+        
+        Log.w(TAG, "No active transport to send message")
         return false
-    }
-
-    private fun startTransportMonitoring(transport: CommunicationTransport, type: String, name: String?) {
-        updateConnectionState()
     }
 
     private fun updateConnectionState() {
@@ -272,49 +338,35 @@ class TransportManager(
         val bt = bluetoothTransport
         
         val newState = when {
-            wifi != null && wifi.isConnected() && bt != null && bt.isConnected() -> 
+            wifi != null && wifi.isConnected() && bt != null && bt.isConnected() ->
                 ConnectionState.Connected("Dual", bt.getRemoteDeviceName(), bt.getRemoteAddress())
-            wifi != null && wifi.isConnected() -> 
+            wifi != null && wifi.isConnected() ->
                 ConnectionState.Connected("WiFi", wifi.getRemoteDeviceName(), wifi.getRemoteAddress())
-            bt != null && bt.isConnected() -> 
+            bt != null && bt.isConnected() ->
                 ConnectionState.Connected("Bluetooth", bt.getRemoteDeviceName(), bt.getRemoteAddress())
             else -> {
                 if (isConnectingWifi) {
                     ConnectionState.Connecting
-                } else if (bluetoothServerJob?.isActive == true && (context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter?.isEnabled == true) {
-                    ConnectionState.Waiting
                 } else {
-                    ConnectionState.Disconnected
+                    ConnectionState.Waiting
                 }
             }
         }
         
         _connectionState.value = newState
     }
-    
-    fun getRemoteDeviceName(): String? {
-        return wifiTransport?.getRemoteDeviceName() ?: bluetoothTransport?.getRemoteDeviceName()
-    }
 
     fun stopAll() {
         bluetoothServerJob?.cancel()
         wifiServerJob?.cancel()
-        heartbeatJob?.cancel()
-        
-        scope.launch(NonCancellable) {
+        wifiServerWatchdog?.cancel()
+        btServerWatchdog?.cancel()
+        scope.launch {
             bluetoothTransport?.disconnect()
             wifiTransport?.disconnect()
             bluetoothTransport = null
             wifiTransport = null
-            _connectionState.value = ConnectionState.Disconnected
+            updateConnectionState()
         }
-    }
-    
-    fun isWifiConnected(): Boolean {
-        return wifiTransport?.isConnected() == true
-    }
-
-    fun isConnected(): Boolean {
-        return (bluetoothTransport?.isConnected() == true) || (wifiTransport?.isConnected() == true)
     }
 }

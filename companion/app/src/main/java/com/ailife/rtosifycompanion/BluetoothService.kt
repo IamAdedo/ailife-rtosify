@@ -906,10 +906,14 @@ class BluetoothService : Service() {
             val deviceName = bluetoothAdapter?.name ?: Build.MODEL
             Log.d(TAG, "Starting WiFi server for local=$watchMac, remote=$phoneMac")
             transportManager.startWifiServer(deviceName, watchMac, phoneMac)
+            // Start WiFi server watchdog
+            transportManager.startWifiServerWatchdog(this, deviceName, watchMac, phoneMac)
         }
 
         // Bluetooth Server
         transportManager.startBluetoothServer(bluetoothAdapter)
+        // Start Bluetooth server watchdog
+        transportManager.startBluetoothServerWatchdog(bluetoothAdapter)
     }
 
     private fun handleDeviceConnected(deviceName: String, mac: String?) {
@@ -1111,7 +1115,10 @@ class BluetoothService : Service() {
                 Log.d(TAG, "Auto WiFi setting updated: $it")
                 
                 // Stop WiFi transport if phone disabled it to save battery
-                if (!it && transportManager.isWifiConnected()) {
+                val state = transportManager.connectionState.value
+                val wifiConnected = state is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected && 
+                                   (state.type == "WiFi" || state.type == "Dual")
+                if (!it && wifiConnected) {
                     serviceScope.launch {
                         transportManager.stopWifiServer()
                         Log.d(TAG, "WiFi transport stopped due to phone preference")
@@ -4201,10 +4208,11 @@ class BluetoothService : Service() {
     private fun determineNotificationState(): Triple<Int, String, String> {
         return when {
             isConnected && currentDeviceName != null -> {
+                val state = transportManager.connectionState.value
                 val statusText = when {
-                    transportManager.isWifiConnected() && transportManager.isConnected() ->
+                    state is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected && state.type == "Dual" ->
                         getString(R.string.status_connected_to, currentDeviceName!!) + " via BT & WiFi"
-                    transportManager.isWifiConnected() ->
+                    state is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected && state.type == "WiFi" ->
                         getString(R.string.status_connected_to, currentDeviceName!!) + " via WiFi"
                     else ->
                         getString(R.string.status_connected_to, currentDeviceName!!) + " via BT"
@@ -4212,10 +4220,11 @@ class BluetoothService : Service() {
                 Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, statusText)
             }
             isConnected && currentDeviceName == null -> {
+                val state = transportManager.connectionState.value
                 val statusText = when {
-                     transportManager.isWifiConnected() && transportManager.isConnected() ->
+                     state is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected && state.type == "Dual" ->
                         getString(R.string.status_connected) + " via BT & WiFi"
-                    transportManager.isWifiConnected() ->
+                    state is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected && state.type == "WiFi" ->
                         getString(R.string.status_connected) + " via WiFi"
                     else ->
                         getString(R.string.status_connected)

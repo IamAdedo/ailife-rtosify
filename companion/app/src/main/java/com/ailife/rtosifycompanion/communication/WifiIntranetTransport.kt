@@ -71,12 +71,11 @@ class WifiIntranetTransport(
                 Log.d(TAG, "Client connected from ${it.inetAddress}")
                 return true
             }
-        } finally {
-            // Stop advertising once connected or failed
-            // Note: We might want to keep advertising if we support multiple clients, 
-            // but for now one-to-one is fine.
-            mdnsDiscovery.stop() 
+        } catch (e: Exception) {
+            Log.e(TAG, "Server accept error", e)
         }
+        // Keep mDNS service advertised for reconnections
+        // Only stop in disconnect() method
         return false
     }
 

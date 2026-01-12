@@ -48,6 +48,7 @@ class TransportManager(
     private var btReconnectJob: Job? = null
     private var wifiMonitorJob: Job? = null
     private var heartbeatJob: Job? = null
+    private var connectionHealthMonitor: Job? = null
     
     @Volatile private var isConnectingWifi = false
     
@@ -77,6 +78,7 @@ class TransportManager(
     fun startClient(targetDevice: BluetoothDevice) {
         startBluetoothReconnect(targetDevice)
         startWifiMonitoring(targetDevice.address)
+        startConnectionHealthMonitor(targetDevice.address)
     }
 
     private fun startBluetoothReconnect(device: BluetoothDevice) {
@@ -115,7 +117,7 @@ class TransportManager(
                     // Logic to stop retrying after too many failures?
                     // Previous code: update status to Disconnected but keeps checking?
                     // We'll mimic the retry with backoff.
-                    delay(if(consecutiveFailures > 5) 10000 else 3000)
+                    delay(if(consecutiveFailures > 5) 3000 else 1000)
                     continue
                 }
 
@@ -168,8 +170,8 @@ class TransportManager(
                     if (wifiTransport == null || !wifiTransport!!.isConnected()) {
                         val connected = connectWifi(deviceMac)
                         if (!connected) {
-                            // Wait longer after failed attempt before retrying
-                            delay(10000)
+                            // Wait after failed attempt before retrying
+                            delay(3000)
                             continue
                         }
                     }
@@ -181,7 +183,7 @@ class TransportManager(
                        updateConnectionState()
                     }
                 }
-                delay(5000) // Check rules/status periodically
+                delay(2000) // Check rules/status periodically
             }
         }
     }
@@ -202,6 +204,8 @@ class TransportManager(
             isConnectingWifi = true
             updateConnectionState()
             // Ensure encryption is initialized for this device
+            val hasKey = encryptionManager.hasKey(mac)
+            Log.d(TAG, "Connecting WiFi to $mac, hasKey=$hasKey")
             encryptionManager.setActiveDevice(mac)
             
             if (transport.connect()) {
@@ -398,5 +402,44 @@ class TransportManager(
     fun stopForcedWifiPairing() {
         wifiForceForPairing = false
         Log.d(TAG, "Stopped forcing WiFi for pairing")
+    }
+    
+    /**
+     * Connection Health Monitor - ensures monitoring loops stay running
+     */
+    fun startConnectionHealthMonitor(deviceMac: String) {
+        if (connectionHealthMonitor?.isActive == true) return
+        connectionHealthMonitor?.cancel()
+        
+        connectionHealthMonitor = scope.launch(Dispatchers.IO) {
+            Log.d(TAG, "Starting connection health monitor")
+            while (isActive) {
+                try {
+                    val btRunning = btReconnectJob?.isActive == true
+                    val wifiRunning = wifiMonitorJob?.isActive == true
+                    val btEnabled = BluetoothAdapter.getDefaultAdapter()?.isEnabled == true
+                    
+                    // Restart BT monitoring if it stopped
+                    if (btEnabled && !btRunning) {
+                        Log.w(TAG, "Health monitor: BT reconnect stopped - restarting")
+                        val adapter = BluetoothAdapter.getDefaultAdapter()
+                        val device = adapter?.getRemoteDevice(deviceMac)
+                        device?.let { startBluetoothReconnect(it) }
+                    }
+                    
+                    // Restart WiFi monitoring if it stopped (respects WiFi rules)
+                    // WiFi monitoring has its own shouldConnectWifi() check
+                    if (!wifiRunning) {
+                        Log.w(TAG, "Health monitor: WiFi monitoring stopped - restarting")
+                        startWifiMonitoring(deviceMac)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Connection health monitor error (non-fatal): ${e.message}", e)
+                    // Continue running despite errors
+                }
+                
+                delay(10000) // Check every 10 seconds
+            }
+        }
     }
 }
