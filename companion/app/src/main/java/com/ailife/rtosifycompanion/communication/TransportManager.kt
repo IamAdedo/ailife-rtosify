@@ -259,14 +259,11 @@ class TransportManager(
                     val serverRunning = wifiServerJob?.isActive == true
                     val btConnected = bluetoothTransport?.isConnected() == true
                     
-                    // Logic based on rules
-                    val shouldBeRunning = when {
-                        wifiPairingMode -> true  // Always run during pairing
-                        (currentWifiRule and WIFI_RULE_ALWAYS) != 0 -> true
-                        (currentWifiRule and WIFI_RULE_MAINACTIVITY) != 0 -> isPhoneAppOpen
-                        (currentWifiRule and WIFI_RULE_BT_FALLBACK) != 0 -> !btConnected
-                        else -> false
-                    }
+                    // Logic based on rules (OR logic: if any active rule matches, enable WiFi)
+                    val shouldBeRunning = wifiPairingMode || 
+                        ((currentWifiRule and WIFI_RULE_ALWAYS) != 0) ||
+                        (((currentWifiRule and WIFI_RULE_MAINACTIVITY) != 0) && isPhoneAppOpen) ||
+                        (((currentWifiRule and WIFI_RULE_BT_FALLBACK) != 0) && !btConnected)
 
                     if (hasKey) {
                         if (shouldBeRunning && !serverRunning) {
@@ -370,6 +367,17 @@ class TransportManager(
         }
         
         _connectionState.value = newState
+    }
+
+    fun forceDisconnect() {
+        Log.d(TAG, "Force disconnect requested")
+        scope.launch {
+            bluetoothTransport?.disconnect()
+            bluetoothTransport = null
+            wifiTransport?.disconnect()
+            wifiTransport = null
+            updateConnectionState()
+        }
     }
 
     fun enableWifiPairingMode() {

@@ -438,6 +438,20 @@ class BluetoothService : Service() {
                 }
             }
 
+    private val aclDisconnectReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (intent?.action == BluetoothDevice.ACTION_ACL_DISCONNECTED) {
+                        val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                        Log.d(TAG, "ACL Disconnected: ${device?.address}, current isConnected=$isConnected")
+                        if (isConnected) {
+                            // Link layer disconnect detected, force transport cleanup
+                            transportManager.forceDisconnect()
+                        }
+                    }
+                }
+            }
+
     private val batteryReceiver =
             object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
@@ -549,6 +563,11 @@ class BluetoothService : Service() {
                     }
                     is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Waiting -> {
                         updateStatus(getString(R.string.status_waiting))
+                        // If we were connected, Waiting means we just lost it
+                        if (isConnected) {
+                            Log.d(TAG, "TransportManager transitioned to Waiting state - treating as disconnection")
+                            handleDeviceDisconnected()
+                        }
                     }
                     else -> {}
                 }
@@ -607,12 +626,19 @@ class BluetoothService : Service() {
                     filterHandshake,
                     ContextCompat.RECEIVER_NOT_EXPORTED
             )
+            ContextCompat.registerReceiver(
+                    this,
+                    aclDisconnectReceiver,
+                    IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED),
+                    ContextCompat.RECEIVER_EXPORTED // Needs to be exported for system ACL events
+            )
             registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         } else {
             registerReceiver(internalReceiver, filterInternal)
             registerReceiver(watchDismissReceiver, filterWatch)
             registerReceiver(wifiStateReceiver, filterWifi)
             registerReceiver(dynamicIslandHandshakeReceiver, filterHandshake)
+            registerReceiver(aclDisconnectReceiver, IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED))
             registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         }
 
