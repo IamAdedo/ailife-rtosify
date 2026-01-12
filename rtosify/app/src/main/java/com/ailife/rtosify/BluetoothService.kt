@@ -209,6 +209,12 @@ class BluetoothService : Service() {
         return encryptionManager.hasKey(mac)
     }
 
+    fun unpairWifi() {
+        val mac = getConnectedDeviceMac() ?: return
+        encryptionManager.removeDeviceKeys(mac)
+        Log.d(TAG, "Unpaired WiFi for $mac")
+    }
+
     fun getConnectedDeviceMac(): String? {
         val lastMac = devicePrefManager.getSelectedDeviceMac()
         // We'll trust the preference if connected, or return null if not or unknown

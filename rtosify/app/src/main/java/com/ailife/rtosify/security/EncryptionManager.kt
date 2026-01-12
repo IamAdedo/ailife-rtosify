@@ -46,8 +46,9 @@ class EncryptionManager(private val context: Context) {
      * Check if a keyset exists for a specific device.
      */
     fun hasKey(deviceMac: String): Boolean {
+        val normalizedMac = deviceMac.uppercase()
         val prefs = context.getSharedPreferences(PREF_FILE_NAME, Context.MODE_PRIVATE)
-        return prefs.contains("${KEYSET_NAME}_$deviceMac") || keysetHandles.containsKey(deviceMac)
+        return prefs.contains("${KEYSET_NAME}_$normalizedMac") || keysetHandles.containsKey(normalizedMac)
     }
 
     /**
@@ -55,9 +56,10 @@ class EncryptionManager(private val context: Context) {
      * This should be called during Bluetooth pairing to generate/exchange keys.
      */
     fun initializeForDevice(deviceMac: String): Boolean {
+        val normalizedMac = deviceMac.uppercase()
         return try {
             val prefs = context.getSharedPreferences(PREF_FILE_NAME, Context.MODE_PRIVATE)
-            val json = prefs.getString("${KEYSET_NAME}_$deviceMac", null)
+            val json = prefs.getString("${KEYSET_NAME}_$normalizedMac", null)
             
             var keysetHandle: KeysetHandle? = null
             if (json != null) {
@@ -72,15 +74,15 @@ class EncryptionManager(private val context: Context) {
                 val handle = KeysetHandle.generateNew(AeadKeyTemplates.AES256_GCM)
                 val outputStream = ByteArrayOutputStream()
                 CleartextKeysetHandle.write(handle, JsonKeysetWriter.withOutputStream(outputStream))
-                prefs.edit().putString("${KEYSET_NAME}_$deviceMac", outputStream.toString("UTF-8")).apply()
+                prefs.edit().putString("${KEYSET_NAME}_$normalizedMac", outputStream.toString("UTF-8")).apply()
                 keysetHandle = handle
             }
 
-            keysetHandles[deviceMac] = keysetHandle!!
-            Log.d(TAG, "Initialized encryption for device: $deviceMac")
+            keysetHandles[normalizedMac] = keysetHandle!!
+            Log.d(TAG, "Initialized encryption for device: $normalizedMac")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize encryption for $deviceMac", e)
+            Log.e(TAG, "Failed to initialize encryption for $normalizedMac", e)
             false
         }
     }
@@ -89,12 +91,13 @@ class EncryptionManager(private val context: Context) {
      * Set the active device for encryption/decryption operations.
      */
     fun setActiveDevice(deviceMac: String): Boolean {
-        val keysetHandle = keysetHandles[deviceMac] ?: run {
+        val normalizedMac = deviceMac.uppercase()
+        val keysetHandle = keysetHandles[normalizedMac] ?: run {
             // Try to load existing keyset
-            if (!initializeForDevice(deviceMac)) {
+            if (!initializeForDevice(normalizedMac)) {
                 return false
             }
-            keysetHandles[deviceMac]
+            keysetHandles[normalizedMac]
         }
 
         return try {
@@ -132,10 +135,11 @@ class EncryptionManager(private val context: Context) {
     /**
      * Encrypt data for a specific device.
      */
-    fun encrypt(deviceMac: String, plaintext: ByteArray, associatedData: ByteArray = ByteArray(0)): ByteArray? {
-        val handle = keysetHandles[deviceMac]
+    fun encryptForDevice(deviceMac: String, plaintext: ByteArray, associatedData: ByteArray = ByteArray(0)): ByteArray? {
+        val normalizedMac = deviceMac.uppercase()
+        val handle = keysetHandles[normalizedMac]
         if (handle == null) {
-            Log.e(TAG, "Cannot encrypt: No keyset for $deviceMac")
+            Log.e(TAG, "Cannot encrypt: No keyset for $normalizedMac")
             return null
         }
         
@@ -173,18 +177,20 @@ class EncryptionManager(private val context: Context) {
     /**
      * Decrypt data from a specific device.
      */
-    fun decrypt(deviceMac: String, ciphertext: ByteArray, associatedData: ByteArray = ByteArray(0)): ByteArray? {
-        val handle = keysetHandles[deviceMac]
+    fun decryptForDevice(deviceMac: String, ciphertext: ByteArray, associatedData: ByteArray = ByteArray(0)): ByteArray? {
+        val normalizedMac = deviceMac.uppercase()
+        val handle = keysetHandles[normalizedMac]
         if (handle == null) {
-            Log.e(TAG, "Cannot decrypt: No keyset for $deviceMac")
+            Log.e(TAG, "Cannot decrypt: No keyset for $normalizedMac")
             return null
         }
         
         return try {
             val a = handle.getPrimitive(Aead::class.java)
+            Log.v(TAG, "Attempting decryption for $normalizedMac, ciphertext size: ${ciphertext.size}")
             a.decrypt(ciphertext, associatedData)
         } catch (e: GeneralSecurityException) {
-            Log.e(TAG, "Decryption failed for $deviceMac", e)
+            Log.e(TAG, "Decryption failed for $normalizedMac. Ciphertext size: ${ciphertext.size}", e)
             null
         }
     }
@@ -194,13 +200,14 @@ class EncryptionManager(private val context: Context) {
      * Call this when un-pairing a device.
      */
     fun removeDeviceKeys(deviceMac: String) {
-        keysetHandles.remove(deviceMac)
+        val normalizedMac = deviceMac.uppercase()
+        keysetHandles.remove(normalizedMac)
         
         // Remove from SharedPreferences
         val prefs = context.getSharedPreferences(PREF_FILE_NAME, Context.MODE_PRIVATE)
-        prefs.edit().remove("${KEYSET_NAME}_$deviceMac").apply()
+        prefs.edit().remove("${KEYSET_NAME}_$normalizedMac").apply()
         
-        Log.d(TAG, "Removed encryption keys for device: $deviceMac")
+        Log.d(TAG, "Removed encryption keys for device: $normalizedMac")
     }
 
     /**
@@ -208,9 +215,10 @@ class EncryptionManager(private val context: Context) {
      * Use this to send the key to the other device via Bluetooth.
      */
     fun exportKey(deviceMac: String): String? {
-        val keysetHandle = keysetHandles[deviceMac] ?: run {
-            if (!initializeForDevice(deviceMac)) return null
-            keysetHandles[deviceMac]
+        val normalizedMac = deviceMac.uppercase()
+        val keysetHandle = keysetHandles[normalizedMac] ?: run {
+            if (!initializeForDevice(normalizedMac)) return null
+            keysetHandles[normalizedMac]
         } ?: return null
 
         return try {
@@ -228,6 +236,7 @@ class EncryptionManager(private val context: Context) {
      * Use this to receive the key from the other device via Bluetooth.
      */
     fun importKey(deviceMac: String, keyData: String): Boolean {
+        val normalizedMac = deviceMac.uppercase()
         return try {
             val keyBytes = Base64.decode(keyData, Base64.NO_WRAP)
             val inputStream = ByteArrayInputStream(keyBytes)
@@ -237,13 +246,13 @@ class EncryptionManager(private val context: Context) {
             val prefs = context.getSharedPreferences(PREF_FILE_NAME, Context.MODE_PRIVATE)
             val jsonStream = ByteArrayOutputStream()
             CleartextKeysetHandle.write(keysetHandle, JsonKeysetWriter.withOutputStream(jsonStream))
-            prefs.edit().putString("${KEYSET_NAME}_$deviceMac", jsonStream.toString("UTF-8")).apply()
+            prefs.edit().putString("${KEYSET_NAME}_$normalizedMac", jsonStream.toString("UTF-8")).apply()
 
-            keysetHandles[deviceMac] = keysetHandle
-            Log.d(TAG, "Imported and saved encryption key for device: $deviceMac")
+            keysetHandles[normalizedMac] = keysetHandle
+            Log.d(TAG, "Imported and saved encryption key for device: $normalizedMac")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to import key for $deviceMac", e)
+            Log.e(TAG, "Failed to import key for $normalizedMac", e)
             false
         }
     }

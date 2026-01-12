@@ -24,7 +24,8 @@ class MdnsDiscovery(private val context: Context) {
     private val nsdManager: NsdManager =
         context.getSystemService(Context.NSD_SERVICE) as NsdManager
     
-    private val _discoveredServices = MutableSharedFlow<ServiceInfo>(replay = 1)
+    private val _discoveredServices = MutableSharedFlow<ServiceInfo>(replay = 0, extraBufferCapacity = 10)
+    private val discoveredServicesCache = mutableMapOf<String, ServiceInfo>()
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
     private var resolveListener: NsdManager.ResolveListener? = null
@@ -78,6 +79,10 @@ class MdnsDiscovery(private val context: Context) {
      * Start discovering mDNS services on the local network.
      */
     fun startDiscovery() {
+        // Clear cached services to avoid stale IPs after network changes
+        discoveredServicesCache.clear()
+        Log.d(TAG, "Cleared mDNS service cache")
+        
         discoveryListener = object : NsdManager.DiscoveryListener {
             override fun onDiscoveryStarted(serviceType: String?) {
                 Log.d(TAG, "Discovery started for: $serviceType")
@@ -127,6 +132,9 @@ class MdnsDiscovery(private val context: Context) {
                     if (mac != null && host != null && port > 0) {
                         val resolved = ServiceInfo(mac, name, host, port)
                         Log.d(TAG, "Resolved service: $resolved")
+                        
+                        // Update cache and emit
+                        discoveredServicesCache[mac] = resolved
                         CoroutineScope(Dispatchers.IO).launch {
                             _discoveredServices.emit(resolved)
                         }

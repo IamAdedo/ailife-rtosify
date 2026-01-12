@@ -130,7 +130,7 @@ class WifiIntranetTransport(
 
                     // Decrypt
                     // Decrypt using the remote device's MAC
-                    val decryptedBytes = encryptionManager.decrypt(remoteMac, encryptedBytes)
+                    val decryptedBytes = encryptionManager.decryptForDevice(remoteMac, encryptedBytes)
                     if (decryptedBytes == null) {
                         Log.e(TAG, "Failed to decrypt message")
                         continue
@@ -188,7 +188,7 @@ class WifiIntranetTransport(
             val jsonBytes = message.toBytes()
             
             // Encrypt using the remote device's MAC
-            val encryptedBytes = encryptionManager.encrypt(remoteMac, jsonBytes)
+            val encryptedBytes = encryptionManager.encryptForDevice(remoteMac, jsonBytes)
             if (encryptedBytes == null) {
                 Log.e(TAG, "Failed to encrypt message")
                 return@withContext false

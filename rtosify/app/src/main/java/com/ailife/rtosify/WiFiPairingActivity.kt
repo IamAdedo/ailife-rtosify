@@ -56,6 +56,8 @@ class WiFiPairingActivity : AppCompatActivity() {
     private val testAckDeferred = CompletableDeferred<Boolean>()
     private val testReceivedDeferred = CompletableDeferred<String>()
 
+    private var isRePairing = false
+
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as BluetoothService.LocalBinder
@@ -132,6 +134,10 @@ class WiFiPairingActivity : AppCompatActivity() {
         tvDiscoveryDetails = findViewById(R.id.tvDiscoveryDetails)
 
         btnRetry.setOnClickListener {
+            if (btnRetry.text == getString(R.string.wifi_repair)) {
+                isRePairing = true
+                bluetoothService?.unpairWifi()
+            }
             resetPairingUI()
             startPairingFlow()
         }
@@ -148,13 +154,16 @@ class WiFiPairingActivity : AppCompatActivity() {
 
     private fun startPairingFlow() {
         lifecycleScope.launch {
-            // Check if already paired
+            // Check if already paired, unless we are explicitly re-pairing
             val mac = bluetoothService?.getConnectedDeviceMac()
-            if (mac != null && bluetoothService?.isPairedWithCurrentDevice() == true) {
+            if (!isRePairing && mac != null && bluetoothService?.isPairedWithCurrentDevice() == true) {
                 Log.d(TAG, "Device already paired, showing status")
                 showAlreadyPaired()
                 return@launch
             }
+            
+            // If we were re-pairing, we now proceed normally
+            isRePairing = false
             
             try {
                 // Step 1: Key Exchange
