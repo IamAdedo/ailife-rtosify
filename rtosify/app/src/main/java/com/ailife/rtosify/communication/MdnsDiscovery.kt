@@ -182,6 +182,15 @@ class MdnsDiscovery(private val context: Context) {
     }
 
     /**
+     * Clear the discovery cache and reset the flow replay cache.
+     */
+    fun clearCache() {
+        discoveredServicesCache.clear()
+        _discoveredServices.resetReplayCache()
+        Log.d(TAG, "mDNS discovery cache cleared")
+    }
+
+    /**
      * Get a flow of discovered services.
      */
     fun getDiscoveredServices(): Flow<ServiceInfo> = _discoveredServices.asSharedFlow()

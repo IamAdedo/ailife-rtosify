@@ -237,6 +237,7 @@ class BluetoothService : Service() {
     }
 
     fun startMdnsDiscovery(callback: (String) -> Unit) {
+        mdnsDiscovery?.clearCache()
         mdnsDiscovery?.startDiscovery()
         serviceScope.launch {
             mdnsDiscovery?.getDiscoveredServices()?.collect {
