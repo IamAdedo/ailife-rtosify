@@ -324,7 +324,7 @@ class DynamicIslandService : Service() {
             val hasNotifications = notificationQueue.isNotEmpty()
 
             if (hideWhenIdle && !hasNotifications) {
-                overlayView.showIdleState()
+                overlayView.showIdleState(currentTransport)
                 overlayView.visibility = View.GONE
             } else {
                 overlayView.visibility = View.VISIBLE
@@ -344,7 +344,7 @@ class DynamicIslandService : Service() {
                         overlayView.showDisconnectedState()
                     }
                     else -> {
-                        overlayView.showIdleState()
+                        overlayView.showIdleState(currentTransport)
                     }
                 }
             }

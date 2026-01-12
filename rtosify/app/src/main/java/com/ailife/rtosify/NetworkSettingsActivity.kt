@@ -108,11 +108,12 @@ class NetworkSettingsActivity : AppCompatActivity() {
         // Load current setting from device prefs
         val devicePrefs = devicePrefManager.getActiveDevicePrefs()
         val currentRule = devicePrefs.getInt("wifi_activation_rule", BluetoothService.WIFI_RULE_BT_FALLBACK)
-        when (currentRule) {
-            BluetoothService.WIFI_RULE_BT_FALLBACK -> checkBoxBtFallback.isChecked = true
-            BluetoothService.WIFI_RULE_MAINACTIVITY -> checkBoxMainActivity.isChecked = true
-            BluetoothService.WIFI_RULE_ALWAYS -> checkBoxAlways.isChecked = true
-        }
+        
+        checkBoxAlways.isChecked = (currentRule and BluetoothService.WIFI_RULE_ALWAYS) != 0
+        checkBoxBtFallback.isChecked = (currentRule and BluetoothService.WIFI_RULE_BT_FALLBACK) != 0
+        checkBoxMainActivity.isChecked = (currentRule and BluetoothService.WIFI_RULE_MAINACTIVITY) != 0
+
+        updateCheckboxEnableState()
 
         // Checkbox logic: make them mutually exclusive
         checkBoxAlways.setOnClickListener {
@@ -120,22 +121,15 @@ class NetworkSettingsActivity : AppCompatActivity() {
                 checkBoxBtFallback.isChecked = false
                 checkBoxMainActivity.isChecked = false
             }
+            updateCheckboxEnableState()
             saveActivationRule()
         }
 
         checkBoxBtFallback.setOnClickListener {
-            if (checkBoxBtFallback.isChecked) {
-                checkBoxAlways.isChecked = false
-                checkBoxMainActivity.isChecked = false
-            }
             saveActivationRule()
         }
 
         checkBoxMainActivity.setOnClickListener {
-            if (checkBoxMainActivity.isChecked) {
-                checkBoxAlways.isChecked = false
-                checkBoxBtFallback.isChecked = false
-            }
             saveActivationRule()
         }
 
@@ -156,30 +150,40 @@ class NetworkSettingsActivity : AppCompatActivity() {
         }
     }
 
+    private fun updateCheckboxEnableState() {
+        val alwaysChecked = checkBoxAlways.isChecked
+        checkBoxBtFallback.isEnabled = !alwaysChecked
+        checkBoxMainActivity.isEnabled = !alwaysChecked
+    }
+
     private fun saveActivationRule() {
         val devicePrefs = devicePrefManager.getActiveDevicePrefs()
-        val newRule = when {
-            checkBoxAlways.isChecked -> BluetoothService.WIFI_RULE_ALWAYS
-            checkBoxMainActivity.isChecked -> BluetoothService.WIFI_RULE_MAINACTIVITY
-            checkBoxBtFallback.isChecked -> BluetoothService.WIFI_RULE_BT_FALLBACK
-            else -> BluetoothService.WIFI_RULE_BT_FALLBACK
+        var newRule = 0
+        if (checkBoxAlways.isChecked) {
+            newRule = BluetoothService.WIFI_RULE_ALWAYS
+        } else {
+            if (checkBoxBtFallback.isChecked) newRule = newRule or BluetoothService.WIFI_RULE_BT_FALLBACK
+            if (checkBoxMainActivity.isChecked) newRule = newRule or BluetoothService.WIFI_RULE_MAINACTIVITY
         }
         
         devicePrefs.edit().putInt("wifi_activation_rule", newRule).apply()
         
-        // Sync WiFi rule to companion (for "Always" and "BT Fallback" rules)
-        // These need to be synced because phone can't reach companion via Bluetooth when disconnected
-        if (newRule == BluetoothService.WIFI_RULE_ALWAYS || newRule == BluetoothService.WIFI_RULE_BT_FALLBACK) {
-            bluetoothService?.syncWifiRuleToCompanion(newRule)
+        // Sync WiFi rule to companion 
+        bluetoothService?.syncWifiRuleToCompanion(newRule)
+        
+        // Notify TransportManager immediately
+        bluetoothService?.notifyWifiRuleChanged()
+        
+        val ruleNames = mutableListOf<String>()
+        if ((newRule and BluetoothService.WIFI_RULE_ALWAYS) != 0) {
+            ruleNames.add(getString(R.string.network_rule_always))
+        } else {
+            if ((newRule and BluetoothService.WIFI_RULE_BT_FALLBACK) != 0) ruleNames.add(getString(R.string.network_rule_bt_fallback))
+            if ((newRule and BluetoothService.WIFI_RULE_MAINACTIVITY) != 0) ruleNames.add(getString(R.string.network_rule_mainactivity))
         }
         
-        val ruleName = when (newRule) {
-            BluetoothService.WIFI_RULE_BT_FALLBACK -> getString(R.string.network_rule_bt_fallback)
-            BluetoothService.WIFI_RULE_MAINACTIVITY -> getString(R.string.network_rule_mainactivity)
-            BluetoothService.WIFI_RULE_ALWAYS -> getString(R.string.network_rule_always)
-            else -> "Unknown"
-        }
-        Toast.makeText(this, "WiFi rule set: $ruleName", Toast.LENGTH_SHORT).show()
+        val ruleDisplayName = if (ruleNames.isEmpty()) "Unknown" else ruleNames.joinToString(" + ")
+        Toast.makeText(this, "WiFi rule set: $ruleDisplayName", Toast.LENGTH_SHORT).show()
     }
 
     private fun showEncryptionDialog() {

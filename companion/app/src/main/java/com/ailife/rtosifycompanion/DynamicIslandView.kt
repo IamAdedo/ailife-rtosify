@@ -172,7 +172,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         }
     }
 
-    fun showIdleState() {
+    fun showIdleState(transportType: String = "") {
         if (currentState == State.IDLE) return
         currentState = State.IDLE
 
@@ -186,8 +186,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             resetContentPadding()
             contentContainer.removeAllViews()
 
-            // Just show connected state by default in idle
-            showConnectedState()
+            // Show connected state with correct transport icons
+            showConnectedState(transportType)
         }
     }
 

@@ -29,10 +29,10 @@ class TransportManager(
         private val APP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
         private const val APP_NAME = "RTOSifyApp"
 
-        // WiFi Activation Rules
-        const val WIFI_RULE_BT_FALLBACK = 0
-        const val WIFI_RULE_MAINACTIVITY = 1
-        const val WIFI_RULE_ALWAYS = 2
+        // WiFi Activation Rules (Bitmask)
+        const val WIFI_RULE_BT_FALLBACK = 1
+        const val WIFI_RULE_MAINACTIVITY = 2
+        const val WIFI_RULE_ALWAYS = 4
     }
 
     private var bluetoothTransport: BluetoothTransport? = null
@@ -58,6 +58,21 @@ class TransportManager(
     
     @Volatile private var isConnectingWifi = false
     @Volatile private var currentWifiRule: Int = WIFI_RULE_BT_FALLBACK
+    @Volatile private var wifiPairingMode = false  // Force WiFi server during pairing
+
+    fun updateWifiRule(rule: Int) {
+        currentWifiRule = rule
+        // Trigger immediate check in watchdog by restarting it with saved params
+        val name = lastDeviceName
+        val local = lastLocalMac
+        val remote = lastRemoteMac
+        if (name != null && local != null && remote != null) {
+            scope.launch {
+                wifiServerWatchdog?.cancel()
+                startWifiServerWatchdog(null, name, local, remote)
+            }
+        }
+    }
     
     // Save these for server restart
     private var lastDeviceName: String? = null
@@ -213,7 +228,11 @@ class TransportManager(
     /**
      * WiFi Server Watchdog - monitors and auto-restarts WiFi server if it stops
      */
-    fun startWifiServerWatchdog(context: Context, deviceName: String, localMac: String, remoteMac: String) {
+    fun startWifiServerWatchdog(context: Context?, deviceName: String, localMac: String, remoteMac: String) {
+        lastDeviceName = deviceName
+        lastLocalMac = localMac
+        lastRemoteMac = remoteMac
+        
         if (wifiServerWatchdog?.isActive == true) return
         wifiServerWatchdog?.cancel()
         
@@ -226,11 +245,12 @@ class TransportManager(
                     val btConnected = bluetoothTransport?.isConnected() == true
                     
                     // Logic based on rules
-                    val shouldBeRunning = when (currentWifiRule) {
-                        WIFI_RULE_ALWAYS -> true
-                        WIFI_RULE_BT_FALLBACK -> !btConnected
-                        WIFI_RULE_MAINACTIVITY -> true // We expect manual start/stop for this, or just keep it running if requested
-                        else -> !btConnected
+                    val shouldBeRunning = when {
+                        wifiPairingMode -> true  // Always run during pairing
+                        (currentWifiRule and WIFI_RULE_ALWAYS) != 0 -> true
+                        (currentWifiRule and WIFI_RULE_MAINACTIVITY) != 0 -> true
+                        (currentWifiRule and WIFI_RULE_BT_FALLBACK) != 0 -> !btConnected
+                        else -> false
                     }
 
                     if (hasKey) {
@@ -337,6 +357,16 @@ class TransportManager(
         _connectionState.value = newState
     }
 
+    fun enableWifiPairingMode() {
+        wifiPairingMode = true
+        Log.d(TAG, "WiFi pairing mode enabled - server will stay running")
+    }
+    
+    fun disableWifiPairingMode() {
+        wifiPairingMode = false
+        Log.d(TAG, "WiFi pairing mode disabled - normal rules apply")
+    }
+
     fun stopAll() {
         bluetoothServerJob?.cancel()
         wifiServerJob?.cancel()
@@ -351,33 +381,4 @@ class TransportManager(
         }
     }
 
-    fun updateWifiRule(rule: Int) {
-        if (currentWifiRule != rule) {
-            currentWifiRule = rule
-            Log.d(TAG, "WiFi rule updated to: $rule")
-            
-            // Trigger an immediate check if we have enough info
-            val deviceName = lastDeviceName
-            val localMac = lastLocalMac
-            val remoteMac = lastRemoteMac
-            
-            if (deviceName != null && localMac != null && remoteMac != null) {
-                scope.launch {
-                    val btConnected = bluetoothTransport?.isConnected() == true
-                    val shouldBeRunning = when (currentWifiRule) {
-                        WIFI_RULE_ALWAYS -> true
-                        WIFI_RULE_BT_FALLBACK -> !btConnected
-                        WIFI_RULE_MAINACTIVITY -> true 
-                        else -> !btConnected
-                    }
-                    
-                    if (shouldBeRunning) {
-                        startWifiServer(deviceName, localMac, remoteMac)
-                    } else {
-                        stopWifiServer()
-                    }
-                }
-            }
-        }
-    }
 }

@@ -33,9 +33,9 @@ class TransportManager(
         private val APP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
         
         // WiFi Rules (matching BluetoothService/NetworkSettingsActivity)
-        const val WIFI_RULE_BT_FALLBACK = 0
-        const val WIFI_RULE_MAINACTIVITY = 1
-        const val WIFI_RULE_ALWAYS = 2
+        const val WIFI_RULE_BT_FALLBACK = 1
+        const val WIFI_RULE_MAINACTIVITY = 2
+        const val WIFI_RULE_ALWAYS = 4
     }
 
     private var bluetoothTransport: BluetoothTransport? = null
@@ -146,6 +146,17 @@ class TransportManager(
             try { socket.close() } catch (_: Exception) {}
         }
     }
+    fun triggerWifiReevaluation() {
+        bluetoothTransport?.getRemoteAddress()?.let { mac ->
+            // Cancel current job to force immediate re-evaluation in next loop
+            // Or just call the check logic.
+            // A simple way is to cancel and let it restart, but we need to ensure it DOES restart.
+            scope.launch {
+                wifiMonitorJob?.cancel()
+                startWifiMonitoring(mac)
+            }
+        }
+    }
 
     private fun startWifiMonitoring(deviceMac: String) {
         if (wifiMonitorJob?.isActive == true) return
@@ -155,7 +166,7 @@ class TransportManager(
             Log.d(TAG, "Starting WiFi monitoring for MAC: $deviceMac")
             
             while (isActive) {
-                if (shouldConnectWifi()) {
+                if (shouldWifiBeEnabled()) {
                     // Try to connect if not connected
                     if (wifiTransport == null || !wifiTransport!!.isConnected()) {
                         val connected = connectWifi(deviceMac)
@@ -183,8 +194,8 @@ class TransportManager(
         if (isConnectingWifi) return false
         
         val transport = WifiIntranetTransport(
-            remoteMac = mac,
-            localMac = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter?.address ?: "",
+            remoteMac = mac,  // Companion's Bluetooth MAC
+            localMac = mac,   // Also use companion's MAC for encryption consistency
             deviceName = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter?.name ?: Build.MODEL,
             encryptionManager = encryptionManager,
             mdnsDiscovery = mdnsDiscovery,
@@ -231,33 +242,33 @@ class TransportManager(
         }
     }
 
-    private fun shouldConnectWifi(): Boolean {
+    private fun shouldWifiBeEnabled(): Boolean {
         // Force WiFi on during pairing
         if (wifiForceForPairing) return true
         
         // Don't connect if temporarily disabled (e.g., during re-pairing)
         if (wifiTemporarilyDisabled) return false
         
-        // Check rules from logic
         val prefs = devicePrefManager.getActiveDevicePrefs()
         val rule = prefs.getInt("wifi_activation_rule", WIFI_RULE_BT_FALLBACK)
         
-        return when (rule) {
-            WIFI_RULE_ALWAYS -> true
-            WIFI_RULE_BT_FALLBACK -> {
-                // Connect if BT is NOT connected
-                val btConnected = bluetoothTransport?.isConnected() == true
-                !btConnected
-            }
-            WIFI_RULE_MAINACTIVITY -> {
-                // This is tricky from Service. Needs to know if Activity is bound/foreground.
-                // For now, we might assume NO unless told otherwise, or defaulting to FALSE (safe).
-                // Need a way to inform TransportManager of foreground state.
-                // Let's rely on a property we can set.
-                isMainActivityVisible
-            }
-            else -> false // Default strict
+        // Always rule takes precedence
+        if ((rule and WIFI_RULE_ALWAYS) != 0) return true
+        
+        var shouldEnable = false
+        
+        // BT Fallback rule
+        if ((rule and WIFI_RULE_BT_FALLBACK) != 0) {
+            val btConnected = bluetoothTransport?.isConnected() == true
+            if (!btConnected) shouldEnable = true
         }
+        
+        // MainActivity rule
+        if ((rule and WIFI_RULE_MAINACTIVITY) != 0) {
+            if (isMainActivityVisible) shouldEnable = true
+        }
+        
+        return shouldEnable
     }
     
     var isMainActivityVisible: Boolean = false

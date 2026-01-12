@@ -340,7 +340,6 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         }
         updateTransferProgress(progress, getString(R.string.file_download_success_title), getString(R.string.file_download_success_desc))
     }
-    override fun onScanResult(devices: List<android.bluetooth.BluetoothDevice>) {}
 
     override fun onFileListReceived(path: String, filesJson: String) {
         runOnUiThread {

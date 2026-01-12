@@ -275,6 +275,10 @@ class BluetoothService : Service() {
         sendMessage(ProtocolHelper.createUpdateWifiRule(rule))
     }
 
+    fun notifyWifiRuleChanged() {
+        transportManager.triggerWifiReevaluation()
+    }
+
     private var wifiTemporarilyDisabled = false
 
     fun temporarilyDisableWifi() {
@@ -371,9 +375,9 @@ class BluetoothService : Service() {
         const val INSTALL_CHANNEL_ID = "install_channel"
         
         // WiFi Activation Rules
-        const val WIFI_RULE_BT_FALLBACK = 0      // Enable when BT disconnected
-        const val WIFI_RULE_MAINACTIVITY = 1     // Enable when MainActivity open
-        const val WIFI_RULE_ALWAYS = 2           // Enable all the time
+        const val WIFI_RULE_BT_FALLBACK = 1      // Enable when BT disconnected
+        const val WIFI_RULE_MAINACTIVITY = 2     // Enable when MainActivity open
+        const val WIFI_RULE_ALWAYS = 4           // Enable all the time
         const val MIRRORED_CHANNEL_ID = "mirrored_notifications"
 
         const val ACTION_STOP_SERVICE = "ACTION_STOP_SERVICE"
