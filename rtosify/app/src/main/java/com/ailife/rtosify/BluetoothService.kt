@@ -9,8 +9,7 @@ import android.app.Service
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothServerSocket
-import android.bluetooth.BluetoothSocket
+
 import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -65,7 +64,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
+
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
 import org.json.JSONArray
@@ -149,7 +148,7 @@ class BluetoothService : Service() {
 
 // REMOVED: HEARTBEAT_INTERVAL, CONNECTION_TIMEOUT - defined in TransportManager
 
-    private val notificationMap = ConcurrentHashMap<String, Int>()
+
 
     // REFACTORING: More robust notification control
     @Volatile private var currentNotificationStatus: String = ""
@@ -407,7 +406,7 @@ class BluetoothService : Service() {
         const val NOTIFICATION_ID_DISCONNECTED = 12
 
         const val INSTALL_NOTIFICATION_ID = 2
-        const val MIRRORED_NOTIFICATION_ID_START = 1000
+
 
         const val CHANNEL_ID_WAITING = "channel_status_waiting"
         const val CHANNEL_ID_CONNECTED = "channel_status_connected"
@@ -419,7 +418,7 @@ class BluetoothService : Service() {
         const val WIFI_RULE_BT_FALLBACK = 1      // Enable when BT disconnected
         const val WIFI_RULE_MAINACTIVITY = 2     // Enable when MainActivity open
         const val WIFI_RULE_ALWAYS = 4           // Enable all the time
-        const val MIRRORED_CHANNEL_ID = "mirrored_notifications"
+
 
         const val ACTION_STOP_SERVICE = "ACTION_STOP_SERVICE"
 
@@ -481,7 +480,6 @@ class BluetoothService : Service() {
                         val key = intent.getStringExtra(EXTRA_NOTIF_KEY)
                         if (key != null && isConnected) {
                             sendMessage(ProtocolHelper.createDismissNotification(key))
-                            notificationMap.remove(key)
                         }
                     }
                 }
@@ -832,10 +830,10 @@ class BluetoothService : Service() {
             MessageType.HEARTBEAT -> {
                 /* IGNORE */
             }
-            MessageType.REQUEST_APPS -> handleRequestApps()
+// REMOVED: MessageType.REQUEST_APPS -> handleRequestApps()
             MessageType.RESPONSE_APPS -> handleResponseApps(message)
-            MessageType.NOTIFICATION_POSTED -> showMirroredNotification(message)
-            MessageType.NOTIFICATION_REMOVED -> dismissLocalNotification(message)
+// REMOVED: MessageType.NOTIFICATION_POSTED -> showMirroredNotification(message)
+// REMOVED: MessageType.NOTIFICATION_REMOVED -> dismissLocalNotification(message)
             MessageType.DISMISS_NOTIFICATION -> requestDismissOnPhone(message)
             MessageType.EXECUTE_NOTIFICATION_ACTION ->
                     handleExecuteNotificationAction(message)
@@ -2185,10 +2183,7 @@ class BluetoothService : Service() {
         notificationManager.notify(999, builder.build())
     }
 
-    private fun handleRequestApps() {
-        val apps = getInstalledAppsWithIcons()
-        sendMessage(ProtocolHelper.createResponseApps(apps))
-    }
+// REMOVED: handleRequestApps()
 
     private fun handleResponseApps(message: ProtocolMessage) {
         try {
@@ -2214,203 +2209,10 @@ class BluetoothService : Service() {
         }
     }
 
-    @SuppressLint("QueryPermissionsNeeded")
-    private fun getInstalledAppsWithIcons(): List<AppInfo> {
-        val apps = mutableListOf<AppInfo>()
-        val pm = packageManager
-        val packages = pm.getInstalledPackages(0)
+    // REMOVED: getInstalledAppsWithIcons body
+// REMOVED: showMirroredNotification
 
-        for (packageInfo in packages) {
-            try {
-                val appInfo = packageInfo.applicationInfo ?: continue
-                // Skip system apps without launch intent to keep list clean
-                if ((appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0 &&
-                                pm.getLaunchIntentForPackage(packageInfo.packageName) == null
-                )
-                        continue
-
-                val appName = appInfo.loadLabel(pm).toString()
-                val packageName = packageInfo.packageName
-
-                // Get icon and convert to base64
-                val icon = appInfo.loadIcon(pm)
-                val bitmap = icon.toBitmap(48, 48)
-                val stream = ByteArrayOutputStream()
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
-                val iconBase64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
-
-                apps.add(AppInfo(name = appName, packageName = packageName, icon = iconBase64))
-            } catch (_: Exception) {}
-        }
-        return apps
-    }
-
-    private fun showMirroredNotification(message: ProtocolMessage) {
-        try {
-            val notif = ProtocolHelper.extractData<NotificationData>(message)
-            val title = notif.title
-            val text = notif.text
-            val pkg = notif.packageName
-            val key = notif.key
-
-            val notifId =
-                    notificationMap.getOrPut(key) {
-                        (System.currentTimeMillis() % 10000).toInt() +
-                                MIRRORED_NOTIFICATION_ID_START
-                    }
-
-            val deleteIntent =
-                    Intent(ACTION_WATCH_DISMISSED_LOCAL).apply {
-                        putExtra(EXTRA_NOTIF_KEY, key)
-                        setPackage(packageName)
-                    }
-            val deletePending =
-                    PendingIntent.getBroadcast(
-                            this,
-                            notifId,
-                            deleteIntent,
-                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-
-            val builder =
-                    NotificationCompat.Builder(this, MIRRORED_CHANNEL_ID)
-                            .setContentTitle(title)
-                            .setContentText(text)
-                            .setSubText(pkg)
-                            .setPriority(NotificationCompat.PRIORITY_HIGH)
-                            .setAutoCancel(true)
-                            .setDeleteIntent(deletePending)
-
-            // Set large icon if available
-            notif.largeIcon?.let { iconBase64 ->
-                try {
-                    Log.d(TAG, "Decoding large icon: ${iconBase64.length} chars")
-                    val iconBytes = Base64.decode(iconBase64, Base64.NO_WRAP)
-                    Log.d(TAG, "Icon bytes decoded: ${iconBytes.size} bytes")
-                    val bitmap =
-                            android.graphics.BitmapFactory.decodeByteArray(
-                                    iconBytes,
-                                    0,
-                                    iconBytes.size
-                            )
-                    if (bitmap != null) {
-                        Log.d(TAG, "Bitmap decoded: ${bitmap.width}x${bitmap.height}")
-                        builder.setLargeIcon(bitmap)
-                    } else {
-                        Log.e(TAG, "Failed to decode bitmap - bitmap is null")
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error decoding large icon: ${e.message}", e)
-                }
-            }
-                    ?: Log.d(TAG, "No large icon in notification data")
-
-            // Set small icon - always use default for now (Android requires resource ID)
-            // The original small icon is extracted but can't be used directly in NotificationCompat
-            // TODO: Could save as temp resource or use as large icon for better visibility
-            builder.setSmallIcon(android.R.drawable.ic_popup_reminder)
-            Log.d(
-                    TAG,
-                    "Small icon extraction: ${if (notif.smallIcon != null) "available but using default (API limitation)" else "not available"}"
-            )
-
-            // Add action buttons
-            notif.actions.forEachIndexed { index, action ->
-                val actionIntent =
-                        if (action.isReplyAction) {
-                            Intent(this, NotificationActionReceiver::class.java).apply {
-                                setAction("${key}_${action.actionKey}_$index")
-                                putExtra(EXTRA_NOTIF_KEY, key)
-                                putExtra(EXTRA_ACTION_KEY, action.actionKey)
-                                putExtra("is_reply", true)
-                            }
-                        } else {
-                            Intent(this, NotificationActionReceiver::class.java).apply {
-                                setAction("${key}_${action.actionKey}_$index")
-                                putExtra(EXTRA_NOTIF_KEY, key)
-                                putExtra(EXTRA_ACTION_KEY, action.actionKey)
-                                putExtra("is_reply", false)
-                            }
-                        }
-
-                val actionPendingIntent =
-                        PendingIntent.getBroadcast(
-                                this,
-                                (notifId + index + 1),
-                                actionIntent,
-                                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
-                        )
-
-                if (action.isReplyAction) {
-                    // Create reply action with RemoteInput
-                    val remoteInput =
-                            androidx.core.app.RemoteInput.Builder("reply_text")
-                                    .setLabel(getString(R.string.reply_label))
-                                    .build()
-
-                    val replyAction =
-                            NotificationCompat.Action.Builder(
-                                            android.R.drawable.ic_menu_send,
-                                            action.title,
-                                            actionPendingIntent
-                                    )
-                                    .addRemoteInput(remoteInput)
-                                    .build()
-
-                    builder.addAction(replyAction)
-                } else {
-                    // Regular action button
-                    builder.addAction(
-                            android.R.drawable.ic_menu_view,
-                            action.title,
-                            actionPendingIntent
-                    )
-                }
-            }
-
-            // Set big picture style if available
-            notif.bigPicture?.let { pictureBase64 ->
-                try {
-                    Log.d(TAG, "Decoding big picture: ${pictureBase64.length} chars")
-                    val pictureBytes = Base64.decode(pictureBase64, Base64.NO_WRAP)
-                    val pictureBitmap =
-                            android.graphics.BitmapFactory.decodeByteArray(
-                                    pictureBytes,
-                                    0,
-                                    pictureBytes.size
-                            )
-                    if (pictureBitmap != null) {
-                        Log.d(
-                                TAG,
-                                "Big picture decoded: ${pictureBitmap.width}x${pictureBitmap.height}"
-                        )
-                        val bigPictureStyle =
-                                NotificationCompat.BigPictureStyle()
-                                        .bigPicture(pictureBitmap)
-                                        .bigLargeIcon(
-                                                null as Bitmap?
-                                        ) // Hide large icon when expanded
-                        builder.setStyle(bigPictureStyle)
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error decoding big picture: ${e.message}", e)
-                }
-            }
-
-            val notification = builder.build()
-            notificationManager.notify(notifId, notification)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error showing mirrored notification: ${e.message}", e)
-        }
-    }
-
-    private fun dismissLocalNotification(message: ProtocolMessage) {
-        val key = ProtocolHelper.extractStringField(message, "key") ?: return
-        notificationMap[key]?.let { id ->
-            notificationManager.cancel(id)
-            notificationMap.remove(key)
-        }
-    }
+// REMOVED: dismissLocalNotification()
 
     private fun requestDismissOnPhone(message: ProtocolMessage) {
         val key = ProtocolHelper.extractStringField(message, "key") ?: return
@@ -2671,13 +2473,7 @@ class BluetoothService : Service() {
         notificationManager.createNotificationChannel(
                 NotificationChannel(INSTALL_CHANNEL_ID, "APKs", NotificationManager.IMPORTANCE_HIGH)
         )
-        notificationManager.createNotificationChannel(
-                NotificationChannel(
-                        MIRRORED_CHANNEL_ID,
-                        "Notificações do celular",
-                        NotificationManager.IMPORTANCE_HIGH
-                )
-        )
+
     }
 
     private fun savePreference(key: String, value: String) {

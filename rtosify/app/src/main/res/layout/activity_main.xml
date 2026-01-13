@@ -568,36 +568,6 @@
     </androidx.core.widget.NestedScrollView>
 
     <!-- MODO WATCH: Overlay Completo -->
-    <LinearLayout
-        android:id="@+id/layoutWatchMode"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:background="?android:attr/colorBackground"
-        android:clickable="true"
-        android:focusable="true"
-        android:visibility="gone"
-        android:padding="24dp"
-        tools:visibility="gone">
 
-        <ImageView
-            android:id="@+id/imgWatchStatus"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:layout_marginBottom="16dp"
-            android:src="@drawable/ic_smartwatch"
-            app:tint="?android:attr/colorError" />
-
-        <TextView
-            android:id="@+id/tvWatchStatusBig"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/status_disconnected"
-            android:textAlignment="center"
-            android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
-            android:textColor="?android:attr/colorError" />
-
-    </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

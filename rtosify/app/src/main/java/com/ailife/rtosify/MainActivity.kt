@@ -86,17 +86,14 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var layoutHeartRateAction: LinearLayout
     private lateinit var layoutOxygenAction: LinearLayout
 
-    private lateinit var tvWatchStatusBig: TextView
 
-    private lateinit var layoutWatchMode: LinearLayout
-    private lateinit var imgWatchStatus: ImageView
 
     private lateinit var prefs: SharedPreferences
     private lateinit var devicePrefManager: DevicePrefManager
     private lateinit var layoutConnectionHeader: LinearLayout
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
-    private var isPhoneMode = true
+    // isPhoneMode removed - always Phone
     private var menuAdapter: MenuAdapter? = null
 
     private var currentDndState = false
@@ -183,8 +180,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         setSupportActionBar(toolbar)
         supportActionBar?.title = getString(R.string.app_title)
 
-        // RTOSify is always phone mode
-        isPhoneMode = true
+        // Always Phone Mode
         setupLayoutMode()
         setupDndClickListener()
         setupWifiClickListener()
@@ -280,9 +276,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         layoutHeartRateAction = findViewById(R.id.layoutHeartRateAction)
         layoutOxygenAction = findViewById(R.id.layoutOxygenAction)
 
-        layoutWatchMode = findViewById(R.id.layoutWatchMode)
-        imgWatchStatus = findViewById(R.id.imgWatchStatus)
-        tvWatchStatusBig = findViewById(R.id.tvWatchStatusBig)
+
+
         switchService = findViewById(R.id.switchService)
 
         // Device Info Views
@@ -298,16 +293,11 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun setupLayoutMode() {
-        if (isPhoneMode) {
-            layoutWatchMode.visibility = View.GONE
-            appBarLayout.visibility = View.VISIBLE
-            mainContentScrollView.visibility = View.VISIBLE
-            setupPhoneMenu()
-        } else {
-            layoutWatchMode.visibility = View.VISIBLE
-            appBarLayout.visibility = View.GONE
-            mainContentScrollView.visibility = View.GONE
-        }
+        // Enforce Phone Layout
+
+        appBarLayout.visibility = View.VISIBLE
+        mainContentScrollView.visibility = View.VISIBLE
+        setupPhoneMenu()
     }
 
     private fun setupDndClickListener() {
@@ -1070,10 +1060,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun refreshMenu() {
-        if (!isPhoneMode) {
-            return
-        }
-
         val isConnected = bluetoothService?.isConnected == true
         val isActive = bluetoothService?.isActive() == true
 
@@ -1259,7 +1245,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         View.VISIBLE
                 else View.INVISIBLE
 
-        if (isPhoneMode && isConnected) {
+        if (isConnected) {
             cardWatchStatus.visibility = View.VISIBLE
             cardHealthData.visibility = View.VISIBLE
         } else {
@@ -1267,17 +1253,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             cardHealthData.visibility = View.GONE
         }
 
-        if (!isPhoneMode) {
-            if (isConnected) {
-                tvWatchStatusBig.text = getString(R.string.status_connected)
-                tvWatchStatusBig.setTextColor(Color.GREEN)
-                imgWatchStatus.setImageTintList(ColorStateList.valueOf(Color.GREEN))
-            } else {
-                tvWatchStatusBig.text = getString(R.string.status_disconnected)
-                tvWatchStatusBig.setTextColor(Color.RED)
-                imgWatchStatus.setImageTintList(ColorStateList.valueOf(Color.RED))
-            }
-        }
+
 
         refreshMenu()
     }
@@ -1512,7 +1488,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     override fun onScanResult(devices: List<BluetoothDevice>) {
         runOnUiThread {
             if (devices.isEmpty()) return@runOnUiThread
-            if (isPhoneMode) {
                 val names =
                         devices
                                 .map {
@@ -1525,7 +1500,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                             bluetoothService?.connectToDevice(devices[which])
                         }
                         .show()
-            }
         }
     }
     override fun onUploadProgress(progress: Int) {
@@ -1653,7 +1627,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     private fun startWatchStatusPolling() {
         stopWatchStatusPolling()
-        if (!isPhoneMode) return 
+ 
 
         watchStatusPollingJob = MainScope().launch {
              while (true) {

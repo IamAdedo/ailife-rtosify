@@ -37,43 +37,35 @@ import com.google.android.material.card.MaterialCardView
 class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     // UI References
-    private lateinit var tvHeaderDeviceName: TextView
-    private lateinit var tvLocalBtName: TextView
-    private lateinit var tvLocalBtNameWatch: TextView
-    private lateinit var tvHeaderStatus: TextView
+
     private lateinit var progressBarMain: ProgressBar
     private lateinit var recyclerViewMenu: RecyclerView
-    private lateinit var toolbar: Toolbar
-    private lateinit var appBarLayout: AppBarLayout
+
+
     private lateinit var mainContentScrollView: NestedScrollView
-    private lateinit var switchService: com.google.android.material.materialswitch.MaterialSwitch
+
     private lateinit var switchServiceWatch:
             com.google.android.material.materialswitch.MaterialSwitch
 
     // Watch Status UI
-    private lateinit var cardWatchStatus: MaterialCardView
-    private lateinit var tvBatteryPercent: TextView
-    private lateinit var imgBatteryIcon: ImageView
-    private lateinit var tvWifiSsid: TextView
-    private lateinit var imgWifiIcon: ImageView
-    private lateinit var layoutDndAction: LinearLayout
-    private lateinit var tvDndStatus: TextView
-    private lateinit var imgDndIcon: ImageView
+
+
 
     // Watch Mode UI
     private lateinit var layoutWatchMode: LinearLayout
-    private lateinit var layoutConnectionHeader: LinearLayout
+
     private lateinit var imgWatchStatus: ImageView
     private lateinit var tvWatchStatusBig: TextView
     private lateinit var tvPhoneBattery: TextView // New UI for Phone Battery
     private lateinit var imgPhoneBattery: ImageView
-    private lateinit var imgHeaderBt: ImageView
-    private lateinit var imgHeaderWifi: ImageView
+
+    private lateinit var tvLocalBtNameWatch: TextView
+
 
     private lateinit var prefs: SharedPreferences
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
-    private var isPhoneMode = true
+    // isPhoneMode removed - always Watch
     private var menuAdapter: MenuAdapter? = null
 
     // Local DND state
@@ -139,12 +131,11 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         setContentView(R.layout.activity_main)
         initViews()
 
-        setSupportActionBar(toolbar)
-        supportActionBar?.title = getString(R.string.app_title)
 
-        isPhoneMode = prefs.getString("device_type", "PHONE") == "PHONE"
+
+        // Always Watch Mode
         setupLayoutMode()
-        setupDndClickListener()
+
 
         bindToService()
 
@@ -201,72 +192,45 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun initViews() {
-        toolbar = findViewById(R.id.toolbar)
-        appBarLayout = findViewById(R.id.appBarLayout)
+
+
         mainContentScrollView = findViewById(R.id.mainContentScrollView)
 
-        tvHeaderDeviceName = findViewById(R.id.tvHeaderDeviceName)
-        tvLocalBtName = findViewById(R.id.tvLocalBtName)
         tvLocalBtNameWatch = findViewById(R.id.tvLocalBtNameWatch)
-        tvHeaderStatus = findViewById(R.id.tvHeaderStatus)
         progressBarMain = findViewById(R.id.progressBarMain)
         recyclerViewMenu = findViewById(R.id.recyclerViewMenu)
 
         // Views Status Watch
-        cardWatchStatus = findViewById(R.id.cardWatchStatus)
-        tvBatteryPercent = findViewById(R.id.tvBatteryPercent)
-        imgBatteryIcon = findViewById(R.id.imgBatteryIcon)
-        tvWifiSsid = findViewById(R.id.tvWifiSsid)
-        imgWifiIcon = findViewById(R.id.imgWifiIcon)
-        layoutDndAction = findViewById(R.id.layoutDndAction)
-        tvDndStatus = findViewById(R.id.tvDndStatus)
-        imgDndIcon = findViewById(R.id.imgDndIcon)
+
+
 
         layoutWatchMode = findViewById(R.id.layoutWatchMode)
-        layoutConnectionHeader = findViewById(R.id.layoutConnectionHeader)
+
         imgWatchStatus = findViewById(R.id.imgWatchStatus)
         tvWatchStatusBig = findViewById(R.id.tvWatchStatusBig)
         tvWatchStatusBig = findViewById(R.id.tvWatchStatusBig)
         tvPhoneBattery = findViewById(R.id.tvPhoneBattery)
         imgPhoneBattery = findViewById(R.id.imgPhoneBattery)
-        switchService = findViewById(R.id.switchService)
+
         switchServiceWatch = findViewById(R.id.switchServiceWatch)
-        imgHeaderBt = findViewById(R.id.imgHeaderBt)
-        imgHeaderWifi = findViewById(R.id.imgHeaderWifi)
+
 
         updateLocalBtName()
     }
 
     private fun setupLayoutMode() {
-        if (isPhoneMode) {
-            layoutWatchMode.visibility = View.GONE
-            layoutConnectionHeader.visibility = View.VISIBLE
-            appBarLayout.visibility = View.VISIBLE
-            mainContentScrollView.visibility = View.VISIBLE
-            setupPhoneMenu()
-        } else {
-            layoutWatchMode.visibility = View.VISIBLE
-            layoutConnectionHeader.visibility = View.GONE
-            appBarLayout.visibility = View.GONE
-            mainContentScrollView.visibility = View.VISIBLE
-            setupWatchMenu()
-        }
+        // Enforce Watch Layout
+        layoutWatchMode.visibility = View.VISIBLE
+
+        mainContentScrollView.visibility = View.VISIBLE
+        setupWatchMenu()
     }
 
-    private fun setupDndClickListener() {
-        layoutDndAction.setOnClickListener {
-            // We also apply the secure check here
-            runIfConnected {
-                val newState = !currentDndState
-                bluetoothService?.sendDndCommand(newState)
-                updateDndUI(newState)
-            }
-        }
-    }
+
 
     private fun setupServiceToggle() {
         val isEnabled = prefs.getBoolean("service_enabled", true)
-        switchService.isChecked = isEnabled
+
         switchServiceWatch.isChecked = isEnabled
 
         val listener =
@@ -279,7 +243,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     prefs.edit().putBoolean("service_enabled", isChecked).apply()
 
                     // Sync visual state of the other switch just in case
-                    switchService.isChecked = isChecked
+
                     switchServiceWatch.isChecked = isChecked
 
                     if (isChecked) {
@@ -311,7 +275,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     refreshMenu()
                 }
 
-        switchService.setOnCheckedChangeListener(listener)
+
         switchServiceWatch.setOnCheckedChangeListener(listener)
     }
 
@@ -354,39 +318,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         }
     }
 
-    private fun setupPhoneMenu() {
-        recyclerViewMenu.layoutManager = LinearLayoutManager(this)
-        recyclerViewMenu.isNestedScrollingEnabled = false
 
-        val options =
-                listOf(
-                        // Watch app - simplified menu without phone-only features
-                        MenuOption(
-                                getString(R.string.menu_disconnect),
-                                getString(R.string.menu_disconnect_desc),
-                                android.R.drawable.ic_menu_close_clear_cancel,
-                                // PERMITIDO: O usuário precisa poder parar a busca/serviço mesmo se
-                                // não conectou
-                                {
-                                    // Legacy disconnect button removed functionality
-                                }
-                        ),
-                        MenuOption(
-                                getString(R.string.perm_title),
-                                getString(R.string.perm_not_granted), // Placeholder description
-                                android.R.drawable.ic_menu_manage,
-                                { startActivity(Intent(this, PermissionActivity::class.java)) }
-                        ),
-                        MenuOption(
-                                getString(R.string.menu_reset_all),
-                                getString(R.string.menu_reset_all_desc),
-                                android.R.drawable.ic_menu_delete,
-                                { resetApp() }
-                        )
-                )
-        menuAdapter = MenuAdapter(options.toMutableList())
-        recyclerViewMenu.adapter = menuAdapter
-    }
 
     private fun setupWatchMenu() {
         recyclerViewMenu.layoutManager = LinearLayoutManager(this)
@@ -504,95 +436,79 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun refreshMenu() {
-        val isConnected = bluetoothService?.isConnected == true
-        val isActive = bluetoothService?.isActive() == true
-
         val options = mutableListOf<MenuOption>()
 
-        if (isPhoneMode) {
-            options.add(
-                    MenuOption(
-                            getString(R.string.perm_title),
-                            getString(R.string.perm_not_granted),
-                            android.R.drawable.ic_menu_manage,
-                            { startActivity(Intent(this, PermissionActivity::class.java)) }
-                    )
-            )
-        } else {
-            options.add(
-                    MenuOption(
-                            getString(R.string.menu_media_control),
-                            getString(R.string.menu_media_control_desc),
-                            android.R.drawable.ic_media_play,
-                            {
-                                runIfConnected {
-                                    startActivity(Intent(this, MediaControlActivity::class.java))
-                                }
+        // Watch Menu Options
+        options.add(
+                MenuOption(
+                        getString(R.string.menu_media_control),
+                        getString(R.string.menu_media_control_desc),
+                        android.R.drawable.ic_media_play,
+                        {
+                            runIfConnected {
+                                startActivity(Intent(this, MediaControlActivity::class.java))
                             }
-                    )
-            )
-            options.add(
-                    MenuOption(
-                            getString(R.string.menu_mirroring),
-                            getString(R.string.menu_mirroring_desc),
-                            R.drawable.ic_cast,
-                            { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
-                    )
-            )
-            options.add(
-                    MenuOption(
-                            getString(R.string.menu_alarms),
-                            getString(R.string.menu_alarms_desc),
-                            android.R.drawable.ic_lock_idle_alarm,
-                            { startActivity(Intent(this, AlarmManagementActivity::class.java)) }
-                    )
-            )
-            options.add(
-                    MenuOption(
-                            getString(R.string.menu_camera),
-                            getString(R.string.menu_camera_desc),
-                            android.R.drawable.ic_menu_camera,
-                            {
-                                runIfConnected {
-                                    startActivity(Intent(this, CameraRemoteActivity::class.java))
-                                }
+                        }
+                )
+        )
+        options.add(
+                MenuOption(
+                        getString(R.string.menu_mirroring),
+                        getString(R.string.menu_mirroring_desc),
+                        R.drawable.ic_cast,
+                        { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
+                )
+        )
+        options.add(
+                MenuOption(
+                        getString(R.string.menu_alarms),
+                        getString(R.string.menu_alarms_desc),
+                        android.R.drawable.ic_lock_idle_alarm,
+                        { startActivity(Intent(this, AlarmManagementActivity::class.java)) }
+                )
+        )
+        options.add(
+                MenuOption(
+                        getString(R.string.menu_camera),
+                        getString(R.string.menu_camera_desc),
+                        android.R.drawable.ic_menu_camera,
+                        {
+                            runIfConnected {
+                                startActivity(Intent(this, CameraRemoteActivity::class.java))
                             }
-                    )
-            )
-            options.add(
-                    MenuOption(
-                            getString(R.string.menu_dialer),
-                            getString(R.string.menu_dialer_desc),
-                            android.R.drawable.ic_menu_call,
-                            {
-                                runIfConnected {
-                                    startActivity(Intent(this, DialerActivity::class.java))
-                                }
+                        }
+                )
+        )
+        options.add(
+                MenuOption(
+                        getString(R.string.menu_dialer),
+                        getString(R.string.menu_dialer_desc),
+                        android.R.drawable.ic_menu_call,
+                        {
+                            runIfConnected {
+                                startActivity(Intent(this, DialerActivity::class.java))
                             }
-                    )
-            )
-        }
+                        }
+                )
+        )
 
-        // Connect/Disconnect options removed in favor of toggle switch
-
-        if (!isPhoneMode) {
-            options.add(
-                    MenuOption(
-                            getString(R.string.menu_find_phone),
-                            getString(R.string.menu_find_phone_desc),
-                            android.R.drawable.ic_menu_search,
-                            { runIfConnected { confirmFindPhone() } }
-                    )
-            )
-            options.add(
-                    MenuOption(
-                            getString(R.string.perm_title),
-                            getString(R.string.perm_shizuku_desc),
-                            android.R.drawable.ic_menu_manage,
-                            { startActivity(Intent(this, PermissionActivity::class.java)) }
-                    )
-            )
-        }
+        // Additional Watch Options
+        options.add(
+                MenuOption(
+                        getString(R.string.menu_find_phone),
+                        getString(R.string.menu_find_phone_desc),
+                        android.R.drawable.ic_menu_search,
+                        { runIfConnected { confirmFindPhone() } }
+                )
+        )
+        options.add(
+                MenuOption(
+                        getString(R.string.perm_title),
+                        getString(R.string.perm_shizuku_desc),
+                        android.R.drawable.ic_menu_manage,
+                        { startActivity(Intent(this, PermissionActivity::class.java)) }
+                )
+        )
 
         options.add(
                 MenuOption(
@@ -631,44 +547,20 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun updateStatusUI(status: String, isConnected: Boolean, transportType: String = "") {
-        val deviceName =
-                bluetoothService?.currentDeviceName ?: getString(R.string.device_name_default)
-        tvHeaderDeviceName.text =
-                if (isConnected) deviceName else getString(R.string.status_waiting)
-        tvHeaderStatus.text = if (isConnected) getString(R.string.status_connected) else status
-        tvHeaderStatus.setTextColor(if (isConnected) Color.GREEN else Color.RED)
-
         // Update local BT name
         updateLocalBtName()
 
         progressBarMain.visibility =
                 if (!isConnected && status.contains(getString(R.string.status_connecting))) View.VISIBLE else View.INVISIBLE
 
-        // Update transport icons
         if (isConnected) {
-            imgHeaderBt.visibility = if (transportType.contains("Bluetooth") || transportType.contains("Dual")) View.VISIBLE else View.GONE
-            imgHeaderWifi.visibility = if (transportType.contains("WiFi") || transportType.contains("Dual")) View.VISIBLE else View.GONE
+            tvWatchStatusBig.text = getString(R.string.status_connected)
+            tvWatchStatusBig.setTextColor(Color.GREEN)
+            imgWatchStatus.setImageTintList(ColorStateList.valueOf(Color.GREEN))
         } else {
-            imgHeaderBt.visibility = View.GONE
-            imgHeaderWifi.visibility = View.GONE
-        }
-
-        if (isPhoneMode && isConnected) {
-            cardWatchStatus.visibility = View.VISIBLE
-        } else {
-            cardWatchStatus.visibility = View.GONE
-        }
-
-        if (!isPhoneMode) {
-            if (isConnected) {
-                tvWatchStatusBig.text = getString(R.string.status_connected)
-                tvWatchStatusBig.setTextColor(Color.GREEN)
-                imgWatchStatus.setImageTintList(ColorStateList.valueOf(Color.GREEN))
-            } else {
-                tvWatchStatusBig.text = getString(R.string.status_disconnected)
-                tvWatchStatusBig.setTextColor(Color.RED)
-                imgWatchStatus.setImageTintList(ColorStateList.valueOf(Color.RED))
-            }
+            tvWatchStatusBig.text = getString(R.string.status_disconnected)
+            tvWatchStatusBig.setTextColor(Color.RED)
+            imgWatchStatus.setImageTintList(ColorStateList.valueOf(Color.RED))
         }
 
         refreshMenu()
@@ -677,27 +569,21 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private fun updateWatchStatusCard(
             battery: Int,
             isCharging: Boolean,
-            wifi: String,
+            wifiSsid: String,
             dnd: Boolean
     ) {
-        tvBatteryPercent.text = "$battery%"
-        if (isCharging) {
-            imgBatteryIcon.setImageResource(android.R.drawable.ic_lock_idle_charging)
-        } else {
-            imgBatteryIcon.setImageResource(R.drawable.ic_battery_full)
-        }
-        tvWifiSsid.text = wifi.ifEmpty { "---" }
+
+
+
         updateDndUI(dnd)
     }
 
     private fun updateDndUI(enabled: Boolean) {
         currentDndState = enabled
-        layoutDndAction.alpha = 1.0f
+
 
         if (enabled) {
-            tvDndStatus.text = getString(R.string.dnd_on)
-        } else {
-            tvDndStatus.text = getString(R.string.dnd_off)
+
         }
     }
 
@@ -798,13 +684,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             val name = btAdapter?.name ?: "Unknown"
             val text = getString(R.string.bt_name_format, name)
 
-            tvLocalBtName.text = text
-            tvLocalBtName.visibility = View.VISIBLE
-
             tvLocalBtNameWatch.text = text
             tvLocalBtNameWatch.visibility = View.VISIBLE
         } catch (e: Exception) {
-            tvLocalBtName.visibility = View.GONE
             tvLocalBtNameWatch.visibility = View.GONE
         }
     }
@@ -845,7 +727,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     private fun startPhoneBatteryPolling() {
         stopPhoneBatteryPolling()
-        if (isPhoneMode) return // Don't poll if we are the phone
+
 
         phoneBatteryPollingJob = kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.Main) {
              while (true) {
@@ -877,7 +759,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
     override fun onDownloadProgress(progress: Int) {}
     override fun onFileListReceived(path: String, filesJson: String) {}
-    override fun onAppListReceived(appsJson: String) {}
+
 
     override fun onWatchStatusUpdated(
             batteryLevel: Int,

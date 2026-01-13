@@ -235,6 +235,6 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
     override fun onUploadProgress(progress: Int) {}
     override fun onDownloadProgress(progress: Int) {}
     override fun onFileListReceived(path: String, filesJson: String) {}
-    override fun onAppListReceived(appsJson: String) {}
+
     override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean, ipAddress: String?) {}
 }

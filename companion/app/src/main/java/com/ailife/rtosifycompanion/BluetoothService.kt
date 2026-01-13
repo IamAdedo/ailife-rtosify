@@ -90,7 +90,7 @@ class BluetoothService : Service() {
     private val binder = LocalBinder()
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
-    // REMOVED: connectionJob - watch app no longer acts as client
+
     private var serverJob: Job? = null
     private var statusUpdateJob: Job? = null
     private lateinit var healthDataCollector: HealthDataCollector
@@ -105,8 +105,7 @@ class BluetoothService : Service() {
     private lateinit var deviceInfoManager: DeviceInfoManager
     private lateinit var watchAlarmManager: WatchAlarmManager
 
-    private var bluetoothAdapter: BluetoothAdapter? = null
-    private var bluetoothSocket: BluetoothSocket? = null
+
     private val shizukuLock = Any()
 
     private val APP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
@@ -197,7 +196,7 @@ class BluetoothService : Service() {
         fun onDeviceDisconnected()
         fun onError(message: String)
         fun onScanResult(devices: List<BluetoothDevice>)
-        fun onAppListReceived(appsJson: String)
+
         fun onUploadProgress(progress: Int)
         fun onDownloadProgress(progress: Int)
         fun onFileListReceived(path: String, filesJson: String)
@@ -218,6 +217,15 @@ class BluetoothService : Service() {
     @Volatile var currentDeviceName: String? = null
     @Volatile var currentTransportType: String = ""
     @Volatile var isConnected: Boolean = false
+
+    fun getConnectedDeviceMac(): String? {
+        val state = transportManager.connectionState.value
+        return if (state is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected) {
+            state.deviceMac
+        } else {
+            null
+        }
+    }
 
     // JSON Protocol - message types defined in Protocol.kt
 
@@ -530,7 +538,7 @@ class BluetoothService : Service() {
         super.onCreate()
         prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE)
         val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
-        bluetoothAdapter = btManager.adapter
+        // bluetoothAdapter assignment removed (property removed)
         createNotificationChannel()
         
         // Initialize WiFi transport infrastructure
@@ -950,34 +958,27 @@ class BluetoothService : Service() {
         startWatchLogic()
     }
 
-    // REMOVED: checkAndEnableBluetooth() - This method was blocking service operation when BT disabled
-    // Bluetooth checks should only be done in BluetoothTransport, not at service level
-
-    // REMOVED: startSmartphoneLogic() - Watch app should never act as phone client
-
-    // REMOVED: startScanForDevices() - Watch should never act as client/scanner
-    // REMOVED: connectToDevice() - Watch should never act as client
-    // REMOVED: startAutoReconnectLoop() - Watch should never act as client
-    // Watch app only runs as SERVER via startWatchLogic()
-
     @SuppressLint("MissingPermission")
     fun startWatchLogic() {
         // Start servers via TransportManager
         
-        // WiFi Server
-        val watchMac = prefs.getString("wifi_advertised_mac", null)
-        if (watchMac != null) {
-            val deviceName = bluetoothAdapter?.name ?: Build.MODEL
-            Log.d(TAG, "Starting WiFi server for local=$watchMac, remote=$watchMac")
-            transportManager.startWifiServer(deviceName, watchMac, watchMac)
-            // Start WiFi server watchdog
-            transportManager.startWifiServerWatchdog(this, deviceName, watchMac, watchMac)
-        }
-
         // Bluetooth Server
-        transportManager.startBluetoothServer(bluetoothAdapter)
-        // Start Bluetooth server watchdog
-        transportManager.startBluetoothServerWatchdog(bluetoothAdapter)
+    val btManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+    val adapter = btManager.adapter
+
+    val watchMac = prefs.getString("wifi_advertised_mac", null)
+    if (watchMac != null) {
+        val deviceName = adapter?.name ?: Build.MODEL
+        Log.d(TAG, "Starting WiFi server for local=$watchMac, remote=$watchMac")
+        transportManager.startWifiServer(deviceName, watchMac, watchMac)
+        // Start WiFi server watchdog
+        transportManager.startWifiServerWatchdog(this, deviceName, watchMac, watchMac)
+    }
+
+    // Bluetooth Server
+    transportManager.startBluetoothServer(adapter)
+    // Start Bluetooth server watchdog
+    transportManager.startBluetoothServerWatchdog(adapter)
     }
 
     private fun handleDeviceConnected(deviceName: String, mac: String?, transportType: String = "") {
@@ -1055,7 +1056,7 @@ class BluetoothService : Service() {
                 /* IGNORE */
             }
             MessageType.REQUEST_APPS -> handleRequestApps()
-            MessageType.RESPONSE_APPS -> handleResponseApps(message)
+// REMOVED: MessageType.RESPONSE_APPS -> handleResponseApps(message)
             MessageType.NOTIFICATION_POSTED -> showMirroredNotification(message)
             MessageType.NOTIFICATION_REMOVED -> dismissLocalNotification(message)
             MessageType.DISMISS_NOTIFICATION -> requestDismissOnPhone(message)
@@ -1690,12 +1691,12 @@ class BluetoothService : Service() {
         try {
             encryptionManager.initializeForDevice(deviceMac)
             encryptionManager.setActiveDevice(deviceMac)
-            Log.d(TAG, "initializeEncryptionForDevice: mac=$deviceMac, remote=${bluetoothSocket?.remoteDevice?.address}")
+            Log.d(TAG, "initializeEncryptionForDevice: mac=$deviceMac")
             
             // Watch always starts WiFi as server
             serviceScope.launch {
                 val watchMac = prefs.getString("wifi_advertised_mac", "") ?: ""
-                val deviceName = bluetoothAdapter?.name ?: android.os.Build.MODEL
+                val deviceName = android.bluetooth.BluetoothAdapter.getDefaultAdapter()?.name ?: android.os.Build.MODEL
                 transportManager.startWifiServer(deviceName, watchMac, watchMac)
             }
         } catch (e: Exception) {
@@ -2369,7 +2370,7 @@ class BluetoothService : Service() {
     }
 
     private fun handleWifiKeyExchange(message: ProtocolMessage) {
-        val phoneMac = ProtocolHelper.extractStringField(message, "deviceMac") ?: bluetoothSocket?.remoteDevice?.address ?: return
+        val phoneMac = ProtocolHelper.extractStringField(message, "deviceMac") ?: getConnectedDeviceMac() ?: return
         val watchMac = ProtocolHelper.extractStringField(message, "targetMac") ?: ""
         val encryptionKey = ProtocolHelper.extractStringField(message, "encryptionKey") ?: return
         
@@ -2391,7 +2392,7 @@ class BluetoothService : Service() {
             
             // Start WiFi server
             serviceScope.launch {
-                val deviceName = bluetoothAdapter?.name ?: android.os.Build.MODEL
+                val deviceName = android.bluetooth.BluetoothAdapter.getDefaultAdapter()?.name ?: android.os.Build.MODEL
                 transportManager.startWifiServer(deviceName, watchMac, watchMac)
             }
         }
@@ -3769,29 +3770,7 @@ class BluetoothService : Service() {
         sendMessage(ProtocolHelper.createResponseApps(apps))
     }
 
-    private fun handleResponseApps(message: ProtocolMessage) {
-        try {
-            val appsJsonArray = message.data.getAsJsonArray("apps")
-            val gson = com.google.gson.Gson()
-            val apps = gson.fromJson(appsJsonArray, Array<AppInfo>::class.java).toList()
-
-            // Convert back to JSON string for callback (temporary until callback is updated)
-            val jsonArray = org.json.JSONArray()
-            for (app in apps) {
-                val obj = org.json.JSONObject()
-                obj.put("name", app.name)
-                obj.put("package", app.packageName)
-                obj.put("icon", app.icon)
-                jsonArray.put(obj)
-            }
-
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                callback?.onAppListReceived(jsonArray.toString())
-            }
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "Error parsing app list: ${e.message}")
-        }
-    }
+// REMOVED: handleResponseApps()
 
     @SuppressLint("QueryPermissionsNeeded")
     private fun getInstalledAppsWithIcons(): List<AppInfo> {
@@ -4273,7 +4252,7 @@ class BluetoothService : Service() {
         stopAllCommunication()
         isConnected = false
         currentDeviceName = null
-        bluetoothSocket = null
+// REMOVED: bluetoothSocket cleanup
 
         // Notify Dynamic Island of disconnection
         sendBroadcast(
