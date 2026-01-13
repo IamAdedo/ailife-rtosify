@@ -1287,6 +1287,14 @@ class BluetoothService : Service() {
                 prefs.edit().putBoolean("dynamic_island_hide_idle", it).apply()
                 Log.d(TAG, "Dynamic Island Hide When Idle updated: $it")
             }
+            settings.dynamicIslandTextMultiplier?.let {
+                prefs.edit().putFloat("dynamic_island_text_multiplier", it).apply()
+                Log.d(TAG, "Dynamic Island Text Multiplier updated: $it")
+            }
+            settings.dynamicIslandLimitMessageLength?.let {
+                prefs.edit().putBoolean("dynamic_island_limit_message_length", it).apply()
+                Log.d(TAG, "Dynamic Island Limit Message Length updated: $it")
+            }
             settings.forceBtEnabled?.let {
                 prefs.edit().putBoolean("force_bt_enabled", it).apply()
                 Log.d(TAG, "Force Bluetooth setting updated: $it")

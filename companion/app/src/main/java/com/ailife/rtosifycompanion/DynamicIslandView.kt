@@ -59,6 +59,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         LIST_EXPANDED
     }
 
+    // Text settings
+    private var textSizeMultiplier: Float = 1.0f
+    private var limitMessageLength: Boolean = true
+
     init {
         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
         clipChildren = false
@@ -591,7 +595,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                         layoutParams =
                                 LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
                         text = notif.title
-                        textSize = 14f
+                        textSize = getScaledTextSize(14f)
                         setTextColor(Color.WHITE)
                         maxLines = 1
                         ellipsize = android.text.TextUtils.TruncateAt.END
@@ -607,9 +611,9 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                         layoutParams =
                                 LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
                         text = notif.text
-                        textSize = 12f
+                        textSize = getScaledTextSize(12f)
                         setTextColor(Color.parseColor("#AAAAAA"))
-                        maxLines = 2 // Increased to 2 for better display
+                        maxLines = getAdaptiveMaxLines(2)
                         ellipsize = android.text.TextUtils.TruncateAt.END
                         // Slide animation from center
                         alpha = 0f
@@ -805,7 +809,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                         bottomMargin = dpToPx(16)
                                     }
                     text = context.getString(R.string.di_clear_all)
-                    textSize = 14f
+                    textSize = getScaledTextSize(14f)
                     setTextColor(Color.WHITE)
                     gravity = Gravity.CENTER
                     setPadding(dpToPx(12))
@@ -881,12 +885,11 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                     }
             topRow.addView(icon)
 
-            // Title
             val title =
                     TextView(context).apply {
                         layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
                         text = notif.title
-                        textSize = 14f
+                        textSize = getScaledTextSize(14f)
                         setTextColor(Color.WHITE)
                         maxLines = 1
                     }
@@ -896,16 +899,15 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
             addView(topRow)
 
-            // Content text
             val content =
                     TextView(context).apply {
                         layoutParams =
                                 LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
                                         .apply { topMargin = dpToPx(4) }
                         text = notif.text
-                        textSize = 13f
+                        textSize = getScaledTextSize(13f)
                         setTextColor(Color.parseColor("#AAAAAA"))
-                        maxLines = 3
+                        maxLines = getAdaptiveMaxLines(3)
                     }
             addView(content)
 
@@ -991,9 +993,9 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                         if (message.senderName != null)
                                                 "${message.senderName}: ${message.text}"
                                         else message.text
-                                textSize = 11f
+                                textSize = getScaledTextSize(11f)
                                 setTextColor(Color.parseColor("#CCCCCC"))
-                                maxLines = 2
+                                maxLines = getAdaptiveMaxLines(2)
                                 ellipsize = android.text.TextUtils.TruncateAt.END
                                 background =
                                         GradientDrawable().apply {
@@ -1032,7 +1034,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                                     }
                                                 }
                                 text = action.title
-                                textSize = 12f
+                                textSize = getScaledTextSize(12f)
                                 setTextColor(Color.WHITE)
                                 gravity = Gravity.CENTER
                                 setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
@@ -1394,5 +1396,28 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
     private fun dpToPx(dp: Float): Int {
         return (dp * context.resources.displayMetrics.density).toInt()
+    }
+
+    /**
+     * Update text settings from SharedPreferences
+     */
+    fun updateTextSettings(multiplier: Float, limitLength: Boolean) {
+        textSizeMultiplier = multiplier
+        limitMessageLength = limitLength
+        Log.d(TAG, "Text settings updated: multiplier=$multiplier, limitLength=$limitLength")
+    }
+
+    /**
+     * Get scaled text size based on multiplier
+     */
+    private fun getScaledTextSize(baseSize: Float): Float {
+        return baseSize * textSizeMultiplier
+    }
+
+    /**
+     * Get adaptive max lines based on message length setting
+     */
+    private fun getAdaptiveMaxLines(defaultMaxLines: Int): Int {
+        return if (limitMessageLength) defaultMaxLines else Int.MAX_VALUE
     }
 }

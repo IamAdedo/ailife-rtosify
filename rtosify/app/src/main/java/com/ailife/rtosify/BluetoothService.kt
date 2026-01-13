@@ -1311,6 +1311,8 @@ class BluetoothService : Service() {
                         dynamicIslandWidth = activePrefs.getInt("dynamic_island_width", 150),
                         dynamicIslandHeight = activePrefs.getInt("dynamic_island_height", 40),
                         dynamicIslandHideWhenIdle = activePrefs.getBoolean("dynamic_island_hide_idle", false),
+                        dynamicIslandTextMultiplier = activePrefs.getFloat("dynamic_island_text_multiplier", 1.0f),
+                        dynamicIslandLimitMessageLength = activePrefs.getBoolean("dynamic_island_limit_message_length", true),
                         forceBtEnabled = activePrefs.getBoolean("force_bt_enabled", false)
                 )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))

@@ -674,6 +674,100 @@
                                 android:progress="20"
                                 android:layout_marginTop="8dp"/>
                         </LinearLayout>
+
+                        <!-- Text Size -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:layout_marginTop="20dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/di_text_size"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:id="@+id/tvTextSizeValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/di_text_size_multiplier"
+                                android:textSize="14sp"
+                                android:textColor="?android:attr/colorAccent"
+                                android:layout_marginTop="4dp"/>
+
+                            <SeekBar
+                                android:id="@+id/seekBarTextSize"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:max="100"
+                                android:progress="40"
+                                android:layout_marginTop="8dp"/>
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:layout_marginTop="4dp">
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="0.6x"
+                                    android:textSize="11sp"
+                                    android:textColor="?android:attr/textColorSecondary"
+                                    android:gravity="start"/>
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:text="1.6x"
+                                    android:textSize="11sp"
+                                    android:textColor="?android:attr/textColorSecondary"
+                                    android:gravity="end"/>
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- Switch: Limit Message Length -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginTop="20dp">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/di_message_length_limit"
+                                    android:textSize="15sp"
+                                    android:textStyle="bold"
+                                    android:textColor="?android:attr/textColorPrimary"/>
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/di_message_length_limit_desc"
+                                    android:textSize="12sp"
+                                    android:textColor="?android:attr/textColorSecondary"/>
+                            </LinearLayout>
+
+                            <com.google.android.material.switchmaterial.SwitchMaterial
+                                android:id="@+id/switchLimitMessageLength"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"/>
+                        </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

@@ -48,6 +48,9 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var tvWidthValue: TextView
     private lateinit var seekBarHeight: SeekBar
     private lateinit var tvHeightValue: TextView
+    private lateinit var seekBarTextSize: SeekBar
+    private lateinit var tvTextSizeValue: TextView
+    private lateinit var switchLimitMessageLength: SwitchMaterial
 
     private lateinit var devicePrefManager: DevicePrefManager
     private lateinit var globalPrefs: SharedPreferences
@@ -81,6 +84,8 @@ class NotificationSettingsActivity : AppCompatActivity() {
         setupYSeekBar()
         setupWidthSeekBar()
         setupHeightSeekBar()
+        setupTextSizeSeekBar()
+        setupLimitMessageLengthSwitch()
         setupCardClickListeners()
     }
 
@@ -113,6 +118,9 @@ class NotificationSettingsActivity : AppCompatActivity() {
         tvWidthValue = findViewById(R.id.tvWidthValue)
         seekBarHeight = findViewById(R.id.seekBarHeight)
         tvHeightValue = findViewById(R.id.tvHeightValue)
+        seekBarTextSize = findViewById(R.id.seekBarTextSize)
+        tvTextSizeValue = findViewById(R.id.tvTextSizeValue)
+        switchLimitMessageLength = findViewById(R.id.switchLimitMessageLength)
     }
 
     private fun setupCardClickListeners() {
@@ -329,6 +337,42 @@ class NotificationSettingsActivity : AppCompatActivity() {
                     override fun onStopTrackingTouch(seekBar: SeekBar?) {}
                 }
         )
+    }
+
+    private fun setupTextSizeSeekBar() {
+        // Load saved text size multiplier (default 1.0, range 0.6 - 1.6)
+        val multiplier = activePrefs.getFloat("dynamic_island_text_multiplier", 1.0f)
+        // Map 0.6-1.6 to 0-100 seekbar range
+        val progress = ((multiplier - 0.6f) * 100).toInt()
+        seekBarTextSize.progress = progress
+        tvTextSizeValue.text = getString(R.string.di_text_size_multiplier, multiplier)
+
+        seekBarTextSize.setOnSeekBarChangeListener(
+                object : SeekBar.OnSeekBarChangeListener {
+                    override fun onProgressChanged(
+                            seekBar: SeekBar?,
+                            progress: Int,
+                            fromUser: Boolean
+                    ) {
+                        // Map 0-100 to 0.6-1.6
+                        val value = 0.6f + (progress / 100f)
+                        tvTextSizeValue.text = getString(R.string.di_text_size_multiplier, value)
+                        activePrefs.edit().putFloat("dynamic_island_text_multiplier", value).apply()
+                        syncSettings()
+                    }
+                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                    override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+                }
+        )
+    }
+
+    private fun setupLimitMessageLengthSwitch() {
+        val isEnabled = activePrefs.getBoolean("dynamic_island_limit_message_length", true)
+        switchLimitMessageLength.isChecked = isEnabled
+        switchLimitMessageLength.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("dynamic_island_limit_message_length", isChecked).apply()
+            syncSettings()
+        }
     }
 
     private fun syncSettings() {

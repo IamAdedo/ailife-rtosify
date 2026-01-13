@@ -126,6 +126,10 @@ class DynamicIslandService : Service() {
         val height = prefs.getInt("dynamic_island_height", 40)
         overlayView.updateDimensions(width, height)
 
+        val textMultiplier = prefs.getFloat("dynamic_island_text_multiplier", 1.0f)
+        val limitMessageLength = prefs.getBoolean("dynamic_island_limit_message_length", true)
+        overlayView.updateTextSettings(textMultiplier, limitMessageLength)
+
         updateState()
     }
 

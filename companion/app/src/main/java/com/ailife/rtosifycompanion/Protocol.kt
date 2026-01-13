@@ -254,6 +254,8 @@ data class SettingsUpdateData(
         val dynamicIslandWidth: Int? = null,
         val dynamicIslandHeight: Int? = null,
         val dynamicIslandHideWhenIdle: Boolean? = null,
+        val dynamicIslandTextMultiplier: Float? = null,
+        val dynamicIslandLimitMessageLength: Boolean? = null,
         val forceBtEnabled: Boolean? = null
 )
 
