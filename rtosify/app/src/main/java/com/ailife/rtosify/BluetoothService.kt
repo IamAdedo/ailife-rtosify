@@ -33,6 +33,10 @@ import android.os.BatteryManager
 import android.os.Binder
 import android.os.Build
 import android.os.Handler
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.os.Bundle
 import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
@@ -877,6 +881,7 @@ class BluetoothService : Service() {
             MessageType.SET_DND -> handleSetDndCommand(message)
             MessageType.FIND_PHONE -> handleFindPhoneCommand(message)
             MessageType.FIND_DEVICE -> handleFindDeviceCommand(message)
+            MessageType.FIND_DEVICE_LOCATION_REQUEST -> handleFindDeviceLocationRequest(message)
             MessageType.FIND_DEVICE_LOCATION_UPDATE -> handleFindDeviceLocationUpdate(message)
             MessageType.MEDIA_CONTROL -> handleMediaControl(message)
             MessageType.CAMERA_START -> handleCameraStart()
@@ -1449,6 +1454,66 @@ class BluetoothService : Service() {
             val intent = Intent("com.ailife.rtosify.STOP_RINGING")
             sendBroadcast(intent)
             Log.i(TAG, "Watch stopped alarm, updating phone UI")
+        }
+    }
+
+    private var findDeviceLocationListener: LocationListener? = null
+
+    private fun handleFindDeviceLocationRequest(message: ProtocolMessage) {
+        val enabled = ProtocolHelper.extractBooleanField(message, "enabled")
+        Log.i(TAG, "Location request received from watch: enabled=$enabled")
+        
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        
+        if (enabled) {
+            if (findDeviceLocationListener == null) {
+                findDeviceLocationListener = object : LocationListener {
+                    override fun onLocationChanged(location: Location) {
+                        sendFindDeviceLocationUpdate(
+                            location.latitude,
+                            location.longitude,
+                            location.accuracy,
+                            0 // RSSI unknown here
+                        )
+                    }
+                    override fun onProviderDisabled(provider: String) {}
+                    override fun onProviderEnabled(provider: String) {}
+                    override fun onStatusChanged(provider: String, status: Int, extras: Bundle) {}
+                }
+                
+                try {
+                    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                        // 1. Send last known location immediately for instant feedback
+                        locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)?.let {
+                            sendFindDeviceLocationUpdate(it.latitude, it.longitude, it.accuracy, 0)
+                        } ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)?.let {
+                            sendFindDeviceLocationUpdate(it.latitude, it.longitude, it.accuracy, 0)
+                        }
+
+                        // 2. Request updates from both GPS and Network for better availability
+                        val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+                        for (provider in providers) {
+                            if (locationManager.isProviderEnabled(provider)) {
+                                locationManager.requestLocationUpdates(
+                                    provider,
+                                    5000L,
+                                    0f,
+                                    findDeviceLocationListener!!
+                                )
+                                Log.i(TAG, "Started $provider updates for watch find request")
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to start location updates for watch request: ${e.message}")
+                }
+            }
+        } else {
+            findDeviceLocationListener?.let {
+                locationManager.removeUpdates(it)
+                findDeviceLocationListener = null
+                Log.i(TAG, "Stopped GPS updates for watch find request")
+            }
         }
     }
 

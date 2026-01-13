@@ -77,7 +77,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        android:layout_above="@id/btnStopAlarm"
+        android:layout_above="@id/buttonContainer"
         android:layout_alignParentStart="true"
         app:cardBackgroundColor="#DD000000"
         app:cardCornerRadius="8dp"

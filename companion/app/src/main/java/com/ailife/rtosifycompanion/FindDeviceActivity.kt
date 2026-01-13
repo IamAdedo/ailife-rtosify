@@ -61,6 +61,9 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
             val binder = service as? BluetoothService.LocalBinder
             bluetoothService = binder?.getService()
             isBound = true
+            
+            // Request remote device to start sending its location
+            bluetoothService?.sendMessage(ProtocolHelper.createFindDeviceLocationRequest(true))
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -393,6 +396,12 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacks(periodicLocationTask)
+        
+        // Tell remote device to stop sending its location
+        if (isBound) {
+            bluetoothService?.sendMessage(ProtocolHelper.createFindDeviceLocationRequest(false))
+        }
+        
         locationManager?.removeUpdates(this)
         if (isBound) {
             unbindService(serviceConnection)

@@ -49,6 +49,7 @@ object MessageType {
     const val FIND_DEVICE = "find_device"
     const val FIND_PHONE = "find_phone"
     const val FIND_DEVICE_LOCATION_UPDATE = "find_device_location_update"
+    const val FIND_DEVICE_LOCATION_REQUEST = "find_device_location_request"
     const val STATUS_UPDATE = "status_update"
     const val SET_DND = "set_dnd"
     const val SET_WIFI = "set_wifi"
@@ -593,6 +594,12 @@ object ProtocolHelper {
     fun createFindDeviceLocationUpdate(locationData: FindDeviceLocationData): ProtocolMessage {
         val data = gson.toJsonTree(locationData).asJsonObject
         return ProtocolMessage(type = MessageType.FIND_DEVICE_LOCATION_UPDATE, data = data)
+    }
+
+    fun createFindDeviceLocationRequest(enabled: Boolean): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("enabled", enabled)
+        return ProtocolMessage(type = MessageType.FIND_DEVICE_LOCATION_REQUEST, data = data)
     }
 
     fun createExecuteNotificationAction(notifKey: String, actionKey: String): ProtocolMessage {
