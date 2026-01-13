@@ -34,6 +34,9 @@ class AppPickerActivity : AppCompatActivity() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: AppPickerAdapter
     private lateinit var toolbar: Toolbar
+    private lateinit var editTextSearch: com.google.android.material.textfield.TextInputEditText
+
+    private var allAppsList = listOf<PhoneAppItem>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -45,13 +48,46 @@ class AppPickerActivity : AppCompatActivity() {
         supportActionBar?.title = getString(R.string.dialog_install_option_extract)
 
         progressBar = findViewById(R.id.progressBar)
+        editTextSearch = findViewById(R.id.editTextSearch)
         recyclerView = findViewById(R.id.recyclerViewApps)
         recyclerView.layoutManager = LinearLayoutManager(this)
 
         adapter = AppPickerAdapter { app -> extractAndReturn(app) }
         recyclerView.adapter = adapter
 
+        setupSearch()
         loadApps()
+    }
+
+    private fun setupSearch() {
+        editTextSearch.addTextChangedListener(
+            object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: android.text.Editable?) {
+                    filterApps(s?.toString() ?: "")
+                }
+            }
+        )
+    }
+
+    private var filterJob: Job? = null
+
+    private fun filterApps(query: String) {
+        filterJob?.cancel()
+        filterJob = lifecycleScope.launch {
+            val filtered = withContext(Dispatchers.Default) {
+                if (query.isEmpty()) {
+                    allAppsList
+                } else {
+                    allAppsList.filter { app ->
+                        app.label.contains(query, ignoreCase = true) ||
+                                app.packageName.contains(query, ignoreCase = true)
+                    }
+                }
+            }
+            adapter.updateList(filtered)
+        }
     }
 
     private fun loadApps() {
@@ -69,15 +105,19 @@ class AppPickerActivity : AppCompatActivity() {
                 if (pkgName == packageName) return@mapNotNull null
                 
                 val appInfo = resolveInfo.activityInfo.applicationInfo
+                val label = resolveInfo.loadLabel(pm).toString()
+                
                 PhoneAppItem(
                     packageName = pkgName,
+                    label = label,
                     sourceDir = appInfo.sourceDir
                 )
-            }.distinctBy { it.packageName }
+            }.distinctBy { it.packageName }.sortedBy { it.label.lowercase() }
 
             withContext(Dispatchers.Main) {
                 progressBar.visibility = View.GONE
-                adapter.updateList(filteredApps)
+                allAppsList = filteredApps
+                filterApps(editTextSearch.text?.toString() ?: "")
             }
         }
     }
@@ -120,13 +160,12 @@ class AppPickerActivity : AppCompatActivity() {
         return super.onOptionsItemSelected(item)
     }
 
-    data class PhoneAppItem(val packageName: String, val sourceDir: String)
+    data class PhoneAppItem(val packageName: String, val label: String, val sourceDir: String)
 
     class AppPickerAdapter(private val onClick: (PhoneAppItem) -> Unit) : RecyclerView.Adapter<AppPickerAdapter.ViewHolder>() {
         private var list = listOf<PhoneAppItem>()
         
-        // Caches para evitar IPC repetitivo
-        private val labelCache = LruCache<String, String>(200)
+        // Caches para evitar IPC repetitivo (ainda mantendo para os ícones)
         private val iconCache = LruCache<String, Drawable>(100)
 
         @SuppressLint("NotifyDataSetChanged")
@@ -137,7 +176,7 @@ class AppPickerActivity : AppCompatActivity() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.item_app_picker, parent, false)
-            return ViewHolder(view, onClick, labelCache, iconCache)
+            return ViewHolder(view, onClick, iconCache)
         }
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
@@ -149,7 +188,6 @@ class AppPickerActivity : AppCompatActivity() {
         class ViewHolder(
             itemView: View, 
             private val onClick: (PhoneAppItem) -> Unit,
-            private val labelCache: LruCache<String, String>,
             private val iconCache: LruCache<String, Drawable>
         ) : RecyclerView.ViewHolder(itemView) {
             private val imgIcon: ImageView = itemView.findViewById(R.id.imgAppIcon)
@@ -160,6 +198,7 @@ class AppPickerActivity : AppCompatActivity() {
 
             fun bind(item: PhoneAppItem) {
                 tvPkg.text = item.packageName
+                tvName.text = item.label
                 
                 itemView.setOnClickListener { onClick(item) }
 
@@ -167,38 +206,29 @@ class AppPickerActivity : AppCompatActivity() {
                 loadJob?.cancel()
 
                 // Tenta cache
-                val cachedLabel = labelCache.get(item.packageName)
                 val cachedIcon = iconCache.get(item.packageName)
                 
-                if (cachedLabel != null && cachedIcon != null) {
-                    tvName.text = cachedLabel
+                if (cachedIcon != null) {
                     imgIcon.setImageDrawable(cachedIcon)
                     return
                 }
 
                 imgIcon.setImageResource(android.R.drawable.sym_def_app_icon)
-                tvName.text = "..."
 
-                // Carrega nome e ícone de forma assíncrona
+                // Carrega ícone de forma assíncrona
                 loadJob = (itemView.context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
                     val pm = itemView.context.packageManager
                     try {
                         val appInfo = pm.getApplicationInfo(item.packageName, 0)
-                        val name = appInfo.loadLabel(pm).toString()
                         val icon = appInfo.loadIcon(pm)
 
-                        labelCache.put(item.packageName, name)
                         iconCache.put(item.packageName, icon)
 
                         withContext(Dispatchers.Main) {
-                            tvName.text = name
                             imgIcon.setImageDrawable(icon)
                         }
                     } catch (e: Exception) {
-                        // Keep package name as fallback
-                        withContext(Dispatchers.Main) {
-                            tvName.text = item.packageName
-                        }
+                        // Icone padrão já setado
                     }
                 }
             }
