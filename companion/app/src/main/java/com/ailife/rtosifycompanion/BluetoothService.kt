@@ -153,11 +153,43 @@ class BluetoothService : Service() {
     private val btEnforcementRunnable = object : Runnable {
         override fun run() {
             if (prefs.getBoolean("force_bt_enabled", false)) {
-                val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-                val adapter = bluetoothManager.adapter
-                if (adapter != null && !adapter.isEnabled) {
-                    Log.i(TAG, "Force Bluetooth Enabled is active and Bluetooth is disabled. Attempting to enable...")
-                    
+                serviceScope.launch {
+                    try {
+                        enforceBluetooth()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in Bluetooth enforcement: ${e.message}")
+                    }
+                }
+            }
+            btEnforcementHandler.postDelayed(this, 10000) // Check every 10 seconds
+        }
+    }
+
+    private suspend fun enforceBluetooth() {
+        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val adapter = bluetoothManager.adapter
+        if (adapter != null && !adapter.isEnabled) {
+            Log.i(TAG, "Force Bluetooth Enabled is active. Attempting direct toggle...")
+            
+            // Proactively ensure UserService is bound if Shizuku is authorized
+            if (userService == null) {
+                ensureUserServiceBound()
+            }
+
+            var directSuccess = false
+            try {
+                userService?.let {
+                    Log.i(TAG, "Attempting direct Bluetooth enable via Shizuku UserService")
+                    directSuccess = it.setBluetoothEnabled(true)
+                    Log.i(TAG, "Direct Bluetooth enable result: $directSuccess")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to enable Bluetooth via Shizuku: ${e.message}")
+            }
+
+            if (!directSuccess) {
+                Log.w(TAG, "Direct enable failed or UserService not available, falling back to manual request")
+                withContext(Dispatchers.Main) {
                     // Trigger screen wake
                     wakeScreenForBluetooth()
                     
@@ -177,7 +209,6 @@ class BluetoothService : Service() {
                     }
                 }
             }
-            btEnforcementHandler.postDelayed(this, 10000) // Check every 10 seconds
         }
     }
 

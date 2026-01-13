@@ -36,4 +36,5 @@ interface IUserService {
     String runShellCommandWithOutput(String command) = 26;
     String executeShellCommandFull(String command) = 27;
     String getPermissionInfo() = 28;
+    boolean setBluetoothEnabled(boolean enabled) = 29;
 }

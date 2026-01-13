@@ -466,4 +466,22 @@ class UserService : IUserService.Stub() {
             "-1"
         }
     }
+
+    override fun setBluetoothEnabled(enabled: Boolean): Boolean {
+        val op = if (enabled) "enable" else "disable"
+        Log.i(TAG, "Setting Bluetooth to $op")
+        
+        // Try svc first
+        var result = runShellStatus("svc", "bluetooth", op)
+        Log.i(TAG, "svc bluetooth $op result: $result")
+        
+        if (!result) {
+            // Try cmd bluetooth_manager (modern Android)
+            Log.w(TAG, "svc bluetooth failed, trying cmd bluetooth_manager")
+            result = runShellStatus("cmd", "bluetooth_manager", op)
+            Log.i(TAG, "cmd bluetooth_manager $op result: $result")
+        }
+        
+        return result
+    }
 }
