@@ -1456,16 +1456,7 @@ class BluetoothService : Service() {
         try {
             val shareData = ProtocolHelper.extractData<ShareData>(message)
             mainHandler.post {
-                val intent = Intent(Intent.ACTION_SEND).apply {
-                    type = shareData.type
-                    putExtra(Intent.EXTRA_TEXT, shareData.text)
-                    putExtra(Intent.EXTRA_SUBJECT, shareData.title)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                val chooser = Intent.createChooser(intent, shareData.title ?: "Share")
-                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(chooser)
-                Log.d(TAG, "Opened share chooser for received sync data")
+                showShareChooser(shareData.title ?: "Share", shareData.text, shareData.type)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling SHARE_SYNC: ${e.message}")
@@ -2499,6 +2490,13 @@ class BluetoothService : Service() {
                         targetFile = File(targetFile, fileData.name)
                     }
                 }
+            } else if (fileData.type == "SHARE" || fileData.type == "REGULAR") {
+                val downloadsDir =
+                        android.os.Environment.getExternalStoragePublicDirectory(
+                                android.os.Environment.DIRECTORY_DOWNLOADS
+                        )
+                if (!downloadsDir.exists()) downloadsDir.mkdirs()
+                targetFile = File(downloadsDir, fileData.name)
             } else {
                 val cacheDirToUse = externalCacheDir ?: cacheDir
                 targetFile = File(cacheDirToUse, fileData.name)
@@ -2642,6 +2640,20 @@ class BluetoothService : Service() {
             } else if (receivingFileType == FileTransferData.TYPE_WATCHFACE) {
                 val wfFile = if (finalPath != null) File(finalPath) else file
                 handleWatchFaceReceived(wfFile)
+            } else if (receivingFileType == "SHARE") {
+                val shareFile = if (finalPath != null) File(finalPath) else file
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    val authority = "${packageName}.fileprovider"
+                    val uri = androidx.core.content.FileProvider.getUriForFile(this@BluetoothService, authority, shareFile)
+                    showShareChooser("Received File: ${shareFile.name}", null, contentResolver.getType(uri) ?: "*/*", uri)
+                    showFileReceivedNotification(shareFile)
+                    Toast.makeText(
+                                    this@BluetoothService,
+                                    "File Received: ${shareFile.name}",
+                                    Toast.LENGTH_LONG
+                            )
+                            .show()
+                }
             } else {
                 android.util.Log.d(
                         TAG,
@@ -3731,7 +3743,7 @@ class BluetoothService : Service() {
         sendUriFile(uri, "APK")
     }
 
-    fun sendUriFile(uri: Uri, type: String = "REGULAR") {
+    fun sendUriFile(uri: Uri, type: String = "SHARE") {
         serviceScope.launch(Dispatchers.IO) {
             try {
                 contentResolver.openInputStream(uri)?.use { inputStream ->
@@ -3876,6 +3888,51 @@ class BluetoothService : Service() {
     }
 
 
+
+    private fun showShareChooser(title: String, text: String?, type: String?, streamUri: Uri? = null) {
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            this.type = type ?: (if (streamUri != null) "*/*" else "text/plain")
+            if (text != null) putExtra(Intent.EXTRA_TEXT, text)
+            if (title != null) putExtra(Intent.EXTRA_SUBJECT, title)
+            if (streamUri != null) {
+                putExtra(Intent.EXTRA_STREAM, streamUri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        val chooser = Intent.createChooser(intent, title)
+        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(chooser)
+        Log.d(TAG, "Opened share chooser: $title")
+    }
+
+    private fun showFileReceivedNotification(file: File) {
+        val authority = "${packageName}.fileprovider"
+        val uri = androidx.core.content.FileProvider.getUriForFile(this, authority, file)
+
+        val intent = Intent(Intent.ACTION_VIEW)
+        intent.setDataAndType(uri, contentResolver.getType(uri) ?: "*/*")
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+
+        val pendingIntent = PendingIntent.getActivity(
+                this,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = androidx.core.app.NotificationCompat.Builder(this, "service_channel")
+                .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setContentTitle("File Shared Successfully")
+                .setContentText("Received ${file.name}")
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                .build()
+
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(file.hashCode(), notification)
+    }
 
     private fun showErrorNotification(msg: String) {
         val builder =

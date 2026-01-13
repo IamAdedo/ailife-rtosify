@@ -5,4 +5,5 @@
     <files-path name="arquivos_internos" path="." />
     <cache-path name="cache_interno" path="." />
     <external-cache-path name="cache_externo" path="." />
+    <external-path name="external_downloads" path="Download" />
 </paths>
