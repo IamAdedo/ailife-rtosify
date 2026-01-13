@@ -1486,22 +1486,17 @@ class BluetoothService : Service() {
                         // 1. Send last known location immediately for instant feedback
                         locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)?.let {
                             sendFindDeviceLocationUpdate(it.latitude, it.longitude, it.accuracy, 0)
-                        } ?: locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)?.let {
-                            sendFindDeviceLocationUpdate(it.latitude, it.longitude, it.accuracy, 0)
                         }
 
-                        // 2. Request updates from both GPS and Network for better availability
-                        val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
-                        for (provider in providers) {
-                            if (locationManager.isProviderEnabled(provider)) {
-                                locationManager.requestLocationUpdates(
-                                    provider,
-                                    5000L,
-                                    0f,
-                                    findDeviceLocationListener!!
-                                )
-                                Log.i(TAG, "Started $provider updates for watch find request")
-                            }
+                        // 2. Request updates from GPS only (high accuracy) and keep it active
+                        if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                            locationManager.requestLocationUpdates(
+                                LocationManager.GPS_PROVIDER,
+                                1000L, // More frequent updates (1 sec) to keep GPS active and get lock faster
+                                0f,
+                                findDeviceLocationListener!!
+                            )
+                            Log.i(TAG, "Started GPS updates for watch find request")
                         }
                     }
                 } catch (e: Exception) {
