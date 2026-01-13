@@ -111,15 +111,25 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
                     val accuracy = intent.getFloatExtra("accuracy", 0f)
                     val rssi = intent.getIntExtra("rssi", 0)
 
+                    Log.d("FindDeviceActivity", "Received location update: lat=$latitude, lon=$longitude, acc=$accuracy, rssi=$rssi")
+
                     watchLocation = Location("watch").apply {
                         this.latitude = latitude
                         this.longitude = longitude
                     }
-                    currentRssi = rssi
+                    
+                    // Only update RSSI from remote if we don't have a valid local one,
+                    // or if the remote one is actually valid (non-zero) and different?
+                    // Actually, if we are scanning locally, local is truth. 
+                    // Remote RSSI is "Watch's view of Phone". 
+                    // Let's only update if local is 0 (not found yet).
+                    if (currentRssi == 0 && rssi != 0) {
+                         currentRssi = rssi
+                         updateSignalStrength(rssi)
+                    }
 
                     updateWatchMarker(latitude, longitude, accuracy)
                     updateDistanceDisplay()
-                    updateSignalStrength(rssi)
                     lastUpdateTimestamp = System.currentTimeMillis()
                     updateLastUpdatedText()
                 }
@@ -144,17 +154,19 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
                     
                     if (device != null && device.bondState == BluetoothDevice.BOND_BONDED) {
                         currentRssi = rssi
+                        Log.d("FindDeviceActivity", "Local scan found bonded device: RSSI=$rssi")
                         updateSignalStrength(rssi)
-                        
-                        if (ActivityCompat.checkSelfPermission(context!!, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
-                            bluetoothAdapter?.cancelDiscovery()
-                        }
+                        // Don't cancel, we want continuous updates!
+                        // But finding consumes battery. 
+                        // Maybe restart scan in ACTION_DISCOVERY_FINISHED instead.
                     }
                 }
                 BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
                      isScanning = false
+                     // Continuous scan loop while activity is active
                      if (!isFinishing) {
-                         handler.postDelayed({ startSignalStrengthMonitoring() }, 10000)
+                         // Small delay to allow other radio ops
+                         handler.postDelayed({ startSignalStrengthMonitoring() }, 2000)
                      }
                 }
             }
@@ -304,6 +316,7 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
             location.accuracy,
             currentRssi
         )
+        Log.d("FindDeviceActivity", "Sent own location update: lat=${location.latitude}, lon=${location.longitude}, acc=${location.accuracy}, rssi=$currentRssi")
 
         updateDistanceDisplay()
     }

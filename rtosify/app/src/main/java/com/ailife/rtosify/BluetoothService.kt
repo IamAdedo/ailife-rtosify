@@ -1458,14 +1458,57 @@ class BluetoothService : Service() {
     }
 
     private var findDeviceLocationListener: LocationListener? = null
+    private var findDeviceRssiReceiver: BroadcastReceiver? = null
+    @Volatile private var currentFindDeviceRssi: Int = 0
 
     private fun handleFindDeviceLocationRequest(message: ProtocolMessage) {
         val enabled = ProtocolHelper.extractBooleanField(message, "enabled")
         Log.i(TAG, "Location request received from watch: enabled=$enabled")
         
         val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val btAdapter = (getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter
         
         if (enabled) {
+            // Start RSSI Scanning
+            if (findDeviceRssiReceiver == null) {
+                currentFindDeviceRssi = 0
+                findDeviceRssiReceiver = object : BroadcastReceiver() {
+                    override fun onReceive(context: Context?, intent: Intent?) {
+                        if (intent?.action == BluetoothDevice.ACTION_FOUND) {
+                            val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                            val rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE).toInt()
+                            Log.d(TAG, "Discovery found device: ${device?.name ?: "Unknown"} (${device?.address}) RSSI=$rssi")
+                            // If this is the bonded device
+                            if (device != null && device.bondState == BluetoothDevice.BOND_BONDED) {
+                                currentFindDeviceRssi = rssi
+                                Log.d(TAG, "Target bonded device found! RSSI=$rssi")
+                            }
+                        } else if (intent?.action == BluetoothAdapter.ACTION_DISCOVERY_FINISHED) {
+                           // Restart scan if still enabled and listening
+                            if (findDeviceRssiReceiver != null) {
+                                serviceScope.launch {
+                                    delay(2000)
+                                    if (findDeviceRssiReceiver != null && btAdapter?.isEnabled == true) {
+                                         if (ActivityCompat.checkSelfPermission(this@BluetoothService, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
+                                             btAdapter.startDiscovery()
+                                         }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                val filter = IntentFilter().apply {
+                    addAction(BluetoothDevice.ACTION_FOUND)
+                    addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+                }
+                registerReceiver(findDeviceRssiReceiver, filter)
+                
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
+                     btAdapter?.startDiscovery()
+                }
+            }
+
             if (findDeviceLocationListener == null) {
                 findDeviceLocationListener = object : LocationListener {
                     override fun onLocationChanged(location: Location) {
@@ -1473,7 +1516,7 @@ class BluetoothService : Service() {
                             location.latitude,
                             location.longitude,
                             location.accuracy,
-                            0 // RSSI unknown here
+                            currentFindDeviceRssi // Use actual scanned RSSI
                         )
                     }
                     override fun onProviderDisabled(provider: String) {}
@@ -1482,28 +1525,35 @@ class BluetoothService : Service() {
                 }
                 
                 try {
-                    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                        // 1. Send last known location immediately for instant feedback
+                        // 1. Send last known location immediately
                         locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)?.let {
-                            sendFindDeviceLocationUpdate(it.latitude, it.longitude, it.accuracy, 0)
+                            sendFindDeviceLocationUpdate(it.latitude, it.longitude, it.accuracy, currentFindDeviceRssi)
                         }
 
-                        // 2. Request updates from GPS only (high accuracy) and keep it active
-                        if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                            locationManager.requestLocationUpdates(
-                                LocationManager.GPS_PROVIDER,
-                                1000L, // More frequent updates (1 sec) to keep GPS active and get lock faster
-                                0f,
-                                findDeviceLocationListener!!
-                            )
-                            Log.i(TAG, "Started GPS updates for watch find request")
-                        }
-                    }
+                        // 2. Request updates from GPS
+                        locationManager.requestLocationUpdates(
+                            LocationManager.GPS_PROVIDER,
+                            1000L,
+                            0f,
+                            findDeviceLocationListener!!,
+                            Looper.getMainLooper()
+                        )
+                        Log.i(TAG, "Started GPS updates for watch find request")
+                    
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to start location updates for watch request: ${e.message}")
                 }
             }
         } else {
+            // Stop RSSI Scanning
+            findDeviceRssiReceiver?.let {
+                try { unregisterReceiver(it) } catch(e: Exception) {}
+                findDeviceRssiReceiver = null
+                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
+                     btAdapter?.cancelDiscovery()
+                }
+            }
+            
             findDeviceLocationListener?.let {
                 locationManager.removeUpdates(it)
                 findDeviceLocationListener = null
