@@ -195,6 +195,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         if (intent?.getBooleanExtra("request_mirror", false) == true) {
             startPhoneMirroring()
         }
+
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -204,6 +205,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             startPhoneMirroring()
         }
     }
+
+
 
     override fun onResume() {
         super.onResume()

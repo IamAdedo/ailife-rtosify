@@ -1120,6 +1120,7 @@ class BluetoothService : Service() {
             MessageType.WIFI_KEY_EXCHANGE -> handleWifiKeyExchange(message)
             MessageType.WIFI_TEST_ENCRYPT -> handleWifiTestEncrypt(message)
             MessageType.SYNC_PHONE_STATE -> handleSyncPhoneState(message)
+            MessageType.SHARE_SYNC -> handleShareReceived(message)
             else -> Log.w(TAG, "Unknown message type: ${message.type}")
         }
     }
@@ -1306,6 +1307,10 @@ class BluetoothService : Service() {
                     stopBluetoothEnforcement()
                 }
             }
+            settings.shareSyncEnabled?.let {
+                prefs.edit().putBoolean("sharing_sync_enabled", it).apply()
+                Log.d(TAG, "Sharing Sync setting updated: $it")
+            }
 
             // Notify DynamicIslandService of settings change
             sendBroadcast(Intent(ACTION_UPDATE_DI_SETTINGS).setPackage(packageName))
@@ -1327,6 +1332,11 @@ class BluetoothService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error updating WiFi rule", e)
         }
+    }
+
+    fun sendShareSync(shareData: ShareData) {
+        if (!prefs.getBoolean("sharing_sync_enabled", false)) return
+        sendMessage(ProtocolHelper.createShareSync(shareData))
     }
 
     // Clipboard sync functions
@@ -1438,6 +1448,27 @@ class BluetoothService : Service() {
             } catch (e: Exception) {
                 Log.e(TAG, "❌ Failed to update clipboard: ${e.message}")
             }
+        }
+    }
+
+    private fun handleShareReceived(message: ProtocolMessage) {
+        if (!prefs.getBoolean("sharing_sync_enabled", false)) return
+        try {
+            val shareData = ProtocolHelper.extractData<ShareData>(message)
+            mainHandler.post {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = shareData.type
+                    putExtra(Intent.EXTRA_TEXT, shareData.text)
+                    putExtra(Intent.EXTRA_SUBJECT, shareData.title)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                val chooser = Intent.createChooser(intent, shareData.title ?: "Share")
+                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(chooser)
+                Log.d(TAG, "Opened share chooser for received sync data")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling SHARE_SYNC: ${e.message}")
         }
     }
 
@@ -3697,11 +3728,48 @@ class BluetoothService : Service() {
     }
 
     fun sendApkFile(uri: Uri) {
-        contentResolver.openInputStream(uri)?.use { inputStream ->
-            val tempFile = File(cacheDir, "temp_upload.apk")
-            tempFile.outputStream().use { outputStream -> inputStream.copyTo(outputStream) }
-            sendFile(tempFile, "APK")
+        sendUriFile(uri, "APK")
+    }
+
+    fun sendUriFile(uri: Uri, type: String = "REGULAR") {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val fileName = getFileNameFromUri(uri) ?: "shared_file"
+                    val tempFile = File(cacheDir, fileName)
+                    tempFile.outputStream().use { outputStream -> inputStream.copyTo(outputStream) }
+                    sendFile(tempFile, type)
+                }
+            } catch (e: Exception) {
+                Log.e("BluetoothService", "Error sending URI file: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    callback?.onError(getString(R.string.toast_upload_failed))
+                }
+            }
         }
+    }
+
+    private fun getFileNameFromUri(uri: Uri): String? {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            val cursor = contentResolver.query(uri, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val index = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (index != -1) {
+                        result = it.getString(index)
+                    }
+                }
+            }
+        }
+        if (result == null) {
+            result = uri.path
+            val cut = result?.lastIndexOf('/') ?: -1
+            if (cut != -1) {
+                result = result?.substring(cut + 1)
+            }
+        }
+        return result
     }
 
     fun sendFile(
@@ -3807,18 +3875,7 @@ class BluetoothService : Service() {
         }
     }
 
-    private fun getFileNameFromUri(uri: Uri): String? {
-        var fileName: String? = null
-        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            if (cursor.moveToFirst()) {
-                val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                if (nameIndex != -1) {
-                    fileName = cursor.getString(nameIndex)
-                }
-            }
-        }
-        return fileName
-    }
+
 
     private fun showErrorNotification(msg: String) {
         val builder =

@@ -144,6 +144,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         if (intent?.getBooleanExtra("request_mirror", false) == true) {
             startWatchMirroring()
         }
+
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -152,7 +153,10 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         if (intent?.getBooleanExtra("request_mirror", false) == true) {
             startWatchMirroring()
         }
+
     }
+
+
 
     override fun onResume() {
         super.onResume()

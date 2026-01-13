@@ -102,6 +102,18 @@
         </activity>
 
         <activity
+            android:name=".ShareToPhoneActivity"
+            android:exported="true"
+            android:label="Share to Phone"
+            android:theme="@style/Theme.Smartwatch">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
+
+        <activity
             android:name=".WelcomeActivity"
             android:exported="false"
             android:screenOrientation="portrait"

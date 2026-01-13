@@ -137,9 +137,20 @@ object MessageType {
     
     // Sync phone foreground state
     const val SYNC_PHONE_STATE = "sync_phone_state"
+    
+    // Sharing Synchronization
+    const val SHARE_SYNC = "share_sync"
 }
 
 data class PhoneBatteryData(val level: Int, val isCharging: Boolean)
+
+// Sharing sync data
+data class ShareData(
+    val title: String?,
+    val text: String?,
+    val url: String?,
+    val type: String // mime type
+)
 
 // Data classes for specific message types
 data class CameraFrameData(val imageBase64: String)
@@ -256,7 +267,8 @@ data class SettingsUpdateData(
         val dynamicIslandHideWhenIdle: Boolean? = null,
         val dynamicIslandTextMultiplier: Float? = null,
         val dynamicIslandLimitMessageLength: Boolean? = null,
-        val forceBtEnabled: Boolean? = null
+        val forceBtEnabled: Boolean? = null,
+        val shareSyncEnabled: Boolean? = null
 )
 
 data class HealthDataUpdate(
@@ -1016,5 +1028,10 @@ object ProtocolHelper {
         val data = JsonObject()
         data.addProperty("success", success)
         return ProtocolMessage(type = MessageType.WIFI_TEST_ACK, data = data)
+    }
+
+    fun createShareSync(shareData: ShareData): ProtocolMessage {
+        val data = gson.toJsonTree(shareData).asJsonObject
+        return ProtocolMessage(type = MessageType.SHARE_SYNC, data = data)
     }
 }

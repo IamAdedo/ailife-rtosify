@@ -16,6 +16,7 @@ class WatchAutomationsActivity : AppCompatActivity() {
     private lateinit var switchAutoData: SwitchMaterial
     private lateinit var switchAutoBtTether: SwitchMaterial
     private lateinit var switchForceBt: SwitchMaterial
+    private lateinit var switchSharingSync: SwitchMaterial
 
     private lateinit var devicePrefManager: DevicePrefManager
     private lateinit var globalPrefs: SharedPreferences
@@ -41,6 +42,7 @@ class WatchAutomationsActivity : AppCompatActivity() {
         setupAutoDataSwitch()
         setupAutoBtTetherSwitch()
         setupForceBtSwitch()
+        setupSharingSyncSwitch()
     }
 
     private fun initViews() {
@@ -50,6 +52,7 @@ class WatchAutomationsActivity : AppCompatActivity() {
         switchAutoData = findViewById(R.id.switchAutoData)
         switchAutoBtTether = findViewById(R.id.switchAutoBtTether)
         switchForceBt = findViewById(R.id.switchForceBt)
+        switchSharingSync = findViewById(R.id.switchSharingSync)
     }
 
     private fun setupBootServiceSwitch() {
@@ -101,6 +104,15 @@ class WatchAutomationsActivity : AppCompatActivity() {
         switchForceBt.isChecked = isEnabled
         switchForceBt.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean("force_bt_enabled", isChecked).apply()
+            sendAutomationUpdate()
+        }
+    }
+
+    private fun setupSharingSyncSwitch() {
+        val isEnabled = activePrefs.getBoolean("sharing_sync_enabled", false)
+        switchSharingSync.isChecked = isEnabled
+        switchSharingSync.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("sharing_sync_enabled", isChecked).apply()
             sendAutomationUpdate()
         }
     }

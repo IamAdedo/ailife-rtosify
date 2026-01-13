@@ -120,6 +120,8 @@
     <string name="automation_bt_tether_desc">Enable phone BT tethering and watch internet access when connected</string>
     <string name="automation_force_bt_title">Force Bluetooth Enabled</string>
     <string name="automation_force_bt_desc">Automatically re-enable Bluetooth if it is disabled</string>
+    <string name="automation_sharing_sync_title">Sharing Sync</string>
+    <string name="automation_sharing_sync_desc">Forward shared content (links, text) between phone and watch</string>
     <string name="menu_health_desc">Monitor health metrics</string>
     <string name="menu_alarms">Alarms</string>
     <string name="menu_alarms_desc">Manage watch alarms</string>
