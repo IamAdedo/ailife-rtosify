@@ -260,7 +260,6 @@ class BluetoothService : Service() {
         const val NOTIFICATION_ID_DISCONNECTED = 12
         const val NOTIFICATION_ID_DISCONNECTION_ALERT = 13 // Alert shown when phone disconnects
 
-        const val INSTALL_NOTIFICATION_ID = 2
         const val MIRRORED_NOTIFICATION_ID_START = 1000
 
         const val CHANNEL_ID_WAITING = "channel_status_waiting"
@@ -268,7 +267,6 @@ class BluetoothService : Service() {
         const val CHANNEL_ID_DISCONNECTED = "channel_status_disconnected"
         const val CHANNEL_ID_DISCONNECTION_ALERT = "channel_disconnection_alert"
 
-        const val INSTALL_CHANNEL_ID = "install_channel"
         const val MIRRORED_CHANNEL_ID = "mirrored_notifications"
 
         const val ACTION_STOP_SERVICE = "ACTION_STOP_SERVICE"
@@ -1158,20 +1156,24 @@ class BluetoothService : Service() {
         btEnforcementHandler.removeCallbacks(btEnforcementRunnable)
     }
 
-    private fun wakeScreenForBluetooth() {
+    private fun wakeScreen(tag: String = "General") {
         try {
             val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
             if (!powerManager.isInteractive) {
                 val wakeLock = powerManager.newWakeLock(
                     PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                    "rtosify:BtEnforceWakeLock"
+                    "rtosify:WakeLock:$tag"
                 )
                 wakeLock.acquire(3000)
-                Log.d(TAG, "Screen woken up for Bluetooth enforcement")
+                Log.d(TAG, "Screen woken up for: $tag")
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to wake screen: ${e.message}")
+            Log.e(TAG, "Failed to wake screen ($tag): ${e.message}")
         }
+    }
+
+    private fun wakeScreenForBluetooth() {
+        wakeScreen("BluetoothEnforcement")
     }
 
     private fun triggerBluetoothEnableRequest() {
@@ -3398,16 +3400,28 @@ class BluetoothService : Service() {
             }
         }
 
-        // Fallback to manual intent
-        val canInstall = packageManager.canRequestPackageInstalls()
-        android.util.Log.d(TAG, "canRequestPackageInstalls: $canInstall")
-        if (!canInstall) {
-            android.util.Log.d(TAG, "Showing permission notification")
-            showPermissionNotification()
-            return
+        // Wake screen for manual fallback
+        wakeScreen("ApkInstall")
+
+        // Directly launch install intent instead of notification
+        try {
+            val authority = "${packageName}.fileprovider"
+            android.util.Log.d(TAG, "Using FileProvider authority: $authority")
+            val installUri = FileProvider.getUriForFile(this, authority, tempFile)
+            android.util.Log.d(TAG, "Install URI: $installUri")
+            val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(installUri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(installIntent)
+            android.util.Log.d(TAG, "Directed to system install dialog")
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Error launching install intent: ${e.message}", e)
+            mainHandler.post {
+                Toast.makeText(this, "Failed to start install: ${e.message}", Toast.LENGTH_LONG).show()
+            }
         }
-        android.util.Log.d(TAG, "Showing install notification")
-        showInstallNotification(tempFile)
     }
 
     private fun executeShellCommand(command: String) {
@@ -3659,6 +3673,9 @@ class BluetoothService : Service() {
             }
         }
 
+        // Wake screen for manual fallback
+        wakeScreen("AppUninstall")
+
         // Fallback to manual intent
         mainHandler.post { Toast.makeText(this, "Uninstalling: $pkg", Toast.LENGTH_SHORT).show() }
 
@@ -3801,68 +3818,6 @@ class BluetoothService : Service() {
             }
         }
         return fileName
-    }
-
-    private fun showInstallNotification(tempFile: File) {
-        android.util.Log.d(
-                TAG,
-                "showInstallNotification: Creating notification for ${tempFile.name}"
-        )
-        try {
-            val authority = "${packageName}.fileprovider"
-            android.util.Log.d(TAG, "Using FileProvider authority: $authority")
-            val installUri = FileProvider.getUriForFile(this, authority, tempFile)
-            android.util.Log.d(TAG, "Install URI: $installUri")
-            val installIntent =
-                    Intent(Intent.ACTION_VIEW).apply {
-                        setDataAndType(installUri, "application/vnd.android.package-archive")
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-            val pendingIntent =
-                    PendingIntent.getActivity(
-                            this,
-                            0,
-                            installIntent,
-                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-            val builder =
-                    NotificationCompat.Builder(this, INSTALL_CHANNEL_ID)
-                            .setContentTitle(getString(R.string.notification_apk_received_title))
-                            .setContentText(getString(R.string.notification_apk_received_text))
-                            .setSmallIcon(android.R.drawable.stat_sys_download_done)
-                            .setPriority(NotificationCompat.PRIORITY_HIGH)
-                            .setAutoCancel(true)
-                            .setContentIntent(pendingIntent)
-            notificationManager.notify(INSTALL_NOTIFICATION_ID, builder.build())
-            android.util.Log.d(TAG, "Notification posted with ID: $INSTALL_NOTIFICATION_ID")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "Error creating install notification: ${e.message}", e)
-        }
-    }
-
-    private fun showPermissionNotification() {
-        val intent =
-                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-                    data = "package:$packageName".toUri()
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-        val pendingIntent =
-                PendingIntent.getActivity(
-                        this,
-                        0,
-                        intent,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-        val builder =
-                NotificationCompat.Builder(this, INSTALL_CHANNEL_ID)
-                        .setContentTitle(getString(R.string.notification_config_required_title))
-                        .setContentText(getString(R.string.notification_config_required_text))
-                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
-                        .setPriority(NotificationCompat.PRIORITY_HIGH)
-                        .setAutoCancel(true)
-                        .setContentIntent(pendingIntent)
-        notificationManager.notify(INSTALL_NOTIFICATION_ID, builder.build())
     }
 
     private fun showErrorNotification(msg: String) {
@@ -4554,9 +4509,6 @@ class BluetoothService : Service() {
                         }
         )
 
-        notificationManager.createNotificationChannel(
-                NotificationChannel(INSTALL_CHANNEL_ID, "APKs", NotificationManager.IMPORTANCE_HIGH)
-        )
         notificationManager.createNotificationChannel(
                 NotificationChannel(
                         MIRRORED_CHANNEL_ID,
