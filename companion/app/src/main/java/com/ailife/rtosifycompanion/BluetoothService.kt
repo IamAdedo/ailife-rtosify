@@ -950,10 +950,21 @@ class BluetoothService : Service() {
     }
 
     private fun initializeLogicFromPrefs() {
-        if (!prefs.getBoolean("service_enabled", true)) return
+        if (!prefs.getBoolean("service_enabled", true)) {
+            // Even if main service logic is disabled, we might need to start DI if it was enabled
+            if (prefs.getString("notification_style", "android") == "dynamic_island") {
+                startDynamicIslandService()
+            }
+            return
+        }
 
         // Companion app is watch-only, always start watch logic
         startWatchLogic()
+
+        // Ensure Dynamic Island is started if enabled
+        if (prefs.getString("notification_style", "android") == "dynamic_island") {
+            startDynamicIslandService()
+        }
     }
 
     @SuppressLint("MissingPermission")

@@ -787,10 +787,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun syncDynamicIslandService() {
-        val isServiceEnabled = prefs.getBoolean("service_enabled", true)
         val isDynamicIsland = prefs.getString("notification_style", "android") == "dynamic_island"
 
-        if (isServiceEnabled && isDynamicIsland) {
+        if (isDynamicIsland) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.canDrawOverlays(this)) {
                 if (!DynamicIslandService.isRunning) {
                     val intent = Intent(this, DynamicIslandService::class.java)
