@@ -1392,17 +1392,10 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun showFindWatchDialog() {
-        AlertDialog.Builder(this)
-                .setTitle(getString(R.string.dialog_find_watch_title))
-                .setMessage(getString(R.string.dialog_find_watch_message))
-                .setPositiveButton(getString(R.string.dialog_find_watch_start)) { _, _ ->
-                    bluetoothService?.sendFindDeviceCommand(true)
-                }
-                .setNeutralButton(getString(R.string.dialog_find_watch_stop)) { _, _ ->
-                    bluetoothService?.sendFindDeviceCommand(false)
-                }
-                .setNegativeButton(getString(R.string.dialog_shutdown_cancel), null)
-                .show()
+        // Launch FindDeviceActivity (Map view)
+        // This will start location sharing, but NOT the alarm/ringing.
+        val intent = Intent(this, FindDeviceActivity::class.java)
+        startActivity(intent)
     }
 
     private fun showUploadDialog() {

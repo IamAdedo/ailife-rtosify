@@ -193,6 +193,12 @@
             android:theme="@style/Theme.Smartwatch" />
 
         <activity
+            android:name=".FindDeviceAlarmActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Smartwatch" />
+
+        <activity
             android:name=".MediaControlActivity"
             android:exported="false"
             android:screenOrientation="portrait"

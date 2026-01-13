@@ -55,4 +55,7 @@ dependencies {
 
     // Google Tink for encryption
     implementation("com.google.crypto.tink:tink-android:1.12.0")
+
+    // OSMDroid for open-source mapping (Find Device feature)
+    implementation("org.osmdroid:osmdroid-android:6.1.18")
 }

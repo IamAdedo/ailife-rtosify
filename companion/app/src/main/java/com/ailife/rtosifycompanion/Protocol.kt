@@ -48,6 +48,7 @@ object MessageType {
     const val LOCK_DEVICE = "lock_device"
     const val FIND_DEVICE = "find_device"
     const val FIND_PHONE = "find_phone"
+    const val FIND_DEVICE_LOCATION_UPDATE = "find_device_location_update"
     const val STATUS_UPDATE = "status_update"
     const val SET_DND = "set_dnd"
     const val SET_WIFI = "set_wifi"
@@ -205,6 +206,14 @@ data class StatusUpdateData(
         val wifi: String,
         val wifiEnabled: Boolean = true,
         val ipAddress: String? = null
+)
+
+data class FindDeviceLocationData(
+        val latitude: Double,
+        val longitude: Double,
+        val accuracy: Float,
+        val rssi: Int,
+        val timestamp: Long
 )
 
 data class FileTransferData(
@@ -579,6 +588,11 @@ object ProtocolHelper {
         val data = JsonObject()
         data.addProperty("enabled", enabled)
         return ProtocolMessage(type = MessageType.FIND_PHONE, data = data)
+    }
+
+    fun createFindDeviceLocationUpdate(locationData: FindDeviceLocationData): ProtocolMessage {
+        val data = gson.toJsonTree(locationData).asJsonObject
+        return ProtocolMessage(type = MessageType.FIND_DEVICE_LOCATION_UPDATE, data = data)
     }
 
     fun createExecuteNotificationAction(notifKey: String, actionKey: String): ProtocolMessage {

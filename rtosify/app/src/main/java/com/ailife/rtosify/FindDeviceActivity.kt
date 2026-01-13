@@ -1,4 +1,4 @@
-package com.ailife.rtosifycompanion
+package com.ailife.rtosify
 
 import android.Manifest
 import android.content.BroadcastReceiver
@@ -11,6 +11,10 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.media.AudioManager
+import android.media.Ringtone
+import android.media.RingtoneManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.os.IBinder
@@ -46,15 +50,16 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
     }
 
     private var locationManager: LocationManager? = null
-    private var watchMarker: Marker? = null
     private var phoneMarker: Marker? = null
+    private var watchMarker: Marker? = null
 
-    private var watchLocation: Location? = null
     private var phoneLocation: Location? = null
+    private var watchLocation: Location? = null
     private var currentRssi: Int = 0
 
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
+    private var findDeviceRingtone: Ringtone? = null
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -77,22 +82,22 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
                     val longitude = intent.getDoubleExtra("longitude", 0.0)
                     val rssi = intent.getIntExtra("rssi", 0)
 
-                    phoneLocation = Location("phone").apply {
+                    watchLocation = Location("watch").apply {
                         this.latitude = latitude
                         this.longitude = longitude
                     }
                     currentRssi = rssi
 
-                    updatePhoneMarker(latitude, longitude)
+                    updateWatchMarker(latitude, longitude)
                     updateDistanceDisplay()
                     updateSignalStrength(rssi)
                 }
                 ACTION_STOP_RINGING -> {
-                    Log.i("FindDeviceActivity", "Stop ringing broadcast received from phone")
+                    Log.i("FindDeviceActivity", "Stop ringing broadcast received from watch")
                     updateRingingState(false)
                 }
                 ACTION_STOP_FINDING -> {
-                    Log.i("FindDeviceActivity", "Stop finding broadcast received from phone")
+                    Log.i("FindDeviceActivity", "Stop finding broadcast received from watch")
                     finish()
                 }
             }
@@ -102,16 +107,7 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Ensure it shows over lockscreen
-        window.addFlags(
-            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-        )
-
-        // Configure OSMDroid
         Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this))
-
         setContentView(R.layout.activity_find_device)
 
         initViews()
@@ -144,8 +140,6 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
         mapView.setTileSource(TileSourceFactory.MAPNIK)
         mapView.setMultiTouchControls(true)
         mapView.controller.setZoom(15.0)
-
-        // Default center (will be updated with actual location)
         mapView.controller.setCenter(GeoPoint(0.0, 0.0))
     }
 
@@ -173,12 +167,11 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
         ) {
             locationManager?.requestLocationUpdates(
                 LocationManager.GPS_PROVIDER,
-                2000L, // Update every 2 seconds
-                5f,     // Minimum 5 meters change
+                2000L,
+                5f,
                 this
             )
 
-            // Get last known location immediately
             locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)?.let {
                 onLocationChanged(it)
             }
@@ -200,37 +193,40 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
     }
 
     override fun onLocationChanged(location: Location) {
-        watchLocation = location
+        phoneLocation = location
 
-        // Update watch marker
-        if (watchMarker == null) {
-            watchMarker = Marker(mapView).apply {
-                icon = ContextCompat.getDrawable(this@FindDeviceActivity, R.drawable.ic_watch)
-                title = "Watch (You)"
+        if (phoneMarker == null) {
+            phoneMarker = Marker(mapView).apply {
+                icon = ContextCompat.getDrawable(this@FindDeviceActivity, R.drawable.ic_phone)
+                title = "Phone (You)"
                 mapView.overlays.add(this)
             }
         }
 
-        watchMarker?.position = GeoPoint(location.latitude, location.longitude)
+        phoneMarker?.position = GeoPoint(location.latitude, location.longitude)
 
-        // Center map on watch location if no phone location yet
-        if (phoneLocation == null) {
+        if (watchLocation == null) {
             mapView.controller.setCenter(GeoPoint(location.latitude, location.longitude))
         } else {
-            // Center between both devices
-            phoneLocation?.let { phoneLoc ->
-                val centerLat = (location.latitude + phoneLoc.latitude) / 2
-                val centerLon = (location.longitude + phoneLoc.longitude) / 2
+            watchLocation?.let { watchLoc ->
+                val centerLat = (location.latitude + watchLoc.latitude) / 2
+                val centerLon = (location.longitude + watchLoc.longitude) / 2
                 mapView.controller.setCenter(GeoPoint(centerLat, centerLon))
 
-                // Adjust zoom to show both markers
-                adjustZoomToShowBothDevices(location, phoneLoc)
+                val distance = location.distanceTo(watchLoc)
+                val zoom = when {
+                    distance > 5000 -> 12.0
+                    distance > 1000 -> 14.0
+                    distance > 500 -> 15.0
+                    distance > 100 -> 16.0
+                    else -> 17.0
+                }
+                mapView.controller.setZoom(zoom)
             }
         }
 
         mapView.invalidate()
 
-        // Send location update to phone
         bluetoothService?.sendFindDeviceLocationUpdate(
             location.latitude,
             location.longitude,
@@ -241,51 +237,26 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
         updateDistanceDisplay()
     }
 
-    private fun updatePhoneMarker(latitude: Double, longitude: Double) {
-        if (phoneMarker == null) {
-            phoneMarker = Marker(mapView).apply {
-                icon = ContextCompat.getDrawable(this@FindDeviceActivity, R.drawable.ic_phone)
-                title = "Phone"
+    private fun updateWatchMarker(latitude: Double, longitude: Double) {
+        if (watchMarker == null) {
+            watchMarker = Marker(mapView).apply {
+                icon = ContextCompat.getDrawable(this@FindDeviceActivity, R.drawable.ic_watch)
+                title = "Watch"
                 mapView.overlays.add(this)
             }
         }
 
-        phoneMarker?.position = GeoPoint(latitude, longitude)
+        watchMarker?.position = GeoPoint(latitude, longitude)
         mapView.invalidate()
-
-        // Center map to show both devices
-        watchLocation?.let { watchLoc ->
-            val centerLat = (watchLoc.latitude + latitude) / 2
-            val centerLon = (watchLoc.longitude + longitude) / 2
-            mapView.controller.setCenter(GeoPoint(centerLat, centerLon))
-
-            adjustZoomToShowBothDevices(watchLoc, Location("phone").apply {
-                this.latitude = latitude
-                this.longitude = longitude
-            })
-        }
-    }
-
-    private fun adjustZoomToShowBothDevices(loc1: Location, loc2: Location) {
-        val distance = loc1.distanceTo(loc2)
-        val zoom = when {
-            distance > 5000 -> 12.0  // > 5km
-            distance > 1000 -> 14.0  // > 1km
-            distance > 500 -> 15.0   // > 500m
-            distance > 100 -> 16.0   // > 100m
-            else -> 17.0             // < 100m
-        }
-        mapView.controller.setZoom(zoom)
     }
 
     private fun updateDistanceDisplay() {
-        val watch = watchLocation
         val phone = phoneLocation
+        val watch = watchLocation
 
-        if (watch != null && phone != null) {
-            val distance = watch.distanceTo(phone)
+        if (phone != null && watch != null) {
+            val distance = phone.distanceTo(watch)
 
-            // Use RSSI for short distances (< 10m), GPS for longer
             val displayText = if (distance < 10 && abs(currentRssi) < 80) {
                 val rssiDistance = estimateDistanceFromRssi(currentRssi)
                 "Distance: ~${rssiDistance}m (Bluetooth)"
@@ -303,8 +274,6 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
     }
 
     private fun estimateDistanceFromRssi(rssi: Int): String {
-        // Rough estimation: RSSI to distance
-        // This is approximate and varies by environment
         return when {
             rssi > -50 -> "<1"
             rssi > -60 -> "1-2"
@@ -332,7 +301,7 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
 
     private fun updateRingingState(ringing: Boolean) {
         isRinging = ringing
-        bluetoothService?.sendFindPhoneCommand(isRinging)
+        bluetoothService?.sendFindDeviceCommand(isRinging)
         
         if (isRinging) {
             btnRingDevice.text = "Stop Ringing"
@@ -340,7 +309,7 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
                 ContextCompat.getColor(this, android.R.color.holo_orange_dark)
             )
         } else {
-            btnRingDevice.text = "Ring Phone"
+            btnRingDevice.text = "Ring Watch"
             btnRingDevice.backgroundTintList = android.content.res.ColorStateList.valueOf(
                 ContextCompat.getColor(this, android.R.color.holo_blue_dark)
             )
@@ -349,20 +318,23 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
 
     private fun requestManualLocationUpdate() {
         // Force an update by sending current (or last known) location
-        watchLocation?.let {
+        phoneLocation?.let {
             bluetoothService?.sendFindDeviceLocationUpdate(
                 it.latitude,
                 it.longitude,
                 it.accuracy,
                 currentRssi
             )
+        } ?: run {
+            // If no location yet, just try to nudge the service/companion
+            // (The companion is already sending its location on its own timer/change)
         }
     }
 
     private fun stopFindingAndFinish() {
         // Stop ringing first if it's active
         if (isRinging) {
-            bluetoothService?.sendFindPhoneCommand(false)
+            bluetoothService?.sendFindDeviceCommand(false)
         }
         finish()
     }
@@ -393,6 +365,7 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacks(periodicLocationTask)
+        findDeviceRingtone?.stop()
         locationManager?.removeUpdates(this)
         if (isBound) {
             unbindService(serviceConnection)
@@ -407,8 +380,8 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
 
     companion object {
         private const val LOCATION_PERMISSION_REQUEST = 1001
-        const val ACTION_LOCATION_UPDATE = "com.ailife.rtosifycompanion.FIND_DEVICE_LOCATION_UPDATE"
-        const val ACTION_STOP_RINGING = "com.ailife.rtosifycompanion.STOP_RINGING"
-        const val ACTION_STOP_FINDING = "com.ailife.rtosifycompanion.STOP_FINDING"
+        const val ACTION_LOCATION_UPDATE = "com.ailife.rtosify.FIND_DEVICE_LOCATION_UPDATE"
+        const val ACTION_STOP_RINGING = "com.ailife.rtosify.STOP_RINGING"
+        const val ACTION_STOP_FINDING = "com.ailife.rtosify.STOP_FINDING"
     }
 }

@@ -876,6 +876,8 @@ class BluetoothService : Service() {
             MessageType.STATUS_UPDATE -> handleStatusUpdateReceived(message)
             MessageType.SET_DND -> handleSetDndCommand(message)
             MessageType.FIND_PHONE -> handleFindPhoneCommand(message)
+            MessageType.FIND_DEVICE -> handleFindDeviceCommand(message)
+            MessageType.FIND_DEVICE_LOCATION_UPDATE -> handleFindDeviceLocationUpdate(message)
             MessageType.MEDIA_CONTROL -> handleMediaControl(message)
             MessageType.CAMERA_START -> handleCameraStart()
             MessageType.CAMERA_STOP -> handleCameraStop()
@@ -1440,6 +1442,16 @@ class BluetoothService : Service() {
         }
     }
 
+    private fun handleFindDeviceCommand(message: ProtocolMessage) {
+        val enabled = ProtocolHelper.extractBooleanField(message, "enabled")
+        if (!enabled) {
+            // Watch stopped the alarm, update phone UI
+            val intent = Intent("com.ailife.rtosify.STOP_RINGING")
+            sendBroadcast(intent)
+            Log.i(TAG, "Watch stopped alarm, updating phone UI")
+        }
+    }
+
     private fun handleMediaControl(message: ProtocolMessage) {
         try {
             val controlData = ProtocolHelper.extractData<MediaControlData>(message)
@@ -1550,47 +1562,19 @@ class BluetoothService : Service() {
     }
 
     private fun startFindPhoneAlarm() {
-        stopFindPhoneAlarm()
-        try {
-            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
-            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxVolume, 0)
-
-            val alarmUri =
-                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-                            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-
-            findPhoneRingtone =
-                    RingtoneManager.getRingtone(this, alarmUri).apply {
-                        @Suppress("DEPRECATION") streamType = AudioManager.STREAM_ALARM
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                            isLooping = true
-                        }
-                        play()
-                    }
-
-            // Start activity to allow stopping locally
-            val intent =
-                    Intent().apply {
-                        component =
-                                ComponentName(
-                                        "com.ailife.rtosify",
-                                        "com.ailife.rtosify.FindPhoneActivity"
-                                )
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-            startActivity(intent)
-
-            Log.i(TAG, "Phone alarm started at max volume")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error starting phone alarm: ${e.message}")
+        // Start FindDeviceAlarmActivity which handles the loud sound and UI
+        val intent = Intent(this, FindDeviceAlarmActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
+        startActivity(intent)
+        Log.i(TAG, "Launched FindDeviceAlarmActivity")
     }
 
     private fun stopFindPhoneAlarm() {
-        findPhoneRingtone?.stop()
-        findPhoneRingtone = null
-        Log.i(TAG, "Phone alarm stopped")
+        // Send broadcast to finish FindDeviceAlarmActivity if it's running
+        val intent = Intent("com.ailife.rtosify.STOP_ALARM")
+        sendBroadcast(intent)
+        Log.i(TAG, "Stopped phone alarm via broadcast")
     }
 
     // File transfer state (receiving)
@@ -1835,6 +1819,41 @@ class BluetoothService : Service() {
 
     fun sendFindDeviceCommand(enabled: Boolean) {
         sendMessage(ProtocolHelper.createFindDevice(enabled))
+    }
+
+    fun sendFindPhoneCommand(enabled: Boolean) {
+        sendMessage(ProtocolHelper.createFindPhone(enabled))
+    }
+
+    fun sendFindDeviceLocationUpdate(latitude: Double, longitude: Double, accuracy: Float, rssi: Int) {
+        val locationData = FindDeviceLocationData(
+            latitude = latitude,
+            longitude = longitude,
+            accuracy = accuracy,
+            rssi = rssi,
+            timestamp = System.currentTimeMillis()
+        )
+        sendMessage(ProtocolHelper.createFindDeviceLocationUpdate(locationData))
+    }
+
+    private fun handleFindDeviceLocationUpdate(message: ProtocolMessage) {
+        try {
+            val locationData = ProtocolHelper.extractData<FindDeviceLocationData>(message)
+            
+            // Broadcast location update to FindDeviceActivity
+            val intent = Intent(FindDeviceActivity.ACTION_LOCATION_UPDATE).apply {
+                putExtra("latitude", locationData.latitude)
+                putExtra("longitude", locationData.longitude)
+                putExtra("accuracy", locationData.accuracy)
+                putExtra("rssi", locationData.rssi)
+                putExtra("timestamp", locationData.timestamp)
+            }
+            sendBroadcast(intent)
+            
+            Log.d(TAG, "📍 Received location update from watch: lat=${locationData.latitude}, lon=${locationData.longitude}, rssi=${locationData.rssi}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling find device location update: ${e.message}")
+        }
     }
 
     fun syncCalendar() {

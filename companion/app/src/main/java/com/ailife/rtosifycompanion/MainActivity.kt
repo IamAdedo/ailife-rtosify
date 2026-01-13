@@ -527,19 +527,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun confirmFindPhone() {
-        AlertDialog.Builder(this)
-                .setTitle(getString(R.string.menu_find_phone))
-                .setMessage(
-                        getString(R.string.dialog_find_watch_message)
-                )
-                .setPositiveButton(getString(R.string.dialog_find_watch_start)) { _, _ ->
-                    bluetoothService?.sendMessage(ProtocolHelper.createFindPhone(true))
-                }
-                .setNeutralButton(getString(R.string.dialog_find_watch_stop)) { _, _ ->
-                    bluetoothService?.sendMessage(ProtocolHelper.createFindPhone(false))
-                }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
+        // Launch FindDeviceActivity (Map view)
+        // This will start location sharing, but NOT the alarm/ringing.
+        startActivity(Intent(this, FindDeviceActivity::class.java))
     }
 
     private fun bindToService() {
