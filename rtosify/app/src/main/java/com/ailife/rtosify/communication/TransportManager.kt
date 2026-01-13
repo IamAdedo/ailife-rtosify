@@ -193,13 +193,21 @@ class TransportManager(
     private suspend fun connectWifi(mac: String): Boolean {
         if (isConnectingWifi) return false
         
+        val devicePrefs = devicePrefManager.getDevicePrefs(mac)
+        val useFixedIp = devicePrefs.getBoolean("wifi_fixed_ip_enabled", false)
+        val fixedIp = if (useFixedIp) devicePrefs.getString("wifi_fixed_ip_address", null) else null
+        
+        Log.d(TAG, "connectWifi: mac=$mac, useFixedIp=$useFixedIp, fixedIp=$fixedIp")
+        
         val transport = WifiIntranetTransport(
             remoteMac = mac,  // Companion's Bluetooth MAC
             localMac = mac,   // Also use companion's MAC for encryption consistency
             deviceName = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter?.name ?: Build.MODEL,
             encryptionManager = encryptionManager,
             mdnsDiscovery = mdnsDiscovery,
-            isServer = false // Phone is client
+            isServer = false, // Phone is client
+            fixedIp = fixedIp,
+            fixedPort = 8881 // DEFAULT_PORT
         )
 
         try {

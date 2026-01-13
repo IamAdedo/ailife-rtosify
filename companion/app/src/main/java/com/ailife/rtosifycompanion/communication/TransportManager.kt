@@ -205,7 +205,8 @@ class TransportManager(
                     deviceName = deviceName,
                     encryptionManager = encryptionManager,
                     mdnsDiscovery = mdnsDiscovery,
-                    isServer = true
+                    isServer = true,
+                    fixedPort = 8881 // Use fixed port for server
                 )
                 
                 try {

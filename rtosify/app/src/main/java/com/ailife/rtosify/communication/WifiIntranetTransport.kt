@@ -22,7 +22,9 @@ class WifiIntranetTransport(
     private val deviceName: String,
     private val encryptionManager: EncryptionManager,
     private val mdnsDiscovery: MdnsDiscovery,
-    private val isServer: Boolean = false
+    private val isServer: Boolean = false,
+    private val fixedIp: String? = null,
+    private val fixedPort: Int? = null
 ) : CommunicationTransport {
 
     companion object {
@@ -56,8 +58,12 @@ class WifiIntranetTransport(
     }
 
     private suspend fun connectAsServer(): Boolean {
-        Log.d(TAG, "Starting server on dynamic port...")
-        serverSocket = ServerSocket(0)
+        val port = fixedPort ?: 0
+        Log.d(TAG, "Starting server on port $port...")
+        serverSocket = ServerSocket().apply {
+            reuseAddress = true
+            bind(java.net.InetSocketAddress(port))
+        }
         val localPort = serverSocket!!.localPort
         Log.d(TAG, "Server listening on port $localPort")
 
@@ -79,25 +85,51 @@ class WifiIntranetTransport(
     }
 
     private suspend fun connectAsClient(): Boolean {
+        if (fixedIp != null) {
+            val port = fixedPort ?: 8881
+            Log.d(TAG, "Attempting direct connection to $fixedIp:$port for MAC: $remoteMac")
+            return try {
+                val s = Socket()
+                s.connect(java.net.InetSocketAddress(fixedIp, port), 10000)
+                socket = s
+                setupStreams(s)
+                connected = true
+                lastReceiveTime = System.currentTimeMillis()
+                startReceiving()
+                startKeepalive()
+                Log.d(TAG, "Successfully connected to $fixedIp:$port")
+                true
+            } catch (e: Exception) {
+                Log.w(TAG, "Direct connection to $fixedIp:$port failed: ${e.message}")
+                false
+            }
+        }
+
         Log.d(TAG, "Attempting to discover service for MAC: $remoteMac")
         
         mdnsDiscovery.startDiscovery()
         
-        return withTimeoutOrNull(20000L) {
+        return withTimeoutOrNull(30000L) {
             val success = mdnsDiscovery.getDiscoveredServices()
-                .filter { it.deviceMac.equals(remoteMac, ignoreCase = true) }
+                .filter { 
+                    val matches = it.deviceMac.equals(remoteMac, ignoreCase = true)
+                    if (!matches) {
+                         Log.v(TAG, "Discovery: Skipping service ${it.deviceMac} (resolved as ${it.host}), expected $remoteMac")
+                    }
+                    matches
+                }
                 .map { discoveryResult ->
-                    Log.d(TAG, "Testing discovered service: ${discoveryResult.host}:${discoveryResult.port}")
+                    Log.d(TAG, "Testing discovered service: ${discoveryResult.host}:${discoveryResult.port} for MAC: $remoteMac")
                     try {
                         val s = Socket()
-                        s.connect(java.net.InetSocketAddress(discoveryResult.host, discoveryResult.port), 5000)
+                        s.connect(java.net.InetSocketAddress(discoveryResult.host, discoveryResult.port), 10000)
                         socket = s
                         setupStreams(s)
                         connected = true
                         lastReceiveTime = System.currentTimeMillis()
                         startReceiving()
                         startKeepalive()
-                        Log.d(TAG, "Successfully connected to ${discoveryResult.host}:${discoveryResult.port}")
+                        Log.d(TAG, "Successfully connected via mDNS to ${discoveryResult.host}:${discoveryResult.port}")
                         true
                     } catch (e: Exception) {
                         Log.w(TAG, "Connection to ${discoveryResult.host}:${discoveryResult.port} failed: ${e.message}")
@@ -106,7 +138,10 @@ class WifiIntranetTransport(
                 }
                 .firstOrNull { it }
             success == true
-        } ?: false
+        } ?: run {
+            Log.e(TAG, "WiFi connection/discovery timed out after 30s for MAC: $remoteMac")
+            false
+        }
     }
 
     private fun setupStreams(socket: Socket) {

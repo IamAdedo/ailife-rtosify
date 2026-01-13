@@ -15,6 +15,10 @@ import android.widget.CheckBox
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
+import android.widget.EditText
+import android.view.View
+import android.text.Editable
+import android.text.TextWatcher
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.Job
@@ -32,6 +36,9 @@ class NetworkSettingsActivity : AppCompatActivity() {
     private lateinit var tvPhoneIp: TextView
     private lateinit var tvWatchWifi: TextView
     private lateinit var tvWatchIp: TextView
+    private lateinit var checkBoxFixedIp: CheckBox
+    private lateinit var layoutFixedIp: View
+    private lateinit var etFixedIp: EditText
     private lateinit var devicePrefManager: DevicePrefManager
     
     private var bluetoothService: BluetoothService? = null
@@ -102,6 +109,9 @@ class NetworkSettingsActivity : AppCompatActivity() {
         tvPhoneIp = findViewById(R.id.tvPhoneIp)
         tvWatchWifi = findViewById(R.id.tvWatchWifi)
         tvWatchIp = findViewById(R.id.tvWatchIp)
+        checkBoxFixedIp = findViewById(R.id.checkBoxFixedIp)
+        layoutFixedIp = findViewById(R.id.layoutFixedIp)
+        etFixedIp = findViewById(R.id.etFixedIp)
 
         // Pairing button handler
         btnPairForInternet.setOnClickListener {
@@ -117,6 +127,14 @@ class NetworkSettingsActivity : AppCompatActivity() {
         checkBoxAlways.isChecked = (currentRule and BluetoothService.WIFI_RULE_ALWAYS) != 0
         checkBoxBtFallback.isChecked = (currentRule and BluetoothService.WIFI_RULE_BT_FALLBACK) != 0
         checkBoxMainActivity.isChecked = (currentRule and BluetoothService.WIFI_RULE_MAINACTIVITY) != 0
+        
+        // Load Fixed IP settings
+        val fixedIpEnabled = devicePrefs.getBoolean("wifi_fixed_ip_enabled", false)
+        val fixedIpAddress = devicePrefs.getString("wifi_fixed_ip_address", "")
+        
+        checkBoxFixedIp.isChecked = fixedIpEnabled
+        etFixedIp.setText(fixedIpAddress)
+        layoutFixedIp.visibility = if (fixedIpEnabled) View.VISIBLE else View.GONE
 
         updateCheckboxEnableState()
 
@@ -137,6 +155,23 @@ class NetworkSettingsActivity : AppCompatActivity() {
         checkBoxMainActivity.setOnClickListener {
             saveActivationRule()
         }
+
+        checkBoxFixedIp.setOnCheckedChangeListener { _, isChecked ->
+            layoutFixedIp.visibility = if (isChecked) View.VISIBLE else View.GONE
+            devicePrefs.edit().putBoolean("wifi_fixed_ip_enabled", isChecked).apply()
+            // Notify TransportManager
+            bluetoothService?.notifyWifiRuleChanged()
+        }
+
+        etFixedIp.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                devicePrefs.edit().putString("wifi_fixed_ip_address", s.toString().trim()).apply()
+                // Notify TransportManager (might need debouncing for efficiency, but it's okay for now)
+                bluetoothService?.notifyWifiRuleChanged()
+            }
+        })
 
         // Display current WiFi status
         updateWifiStatus()

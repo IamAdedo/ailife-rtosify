@@ -22,7 +22,9 @@ class WifiIntranetTransport(
     private val deviceName: String,
     private val encryptionManager: EncryptionManager,
     private val mdnsDiscovery: MdnsDiscovery,
-    private val isServer: Boolean = false
+    private val isServer: Boolean = false,
+    private val fixedIp: String? = null,
+    private val fixedPort: Int? = null
 ) : CommunicationTransport {
 
     companion object {
@@ -56,9 +58,13 @@ class WifiIntranetTransport(
     }
 
     private suspend fun connectAsServer(): Boolean {
-        Log.d(TAG, "Starting server on dynamic port...")
-        // Use 0 for dynamic port allocation
-        serverSocket = ServerSocket(0)
+        val port = fixedPort ?: 0
+        Log.d(TAG, "Starting server on port $port...")
+        // Use fixed port if provided, otherwise dynamic. Enable reuseAddress to avoid bind issues on restart.
+        serverSocket = ServerSocket().apply {
+            reuseAddress = true
+            bind(java.net.InetSocketAddress(port))
+        }
         val localPort = serverSocket!!.localPort
         Log.d(TAG, "Server listening on port $localPort")
 
@@ -86,6 +92,26 @@ class WifiIntranetTransport(
     }
 
     private suspend fun connectAsClient(): Boolean {
+        if (fixedIp != null) {
+            val port = fixedPort ?: 8881
+            Log.d(TAG, "Attempting direct connection to $fixedIp:$port for MAC: $remoteMac")
+            return try {
+                val s = Socket()
+                s.connect(java.net.InetSocketAddress(fixedIp, port), 10000)
+                socket = s
+                setupStreams(s)
+                connected = true
+                lastReceiveTime = System.currentTimeMillis()
+                startReceiving()
+                startKeepalive()
+                Log.d(TAG, "Successfully connected to $fixedIp:$port")
+                true
+            } catch (e: Exception) {
+                Log.w(TAG, "Direct connection to $fixedIp:$port failed: ${e.message}")
+                false
+            }
+        }
+
         Log.d(TAG, "Attempting to discover service for MAC: $remoteMac")
         
         mdnsDiscovery.startDiscovery()

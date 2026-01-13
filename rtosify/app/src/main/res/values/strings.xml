@@ -700,6 +700,10 @@
     <string name="status_bt_wifi_connected">Bluetooth &amp; WiFi Connected</string>
     <string name="status_wifi_connected">WiFi Connected</string>
     <string name="network_encryption_keys">Encryption keys exchanged via Bluetooth pairing</string>
+    <string name="network_advanced_settings_title">Advanced Settings</string>
+    <string name="network_fixed_ip_enabled">Use Fixed IP</string>
+    <string name="network_fixed_ip_desc">Connect directly to IP without mDNS (useful for VPNs/Zerotier)</string>
+    <string name="network_fixed_ip_hint">Enter IP address (e.g. 10.1.1.2)</string>
     
     <!-- WiFi Pairing Activity -->
     <string name="pairing_title">WiFi Pairing</string>

@@ -23,7 +23,7 @@ class WiFiPairingActivity : AppCompatActivity() {
         private const val TAG = "WiFiPairingActivity"
         private const val TIMEOUT_KEY_EXCHANGE = 10L
         private const val TIMEOUT_DISCOVERY = 30L
-        private const val TIMEOUT_WIFI_CONNECT = 15L
+        private const val TIMEOUT_WIFI_CONNECT = 30L
         private const val TIMEOUT_TEST_ENCRYPT = 15L
     }
 

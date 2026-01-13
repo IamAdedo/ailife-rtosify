@@ -149,7 +149,26 @@ class MdnsDiscovery(private val context: Context) {
 
             override fun onServiceResolved(serviceInfo: NsdServiceInfo?) {
                 serviceInfo?.let { info ->
-                    val mac = info.attributes?.get("mac")?.let { String(it) }
+                    var mac = info.attributes?.get("mac")?.let { String(it) }
+                    
+                    // Fallback: Try to extract MAC from service name if attribute is missing
+                    if (mac == null && info.serviceName != null && info.serviceName.startsWith(SERVICE_NAME_PREFIX)) {
+                        val parts = info.serviceName.split("_")
+                        if (parts.size >= 2) {
+                            val rawMac = parts[1]
+                            // Reconstruct colons: AABBCCDDEEFF -> AA:BB:CC:DD:EE:FF
+                            if (rawMac.length == 12) {
+                                val sb = StringBuilder()
+                                for (i in 0 until 12 step 2) {
+                                    sb.append(rawMac.substring(i, i + 2))
+                                    if (i < 10) sb.append(":")
+                                }
+                                mac = sb.toString()
+                                Log.d(TAG, "Extracted MAC from service name fallback: $mac")
+                            }
+                        }
+                    }
+
                     val name = info.attributes?.get("name")?.let { String(it) } ?: "Unknown"
                     val host = info.host?.hostAddress
                     val port = info.port
