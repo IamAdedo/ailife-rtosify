@@ -560,21 +560,23 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             iconFrame.addView(mainIcon)
 
             // Small overlay icon at bottom right (app icon)
-            if (notif.smallIcon != null && notif.senderIcon != null) {
+            if (notif.smallIcon != null && (notif.senderIcon != null || notif.groupIcon != null || notif.largeIcon != null)) {
                 val smallIcon =
                         ImageView(context).apply {
                             layoutParams =
-                                    FrameLayout.LayoutParams(dpToPx(16), dpToPx(16)).apply {
+                                    FrameLayout.LayoutParams(dpToPx(18), dpToPx(18)).apply {
                                         gravity = Gravity.BOTTOM or Gravity.END
                                     }
                             scaleType = ImageView.ScaleType.CENTER_CROP
+                            setPadding(dpToPx(2), dpToPx(2), dpToPx(2), dpToPx(2))
                             decodeBase64ToBitmap(notif.smallIcon)?.let {
                                 setImageBitmap(getCircularBitmap(it))
                             }
                             background =
                                     GradientDrawable().apply {
                                         shape = GradientDrawable.OVAL
-                                        setColor(Color.WHITE)
+                                        setColor(Color.parseColor("#2C2C2E"))
+                                        setStroke(dpToPx(2), Color.parseColor("#1C1C1E"))
                                     }
                         }
                 iconFrame.addView(smallIcon)
@@ -858,13 +860,19 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                         gravity = Gravity.CENTER_VERTICAL
                     }
 
-            // Icon
-            val icon =
-                    ImageView(context).apply {
+            // Icon with FrameLayout for overlay support
+            val iconFrame =
+                    FrameLayout(context).apply {
                         layoutParams =
                                 LinearLayout.LayoutParams(dpToPx(32), dpToPx(32)).apply {
                                     marginEnd = dpToPx(8)
                                 }
+                    }
+
+            val icon =
+                    ImageView(context).apply {
+                        layoutParams =
+                                FrameLayout.LayoutParams(dpToPx(32), dpToPx(32))
                         scaleType = ImageView.ScaleType.CENTER_CROP
 
                         val iconBitmap =
@@ -883,7 +891,32 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                             setImageResource(android.R.drawable.ic_dialog_info)
                         }
                     }
-            topRow.addView(icon)
+            iconFrame.addView(icon)
+
+            // Small overlay icon at bottom right (app icon)
+            if (notif.smallIcon != null && (notif.senderIcon != null || notif.groupIcon != null || notif.largeIcon != null)) {
+                val smallIcon =
+                        ImageView(context).apply {
+                            layoutParams =
+                                    FrameLayout.LayoutParams(dpToPx(14), dpToPx(14)).apply {
+                                        gravity = Gravity.BOTTOM or Gravity.END
+                                    }
+                            scaleType = ImageView.ScaleType.CENTER_CROP
+                            setPadding(dpToPx(2), dpToPx(2), dpToPx(2), dpToPx(2))
+                            decodeBase64ToBitmap(notif.smallIcon)?.let {
+                                setImageBitmap(getCircularBitmap(it))
+                            }
+                            background =
+                                    GradientDrawable().apply {
+                                        shape = GradientDrawable.OVAL
+                                        setColor(Color.parseColor("#2C2C2E"))
+                                        setStroke(dpToPx(1), Color.parseColor("#1C1C1E"))
+                                    }
+                        }
+                iconFrame.addView(smallIcon)
+            }
+
+            topRow.addView(iconFrame)
 
             val title =
                     TextView(context).apply {
@@ -916,13 +949,23 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 decodeBase64ToBitmap(base64Image)?.let { bitmap ->
                     val bigPictureView =
                             ImageView(context).apply {
+                                // Calculate height to maintain aspect ratio with max height of 200dp
+                                val maxHeight = dpToPx(200)
+                                val aspectRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+                                val calculatedHeight = if (aspectRatio > 0) {
+                                    minOf(maxHeight, (dpToPx(pillWidthExpanded - 32) / aspectRatio).toInt())
+                                } else {
+                                    maxHeight
+                                }
+                                
                                 layoutParams =
                                         LinearLayout.LayoutParams(
                                                         LayoutParams.MATCH_PARENT,
-                                                        dpToPx(120)
+                                                        calculatedHeight
                                                 )
                                                 .apply { topMargin = dpToPx(8) }
-                                scaleType = ImageView.ScaleType.CENTER_CROP
+                                scaleType = ImageView.ScaleType.FIT_CENTER
+                                adjustViewBounds = true
                                 setImageBitmap(bitmap)
                                 clipToOutline = true
                                 outlineProvider =
