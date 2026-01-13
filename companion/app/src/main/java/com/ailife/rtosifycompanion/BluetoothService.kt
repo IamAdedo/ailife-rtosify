@@ -3030,70 +3030,161 @@ class BluetoothService : Service() {
     }
 
     private suspend fun moveFileDispatcher(src: String, dst: String): Boolean {
+        Log.d(TAG, "moveFileDispatcher: Moving $src -> $dst")
+        
         // Ensure destination parent directory exists
         val dstParent = dst.substringBeforeLast("/", "/")
         if (dstParent != "/") {
-            createFolderDispatcher(dstParent)
+            Log.d(TAG, "moveFileDispatcher: Creating parent directory: $dstParent")
+            val dirCreated = createFolderDispatcher(dstParent)
+            Log.d(TAG, "moveFileDispatcher: Parent directory creation result: $dirCreated")
         }
+
+        // Check source file exists
+        val srcFile = File(src)
+        if (!srcFile.exists()) {
+            Log.e(TAG, "moveFileDispatcher: Source file does not exist: $src")
+            return false
+        }
+        Log.d(TAG, "moveFileDispatcher: Source file exists, size=${srcFile.length()} bytes")
 
         if (isUsingShizuku()) {
             try {
+                Log.d(TAG, "moveFileDispatcher: Trying Shizuku...")
                 ensureUserServiceBound()
-                if (userService?.moveFile(src, dst) == true) return true
+                if (userService?.moveFile(src, dst) == true) {
+                    Log.d(TAG, "moveFileDispatcher: ✅ Shizuku moveFile succeeded")
+                    return true
+                } else {
+                    Log.w(TAG, "moveFileDispatcher: Shizuku moveFile returned false")
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Shizuku moveFile failed: ${e.message}")
+                Log.e(TAG, "moveFileDispatcher: Shizuku moveFile failed: ${e.message}")
             }
+        } else {
+            Log.d(TAG, "moveFileDispatcher: Shizuku not available")
         }
 
         if (Shell.getShell().isRoot) {
+            Log.d(TAG, "moveFileDispatcher: Trying Root shell...")
             val rootSrc = translatePathForRoot(src)
             val rootDst = translatePathForRoot(dst)
             val result = Shell.cmd("mv \"$rootSrc\" \"$rootDst\"").exec()
-            if (result.isSuccess) return true
+            if (result.isSuccess) {
+                Log.d(TAG, "moveFileDispatcher: ✅ Root shell move succeeded")
+                return true
+            } else {
+                Log.w(TAG, "moveFileDispatcher: Root shell move failed: ${result.err.joinToString()}")
+            }
+        } else {
+            Log.d(TAG, "moveFileDispatcher: Root shell not available")
         }
 
-        // 3. Standard Fallback
-        val srcFile = File(src)
+        // 3. Standard Fallback - this should work on Android <10 with WRITE_EXTERNAL_STORAGE
+        Log.d(TAG, "moveFileDispatcher: Trying standard File.renameTo()...")
         val dstFile = File(dst)
-        if (srcFile.renameTo(dstFile)) return true
+        
+        // Check destination parent is writable
+        val dstParentFile = dstFile.parentFile
+        if (dstParentFile != null) {
+            Log.d(TAG, "moveFileDispatcher: Destination parent exists=${dstParentFile.exists()}, canWrite=${dstParentFile.canWrite()}")
+        }
+        
+        if (srcFile.renameTo(dstFile)) {
+            Log.d(TAG, "moveFileDispatcher: ✅ Standard renameTo() succeeded")
+            return true
+        } else {
+            Log.w(TAG, "moveFileDispatcher: Standard renameTo() failed")
+        }
 
+        Log.d(TAG, "moveFileDispatcher: Trying copyRecursively as last resort...")
         return try {
             srcFile.copyRecursively(dstFile, true)
-            srcFile.deleteRecursively()
+            Log.d(TAG, "moveFileDispatcher: Copy completed, deleting source...")
+            val deleteResult = srcFile.deleteRecursively()
+            if (!deleteResult) {
+                Log.w(TAG, "moveFileDispatcher: Source deletion failed but copy succeeded")
+            }
+            Log.d(TAG, "moveFileDispatcher: ✅ copyRecursively succeeded")
             true
         } catch (e: Exception) {
+            Log.e(TAG, "moveFileDispatcher: ❌ copyRecursively failed: ${e.message}", e)
             false
         }
     }
 
     private suspend fun createFolderDispatcher(path: String): Boolean {
+        Log.d(TAG, "createFolderDispatcher: Creating directory: $path")
+        
+        // Check if directory already exists
+        val dir = File(path)
+        if (dir.exists()) {
+            if (dir.isDirectory) {
+                Log.d(TAG, "createFolderDispatcher: Directory already exists")
+                return true
+            } else {
+                Log.e(TAG, "createFolderDispatcher: Path exists but is not a directory!")
+                return false
+            }
+        }
+        
         // 1. Try Shizuku
         if (isUsingShizuku()) {
             try {
+                Log.d(TAG, "createFolderDispatcher: Trying Shizuku...")
                 ensureUserServiceBound()
-                if (userService?.makeDirectory(path) == true) return true
+                if (userService?.makeDirectory(path) == true) {
+                    Log.d(TAG, "createFolderDispatcher: ✅ Shizuku succeeded")
+                    return true
+                } else {
+                    Log.w(TAG, "createFolderDispatcher: Shizuku returned false")
+                }
             } catch (e: Exception) {
-                Log.e(TAG, "Shizuku makeDirectory failed: ${e.message}")
+                Log.e(TAG, "createFolderDispatcher: Shizuku failed: ${e.message}")
             }
+        } else {
+            Log.d(TAG, "createFolderDispatcher: Shizuku not available")
         }
 
         // 2. Try Root
         if (Shell.getShell().isRoot) {
+            Log.d(TAG, "createFolderDispatcher: Trying Root shell...")
             val rootPath = translatePathForRoot(path)
             val result = Shell.cmd("mkdir -p \"$rootPath\"").exec()
-            if (result.isSuccess) return true
+            if (result.isSuccess) {
+                Log.d(TAG, "createFolderDispatcher: ✅ Root shell succeeded")
+                return true
+            } else {
+                Log.w(TAG, "createFolderDispatcher: Root shell failed: ${result.err.joinToString()}")
+            }
+        } else {
+            Log.d(TAG, "createFolderDispatcher: Root shell not available")
         }
 
         // 3. Fallback to SAF
         val watchFacePath = "Android/data/com.ailife.ClockSkinCoco"
         val relPath = getRelPath(path)
         if (relPath.startsWith(watchFacePath)) {
+            Log.d(TAG, "createFolderDispatcher: Trying SAF for watchface path...")
             val doc = getDocumentFileForPath(relPath, true)
-            return doc != null && doc.isDirectory
+            val success = doc != null && doc.isDirectory
+            if (success) {
+                Log.d(TAG, "createFolderDispatcher: ✅ SAF succeeded")
+            } else {
+                Log.w(TAG, "createFolderDispatcher: SAF failed (doc=$doc)")
+            }
+            return success
         }
 
-        // 4. Standard Fallback
-        return File(path).mkdirs()
+        // 4. Standard Fallback - this should work on Android <10 with WRITE_EXTERNAL_STORAGE
+        Log.d(TAG, "createFolderDispatcher: Trying standard File.mkdirs()...")
+        val result = dir.mkdirs()
+        if (result) {
+            Log.d(TAG, "createFolderDispatcher: ✅ Standard mkdirs() succeeded")
+        } else {
+            Log.e(TAG, "createFolderDispatcher: ❌ Standard mkdirs() failed")
+        }
+        return result
     }
 
     // Helper to find or create DocumentFile given a relative path from external storage root
@@ -3182,6 +3273,12 @@ class BluetoothService : Service() {
                     val success = moveFileDispatcher(file.absolutePath, targetFile.absolutePath)
                     if (!success) {
                         android.util.Log.e(TAG, "Failed to move watch face to restricted dir")
+                        // Clean up the cache file if move failed
+                        try {
+                            file.delete()
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to delete cache file after failed move: ${e.message}")
+                        }
                         return@launch
                     }
                 } else {
@@ -3209,8 +3306,14 @@ class BluetoothService : Service() {
                 )
             } catch (e: Exception) {
                 android.util.Log.e(TAG, "Error handling watch face: ${e.message}")
-            } finally {
-                file.delete()
+                // Only delete cache file if it exists and is NOT in the target directory
+                try {
+                    if (file.exists() && !file.absolutePath.contains("ClockSkinCoco")) {
+                        file.delete()
+                    }
+                } catch (deleteEx: Exception) {
+                    Log.w(TAG, "Failed to delete cache file in error handler: ${deleteEx.message}")
+                }
             }
         }
     }
