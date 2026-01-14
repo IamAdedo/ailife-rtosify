@@ -91,7 +91,10 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
             val binder = service as? BluetoothService.LocalBinder
             bluetoothService = binder?.getService()
             isBound = true
-            
+
+            // Start local BLE RSSI monitoring on this device
+            bluetoothService?.startLocalFindDeviceMonitoring()
+
             // Request remote device to start sending its location
             bluetoothService?.sendMessage(ProtocolHelper.createFindDeviceLocationRequest(true))
         }
@@ -123,7 +126,7 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
                     // Actually, if we are scanning locally, local is truth. 
                     // Remote RSSI is "Watch's view of Phone". 
                     // Let's only update if local is 0 (not found yet).
-                    if (currentRssi == 0 && rssi != 0) {
+                    if (rssi != 0) {
                          currentRssi = rssi
                          updateSignalStrength(rssi)
                     }
@@ -516,12 +519,17 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
         super.onDestroy()
         handler.removeCallbacks(periodicLocationTask)
         handler.removeCallbacks(uiUpdateRunnable)
-        
+
+        // Stop local BLE RSSI monitoring
+        if (isBound) {
+            bluetoothService?.stopLocalFindDeviceMonitoring()
+        }
+
         // Tell remote device to stop sending its location
         if (isBound) {
             bluetoothService?.sendMessage(ProtocolHelper.createFindDeviceLocationRequest(false))
         }
-        
+
         findDeviceRingtone?.stop()
         locationManager?.removeUpdates(this)
         if (isBound) {

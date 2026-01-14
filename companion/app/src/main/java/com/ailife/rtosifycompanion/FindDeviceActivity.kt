@@ -82,7 +82,10 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
             val binder = service as? BluetoothService.LocalBinder
             bluetoothService = binder?.getService()
             isBound = true
-            
+
+            // Start local BLE RSSI monitoring on this device
+            bluetoothService?.startLocalFindDeviceMonitoring()
+
             // Request remote device to start sending its location
             bluetoothService?.sendMessage(ProtocolHelper.createFindDeviceLocationRequest(true))
         }
@@ -109,7 +112,7 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
                         this.longitude = longitude
                     }
                     
-                    if (currentRssi == 0 && rssi != 0) {
+                    if (rssi != 0) {
                          currentRssi = rssi
                          updateSignalStrength(rssi)
                     }
@@ -515,12 +518,17 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
         super.onDestroy()
         handler.removeCallbacks(periodicLocationTask)
         handler.removeCallbacks(uiUpdateRunnable)
-        
+
+        // Stop local BLE RSSI monitoring
+        if (isBound) {
+            bluetoothService?.stopLocalFindDeviceMonitoring()
+        }
+
         // Tell remote device to stop sending its location
         if (isBound) {
             bluetoothService?.sendMessage(ProtocolHelper.createFindDeviceLocationRequest(false))
         }
-        
+
         locationManager?.removeUpdates(this)
         if (isBound) {
             unbindService(serviceConnection)

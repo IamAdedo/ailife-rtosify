@@ -3685,6 +3685,7 @@ class BluetoothService : Service() {
 
     private var findDeviceLocationListener: LocationListener? = null
     private var findDeviceRssiReceiver: BroadcastReceiver? = null
+    private var bleRssiMonitor: com.ailife.rtosifycompanion.ble.BleRssiMonitor? = null
     @Volatile private var currentFindDeviceRssi: Int = 0
 
     private fun handleFindDeviceLocationRequest(message: ProtocolMessage) {
@@ -3695,44 +3696,28 @@ class BluetoothService : Service() {
         val btAdapter = (getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter
         
         if (enabled) {
-            // Start RSSI Scanning
-            if (findDeviceRssiReceiver == null) {
+            // Start BLE RSSI Monitoring
+            if (bleRssiMonitor == null) {
                 currentFindDeviceRssi = 0
-                findDeviceRssiReceiver = object : BroadcastReceiver() {
-                    override fun onReceive(context: Context?, intent: Intent?) {
-                        if (intent?.action == BluetoothDevice.ACTION_FOUND) {
-                            val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
-                            val rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE).toInt()
-                            Log.d(TAG, "Discovery found device: ${device?.name ?: "Unknown"} (${device?.address}) RSSI=$rssi")
-                            // If this is the bonded device
-                            if (device != null && device.bondState == BluetoothDevice.BOND_BONDED) {
-                                currentFindDeviceRssi = rssi
-                                Log.d(TAG, "Target bonded device found! RSSI=$rssi")
-                            }
-                        } else if (intent?.action == BluetoothAdapter.ACTION_DISCOVERY_FINISHED) {
-                            // Restart scan if still enabled and listening
-                            if (findDeviceRssiReceiver != null) {
-                                serviceScope.launch {
-                                    delay(2000)
-                                    if (findDeviceRssiReceiver != null && btAdapter?.isEnabled == true) {
-                                         // Check permission
-                                         if (ActivityCompat.checkSelfPermission(this@BluetoothService, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
-                                             btAdapter.startDiscovery()
-                                         }
-                                    }
-                                }
-                            }
-                        }
+                bleRssiMonitor = com.ailife.rtosifycompanion.ble.BleRssiMonitor(this) { rssi ->
+                    currentFindDeviceRssi = rssi
+                    Log.d(TAG, "BLE RSSI updated: $rssi dBm")
+                }
+
+                val targetMac = getConnectedDeviceMac()
+                val bleStarted = bleRssiMonitor?.startMonitoring(
+                    btAdapter!!,
+                    targetMac,
+                    fallbackToClassic = {
+                        // Fallback to Classic Bluetooth discovery if BLE fails
+                        Log.w(TAG, "BLE monitoring failed, falling back to Classic Bluetooth discovery")
+                        startClassicBluetoothDiscovery(btAdapter!!)
                     }
-                }
-                val filter = IntentFilter().apply {
-                    addAction(BluetoothDevice.ACTION_FOUND)
-                    addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
-                }
-                registerReceiver(findDeviceRssiReceiver, filter)
-                
-                if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
-                     btAdapter?.startDiscovery()
+                ) ?: false
+
+                if (!bleStarted) {
+                    Log.w(TAG, "BLE monitoring failed to start, using Classic Bluetooth discovery")
+                    startClassicBluetoothDiscovery(btAdapter!!)
                 }
             }
 
@@ -3772,7 +3757,11 @@ class BluetoothService : Service() {
                 }
             }
         } else {
-            // Stop RSSI Scanning
+            // Stop BLE RSSI Monitoring
+            bleRssiMonitor?.stopMonitoring()
+            bleRssiMonitor = null
+
+            // Stop Classic Bluetooth Discovery (if fallback was used)
             findDeviceRssiReceiver?.let {
                 try { unregisterReceiver(it) } catch(e: Exception) {}
                 findDeviceRssiReceiver = null
@@ -3780,11 +3769,52 @@ class BluetoothService : Service() {
                      btAdapter?.cancelDiscovery()
                 }
             }
-            
+
             findDeviceLocationListener?.let {
                 locationManager.removeUpdates(it)
                 findDeviceLocationListener = null
                 Log.i(TAG, "Stopped GPS updates for phone find request")
+            }
+        }
+    }
+
+    // Fallback method for Classic Bluetooth discovery when BLE fails
+    private fun startClassicBluetoothDiscovery(btAdapter: BluetoothAdapter) {
+        if (findDeviceRssiReceiver == null) {
+            findDeviceRssiReceiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (intent?.action == BluetoothDevice.ACTION_FOUND) {
+                        val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+                        val rssi = intent.getShortExtra(BluetoothDevice.EXTRA_RSSI, Short.MIN_VALUE).toInt()
+                        Log.d(TAG, "Classic Discovery found device: ${device?.name ?: "Unknown"} (${device?.address}) RSSI=$rssi")
+
+                        val targetMac = getConnectedDeviceMac()
+                        if (device != null && (device.address.equals(targetMac, ignoreCase = true) || (targetMac == null && device.bondState == BluetoothDevice.BOND_BONDED))) {
+                            currentFindDeviceRssi = rssi
+                            Log.d(TAG, "Target device found (${device.address})! RSSI=$rssi")
+                        }
+                    } else if (intent?.action == BluetoothAdapter.ACTION_DISCOVERY_FINISHED) {
+                        if (findDeviceRssiReceiver != null) {
+                            serviceScope.launch {
+                                delay(2000)
+                                if (findDeviceRssiReceiver != null && btAdapter.isEnabled) {
+                                    if (ActivityCompat.checkSelfPermission(this@BluetoothService, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
+                                        btAdapter.startDiscovery()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            val filter = IntentFilter().apply {
+                addAction(BluetoothDevice.ACTION_FOUND)
+                addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+            }
+            registerReceiver(findDeviceRssiReceiver, filter)
+
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
+                btAdapter.startDiscovery()
             }
         }
     }
@@ -3854,6 +3884,27 @@ class BluetoothService : Service() {
             timestamp = System.currentTimeMillis()
         )
         sendMessage(ProtocolHelper.createFindDeviceLocationUpdate(locationData))
+    }
+
+    /**
+     * Start local BLE RSSI monitoring on this device.
+     * Called by FindDeviceActivity when it opens to monitor the remote device's RSSI.
+     */
+    fun startLocalFindDeviceMonitoring() {
+        // Trigger local BLE monitoring by simulating a location request
+        val enableMessage = ProtocolHelper.createFindDeviceLocationRequest(true)
+        handleFindDeviceLocationRequest(enableMessage)
+        Log.i(TAG, "Started local BLE monitoring for FindDevice")
+    }
+
+    /**
+     * Stop local BLE RSSI monitoring on this device.
+     * Called by FindDeviceActivity when it closes.
+     */
+    fun stopLocalFindDeviceMonitoring() {
+        val disableMessage = ProtocolHelper.createFindDeviceLocationRequest(false)
+        handleFindDeviceLocationRequest(disableMessage)
+        Log.i(TAG, "Stopped local BLE monitoring for FindDevice")
     }
 
     private suspend fun handleUninstallApp(message: ProtocolMessage) {

@@ -126,7 +126,8 @@ class PermissionActivity : AppCompatActivity() {
         val hasBT =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     checkPerm(Manifest.permission.BLUETOOTH_SCAN) &&
-                            checkPerm(Manifest.permission.BLUETOOTH_CONNECT)
+                            checkPerm(Manifest.permission.BLUETOOTH_CONNECT) &&
+                            checkPerm(Manifest.permission.BLUETOOTH_ADVERTISE)
                 } else true
         perms.add(
                 PermissionItem(
@@ -424,7 +425,8 @@ class PermissionActivity : AppCompatActivity() {
                     requestPermissions(
                             arrayOf(
                                     Manifest.permission.BLUETOOTH_SCAN,
-                                    Manifest.permission.BLUETOOTH_CONNECT
+                                    Manifest.permission.BLUETOOTH_CONNECT,
+                                    Manifest.permission.BLUETOOTH_ADVERTISE
                             ),
                             101
                     )
