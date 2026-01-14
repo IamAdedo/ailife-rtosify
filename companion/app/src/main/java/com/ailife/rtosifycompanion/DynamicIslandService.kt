@@ -36,6 +36,7 @@ class DynamicIslandService : Service() {
     private var isCharging = false
     private var lastIsCharging = false
     private var batteryPercent = 0
+    private var lastBatteryPercent = -1
     private var isShowingTransientState = false
     private var currentTransport = ""
 
@@ -267,10 +268,16 @@ class DynamicIslandService : Service() {
                 status == BatteryManager.BATTERY_STATUS_CHARGING ||
                         status == BatteryManager.BATTERY_STATUS_FULL
 
-        if (isCharging != lastIsCharging) {
+        if (isCharging != lastIsCharging || batteryPercent != lastBatteryPercent) {
             val wasJustConnected = isCharging && !lastIsCharging
             lastIsCharging = isCharging
-            showTransientChargingState(isCharging, wasJustConnected)
+            lastBatteryPercent = batteryPercent
+
+            if (isCharging) {
+                showTransientChargingState(isCharging, wasJustConnected)
+            } else {
+                updateState()
+            }
         }
     }
 
