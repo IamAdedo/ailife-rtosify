@@ -3249,6 +3249,13 @@ class BluetoothService : Service() {
         val mac = ProtocolHelper.extractStringField(message, "mac") ?: return
         Log.i(TAG, "Received discovered local MAC from watch: $mac")
         
+        // Safety check: Ensure the watch isn't telling us we are the watch (happens if watch logic is loops)
+        val currentWatchMac = devicePrefManager.getSelectedDeviceMac()
+        if (mac == currentWatchMac) {
+            Log.w(TAG, "Watch sent invalid SYNC_MAC: $mac is the Watch's own MAC. Ignoring.")
+            return
+        }
+        
         val oldMac = prefs.getString("discovered_local_mac", null)
         if (mac != oldMac) {
             prefs.edit().putString("discovered_local_mac", mac).apply()

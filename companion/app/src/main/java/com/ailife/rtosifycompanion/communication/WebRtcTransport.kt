@@ -133,6 +133,17 @@ class WebRtcTransport(
 
         coroutineScope.launch {
             signalingClient?.signalingEvents?.collect { event ->
+                // Guard: Ignore our own signals if they loop back
+                val source = when (event) {
+                    is SignalingClient.SignalingEvent.Offer -> event.source
+                    is SignalingClient.SignalingEvent.Answer -> event.source
+                    is SignalingClient.SignalingEvent.IceCandidate -> event.source
+                }
+                if (source == localMac) {
+                    Log.w(TAG, "Ignoring self-loop signaling event from $source")
+                    return@collect
+                }
+
                 withContext(Dispatchers.Main) {
                     Log.d(TAG, "Received signaling event: $event")
                     when (event) {

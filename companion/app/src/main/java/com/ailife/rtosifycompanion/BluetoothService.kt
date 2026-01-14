@@ -1006,29 +1006,37 @@ class BluetoothService : Service() {
     fun startWatchLogic() {
         // Start servers via TransportManager
         
-        // Bluetooth Server
-    val btManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-    val adapter = btManager.adapter
-
-    val watchMac = prefs.getString("wifi_advertised_mac", null)
-    if (watchMac != null) {
+        val btManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val adapter = btManager.adapter
         val deviceName = adapter?.name ?: Build.MODEL
-        Log.d(TAG, "Starting WiFi and Internet watchdogs for local=$watchMac")
-        transportManager.startWifiServer(deviceName, watchMac, watchMac)
-        
-        // Start watchdogs
-        transportManager.startWifiServerWatchdog(this, deviceName, watchMac, watchMac)
-        
-        val internetUrl = prefs.getString("internet_signaling_url", "ws://192.168.1.10:8080") ?: "ws://192.168.1.10:8080"
-        val internetRule = prefs.getInt("internet_activation_rule", 0)
-        transportManager.updateInternetSettings(internetRule, internetUrl)
-        transportManager.startInternetMonitorWatchdog(deviceName, watchMac, watchMac)
-    }
 
-    // Bluetooth Server
-    transportManager.startBluetoothServer(adapter)
-    // Start Bluetooth server watchdog
-    transportManager.startBluetoothServerWatchdog(adapter)
+        val watchMac = prefs.getString("wifi_advertised_mac", null)
+        val lastPhoneMac = prefs.getString("last_phone_mac", null)
+
+        if (watchMac != null) {
+            Log.d(TAG, "Starting WiFi server for local=$watchMac")
+            // If we have a saved phone MAC, use it. Otherwise, start server with null/empty remote
+            // so it can accept ANY connection initially or wait for BT.
+            val remoteMac = lastPhoneMac ?: ""
+            
+            // WiFi Server
+            transportManager.startWifiServer(deviceName, watchMac, remoteMac)
+            
+            // Start WiFi watchdog if we have a remote target
+            if (remoteMac.isNotEmpty()) {
+                transportManager.startWifiServerWatchdog(this, deviceName, watchMac, remoteMac)
+                
+                val internetUrl = prefs.getString("internet_signaling_url", "ws://192.168.1.10:8080") ?: "ws://192.168.1.10:8080"
+                val internetRule = prefs.getInt("internet_activation_rule", 0)
+                transportManager.updateInternetSettings(internetRule, internetUrl)
+                transportManager.startInternetMonitorWatchdog(deviceName, watchMac, remoteMac)
+            }
+        }
+
+        // Bluetooth Server
+        transportManager.startBluetoothServer(adapter)
+        // Start Bluetooth server watchdog
+        transportManager.startBluetoothServerWatchdog(adapter)
     }
 
     private fun handleDeviceConnected(deviceName: String, mac: String?, transportType: String = "") {
@@ -1055,6 +1063,22 @@ class BluetoothService : Service() {
         
         // Start automation and encryption
         serviceScope.launch {
+             // Save phone MAC for future reconnection
+             if (mac != null) {
+                 val oldMac = prefs.getString("last_phone_mac", null)
+                 if (mac != oldMac) {
+                     prefs.edit().putString("last_phone_mac", mac).apply()
+                 }
+                 
+                 // Update watchdogs with the real phone MAC if it was the same as watchMac before
+                 val watchMac = prefs.getString("wifi_advertised_mac", null)
+                 if (watchMac != null) {
+                     Log.i(TAG, "Updating WiFi/Internet watchdogs for Phone MAC: $mac")
+                     transportManager.startWifiServerWatchdog(this@BluetoothService, Build.MODEL, watchMac, mac)
+                     transportManager.startInternetMonitorWatchdog(Build.MODEL, watchMac, mac)
+                 }
+             }
+
              // Trigger automation on connection
              onConnectionEstablished()
              
