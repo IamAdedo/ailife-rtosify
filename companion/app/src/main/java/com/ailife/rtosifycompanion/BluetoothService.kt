@@ -5196,6 +5196,9 @@ class BluetoothService : Service() {
         try {
             unregisterReceiver(batteryReceiver)
         } catch (_: Exception) {}
+        try {
+            unregisterReceiver(aclDisconnectReceiver)
+        } catch (_: Exception) {}
 
         if (MirroringService.isRunning) {
             Log.d(TAG, "onDestroy: Mirroring is active, stopping it.")

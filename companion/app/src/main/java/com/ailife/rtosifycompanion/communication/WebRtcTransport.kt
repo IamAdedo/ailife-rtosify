@@ -348,12 +348,60 @@ class WebRtcTransport(
     override fun receive(): Flow<ProtocolMessage> = messageChannel.receiveAsFlow()
 
     override suspend fun disconnect() {
-        dataChannel?.close()
-        peerConnection?.close()
-        signalingClient?.close()
-        factory?.dispose()
+        Log.d(TAG, "Disconnecting WebRTC Transport")
+        
+        // 1. Stop all internal collectors and jobs immediately
+        coroutineScope.cancel()
+        
+        // 2. Update states
         _connectionState.value = false
         _dataChannelOpen.value = false
+        
+        // 3. Close the message channel so collectors know we're done
+        try {
+            messageChannel.close()
+        } catch (_: Exception) {}
+
+        // 4. Close and dispose WebRTC native resources in order
+        // DataChannel first, then PeerConnection, then Factory
+        // Must happen on the same thread they were created (Main)
+        withContext(Dispatchers.Main) {
+            try {
+                dataChannel?.unregisterObserver()
+                dataChannel?.close()
+                dataChannel?.dispose()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error disposing DataChannel: ${e.message}")
+            } finally {
+                dataChannel = null
+            }
+
+            try {
+                peerConnection?.close()
+                peerConnection?.dispose()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error disposing PeerConnection: ${e.message}")
+            } finally {
+                peerConnection = null
+            }
+
+            try {
+                signalingClient?.close()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error closing signaling client: ${e.message}")
+            } finally {
+                signalingClient = null
+            }
+
+            // Factory disposal is the most risky. Wait a tiny bit for threads to settle.
+            try {
+                factory?.dispose()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error disposing factory: ${e.message}")
+            } finally {
+                factory = null
+            }
+        }
     }
 
     override fun isConnected(): Boolean = _connectionState.value

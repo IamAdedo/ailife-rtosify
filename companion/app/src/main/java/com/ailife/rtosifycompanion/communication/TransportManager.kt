@@ -561,13 +561,15 @@ class TransportManager(
         btServerWatchdog?.cancel()
         internetMonitorWatchdog?.cancel()
         scope.launch {
-            bluetoothTransport?.disconnect()
-            wifiTransport?.disconnect()
-            internetTransport?.disconnect()
-            bluetoothTransport = null
-            wifiTransport = null
-            internetTransport = null
-            updateConnectionState()
+            withContext(NonCancellable) {
+                bluetoothTransport?.disconnect()
+                wifiTransport?.disconnect()
+                internetTransport?.disconnect()
+                bluetoothTransport = null
+                wifiTransport = null
+                internetTransport = null
+                updateConnectionState()
+            }
         }
     }
 

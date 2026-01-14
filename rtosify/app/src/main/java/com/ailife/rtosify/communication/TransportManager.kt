@@ -447,13 +447,15 @@ class TransportManager(
         internetMonitorJob?.cancel()
         
         scope.launch {
-            bluetoothTransport?.disconnect()
-            wifiTransport?.disconnect()
-            internetTransport?.disconnect()
-            bluetoothTransport = null
-            wifiTransport = null
-            internetTransport = null
-            _connectionState.value = ConnectionState.Disconnected
+            withContext(NonCancellable) {
+                bluetoothTransport?.disconnect()
+                wifiTransport?.disconnect()
+                internetTransport?.disconnect()
+                bluetoothTransport = null
+                wifiTransport = null
+                internetTransport = null
+                _connectionState.value = ConnectionState.Disconnected
+            }
         }
     }
     
