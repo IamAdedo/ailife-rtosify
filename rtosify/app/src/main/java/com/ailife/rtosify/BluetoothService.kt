@@ -909,6 +909,7 @@ class BluetoothService : Service() {
             MessageType.WIFI_KEY_ACK -> handleWifiKeyAck(message)
             MessageType.WIFI_TEST_ACK -> handleWifiTestAck(message)
             MessageType.WIFI_TEST_ENCRYPT -> handleWifiTestReceived(message)
+            MessageType.SYNC_MAC -> handleSyncMac(message)
             else -> Log.d(TAG, "Unknown message type: ${message.type}")
         }
     }
@@ -3242,5 +3243,27 @@ class BluetoothService : Service() {
         val rule = activePrefs.getInt("internet_activation_rule", 0)
         val url = activePrefs.getString("internet_signaling_url", "") ?: ""
         sendMessage(ProtocolHelper.createUpdateInternetSettings(rule, url))
+    }
+
+    private fun handleSyncMac(message: ProtocolMessage) {
+        val mac = ProtocolHelper.extractStringField(message, "mac") ?: return
+        Log.i(TAG, "Received discovered local MAC from watch: $mac")
+        
+        val oldMac = prefs.getString("discovered_local_mac", null)
+        if (mac != oldMac) {
+            prefs.edit().putString("discovered_local_mac", mac).apply()
+            Log.i(TAG, "Local MAC updated. Discovered: $mac (was: $oldMac).")
+            transportManager.setDiscoveredLocalMac(mac)
+            
+            // Re-trigger internet connection logic if already connected via WebRTC
+            serviceScope.launch {
+                val lastMac = devicePrefManager.getSelectedDeviceMac()
+                if (lastMac != null) {
+                    Log.i(TAG, "Re-triggering internet monitoring with updated MAC.")
+                }
+            }
+        } else {
+            transportManager.setDiscoveredLocalMac(mac)
+        }
     }
 }

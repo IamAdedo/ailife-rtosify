@@ -144,6 +144,7 @@ object MessageType {
     const val SHARE_SYNC = "share_sync"
 
     const val UPDATE_INTERNET_SETTINGS = "update_internet_settings"
+    const val SYNC_MAC = "sync_mac"
 }
 
 data class PhoneBatteryData(val level: Int, val isCharging: Boolean)
@@ -791,6 +792,12 @@ object ProtocolHelper {
     // Helper to extract data from message
     inline fun <reified T> extractData(message: ProtocolMessage): T {
         return gson.fromJson(message.data, T::class.java)
+    }
+
+    fun createSyncMac(mac: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("mac", mac)
+        return ProtocolMessage(type = MessageType.SYNC_MAC, data = data)
     }
 
     fun extractStringField(message: ProtocolMessage, field: String): String? {

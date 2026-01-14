@@ -43,6 +43,10 @@ class WebRtcTransport(
 
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    // The ID to send signaling messages to. Defaults to remoteMac, but updates
+    // if we receive an offer from a different source ID
+    private var activeSignalingTarget: String = remoteMac
+
     override suspend fun connect(): Boolean {
         Log.d(TAG, "connect() called - remoteMac=$remoteMac, signalingUrl=$signalingUrl, isInitiator=$isInitiator")
 
@@ -132,8 +136,8 @@ class WebRtcTransport(
                 withContext(Dispatchers.Main) {
                     Log.d(TAG, "Received signaling event: $event")
                     when (event) {
-                        is SignalingClient.SignalingEvent.Offer -> handleOffer(event.sdp)
-                        is SignalingClient.SignalingEvent.Answer -> handleAnswer(event.sdp)
+                        is SignalingClient.SignalingEvent.Offer -> handleOffer(event.sdp, event.source)
+                        is SignalingClient.SignalingEvent.Answer -> handleAnswer(event.sdp, event.source)
                         is SignalingClient.SignalingEvent.IceCandidate -> handleIceCandidate(event)
                     }
                 }
@@ -190,10 +194,12 @@ class WebRtcTransport(
                 Log.d(TAG, "DataChannel State: $state")
                 when (state) {
                     DataChannel.State.OPEN -> {
+                        Log.i(TAG, "DataChannel is OPEN")
                         _dataChannelOpen.value = true
                         _connectionState.value = true
                     }
                     DataChannel.State.CLOSED -> {
+                        Log.w(TAG, "DataChannel is CLOSED")
                         _dataChannelOpen.value = false
                         _connectionState.value = false
                     }
@@ -241,26 +247,52 @@ class WebRtcTransport(
         }, MediaConstraints())
     }
 
-    private fun handleOffer(sdp: String) {
+    private fun handleOffer(sdp: String, source: String) {
+        Log.i(TAG, "Handling Offer from: $source. Updating signaling target.")
+        activeSignalingTarget = source
+        
         val desc = SessionDescription(SessionDescription.Type.OFFER, sdp)
-        peerConnection?.setRemoteDescription(SimpleSdpObserver(), desc)
-
-        peerConnection?.createAnswer(object : SdpObserver {
-            override fun onCreateSuccess(desc: SessionDescription?) {
-                desc?.let {
-                    peerConnection?.setLocalDescription(SimpleSdpObserver(), it)
-                    sendSdp("answer", it.description)
-                }
+        peerConnection?.setRemoteDescription(object : SimpleSdpObserver() {
+            override fun onSetSuccess() {
+                Log.d(TAG, "Set remote description (Offer) success. Creating Answer...")
+                peerConnection?.createAnswer(object : SdpObserver {
+                    override fun onCreateSuccess(desc: SessionDescription?) {
+                        Log.d(TAG, "Create Answer success. Type: ${desc?.type}")
+                        desc?.let {
+                            peerConnection?.setLocalDescription(SimpleSdpObserver(), it)
+                            sendSdp("answer", it.description)
+                        }
+                    }
+                    override fun onSetSuccess() {}
+                    override fun onCreateFailure(s: String?) {
+                        Log.e(TAG, "Create Answer failure: $s")
+                    }
+                    override fun onSetFailure(s: String?) {
+                        Log.e(TAG, "Set local description (Answer) failure: $s")
+                    }
+                }, MediaConstraints())
             }
-            override fun onSetSuccess() {}
-            override fun onCreateFailure(s: String?) {}
-            override fun onSetFailure(s: String?) {}
-        }, MediaConstraints())
+            override fun onSetFailure(s: String?) {
+                Log.e(TAG, "Set remote description (Offer) failure: $s")
+            }
+        }, desc)
     }
 
-    private fun handleAnswer(sdp: String) {
+    private fun handleAnswer(sdp: String, source: String) {
+        Log.i(TAG, "Handling Answer from: $source. Updating signaling target.")
+        // If we initiated, we might want to lock onto this source, 
+        // though usually we know who we sent strictly to.
+        activeSignalingTarget = source 
+        
         val desc = SessionDescription(SessionDescription.Type.ANSWER, sdp)
-        peerConnection?.setRemoteDescription(SimpleSdpObserver(), desc)
+        peerConnection?.setRemoteDescription(object : SimpleSdpObserver() {
+            override fun onSetSuccess() {
+                Log.i(TAG, "Set remote description (Answer) success.")
+            }
+            override fun onSetFailure(s: String?) {
+                Log.e(TAG, "Set remote description (Answer) failure: $s")
+            }
+        }, desc)
     }
 
     private fun handleIceCandidate(event: SignalingClient.SignalingEvent.IceCandidate) {
@@ -273,7 +305,8 @@ class WebRtcTransport(
             put("type", type)
             put("sdp", sdp)
         }
-        signalingClient?.sendSignal(remoteMac, payload)
+        Log.d(TAG, "Sending SDP ($type) to $activeSignalingTarget")
+        signalingClient?.sendSignal(activeSignalingTarget, payload)
     }
 
     private fun sendIceCandidate(candidate: IceCandidate) {
@@ -283,7 +316,7 @@ class WebRtcTransport(
             put("sdpMid", candidate.sdpMid)
             put("sdpMLineIndex", candidate.sdpMLineIndex)
         }
-        signalingClient?.sendSignal(remoteMac, payload)
+        signalingClient?.sendSignal(activeSignalingTarget, payload)
     }
 
     override suspend fun send(message: ProtocolMessage): Boolean {
@@ -321,7 +354,7 @@ class WebRtcTransport(
     override fun getRemoteAddress(): String? = remoteMac
 
     // Simple SdpObserver implementation to reduce boilerplate
-    private class SimpleSdpObserver : SdpObserver {
+    private open class SimpleSdpObserver : SdpObserver {
         override fun onCreateSuccess(p0: SessionDescription?) {}
         override fun onSetSuccess() {}
         override fun onCreateFailure(p0: String?) {}

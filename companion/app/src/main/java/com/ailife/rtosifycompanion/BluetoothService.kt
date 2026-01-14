@@ -1058,6 +1058,11 @@ class BluetoothService : Service() {
              // Trigger automation on connection
              onConnectionEstablished()
              
+             // MAC Discovery: Tell the phone its real MAC address
+             if (mac != null) {
+                 Log.d(TAG, "Sending discovered local MAC to phone: $mac")
+                 sendMessage(ProtocolHelper.createSyncMac(mac))
+             }
              // Initialize encryption if MAC is available
              mac?.let {
                  initializeEncryptionForDevice(it)

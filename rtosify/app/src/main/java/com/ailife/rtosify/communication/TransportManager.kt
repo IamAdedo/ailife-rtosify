@@ -45,6 +45,8 @@ class TransportManager(
     @Volatile private var wifiTemporarilyDisabled = false
     @Volatile private var wifiForceForPairing = false
     
+    private var discoveredLocalMac: String? = null
+    
     // Message handling
     private val _incomingMessages = Channel<ProtocolMessage>(Channel.BUFFERED)
     val incomingMessages: Flow<ProtocolMessage> = _incomingMessages.receiveAsFlow()
@@ -79,10 +81,17 @@ class TransportManager(
      * Starts the client logic: Auto-reconnect Bluetooth and WiFi monitoring.
      */
     fun startClient(targetDevice: BluetoothDevice) {
+        // Load discovered MAC if it exists
+        discoveredLocalMac = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE).getString("discovered_local_mac", null)
+        
         startBluetoothReconnect(targetDevice)
         startWifiMonitoring(targetDevice.address)
         startInternetMonitoring(targetDevice.address)
         startConnectionHealthMonitor(targetDevice.address)
+    }
+
+    fun setDiscoveredLocalMac(mac: String) {
+        discoveredLocalMac = mac
     }
 
     private fun startBluetoothReconnect(device: BluetoothDevice) {
@@ -302,7 +311,7 @@ class TransportManager(
         val transport = WebRtcTransport(
             context = context,
             remoteMac = mac,
-            localMac = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter?.address ?: "02:00:00:00:00:00", // Need actual MAC or UUID
+            localMac = discoveredLocalMac ?: (context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter?.address ?: "02:00:00:00:00:00",
             deviceName = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter?.name ?: Build.MODEL,
             encryptionManager = encryptionManager,
             signalingUrl = signalingUrl,

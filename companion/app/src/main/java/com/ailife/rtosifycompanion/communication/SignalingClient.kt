@@ -29,7 +29,7 @@ class SignalingClient(
         .pingInterval(30, TimeUnit.SECONDS)
         .build()
 
-    private val _signalingEvents = MutableSharedFlow<SignalingEvent>()
+    private val _signalingEvents = MutableSharedFlow<SignalingEvent>(replay = 1, extraBufferCapacity = 64)
     val signalingEvents: SharedFlow<SignalingEvent> = _signalingEvents
 
     private val _connectionState = MutableStateFlow(false)
