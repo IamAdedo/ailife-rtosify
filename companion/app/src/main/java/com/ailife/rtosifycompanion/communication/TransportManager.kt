@@ -375,6 +375,9 @@ class TransportManager(
             Log.d(TAG, "Starting Internet monitoring loop for MAC: $deviceMac")
             while (isActive) {
                 if (internetTransport == null || !internetTransport!!.isConnected()) {
+                    Log.d(TAG, "Internet transport disconnected or null - reconnecting")
+                    internetTransport?.disconnect()
+                    internetTransport = null
                     connectInternet(deviceMac)
                 }
                 delay(10000) // Re-check every 10 seconds if disconnected

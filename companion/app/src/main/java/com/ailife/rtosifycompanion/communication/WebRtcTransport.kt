@@ -3,6 +3,7 @@ package com.ailife.rtosifycompanion.communication
 import android.content.Context
 import android.util.Log
 import com.ailife.rtosifycompanion.ProtocolMessage
+import com.ailife.rtosifycompanion.ProtocolHelper
 import com.ailife.rtosifycompanion.security.EncryptionManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
@@ -28,7 +29,8 @@ class WebRtcTransport(
 
     companion object {
         private const val TAG = "WebRtcTransport"
-        private const val CONNECTION_TIMEOUT_MS = 30000L
+        private const val CONNECTION_TIMEOUT_MS = 60000L // Increased for better reliability
+        private const val HEARTBEAT_INTERVAL_MS = 20000L
     }
 
     private var factory: PeerConnectionFactory? = null
@@ -138,6 +140,7 @@ class WebRtcTransport(
                     is SignalingClient.SignalingEvent.Offer -> event.source
                     is SignalingClient.SignalingEvent.Answer -> event.source
                     is SignalingClient.SignalingEvent.IceCandidate -> event.source
+                    else -> null
                 }
                 if (source == localMac) {
                     Log.w(TAG, "Ignoring self-loop signaling event from $source")
@@ -150,6 +153,36 @@ class WebRtcTransport(
                         is SignalingClient.SignalingEvent.Offer -> handleOffer(event.sdp, event.source)
                         is SignalingClient.SignalingEvent.Answer -> handleAnswer(event.sdp, event.source)
                         is SignalingClient.SignalingEvent.IceCandidate -> handleIceCandidate(event)
+                        is SignalingClient.SignalingEvent.PeerJoined -> {
+                            if (event.peerMac == remoteMac || event.peerMac == activeSignalingTarget) {
+                                Log.i(TAG, "Active peer ${event.peerMac} joined signaling room")
+                                // If we were initiator, we'd send offer here. 
+                                // As receiver, we just stay ready for their offer.
+                            }
+                        }
+                        is SignalingClient.SignalingEvent.PeerLeft -> {
+                            if (event.peerMac == remoteMac || event.peerMac == activeSignalingTarget) {
+                                Log.w(TAG, "Active peer ${event.peerMac} left signaling room. Disconnecting.")
+                                disconnect()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var heartbeatJob: Job? = null
+
+    private fun startHeartbeat() {
+        heartbeatJob?.cancel()
+        heartbeatJob = coroutineScope.launch {
+            while (isActive) {
+                delay(HEARTBEAT_INTERVAL_MS)
+                if (_dataChannelOpen.value) {
+                    val success = send(com.ailife.rtosifycompanion.ProtocolHelper.createHeartbeat())
+                    if (!success) {
+                        Log.w(TAG, "Heartbeat failed. DataChannel might be dead.")
                     }
                 }
             }
@@ -157,6 +190,8 @@ class WebRtcTransport(
     }
 
     private fun createPeerConnection() {
+        if (peerConnection != null) return
+        
         val iceServers = listOf(
             PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer()
         )
@@ -191,6 +226,8 @@ class WebRtcTransport(
     }
 
     private fun createDataChannel() {
+        if (dataChannel != null && dataChannel?.state() == DataChannel.State.OPEN) return
+        
         val init = DataChannel.Init()
         dataChannel = peerConnection?.createDataChannel("rtosify_data", init)
         dataChannel?.let { setupDataChannel(it) }
@@ -208,6 +245,7 @@ class WebRtcTransport(
                         Log.i(TAG, "DataChannel is OPEN")
                         _dataChannelOpen.value = true
                         _connectionState.value = true
+                        startHeartbeat()
                     }
                     DataChannel.State.CLOSED -> {
                         Log.w(TAG, "DataChannel is CLOSED")

@@ -39,6 +39,8 @@ class SignalingClient(
         data class Offer(val sdp: String, val source: String) : SignalingEvent()
         data class Answer(val sdp: String, val source: String) : SignalingEvent()
         data class IceCandidate(val sdpMid: String, val sdpMLineIndex: Int, val candidate: String, val source: String) : SignalingEvent()
+        data class PeerJoined(val peerMac: String) : SignalingEvent()
+        data class PeerLeft(val peerMac: String) : SignalingEvent()
     }
 
     fun connect() {
@@ -132,6 +134,12 @@ class SignalingClient(
                 "peer_joined" -> {
                     val peer = json.optString("mac")
                     Log.d(TAG, "Peer joined: $peer")
+                    _signalingEvents.tryEmit(SignalingEvent.PeerJoined(peer))
+                }
+                "peer_left" -> {
+                    val peer = json.optString("mac")
+                    Log.d(TAG, "Peer left: $peer")
+                    _signalingEvents.tryEmit(SignalingEvent.PeerLeft(peer))
                 }
                 "error" -> {
                     val error = json.optString("message")

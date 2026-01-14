@@ -281,6 +281,10 @@ class TransportManager(
             while (isActive) {
                 if (shouldInternetBeEnabled()) {
                     if (internetTransport == null || !internetTransport!!.isConnected()) {
+                        Log.d(TAG, "Internet transport disconnected or null - reconnecting")
+                        internetTransport?.disconnect()
+                        internetTransport = null
+                        
                         val connected = connectInternet(deviceMac)
                         updateConnectionState()
                         if (!connected) {
