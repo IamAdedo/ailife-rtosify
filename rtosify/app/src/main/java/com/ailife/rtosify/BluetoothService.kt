@@ -561,13 +561,8 @@ class BluetoothService : Service() {
                          isConnected = true
                          currentDeviceName = state.deviceName ?: getString(R.string.device_name_default)
                          
-                         // Show transport type in status
-                         val statusText = when (state.type) {
-                             "Dual" -> getString(R.string.status_connected_to_dual, currentDeviceName)
-                             "WiFi" -> getString(R.string.status_connected_to_wifi, currentDeviceName)
-                             "Bluetooth" -> getString(R.string.status_connected_to_bt, currentDeviceName)
-                             else -> getString(R.string.status_connected_to, currentDeviceName)
-                         }
+                         // Show transport type in status - handle combined types
+                         val statusText = buildConnectionStatusText(state.type, currentDeviceName ?: "")
                          updateStatus(statusText)
                          Log.d(TAG, "Device connected via ${state.type}: $currentDeviceName")
                          
@@ -2619,6 +2614,23 @@ class BluetoothService : Service() {
         } catch (_: Exception) {}
         stopSelf()
     }
+    private fun buildConnectionStatusText(type: String, deviceName: String): String {
+        val hasBluetooth = type.contains("Bluetooth")
+        val hasWifi = type.contains("WiFi")
+        val hasInternet = type.contains("Internet")
+
+        return when {
+            hasBluetooth && hasWifi && hasInternet -> getString(R.string.status_connected_to_all, deviceName)
+            hasBluetooth && hasWifi -> getString(R.string.status_connected_to_dual, deviceName)
+            hasBluetooth && hasInternet -> getString(R.string.status_connected_to_bt_internet, deviceName)
+            hasWifi && hasInternet -> getString(R.string.status_connected_to_wifi_internet, deviceName)
+            hasWifi -> getString(R.string.status_connected_to_wifi, deviceName)
+            hasInternet -> getString(R.string.status_connected_to_internet, deviceName)
+            hasBluetooth -> getString(R.string.status_connected_to_bt, deviceName)
+            else -> getString(R.string.status_connected_to, deviceName)
+        }
+    }
+
     private fun updateStatus(text: String) {
         if (isStopping) return // Prevent updates if stopping
 
@@ -2702,33 +2714,26 @@ class BluetoothService : Service() {
         }
     }
 
+    // Format transport type for notification display
+    private fun formatTransportTypeForNotification(type: String): String {
+        val parts = mutableListOf<String>()
+        if (type.contains("Bluetooth")) parts.add("BT")
+        if (type.contains("WiFi")) parts.add("WiFi")
+        if (type.contains("Internet")) parts.add("Net")
+        return if (parts.isNotEmpty()) parts.joinToString("+") else type
+    }
+
     // Retorna Triple(ID, Channel, Text)
     private fun determineNotificationState(): Triple<Int, String, String> {
         return when {
             isConnected -> {
                 val state = transportManager.connectionState.value
                 val statusText = if (state is com.ailife.rtosify.communication.TransportManager.ConnectionState.Connected) {
-                    when (state.type) {
-                        "Dual" -> if (currentDeviceName != null) {
-                            "Connected to $currentDeviceName via WiFi + Bluetooth"
-                        } else {
-                            "Connected via WiFi + Bluetooth"
-                        }
-                        "WiFi" -> if (currentDeviceName != null) {
-                            "Connected to $currentDeviceName via WiFi"
-                        } else {
-                            "Connected via WiFi"
-                        }
-                        "Bluetooth" -> if (currentDeviceName != null) {
-                            "Connected to $currentDeviceName via Bluetooth"
-                        } else {
-                            "Connected via Bluetooth"
-                        }
-                        else -> if (currentDeviceName != null) {
-                            "Connected to $currentDeviceName"
-                        } else {
-                            "Connected"
-                        }
+                    val transportDisplay = formatTransportTypeForNotification(state.type)
+                    if (currentDeviceName != null) {
+                        "Connected to $currentDeviceName via $transportDisplay"
+                    } else {
+                        "Connected via $transportDisplay"
                     }
                 } else {
                     if (currentDeviceName != null) {

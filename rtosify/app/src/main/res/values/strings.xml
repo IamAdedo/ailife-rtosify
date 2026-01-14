@@ -19,6 +19,10 @@
     <string name="status_connected_to_bt">Connected to %s (Bluetooth)</string>
     <string name="status_connected_to_wifi">Connected to %s (WiFi)</string>
     <string name="status_connected_to_dual">Connected to %s (Bluetooth &amp; WiFi)</string>
+    <string name="status_connected_to_internet">Connected to %s (Internet)</string>
+    <string name="status_connected_to_bt_internet">Connected to %s (Bluetooth &amp; Internet)</string>
+    <string name="status_connected_to_wifi_internet">Connected to %s (WiFi &amp; Internet)</string>
+    <string name="status_connected_to_all">Connected to %s (BT+WiFi+Internet)</string>
     <string name="status_switching">Switching Device…</string>
     <string name="device_name_default">Device</string>
     <string name="device_picker_title">Select Device</string>

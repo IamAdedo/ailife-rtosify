@@ -4805,30 +4805,33 @@ class BluetoothService : Service() {
         }
     }
 
+    // Format transport type for display (e.g., "Bluetooth+WiFi+Internet" -> "BT+WiFi+Net")
+    private fun formatTransportType(type: String): String {
+        val parts = mutableListOf<String>()
+        if (type.contains("Bluetooth")) parts.add("BT")
+        if (type.contains("WiFi")) parts.add("WiFi")
+        if (type.contains("Internet")) parts.add("Net")
+        return if (parts.isNotEmpty()) parts.joinToString("+") else type
+    }
+
     // Returns Triple(ID, Channel, Text)
     private fun determineNotificationState(): Triple<Int, String, String> {
         return when {
             isConnected && currentDeviceName != null -> {
                 val state = transportManager.connectionState.value
-                val statusText = when {
-                    state is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected && state.type == "Dual" ->
-                        getString(R.string.status_connected_to, currentDeviceName!!) + " via BT & WiFi"
-                    state is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected && state.type == "WiFi" ->
-                        getString(R.string.status_connected_to, currentDeviceName!!) + " via WiFi"
-                    else ->
-                        getString(R.string.status_connected_to, currentDeviceName!!) + " via BT"
+                val statusText = if (state is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected) {
+                    getString(R.string.status_connected_to, currentDeviceName!!) + " via " + formatTransportType(state.type)
+                } else {
+                    getString(R.string.status_connected_to, currentDeviceName!!)
                 }
                 Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, statusText)
             }
             isConnected && currentDeviceName == null -> {
                 val state = transportManager.connectionState.value
-                val statusText = when {
-                     state is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected && state.type == "Dual" ->
-                        getString(R.string.status_connected) + " via BT & WiFi"
-                    state is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected && state.type == "WiFi" ->
-                        getString(R.string.status_connected) + " via WiFi"
-                    else ->
-                        getString(R.string.status_connected)
+                val statusText = if (state is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected) {
+                    getString(R.string.status_connected) + " via " + formatTransportType(state.type)
+                } else {
+                    getString(R.string.status_connected)
                 }
                 Triple(NOTIFICATION_ID_CONNECTED, CHANNEL_ID_CONNECTED, statusText)
             }

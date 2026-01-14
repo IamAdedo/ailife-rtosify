@@ -28,39 +28,67 @@ class WebRtcTransport(
 
     companion object {
         private const val TAG = "WebRtcTransport"
+        private const val CONNECTION_TIMEOUT_MS = 30000L
     }
 
     private var factory: PeerConnectionFactory? = null
     private var peerConnection: PeerConnection? = null
     private var dataChannel: DataChannel? = null
     private var signalingClient: SignalingClient? = null
-    
+
     private val messageChannel = Channel<ProtocolMessage>(Channel.BUFFERED)
     private val _connectionState = MutableStateFlow(false)
-    
+    private val _dataChannelOpen = MutableStateFlow(false)
+    private val _signalingConnected = MutableStateFlow(false)
+
     private val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     override suspend fun connect(): Boolean {
-        return withContext(Dispatchers.Main) {
-            try {
+        Log.d(TAG, "connect() called - remoteMac=$remoteMac, signalingUrl=$signalingUrl, isInitiator=$isInitiator")
+
+        return try {
+            withContext(Dispatchers.Main) {
                 initializeWebRtc()
-                startSignaling()
+            }
+
+            startSignaling()
+
+            // Wait for signaling to connect
+            val signalingConnected = withTimeoutOrNull(10000L) {
+                _signalingConnected.first { it }
+            }
+
+            if (signalingConnected != true) {
+                Log.e(TAG, "Signaling connection timeout")
+                return false
+            }
+
+            withContext(Dispatchers.Main) {
                 createPeerConnection()
-                
+
                 if (isInitiator) {
                     createDataChannel()
                     createOffer()
                 }
-                
-                // Wait for connection (with timeout)
-                // In a real scenario, this might need a more robust state handling
-                // For now, we return true to indicate initialization started.
-                // The actual "connected" state is async.
-                true 
-            } catch (e: Exception) {
-                Log.e(TAG, "WebRTC connect failed", e)
+            }
+
+            // Wait for DataChannel to open with timeout
+            val connected = withTimeoutOrNull(CONNECTION_TIMEOUT_MS) {
+                _dataChannelOpen.first { it }
+            }
+
+            if (connected == true) {
+                Log.d(TAG, "WebRTC connection established successfully")
+                _connectionState.value = true
+                true
+            } else {
+                Log.e(TAG, "WebRTC connection timeout - DataChannel did not open")
+                disconnect()
                 false
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "WebRTC connect failed", e)
+            false
         }
     }
 
@@ -87,12 +115,22 @@ class WebRtcTransport(
     }
 
     private fun startSignaling() {
-        signalingClient = SignalingClient(signalingUrl, localMac)
+        signalingClient = SignalingClient(signalingUrl, localMac, remoteMac)
+
+        // Listen for connection state
+        coroutineScope.launch {
+            signalingClient?.connectionState?.collect { connected ->
+                Log.d(TAG, "Signaling connection state: $connected")
+                _signalingConnected.value = connected
+            }
+        }
+
         signalingClient?.connect()
-        
+
         coroutineScope.launch {
             signalingClient?.signalingEvents?.collect { event ->
                 withContext(Dispatchers.Main) {
+                    Log.d(TAG, "Received signaling event: $event")
                     when (event) {
                         is SignalingClient.SignalingEvent.Offer -> handleOffer(event.sdp)
                         is SignalingClient.SignalingEvent.Answer -> handleAnswer(event.sdp)
@@ -144,10 +182,23 @@ class WebRtcTransport(
     }
 
     private fun setupDataChannel(dc: DataChannel) {
+        dataChannel = dc
         dc.registerObserver(object : DataChannel.Observer {
             override fun onBufferedAmountChange(amount: Long) {}
             override fun onStateChange() {
-                Log.d(TAG, "DataChannel State: ${dc.state()}")
+                val state = dc.state()
+                Log.d(TAG, "DataChannel State: $state")
+                when (state) {
+                    DataChannel.State.OPEN -> {
+                        _dataChannelOpen.value = true
+                        _connectionState.value = true
+                    }
+                    DataChannel.State.CLOSED -> {
+                        _dataChannelOpen.value = false
+                        _connectionState.value = false
+                    }
+                    else -> {}
+                }
             }
             override fun onMessage(buffer: DataChannel.Buffer) {
                 handleDataMessage(buffer)

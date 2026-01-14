@@ -300,26 +300,44 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 gravity = Gravity.CENTER
             }
             
-            if (transportType.contains("Dual")) {
+            // Show all active connection types
+            val hasBluetooth = transportType.contains("Bluetooth") || transportType.contains("BT") || transportType.contains("Dual")
+            val hasWifi = transportType.contains("WiFi") || transportType.contains("Dual")
+            val hasInternet = transportType.contains("Internet")
+
+            val activeCount = listOf(hasBluetooth, hasWifi, hasInternet).count { it }
+            val iconMargin = if (activeCount > 1) dpToPx(4) else 0
+
+            if (hasBluetooth) {
                 container.addView(ImageView(context).apply {
                     layoutParams = LinearLayout.LayoutParams(iconSize, iconSize).apply {
-                        marginEnd = dpToPx(4)
+                        if (hasWifi || hasInternet) marginEnd = iconMargin
                     }
                     setImageResource(R.drawable.ic_bluetooth)
                     setColorFilter(Color.parseColor("#30D158"))
                 })
+            }
+
+            if (hasWifi) {
                 container.addView(ImageView(context).apply {
-                    layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
+                    layoutParams = LinearLayout.LayoutParams(iconSize, iconSize).apply {
+                        if (hasInternet) marginEnd = iconMargin
+                    }
                     setImageResource(R.drawable.ic_wifi)
                     setColorFilter(Color.parseColor("#30D158"))
                 })
-            } else if (transportType.contains("WiFi")) {
+            }
+
+            if (hasInternet) {
                 container.addView(ImageView(context).apply {
                     layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
-                    setImageResource(R.drawable.ic_wifi)
+                    setImageResource(R.drawable.ic_globe)
                     setColorFilter(Color.parseColor("#30D158"))
                 })
-            } else {
+            }
+
+            // Fallback if no connection type detected but still "connected"
+            if (!hasBluetooth && !hasWifi && !hasInternet && transportType.isNotEmpty()) {
                 container.addView(ImageView(context).apply {
                     layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
                     setImageResource(R.drawable.ic_bluetooth)

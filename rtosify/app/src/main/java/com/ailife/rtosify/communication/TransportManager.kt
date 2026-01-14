@@ -453,28 +453,33 @@ class TransportManager(
         val bt = bluetoothTransport
         val internet = internetTransport
         val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
-        
-        // Priority for display: Dual > WiFi > BT > Internet
-        val newState = when {
-            wifi != null && wifi.isConnected() && bt != null && bt.isConnected() -> 
-                ConnectionState.Connected("Dual (BT+WiFi)", bt.getRemoteDeviceName(), bt.getRemoteAddress())
-            wifi != null && wifi.isConnected() -> 
-                ConnectionState.Connected("WiFi", wifi.getRemoteDeviceName(), wifi.getRemoteAddress())
-            bt != null && bt.isConnected() -> 
-                ConnectionState.Connected("Bluetooth", bt.getRemoteDeviceName(), bt.getRemoteAddress())
-            internet != null && internet.isConnected() ->
-                ConnectionState.Connected("Internet", internet.getRemoteDeviceName(), internet.getRemoteAddress())
-            else -> {
-                if (isConnectingWifi || isConnectingInternet) {
-                    ConnectionState.Connecting
-                } else if (btReconnectJob?.isActive == true && bluetoothAdapter?.isEnabled == true) {
-                    ConnectionState.Waiting
-                } else {
-                    ConnectionState.Disconnected
-                }
+
+        // Build connection type string showing all active transports
+        val btConnected = bt != null && bt.isConnected()
+        val wifiConnected = wifi != null && wifi.isConnected()
+        val internetConnected = internet != null && internet.isConnected()
+
+        val newState = if (btConnected || wifiConnected || internetConnected) {
+            val types = mutableListOf<String>()
+            if (btConnected) types.add("Bluetooth")
+            if (wifiConnected) types.add("WiFi")
+            if (internetConnected) types.add("Internet")
+
+            val typeString = types.joinToString("+")
+            val deviceName = bt?.getRemoteDeviceName() ?: wifi?.getRemoteDeviceName() ?: internet?.getRemoteDeviceName()
+            val deviceMac = bt?.getRemoteAddress() ?: wifi?.getRemoteAddress() ?: internet?.getRemoteAddress()
+
+            ConnectionState.Connected(typeString, deviceName, deviceMac)
+        } else {
+            if (isConnectingWifi || isConnectingInternet) {
+                ConnectionState.Connecting
+            } else if (btReconnectJob?.isActive == true && bluetoothAdapter?.isEnabled == true) {
+                ConnectionState.Waiting
+            } else {
+                ConnectionState.Disconnected
             }
         }
-        
+
         _connectionState.value = newState
     }
     
