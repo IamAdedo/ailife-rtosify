@@ -21,6 +21,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.ailife.rtosify.communication.TransportManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
@@ -39,6 +40,13 @@ class NetworkSettingsActivity : AppCompatActivity() {
     private lateinit var checkBoxFixedIp: CheckBox
     private lateinit var layoutFixedIp: View
     private lateinit var etFixedIp: EditText
+    
+    // Internet Settings Views
+    private lateinit var checkBoxInternetBtFallback: CheckBox
+    private lateinit var checkBoxInternetMainActivity: CheckBox
+    private lateinit var checkBoxInternetAlways: CheckBox
+    private lateinit var etSignalingUrl: EditText
+    
     private lateinit var devicePrefManager: DevicePrefManager
     
     private var bluetoothService: BluetoothService? = null
@@ -112,6 +120,12 @@ class NetworkSettingsActivity : AppCompatActivity() {
         checkBoxFixedIp = findViewById(R.id.checkBoxFixedIp)
         layoutFixedIp = findViewById(R.id.layoutFixedIp)
         etFixedIp = findViewById(R.id.etFixedIp)
+        
+        // Internet Views
+        checkBoxInternetBtFallback = findViewById(R.id.checkBoxInternetBtFallback)
+        checkBoxInternetMainActivity = findViewById(R.id.checkBoxInternetMainActivity)
+        checkBoxInternetAlways = findViewById(R.id.checkBoxInternetAlways)
+        etSignalingUrl = findViewById(R.id.etSignalingUrl)
 
         // Pairing button handler
         btnPairForInternet.setOnClickListener {
@@ -128,6 +142,14 @@ class NetworkSettingsActivity : AppCompatActivity() {
         checkBoxBtFallback.isChecked = (currentRule and BluetoothService.WIFI_RULE_BT_FALLBACK) != 0
         checkBoxMainActivity.isChecked = (currentRule and BluetoothService.WIFI_RULE_MAINACTIVITY) != 0
         
+        // Load Internet Settings
+        val internetRule = devicePrefs.getInt("internet_activation_rule", 0)
+        checkBoxInternetAlways.isChecked = (internetRule and TransportManager.INTERNET_RULE_ALWAYS) != 0
+        checkBoxInternetBtFallback.isChecked = (internetRule and TransportManager.INTERNET_RULE_BT_FALLBACK) != 0
+        checkBoxInternetMainActivity.isChecked = (internetRule and TransportManager.INTERNET_RULE_MAINACTIVITY) != 0
+        
+        etSignalingUrl.setText(devicePrefs.getString("internet_signaling_url", "ws://192.168.1.10:8080"))
+
         // Load Fixed IP settings
         val fixedIpEnabled = devicePrefs.getBoolean("wifi_fixed_ip_enabled", false)
         val fixedIpAddress = devicePrefs.getString("wifi_fixed_ip_address", "")
@@ -137,6 +159,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
         layoutFixedIp.visibility = if (fixedIpEnabled) View.VISIBLE else View.GONE
 
         updateCheckboxEnableState()
+        updateInternetCheckboxEnableState()
 
         // Checkbox logic: make them mutually exclusive
         checkBoxAlways.setOnClickListener {
@@ -155,6 +178,33 @@ class NetworkSettingsActivity : AppCompatActivity() {
         checkBoxMainActivity.setOnClickListener {
             saveActivationRule()
         }
+        
+        // Internet Checkbox Logic
+        checkBoxInternetAlways.setOnClickListener {
+            if (checkBoxInternetAlways.isChecked) {
+                checkBoxInternetBtFallback.isChecked = false
+                checkBoxInternetMainActivity.isChecked = false
+            }
+            updateInternetCheckboxEnableState()
+            saveInternetActivationRule()
+        }
+
+        checkBoxInternetBtFallback.setOnClickListener {
+            saveInternetActivationRule()
+        }
+
+        checkBoxInternetMainActivity.setOnClickListener {
+            saveInternetActivationRule()
+        }
+        
+        etSignalingUrl.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                devicePrefs.edit().putString("internet_signaling_url", s.toString().trim()).apply()
+                // Notify TransportManager if needed, or it will pick it up on next connection attempt
+            }
+        })
 
         checkBoxFixedIp.setOnCheckedChangeListener { _, isChecked ->
             layoutFixedIp.visibility = if (isChecked) View.VISIBLE else View.GONE
@@ -188,6 +238,31 @@ class NetworkSettingsActivity : AppCompatActivity() {
         } else {
             btnPairForInternet.text = getString(R.string.network_pair_for_internet)
         }
+    }
+
+    private fun updateInternetCheckboxEnableState() {
+        val alwaysChecked = checkBoxInternetAlways.isChecked
+        checkBoxInternetBtFallback.isEnabled = !alwaysChecked
+        checkBoxInternetMainActivity.isEnabled = !alwaysChecked
+    }
+
+    private fun saveInternetActivationRule() {
+        val devicePrefs = devicePrefManager.getActiveDevicePrefs()
+        var newRule = 0
+        if (checkBoxInternetAlways.isChecked) {
+            newRule = TransportManager.INTERNET_RULE_ALWAYS
+        } else {
+            if (checkBoxInternetBtFallback.isChecked) newRule = newRule or TransportManager.INTERNET_RULE_BT_FALLBACK
+            if (checkBoxInternetMainActivity.isChecked) newRule = newRule or TransportManager.INTERNET_RULE_MAINACTIVITY
+        }
+        
+        devicePrefs.edit().putInt("internet_activation_rule", newRule).apply()
+        
+        // Notify TransportManager and Companion immediately
+        bluetoothService?.notifyInternetSettingsChanged()
+        bluetoothService?.notifyWifiRuleChanged() // Refresh transport evaluation
+        
+        Toast.makeText(this, "Internet rule updated", Toast.LENGTH_SHORT).show()
     }
 
     private fun updateCheckboxEnableState() {

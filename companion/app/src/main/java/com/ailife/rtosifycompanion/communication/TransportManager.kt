@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothServerSocket
 import android.bluetooth.BluetoothSocket
 import android.content.Context
+import android.os.Build
 import android.util.Log
 import com.ailife.rtosifycompanion.ProtocolMessage
 import com.ailife.rtosifycompanion.security.EncryptionManager
@@ -33,14 +34,21 @@ class TransportManager(
         const val WIFI_RULE_BT_FALLBACK = 1
         const val WIFI_RULE_MAINACTIVITY = 2
         const val WIFI_RULE_ALWAYS = 4
+
+        // Internet Activation Rules (Bitmask)
+        const val INTERNET_RULE_BT_FALLBACK = 1
+        const val INTERNET_RULE_MAINACTIVITY = 2
+        const val INTERNET_RULE_ALWAYS = 4
     }
 
     private var bluetoothTransport: BluetoothTransport? = null
     private var wifiTransport: WifiIntranetTransport? = null
+    private var internetTransport: WebRtcTransport? = null
 
     // Jobs for server processes
     private var bluetoothServerJob: Job? = null
     private var wifiServerJob: Job? = null
+    private var internetMonitorJob: Job? = null
     
     // Message handling
     private val _incomingMessages = Channel<ProtocolMessage>(Channel.BUFFERED)
@@ -55,29 +63,34 @@ class TransportManager(
     private var wifiServerMonitorJob: Job? = null
     private var wifiServerWatchdog: Job? = null
     private var btServerWatchdog: Job? = null
+    private var internetMonitorWatchdog: Job? = null
     
     @Volatile private var isConnectingWifi = false
+    @Volatile private var isConnectingInternet = false
     @Volatile private var currentWifiRule: Int = WIFI_RULE_BT_FALLBACK
+    @Volatile private var currentInternetRule: Int = 0 // Default disabled
+    @Volatile private var signalingUrl: String = "ws://192.168.1.10:8080"
     @Volatile private var wifiPairingMode = false  // Force WiFi server during pairing
     @Volatile private var isPhoneAppOpen = false   // Tracks if phone app is in foreground
 
     fun updatePhoneForegroundState(isOpen: Boolean) {
         isPhoneAppOpen = isOpen
-        // Trigger immediate check in watchdog
-        val name = lastDeviceName
-        val local = lastLocalMac
-        val remote = lastRemoteMac
-        if (name != null && local != null && remote != null) {
-            scope.launch {
-                wifiServerWatchdog?.cancel()
-                startWifiServerWatchdog(null, name, local, remote)
-            }
-        }
+        // Trigger immediate check in watchdogs
+        triggerWatchdogsReevaluation()
     }
 
     fun updateWifiRule(rule: Int) {
         currentWifiRule = rule
-        // Trigger immediate check in watchdog by restarting it with saved params
+        triggerWatchdogsReevaluation()
+    }
+
+    fun updateInternetSettings(rule: Int, url: String) {
+        currentInternetRule = rule
+        signalingUrl = url
+        triggerWatchdogsReevaluation()
+    }
+
+    private fun triggerWatchdogsReevaluation() {
         val name = lastDeviceName
         val local = lastLocalMac
         val remote = lastRemoteMac
@@ -85,6 +98,8 @@ class TransportManager(
             scope.launch {
                 wifiServerWatchdog?.cancel()
                 startWifiServerWatchdog(null, name, local, remote)
+                internetMonitorWatchdog?.cancel()
+                startInternetMonitorWatchdog(name, local, remote)
             }
         }
     }
@@ -100,6 +115,7 @@ class TransportManager(
         object Waiting : ConnectionState()
         data class Connected(val type: String, val deviceName: String?, val deviceMac: String?) : ConnectionState()
     }
+
 
     /**
      * Starts the Bluetooth server to accept incoming connections.
@@ -314,6 +330,134 @@ class TransportManager(
     }
 
     /**
+     * Starts the Internet monitoring watchdog.
+     */
+    fun startInternetMonitorWatchdog(deviceName: String, localMac: String, remoteMac: String) {
+        lastDeviceName = deviceName
+        lastLocalMac = localMac
+        lastRemoteMac = remoteMac
+
+        if (internetMonitorWatchdog?.isActive == true) return
+        internetMonitorWatchdog?.cancel()
+
+        internetMonitorWatchdog = scope.launch(Dispatchers.IO) {
+            Log.d(TAG, "Starting Internet monitoring watchdog")
+            while (isActive) {
+                try {
+                    val hasKey = encryptionManager.hasKey(remoteMac)
+                    val internetRunning = internetMonitorJob?.isActive == true
+                    val btConnected = bluetoothTransport?.isConnected() == true
+                    
+                    val shouldBeEnabled = shouldInternetBeEnabled(btConnected)
+
+                    if (hasKey) {
+                        if (shouldBeEnabled && !internetRunning) {
+                            Log.w(TAG, "Internet watchdog: should be running but stopped - starting")
+                            startInternetMonitoring(remoteMac)
+                        } else if (!shouldBeEnabled && internetRunning) {
+                            Log.d(TAG, "Internet watchdog: should NOT be running but is - stopping")
+                            stopInternetMonitoring()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Internet watchdog error: ${e.message}")
+                }
+                delay(5000)
+            }
+        }
+    }
+
+    private fun startInternetMonitoring(deviceMac: String) {
+        if (internetMonitorJob?.isActive == true) return
+        internetMonitorJob?.cancel()
+
+        internetMonitorJob = scope.launch(Dispatchers.IO) {
+            Log.d(TAG, "Starting Internet monitoring loop for MAC: $deviceMac")
+            while (isActive) {
+                if (internetTransport == null || !internetTransport!!.isConnected()) {
+                    connectInternet(deviceMac)
+                }
+                delay(10000) // Re-check every 10 seconds if disconnected
+            }
+        }
+    }
+
+    private fun stopInternetMonitoring() {
+        internetMonitorJob?.cancel()
+        internetMonitorJob = null
+        scope.launch {
+            internetTransport?.disconnect()
+            internetTransport = null
+            updateConnectionState()
+        }
+    }
+
+    private suspend fun connectInternet(mac: String): Boolean {
+        if (isConnectingInternet) return false
+
+        Log.d(TAG, "connectInternet: mac=$mac, signalingUrl=$signalingUrl")
+
+        val transport = WebRtcTransport(
+            context = context,
+            remoteMac = mac,
+            localMac = lastLocalMac ?: "02:00:00:00:00:00",
+            deviceName = lastDeviceName ?: Build.MODEL,
+            encryptionManager = encryptionManager,
+            signalingUrl = signalingUrl,
+            isInitiator = false // Companion is usually receiver (answerer)
+        )
+
+        try {
+            isConnectingInternet = true
+            updateConnectionState()
+
+            if (transport.connect()) {
+                internetTransport = transport
+                updateConnectionState()
+
+                scope.launch {
+                    try {
+                        transport.receive().collect { msg ->
+                            _incomingMessages.send(msg)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Internet receive error", e)
+                    } finally {
+                        internetTransport = null
+                        updateConnectionState()
+                        transport.disconnect()
+                    }
+                }
+                return true
+            } else {
+                transport.disconnect()
+                return false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Internet connect failed: ${e.message}")
+            transport.disconnect()
+            return false
+        } finally {
+            isConnectingInternet = false
+        }
+    }
+
+    private fun shouldInternetBeEnabled(btConnected: Boolean): Boolean {
+        if ((currentInternetRule and INTERNET_RULE_ALWAYS) != 0) return true
+        
+        var shouldEnable = false
+        if ((currentInternetRule and INTERNET_RULE_BT_FALLBACK) != 0) {
+            if (!btConnected) shouldEnable = true
+        }
+        
+        if ((currentInternetRule and INTERNET_RULE_MAINACTIVITY) != 0) {
+            if (isPhoneAppOpen) shouldEnable = true
+        }
+        
+        return shouldEnable
+    }
+
+    /**
      * Stops the WiFi server.
      */
     fun stopWifiServer() {
@@ -332,14 +476,21 @@ class TransportManager(
         // Priority 1: WiFi
         wifiTransport?.let {
             if (it.isConnected()) {
-                return it.send(message)
+                if (it.send(message)) return true
             }
         }
         
         // Priority 2: Bluetooth
         bluetoothTransport?.let {
             if (it.isConnected()) {
-                return it.send(message)
+                if (it.send(message)) return true
+            }
+        }
+
+        // Priority 3: Internet
+        internetTransport?.let {
+            if (it.isConnected()) {
+                if (it.send(message)) return true
             }
         }
         
@@ -350,6 +501,7 @@ class TransportManager(
     private fun updateConnectionState() {
         val wifi = wifiTransport
         val bt = bluetoothTransport
+        val internet = internetTransport
         
         val newState = when {
             wifi != null && wifi.isConnected() && bt != null && bt.isConnected() ->
@@ -358,8 +510,10 @@ class TransportManager(
                 ConnectionState.Connected("WiFi", wifi.getRemoteDeviceName(), wifi.getRemoteAddress())
             bt != null && bt.isConnected() ->
                 ConnectionState.Connected("Bluetooth", bt.getRemoteDeviceName(), bt.getRemoteAddress())
+            internet != null && internet.isConnected() ->
+                ConnectionState.Connected("Internet", internet.getRemoteDeviceName(), internet.getRemoteAddress())
             else -> {
-                if (isConnectingWifi) {
+                if (isConnectingWifi || isConnectingInternet) {
                     ConnectionState.Connecting
                 } else {
                     ConnectionState.Waiting
@@ -377,6 +531,8 @@ class TransportManager(
             bluetoothTransport = null
             wifiTransport?.disconnect()
             wifiTransport = null
+            internetTransport?.disconnect()
+            internetTransport = null
             updateConnectionState()
         }
     }
@@ -394,13 +550,17 @@ class TransportManager(
     fun stopAll() {
         bluetoothServerJob?.cancel()
         wifiServerJob?.cancel()
+        internetMonitorJob?.cancel()
         wifiServerWatchdog?.cancel()
         btServerWatchdog?.cancel()
+        internetMonitorWatchdog?.cancel()
         scope.launch {
             bluetoothTransport?.disconnect()
             wifiTransport?.disconnect()
+            internetTransport?.disconnect()
             bluetoothTransport = null
             wifiTransport = null
+            internetTransport = null
             updateConnectionState()
         }
     }

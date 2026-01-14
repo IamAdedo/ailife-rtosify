@@ -1370,7 +1370,9 @@ class BluetoothService : Service() {
                         dynamicIslandTextMultiplier = activePrefs.getFloat("dynamic_island_text_multiplier", 1.0f),
                         dynamicIslandLimitMessageLength = activePrefs.getBoolean("dynamic_island_limit_message_length", true),
                         forceBtEnabled = activePrefs.getBoolean("force_bt_enabled", false),
-                        shareSyncEnabled = activePrefs.getBoolean("sharing_sync_enabled", false)
+                        shareSyncEnabled = activePrefs.getBoolean("sharing_sync_enabled", false),
+                        internetActivationRule = activePrefs.getInt("internet_activation_rule", 0),
+                        internetSignalingUrl = activePrefs.getString("internet_signaling_url", "")
                 )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
         
@@ -3228,5 +3230,12 @@ class BluetoothService : Service() {
         val testContent = ProtocolHelper.extractStringField(message, "message") ?: ""
         Log.i(TAG, "Received WiFi encryption test message: $testContent")
         callback?.onWifiTestReceived(testContent)
+    }
+
+    fun notifyInternetSettingsChanged() {
+        Log.d(TAG, "Internet settings changed, notifying watch")
+        val rule = activePrefs.getInt("internet_activation_rule", 0)
+        val url = activePrefs.getString("internet_signaling_url", "") ?: ""
+        sendMessage(ProtocolHelper.createUpdateInternetSettings(rule, url))
     }
 }

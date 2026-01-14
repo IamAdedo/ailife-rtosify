@@ -1013,10 +1013,16 @@ class BluetoothService : Service() {
     val watchMac = prefs.getString("wifi_advertised_mac", null)
     if (watchMac != null) {
         val deviceName = adapter?.name ?: Build.MODEL
-        Log.d(TAG, "Starting WiFi server for local=$watchMac, remote=$watchMac")
+        Log.d(TAG, "Starting WiFi and Internet watchdogs for local=$watchMac")
         transportManager.startWifiServer(deviceName, watchMac, watchMac)
-        // Start WiFi server watchdog
+        
+        // Start watchdogs
         transportManager.startWifiServerWatchdog(this, deviceName, watchMac, watchMac)
+        
+        val internetUrl = prefs.getString("internet_signaling_url", "ws://192.168.1.10:8080") ?: "ws://192.168.1.10:8080"
+        val internetRule = prefs.getInt("internet_activation_rule", 0)
+        transportManager.updateInternetSettings(internetRule, internetUrl)
+        transportManager.startInternetMonitorWatchdog(deviceName, watchMac, watchMac)
     }
 
     // Bluetooth Server
@@ -1170,6 +1176,7 @@ class BluetoothService : Service() {
             MessageType.WIFI_TEST_ENCRYPT -> handleWifiTestEncrypt(message)
             MessageType.SYNC_PHONE_STATE -> handleSyncPhoneState(message)
             MessageType.SHARE_SYNC -> handleShareReceived(message)
+            MessageType.UPDATE_INTERNET_SETTINGS -> handleUpdateInternetSettings(message)
             else -> Log.w(TAG, "Unknown message type: ${message.type}")
         }
     }
@@ -1360,13 +1367,46 @@ class BluetoothService : Service() {
                 prefs.edit().putBoolean("sharing_sync_enabled", it).apply()
                 Log.d(TAG, "Sharing Sync setting updated: $it")
             }
+            settings.internetActivationRule?.let {
+                prefs.edit().putInt("internet_activation_rule", it).apply()
+                Log.d(TAG, "Internet rule updated via SettingsUpdate: $it")
+            }
+            settings.internetSignalingUrl?.let {
+                prefs.edit().putString("internet_signaling_url", it).apply()
+                Log.d(TAG, "Internet signaling URL updated via SettingsUpdate: $it")
+            }
+            
+            // Apply updated settings to TransportManager if they changed
+            val rule = settings.internetActivationRule ?: prefs.getInt("internet_activation_rule", 0)
+            val url = settings.internetSignalingUrl ?: prefs.getString("internet_signaling_url", "") ?: ""
+            transportManager.updateInternetSettings(rule, url)
 
+            // Internet settings handled via dedicated rule message or inside SettingsUpdateData if added there
+            // Checking if SettingsUpdateData was updated in Protocol.kt (wait, did I check Protocol.kt for internet settings?)
+            
             // Notify DynamicIslandService of settings change
             sendBroadcast(Intent(ACTION_UPDATE_DI_SETTINGS).setPackage(packageName))
 
             Log.d(TAG, "Automation settings updated from phone")
         } catch (e: Exception) {
             Log.e(TAG, "Error handling settings update: ${e.message}")
+        }
+    }
+    
+    private fun handleUpdateInternetSettings(message: ProtocolMessage) {
+        try {
+            val rule = message.data.get("rule")?.asInt ?: 0
+            val url = message.data.get("url")?.asString ?: ""
+            
+            prefs.edit().apply {
+                putInt("internet_activation_rule", rule)
+                putString("internet_signaling_url", url)
+            }.apply()
+            
+            transportManager.updateInternetSettings(rule, url)
+            Log.d(TAG, "Internet settings updated: rule=$rule, url=$url")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating internet settings", e)
         }
     }
     

@@ -702,6 +702,9 @@
     <string name="status_wifi_connected">WiFi Connected</string>
     <string name="network_encryption_keys">Encryption keys exchanged via Bluetooth pairing</string>
     <string name="network_advanced_settings_title">Advanced Settings</string>
+    <string name="network_internet_settings_title">Internet Settings</string>
+    <string name="network_internet_desc">Configure when the app should use the internet to connect to the watch. Requires a Signaling Server.</string>
+    <string name="network_signaling_url_hint">Signaling Server URL</string>
     <string name="network_fixed_ip_enabled">Use Fixed IP</string>
     <string name="network_fixed_ip_desc">Connect directly to IP without mDNS (useful for VPNs/Zerotier)</string>
     <string name="network_fixed_ip_hint">Enter IP address (e.g. 10.1.1.2)</string>

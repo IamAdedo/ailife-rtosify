@@ -58,4 +58,8 @@ dependencies {
 
     // OSMDroid for open-source mapping (Find Device feature)
     implementation("org.osmdroid:osmdroid-android:6.1.18")
+
+    // WebRTC & WebSocket for Internet Transport
+    implementation("io.github.webrtc-sdk:android:114.5735.02")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

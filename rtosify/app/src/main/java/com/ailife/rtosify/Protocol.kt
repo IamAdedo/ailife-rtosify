@@ -143,6 +143,8 @@ object MessageType {
     
     // Sharing Synchronization
     const val SHARE_SYNC = "share_sync"
+
+    const val UPDATE_INTERNET_SETTINGS = "update_internet_settings"
 }
 
 data class PhoneBatteryData(val level: Int, val isCharging: Boolean)
@@ -279,7 +281,9 @@ data class SettingsUpdateData(
         val dynamicIslandTextMultiplier: Float? = null,
         val dynamicIslandLimitMessageLength: Boolean? = null,
         val forceBtEnabled: Boolean? = null,
-        val shareSyncEnabled: Boolean? = null
+        val shareSyncEnabled: Boolean? = null,
+        val internetActivationRule: Int? = null,
+        val internetSignalingUrl: String? = null
 )
 
 data class HealthDataUpdate(
@@ -1044,6 +1048,13 @@ object ProtocolHelper {
         val data = JsonObject()
         data.addProperty("rule", rule)
         return ProtocolMessage(type = MessageType.UPDATE_WIFI_RULE, data = data)
+    }
+
+    fun createUpdateInternetSettings(rule: Int, url: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("rule", rule)
+        data.addProperty("url", url)
+        return ProtocolMessage(type = MessageType.UPDATE_INTERNET_SETTINGS, data = data)
     }
 
     fun createSyncPhoneState(isForeground: Boolean): ProtocolMessage {
