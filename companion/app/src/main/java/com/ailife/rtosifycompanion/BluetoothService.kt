@@ -146,6 +146,9 @@ class BluetoothService : Service() {
 
     private val notificationMap = ConcurrentHashMap<String, Int>()
     private val notificationDataMap = ConcurrentHashMap<String, NotificationData>()
+    
+    // Track previous connection state to ensure valid disconnect handling even after transport clears
+    private var lastConnectedState = false
 
     // REFACTORING: More robust notification control
     @Volatile private var currentNotificationStatus: String = ""
@@ -1050,6 +1053,8 @@ class BluetoothService : Service() {
     private fun handleDeviceConnected(deviceName: String, mac: String?, transportType: String = "") {
         if (isConnected && currentTransportType == transportType) return 
         
+        lastConnectedState = true
+        
         // No manual assignment needed
         isTransferring = false
         lastMessageTime = System.currentTimeMillis()
@@ -1103,7 +1108,9 @@ class BluetoothService : Service() {
     }
     
     private fun handleDeviceDisconnected() {
-        val wasConnected = isConnected
+        // Use logic-OR with lastConnectedState to catch disconnection even if isConnected is already false
+        val wasConnected = isConnected || lastConnectedState
+        lastConnectedState = false
         // No manual assignment needed
         currentDeviceName = null
         

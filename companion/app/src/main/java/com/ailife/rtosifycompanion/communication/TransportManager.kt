@@ -608,6 +608,7 @@ class TransportManager(
             }
         }
 
+        Log.i(TAG, "Connection State Update: BT=$btConnected, LAN=$wifiConnected, Internet=$internetConnected")
         _connectionState.value = newState
     }
 

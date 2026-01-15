@@ -71,11 +71,10 @@ class DynamicIslandService : Service() {
                         BluetoothService.ACTION_CONNECTION_STATE_CHANGED -> {
                             val connected = intent.getBooleanExtra("connected", false)
                             val transport = intent.getStringExtra("transport") ?: ""
-                            if (connected != isConnected || transport != currentTransport) {
-                                isConnected = connected
-                                currentTransport = transport
-                                showTransientConnectionState(connected, transport)
-                            }
+                            // ALWAYS update state on broadcast to ensure UI is in sync
+                            isConnected = connected
+                            currentTransport = transport
+                            showTransientConnectionState(connected, transport)
                         }
                     }
                 }

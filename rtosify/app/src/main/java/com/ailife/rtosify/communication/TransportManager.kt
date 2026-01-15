@@ -319,8 +319,8 @@ class TransportManager(
                         updateConnectionState()
                         if (!connected) {
                             // Longer jittered delay for internet retry to avoid sync issues
-                            // 5s retry as requested
-                            delay(5000)
+                            // 2s retry as requested (aggressive)
+                            delay(2000)
                             continue
                         }
                     }

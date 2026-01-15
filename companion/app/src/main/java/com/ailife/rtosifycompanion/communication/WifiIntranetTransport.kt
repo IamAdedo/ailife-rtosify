@@ -29,8 +29,8 @@ class WifiIntranetTransport(
 
     companion object {
         private const val TAG = "WifiTransport"
-        private const val KEEPALIVE_INTERVAL = 5000L  // 5 seconds
-        private const val KEEPALIVE_TIMEOUT = 15000L  // 15 seconds
+        private const val KEEPALIVE_INTERVAL = 1000L  // 1 second (was 5s)
+        private const val KEEPALIVE_TIMEOUT = 4000L   // 4 seconds (was 15s)
     }
 
     private var socket: Socket? = null
@@ -41,8 +41,8 @@ class WifiIntranetTransport(
     private val messageChannel = Channel<ProtocolMessage>(Channel.BUFFERED)
     private var receiveJob: Job? = null
     private var keepaliveJob: Job? = null
-    private var connected = false
-    private var lastReceiveTime = 0L
+    @Volatile private var connected = false
+    @Volatile private var lastReceiveTime = 0L
 
     override suspend fun connect(): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -157,7 +157,7 @@ class WifiIntranetTransport(
                     val length = try {
                         input.readInt()
                     } catch (e: Exception) {
-                        Log.d(TAG, "Socket closed or error reading length: ${e.message}")
+                        Log.e(TAG, "Socket read error (likely disconnect): ${e.message}")
                         break
                     }
                     
@@ -207,7 +207,8 @@ class WifiIntranetTransport(
                 
                 val elapsed = System.currentTimeMillis() - lastReceiveTime
                 if (elapsed > KEEPALIVE_TIMEOUT) {
-                    Log.w(TAG, "WiFi keepalive timeout: ${elapsed}ms since last receive")
+                    val diff = elapsed - KEEPALIVE_TIMEOUT
+                    Log.e(TAG, "Watchdog: keepalive TIMEOUT! Elapsed: ${elapsed}ms (Limit: ${KEEPALIVE_TIMEOUT}ms). Triggering disconnect.")
                     disconnect()
                     break
                 }
@@ -244,7 +245,7 @@ class WifiIntranetTransport(
             socket?.close()
             serverSocket?.close()
         } catch (e: Exception) {
-            Log.e(TAG, "Error during disconnect", e)
+            Log.e(TAG, "Error during disconnect resource cleanup", e)
         }
         
         inputStream = null
@@ -252,7 +253,7 @@ class WifiIntranetTransport(
         socket = null
         serverSocket = null
         
-        Log.d(TAG, "WiFi transport disconnected")
+        Log.w(TAG, "WiFi transport disconnected completely")
     }
 
     override suspend fun send(message: ProtocolMessage): Boolean = withContext(Dispatchers.IO) {

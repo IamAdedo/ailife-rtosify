@@ -33,7 +33,7 @@ class WebRtcTransport(
 
     companion object {
         private const val TAG = "WebRtcTransport"
-        private const val CONNECTION_TIMEOUT_MS = 60000L // Increased for better reliability
+        private const val CONNECTION_TIMEOUT_MS = 15000L // Reduced from 60s for faster retries
         private const val HEARTBEAT_INTERVAL_MS = 20000L
     }
 
