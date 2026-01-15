@@ -1019,7 +1019,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         MenuOption(
                                 getString(R.string.menu_network_comms),
                                 getString(R.string.menu_network_comms_desc),
-                                android.R.drawable.stat_sys_data_bluetooth,
+                                R.drawable.ic_globe,
                                 { startActivity(Intent(this, NetworkSettingsActivity::class.java)) }
                         ),
                         MenuOption(
@@ -1100,7 +1100,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         MenuOption(
                                 getString(R.string.menu_network_comms),
                                 getString(R.string.menu_network_comms_desc),
-                                android.R.drawable.stat_sys_data_bluetooth,
+                                R.drawable.ic_globe,
                                 { startActivity(Intent(this, NetworkSettingsActivity::class.java)) }
                         ),
                         MenuOption(

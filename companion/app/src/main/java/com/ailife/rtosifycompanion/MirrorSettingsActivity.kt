@@ -25,11 +25,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
     private lateinit var switchEnableTouch: MaterialSwitch
     private lateinit var switchResMatching: MaterialSwitch
     private lateinit var switchAspectMatching: MaterialSwitch
-    private lateinit var etSignalingUrl: android.widget.EditText
-    private lateinit var etStunUrl: android.widget.EditText
-    private lateinit var etTurnUrl: android.widget.EditText
-    private lateinit var etTurnUsername: android.widget.EditText
-    private lateinit var etTurnPassword: android.widget.EditText
+
 
     private lateinit var prefs: SharedPreferences
     private var bluetoothService: BluetoothService? = null
@@ -97,17 +93,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
         switchAspectMatching.isChecked = prefs.getBoolean("mirror_aspect_matching", false)
         switchEnableTouch.isChecked = prefs.getBoolean("mirror_enable_touch", true)
 
-        etSignalingUrl = findViewById(R.id.etSignalingUrl)
-        etStunUrl = findViewById(R.id.etStunUrl)
-        etTurnUrl = findViewById(R.id.etTurnUrl)
-        etTurnUsername = findViewById(R.id.etTurnUsername)
-        etTurnPassword = findViewById(R.id.etTurnPassword)
 
-        etSignalingUrl.setText(prefs.getString("internet_signaling_url", "ws://192.168.1.10:8080"))
-        etStunUrl.setText(prefs.getString("internet_stun_url", "stun:stun.cloudflare.com:3478"))
-        etTurnUrl.setText(prefs.getString("internet_turn_url", ""))
-        etTurnUsername.setText(prefs.getString("internet_turn_username", ""))
-        etTurnPassword.setText(prefs.getString("internet_turn_password", ""))
     }
 
     private fun setupListeners() {
@@ -161,33 +147,10 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
             prefs.edit().putBoolean("mirror_enable_touch", isChecked).apply()
         }
 
-        val textWatcher = object : android.text.TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
-                saveInternetSettings()
-            }
-        }
 
-        etSignalingUrl.addTextChangedListener(textWatcher)
-        etStunUrl.addTextChangedListener(textWatcher)
-        etTurnUrl.addTextChangedListener(textWatcher)
-        etTurnUsername.addTextChangedListener(textWatcher)
-        etTurnPassword.addTextChangedListener(textWatcher)
     }
 
-    private fun saveInternetSettings() {
-        prefs.edit().apply {
-            putString("internet_signaling_url", etSignalingUrl.text.toString().trim())
-            putString("internet_stun_url", etStunUrl.text.toString().trim())
-            putString("internet_turn_url", etTurnUrl.text.toString().trim())
-            putString("internet_turn_username", etTurnUsername.text.toString().trim())
-            putString("internet_turn_password", etTurnPassword.text.toString().trim())
-        }.apply()
-        
-        // Notify service to update transport manager
-        bluetoothService?.notifyInternetSettingsChanged()
-    }
+
 
     private fun startWatchMirroring() {
         val projectionManager = getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager

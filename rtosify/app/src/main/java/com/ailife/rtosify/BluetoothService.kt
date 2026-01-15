@@ -2295,15 +2295,22 @@ class BluetoothService : Service() {
             isTransferring = true
 
             try {
-                val fileBytes = file.readBytes()
+                // Calculate MD5 using stream to avoid OOM
                 val md5 = java.security.MessageDigest.getInstance("MD5")
-                md5.update(fileBytes)
+                file.inputStream().use { driver ->
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    while (driver.read(buffer).also { bytesRead = it } != -1) {
+                        md5.update(buffer, 0, bytesRead)
+                    }
+                }
                 val checksum = md5.digest().joinToString("") { "%02x".format(it) }
+                val fileSize = file.length()
 
                 val fileData =
                         FileTransferData(
                                 name = file.name,
-                                size = fileBytes.size.toLong(),
+                                size = fileSize,
                                 checksum = checksum,
                                 type = type,
                                 path = remotePath
@@ -2312,31 +2319,37 @@ class BluetoothService : Service() {
                 delay(100)
 
                 val chunkSize = 32 * 1024
-                val totalChunks = (fileBytes.size + chunkSize - 1) / chunkSize
-                var offset = 0
+                val totalChunks = (fileSize + chunkSize - 1) / chunkSize
                 var chunkNumber = 0
+                
+                file.inputStream().use { input ->
+                    val buffer = ByteArray(chunkSize)
+                    var bytesRead: Int
+                    var offset: Long = 0
+                    
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        // If read less than buffer size (last chunk), truncate
+                        val chunkBuffer = if (bytesRead == chunkSize) buffer else buffer.copyOf(bytesRead)
+                        
+                        val base64Chunk =
+                                android.util.Base64.encodeToString(chunkBuffer, android.util.Base64.NO_WRAP)
 
-                while (offset < fileBytes.size) {
-                    val end = minOf(offset + chunkSize, fileBytes.size)
-                    val chunk = fileBytes.copyOfRange(offset, end)
-                    val base64Chunk =
-                            android.util.Base64.encodeToString(chunk, android.util.Base64.NO_WRAP)
+                        val chunkData =
+                                FileChunkData(
+                                        offset = offset,
+                                        data = base64Chunk,
+                                        chunkNumber = chunkNumber,
+                                        totalChunks = totalChunks.toInt()
+                                )
+                        sendMessage(ProtocolHelper.createFileChunk(chunkData))
 
-                    val chunkData =
-                            FileChunkData(
-                                    offset = offset.toLong(),
-                                    data = base64Chunk,
-                                    chunkNumber = chunkNumber,
-                                    totalChunks = totalChunks
-                            )
-                    sendMessage(ProtocolHelper.createFileChunk(chunkData))
+                        val progress = ((chunkNumber + 1) * 95 / totalChunks.coerceAtLeast(1))
+                        withContext(Dispatchers.Main) { callback?.onUploadProgress(progress.toInt()) }
 
-                    val progress = ((chunkNumber + 1) * 95 / totalChunks)
-                    withContext(Dispatchers.Main) { callback?.onUploadProgress(progress) }
-
-                    offset = end
-                    chunkNumber++
-                    delay(10)
+                        offset += bytesRead
+                        chunkNumber++
+                        delay(10)
+                    }
                 }
 
                 fileAckDeferred = kotlinx.coroutines.CompletableDeferred()
