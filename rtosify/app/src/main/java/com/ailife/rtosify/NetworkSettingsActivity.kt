@@ -430,8 +430,9 @@ class NetworkSettingsActivity : AppCompatActivity() {
         // Update active connection summary using TransportManager
         val statusString = bluetoothService?.transportManager?.getConnectionStatusString() ?: "Disconnected"
         tvActiveConnection.text = statusString
+        val isAnyConnected = bluetoothService?.transportManager?.isAnyTransportConnected() == true
         tvActiveConnection.setTextColor(
-            if (statusString.startsWith("Connected")) 0xFF4CAF50.toInt() else 0xFFF44336.toInt()
+            if (isAnyConnected) 0xFF4CAF50.toInt() else 0xFFF44336.toInt()
         )
     }
 

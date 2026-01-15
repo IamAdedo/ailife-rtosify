@@ -270,7 +270,7 @@ class BluetoothService : Service() {
 
     @Volatile var currentStatus: String = "" // Will be initialized in onCreate
     @Volatile var currentDeviceName: String? = null
-    val isConnected: Boolean get() = transportManager.isBtConnected()
+    val isConnected: Boolean get() = if (::transportManager.isInitialized) transportManager.isAnyTransportConnected() else false
     
     fun isWifiTransportActive(): Boolean {
         return transportManager.isWifiConnected()

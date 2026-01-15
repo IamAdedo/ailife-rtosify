@@ -251,7 +251,7 @@ class BluetoothService : Service() {
     @Volatile var currentStatus: String = "" // Will be initialized in onCreate
     @Volatile var currentDeviceName: String? = null
     @Volatile var currentTransportType: String = ""
-    val isConnected: Boolean get() = transportManager.isBtConnected()
+    val isConnected: Boolean get() = if (::transportManager.isInitialized) transportManager.isAnyTransportConnected() else false
 
     fun getConnectedDeviceMac(): String? {
         val state = transportManager.connectionState.value

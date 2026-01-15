@@ -56,6 +56,10 @@ class WebRtcTransport(
     private val pendingIceCandidates = mutableListOf<IceCandidate>()
     private var isRemoteDescriptionSet = false
 
+    @Volatile private var decryptionFailureCount = 0
+    @Volatile private var lastMessageReceivedTime = System.currentTimeMillis()
+    private var receiveWatchdogJob: Job? = null
+
     override suspend fun connect(): Boolean {
         Log.d(TAG, "connect() called - remoteMac=$remoteMac, signalingUrl=$signalingUrl, isInitiator=$isInitiator")
 
@@ -272,11 +276,13 @@ class WebRtcTransport(
                         _dataChannelOpen.value = true
                         _connectionState.value = true
                         startHeartbeat()
+                        startReceiveWatchdog()
                     }
                     DataChannel.State.CLOSED -> {
                         Log.w(TAG, "DataChannel is CLOSED")
                         _dataChannelOpen.value = false
                         _connectionState.value = false
+                        stopReceiveWatchdog()
                     }
                     else -> {}
                 }
@@ -295,17 +301,47 @@ class WebRtcTransport(
             // Decrypt
             val decryptedBytes = encryptionManager.decryptForDevice(remoteMac, data)
             if (decryptedBytes != null) {
+                decryptionFailureCount = 0
+                lastMessageReceivedTime = System.currentTimeMillis()
+                
                 val json = String(decryptedBytes, Charsets.UTF_8)
                 val message = ProtocolMessage.fromJson(json)
                 coroutineScope.launch {
                     messageChannel.send(message)
                 }
             } else {
-                Log.e(TAG, "Failed to decrypt WebRTC message")
+                decryptionFailureCount++
+                Log.e(TAG, "Failed to decrypt WebRTC message (count: $decryptionFailureCount)")
+                
+                if (decryptionFailureCount >= 3) {
+                    Log.e(TAG, "Too many decryption failures. Disconnecting.")
+                    coroutineScope.launch { disconnect() }
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling data message", e)
         }
+    }
+
+    private fun startReceiveWatchdog() {
+        receiveWatchdogJob?.cancel()
+        receiveWatchdogJob = coroutineScope.launch {
+            lastMessageReceivedTime = System.currentTimeMillis()
+            while (isActive) {
+                delay(10000) // Check every 10s
+                val now = System.currentTimeMillis()
+                if (now - lastMessageReceivedTime > 60000) { // 60s timeout
+                    Log.e(TAG, "Receive watchdog timeout. No valid data received for 60s. Disconnecting.")
+                    disconnect()
+                    break
+                }
+            }
+        }
+    }
+
+    private fun stopReceiveWatchdog() {
+        receiveWatchdogJob?.cancel()
+        receiveWatchdogJob = null
     }
 
     private fun createOffer() {

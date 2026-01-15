@@ -55,27 +55,32 @@ class EncryptionManager(private val context: Context) {
      * Initialize or load encryption keyset for a specific device (by MAC address).
      * This should be called during Bluetooth pairing to generate/exchange keys.
      */
-    fun initializeForDevice(deviceMac: String): Boolean {
+    fun initializeForDevice(deviceMac: String, autoGenerate: Boolean = false): Boolean {
         val normalizedMac = deviceMac.uppercase()
         return try {
             val prefs = context.getSharedPreferences(PREF_FILE_NAME, Context.MODE_PRIVATE)
-            val json = prefs.getString("${KEYSET_NAME}_$normalizedMac", null)
+            var json = prefs.getString("${KEYSET_NAME}_$normalizedMac", null)
             
-            var keysetHandle: KeysetHandle? = null
-            if (json != null) {
-                try {
-                    keysetHandle = CleartextKeysetHandle.read(JsonKeysetReader.withString(json))
-                } catch (e: Exception) {
-                    Log.w(TAG, "Malformed keyset for $deviceMac, will regenerate")
+            if (json == null) {
+                if (autoGenerate) {
+                    Log.i(TAG, "Generating new keyset for device: $deviceMac")
+                    val handle = KeysetHandle.generateNew(AeadKeyTemplates.AES256_GCM)
+                    val outputStream = ByteArrayOutputStream()
+                    CleartextKeysetHandle.write(handle, JsonKeysetWriter.withOutputStream(outputStream))
+                    json = outputStream.toString("UTF-8")
+                    prefs.edit().putString("${KEYSET_NAME}_$normalizedMac", json).apply()
+                } else {
+                    Log.w(TAG, "No encryption key found for device: $deviceMac. Re-pairing required.")
+                    return false
                 }
             }
-            
-            if (keysetHandle == null) {
-                val handle = KeysetHandle.generateNew(AeadKeyTemplates.AES256_GCM)
-                val outputStream = ByteArrayOutputStream()
-                CleartextKeysetHandle.write(handle, JsonKeysetWriter.withOutputStream(outputStream))
-                prefs.edit().putString("${KEYSET_NAME}_$normalizedMac", outputStream.toString("UTF-8")).apply()
-                keysetHandle = handle
+
+            var keysetHandle: KeysetHandle? = null
+            try {
+                keysetHandle = CleartextKeysetHandle.read(JsonKeysetReader.withString(json))
+            } catch (e: Exception) {
+                Log.e(TAG, "Malformed keyset for $deviceMac. Re-pairing required.", e)
+                return false
             }
 
             keysetHandles[normalizedMac] = keysetHandle!!
@@ -217,7 +222,7 @@ class EncryptionManager(private val context: Context) {
     fun exportKey(deviceMac: String): String? {
         val normalizedMac = deviceMac.uppercase()
         val keysetHandle = keysetHandles[normalizedMac] ?: run {
-            if (!initializeForDevice(normalizedMac)) return null
+            if (!initializeForDevice(normalizedMac, autoGenerate = true)) return null
             keysetHandles[normalizedMac]
         } ?: return null
 

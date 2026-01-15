@@ -1457,7 +1457,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             android.util.Log.d("MainActivity", "onStatusChanged runOnUiThread: calling updateStatusUI")
             // Use TransportManager's connection status string for accurate display
             val connectionStatus = bluetoothService?.transportManager?.getConnectionStatusString() ?: status
-            val isConnected = connectionStatus.startsWith("Connected")
+            val isConnected = bluetoothService?.transportManager?.isAnyTransportConnected() == true
             updateStatusUI(connectionStatus, isConnected)
         }
     }
@@ -1472,7 +1472,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         runOnUiThread {
             val connectionStatus = bluetoothService?.transportManager?.getConnectionStatusString()
                 ?: getString(R.string.status_disconnected)
-            val isConnected = connectionStatus.startsWith("Connected")
+            val isConnected = bluetoothService?.transportManager?.isAnyTransportConnected() == true
             updateStatusUI(connectionStatus, isConnected)
             if (uploadDialog?.isShowing == true) {
                 // Se o progresso já for 100%, não trate a desconexão como falha.

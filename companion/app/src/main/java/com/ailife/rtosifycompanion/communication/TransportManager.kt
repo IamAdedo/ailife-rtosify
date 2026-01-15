@@ -68,7 +68,8 @@ class TransportManager(
 
     fun isBtConnected(): Boolean = bluetoothTransport?.isConnected() == true
     fun isLanConnected(): Boolean = wifiTransport?.isConnected() == true
-    fun isInternetTransportConnected(): Boolean = internetTransport?.isConnected() == true
+    fun isInternetConnected(): Boolean = internetTransport?.isConnected() == true
+    fun isAnyTransportConnected(): Boolean = isBtConnected() || isLanConnected() || isInternetConnected()
 
     private var bluetoothTransport: BluetoothTransport? = null
     private var wifiTransport: WifiIntranetTransport? = null
@@ -474,6 +475,12 @@ class TransportManager(
         try {
             isConnectingInternet = true
             updateConnectionState()
+
+            // Ensure encryption is initialized
+            if (!encryptionManager.setActiveDevice(mac)) {
+                Log.e(TAG, "Cannot connect Internet: Failed to set active device for encryption")
+                return false
+            }
 
             if (transport.connect()) {
                 internetTransport = transport

@@ -104,7 +104,8 @@ class TransportManager(
 
     fun isBtConnected(): Boolean = bluetoothTransport?.isConnected() == true
     fun isLanConnected(): Boolean = wifiTransport?.isConnected() == true
-    fun isInternetTransportConnected(): Boolean = internetTransport?.isConnected() == true
+    fun isInternetConnected(): Boolean = internetTransport?.isConnected() == true
+    fun isAnyTransportConnected(): Boolean = isBtConnected() || isLanConnected() || isInternetConnected()
 
     /**
      * Starts the client logic: Auto-reconnect Bluetooth and WiFi monitoring.
@@ -366,12 +367,10 @@ class TransportManager(
             updateConnectionState()
             
             // Ensure encryption is initialized
-            val hasKey = encryptionManager.hasKey(mac)
-            if (!hasKey) {
-                Log.w(TAG, "Cannot connect Internet: No encryption key for $mac")
+            if (!encryptionManager.setActiveDevice(mac)) {
+                Log.e(TAG, "Cannot connect Internet: Failed to set active device for encryption")
                 return false
             }
-            encryptionManager.setActiveDevice(mac)
             
             if (transport.connect()) {
                 internetTransport = transport
