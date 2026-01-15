@@ -17,12 +17,12 @@
     <string name="status_connecting_to">Connecting to %s…</string>
     <string name="status_connected_to">Connected to %s</string>
     <string name="status_connected_to_bt">Connected to %s (Bluetooth)</string>
-    <string name="status_connected_to_wifi">Connected to %s (WiFi)</string>
-    <string name="status_connected_to_dual">Connected to %s (Bluetooth &amp; WiFi)</string>
+    <string name="status_connected_to_wifi">Connected to %s (LAN)</string>
+    <string name="status_connected_to_dual">Connected to %s (BT+LAN)</string>
     <string name="status_connected_to_internet">Connected to %s (Internet)</string>
-    <string name="status_connected_to_bt_internet">Connected to %s (Bluetooth &amp; Internet)</string>
-    <string name="status_connected_to_wifi_internet">Connected to %s (WiFi &amp; Internet)</string>
-    <string name="status_connected_to_all">Connected to %s (BT+WiFi+Internet)</string>
+    <string name="status_connected_to_bt_internet">Connected to %s (BT+Internet)</string>
+    <string name="status_connected_to_wifi_internet">Connected to %s (LAN+Internet)</string>
+    <string name="status_connected_to_all">Connected to %s (BT+LAN+Internet)</string>
     <string name="status_switching">Switching Device…</string>
     <string name="device_name_default">Device</string>
     <string name="device_picker_title">Select Device</string>
@@ -684,26 +684,29 @@
 
     <!-- Network Communications -->
     <string name="menu_network_comms">Network Communications</string>
-    <string name="menu_network_comms_desc">Configure WiFi intranet settings</string>
+    <string name="menu_network_comms_desc">Configure LAN/Internet settings</string>
     <string name="network_settings_title">Network Communications</string>
-    <string name="network_activation_rules_title">WiFi Activation Rules</string>
-    <string name="network_activation_desc">Choose when to use WiFi instead of Bluetooth</string>
-    <string name="network_rule_bt_fallback">Enable when Bluetooth disconnected</string>
-    <string name="network_rule_bt_fallback_desc">Fallback to WiFi if Bluetooth fails</string>
-    <string name="network_rule_mainactivity">Enable when MainActivity open</string>
-    <string name="network_rule_mainactivity_desc">WiFi for high-speed transfers only</string>
-    <string name="network_rule_always">Enable all the time</string>
-    <string name="network_rule_always_desc">Always prefer WiFi over Bluetooth</string>
+    <string name="network_activation_rules_title">LAN Activation Rules</string>
+    <string name="network_activation_desc">Choose when to use LAN instead of Bluetooth</string>
+    <string name="network_rule_disabled">Disabled</string>
+    <string name="network_rule_bt_fallback">When Bluetooth disconnected</string>
+    <string name="network_rule_bt_fallback_desc">Fallback to LAN if Bluetooth fails</string>
+    <string name="network_rule_mainactivity">When App is open</string>
+    <string name="network_rule_mainactivity_desc">LAN for high-speed transfers only</string>
+    <string name="network_rule_bt_or_app">When BT disconnected OR App open</string>
+    <string name="network_rule_bt_or_app_desc">Enable LAN in either condition</string>
+    <string name="network_rule_always">Always enabled</string>
+    <string name="network_rule_always_desc">Always prefer LAN over Bluetooth</string>
     <string name="network_status_title">Connection Status</string>
-    <string name="network_pair_for_internet">Pair for Internet Connection</string>
-    <string name="network_pair_desc">Exchange encryption keys for secure WiFi communication</string>
+    <string name="network_pair_for_internet">Pair for LAN/Internet</string>
+    <string name="network_pair_desc">Exchange encryption keys for secure LAN/Internet communication</string>
     <string name="network_encryption_info_title">Secure Connection</string>
-    <string name="network_encryption_info_message">All messages over WiFi/Internet are encrypted with AES-256-GCM encryption.\n\nYour communication is secure and private.</string>
+    <string name="network_encryption_info_message">All messages over LAN/Internet are encrypted with AES-256-GCM encryption.\n\nYour communication is secure and private.</string>
     <string name="network_encryption_finish">Got it</string>
-    <string name="network_current_wifi">Current WiFi</string>
-    <string name="network_not_on_wifi">Not connected to WiFi</string>
-    <string name="status_bt_wifi_connected">Bluetooth &amp; WiFi Connected</string>
-    <string name="status_wifi_connected">WiFi Connected</string>
+    <string name="network_current_wifi">Current Network</string>
+    <string name="network_not_on_wifi">Not connected to network</string>
+    <string name="status_bt_wifi_connected">BT+LAN Connected</string>
+    <string name="status_wifi_connected">LAN Connected</string>
     <string name="network_encryption_keys">Encryption keys exchanged via Bluetooth pairing</string>
     <string name="network_advanced_settings_title">Advanced Settings</string>
     <string name="network_internet_settings_title">Internet Settings</string>
@@ -717,14 +720,14 @@
     <string name="network_turn_username_hint">TURN Username</string>
     <string name="network_turn_password_hint">TURN Password</string>
     
-    <!-- WiFi Pairing Activity -->
-    <string name="pairing_title">WiFi Pairing</string>
+    <!-- LAN Pairing Activity -->
+    <string name="pairing_title">LAN Pairing</string>
     <string name="pairing_step_key_exchange">Step 1: Exchanging encryption keys</string>
     <string name="pairing_step_discovery">Step 2: Discovering device on network</string>
-    <string name="pairing_step_connecting">Step 3: Connecting via WiFi</string>
+    <string name="pairing_step_connecting">Step 3: Connecting via LAN</string>
     <string name="pairing_step_testing">Step 4: Verifying secure connection</string>
-    <string name="pairing_complete">WiFi Pairing Successful!</string>
-    <string name="pairing_failed">WiFi Pairing Failed</string>
+    <string name="pairing_complete">LAN Pairing Successful!</string>
+    <string name="pairing_failed">LAN Pairing Failed</string>
     <string name="pairing_close">Finish</string>
     <string name="pairing_retry">Retry</string>
     <string name="pairing_found_device">Found device at: %s</string>
@@ -732,9 +735,9 @@
     <string name="pairing_error_no_key">Failed to generate encryption key</string>
     <string name="pairing_error_key_ack">Device rejected key or timed out</string>
     <string name="pairing_error_discovery">Could not find device on local network</string>
-    <string name="pairing_error_wifi">WiFi connection could not be established</string>
+    <string name="pairing_error_wifi">LAN connection could not be established</string>
     <string name="pairing_error_test">Encryption verification failed</string>
-    <string name="wifi_already_paired">WiFi Already Paired</string>
+    <string name="wifi_already_paired">LAN Already Paired</string>
     <string name="wifi_repair">Re-pair</string>
 </resources>
 

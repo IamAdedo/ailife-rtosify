@@ -276,6 +276,16 @@ class BluetoothService : Service() {
         return transportManager.isWifiConnected()
     }
 
+    fun isWifiConnected(): Boolean {
+        return transportManager.isWifiConnected()
+    }
+
+    fun isInternetConnected(): Boolean {
+        val state = transportManager.connectionState.value
+        return state is com.ailife.rtosify.communication.TransportManager.ConnectionState.Connected &&
+               state.type.contains("Internet")
+    }
+
     fun isPairedWithCurrentDevice(): Boolean {
         val mac = getConnectedDeviceMac() ?: return false
         return encryptionManager.hasKey(mac)
@@ -449,10 +459,11 @@ class BluetoothService : Service() {
 
         const val INSTALL_CHANNEL_ID = "install_channel"
         
-        // WiFi Activation Rules
+        // LAN Activation Rules
         const val WIFI_RULE_BT_FALLBACK = 1      // Enable when BT disconnected
-        const val WIFI_RULE_MAINACTIVITY = 2     // Enable when MainActivity open
+        const val WIFI_RULE_MAINACTIVITY = 2     // Enable when app is open
         const val WIFI_RULE_ALWAYS = 4           // Enable all the time
+        const val WIFI_RULE_BT_OR_APP = 8        // Enable when BT disconnected OR app open
 
 
         const val ACTION_STOP_SERVICE = "ACTION_STOP_SERVICE"

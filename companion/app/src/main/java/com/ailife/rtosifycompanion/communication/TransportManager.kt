@@ -30,15 +30,17 @@ class TransportManager(
         private val APP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
         private const val APP_NAME = "RTOSifyApp"
 
-        // WiFi Activation Rules (Bitmask)
+        // LAN Activation Rules (Bitmask)
         const val WIFI_RULE_BT_FALLBACK = 1
         const val WIFI_RULE_MAINACTIVITY = 2
         const val WIFI_RULE_ALWAYS = 4
+        const val WIFI_RULE_BT_OR_APP = 8  // Enable when BT disconnected OR app open
 
         // Internet Activation Rules (Bitmask)
         const val INTERNET_RULE_BT_FALLBACK = 1
         const val INTERNET_RULE_MAINACTIVITY = 2
         const val INTERNET_RULE_ALWAYS = 4
+        const val INTERNET_RULE_BT_OR_APP = 8  // Enable when BT disconnected OR app open
     }
 
     private var bluetoothTransport: BluetoothTransport? = null
@@ -284,34 +286,35 @@ class TransportManager(
         wifiServerWatchdog?.cancel()
         
         wifiServerWatchdog = scope.launch(Dispatchers.IO) {
-            Log.d(TAG, "Starting WiFi server watchdog")
+            Log.d(TAG, "Starting LAN server watchdog")
             while (isActive) {
                 try {
                     val hasKey = encryptionManager.hasKey(remoteMac)
                     val serverRunning = wifiServerJob?.isActive == true
                     val btConnected = bluetoothTransport?.isConnected() == true
-                    
-                    // Logic based on rules (OR logic: if any active rule matches, enable WiFi)
-                    val shouldBeRunning = wifiPairingMode || 
+
+                    // Logic based on rules (OR logic: if any active rule matches, enable LAN)
+                    val shouldBeRunning = wifiPairingMode ||
                         ((currentWifiRule and WIFI_RULE_ALWAYS) != 0) ||
+                        (((currentWifiRule and WIFI_RULE_BT_OR_APP) != 0) && (!btConnected || isPhoneAppOpen)) ||
                         (((currentWifiRule and WIFI_RULE_MAINACTIVITY) != 0) && isPhoneAppOpen) ||
                         (((currentWifiRule and WIFI_RULE_BT_FALLBACK) != 0) && !btConnected)
 
                     if (hasKey) {
                         if (shouldBeRunning && !serverRunning) {
-                            Log.w(TAG, "WiFi server watchdog: should be running but stopped - starting")
+                            Log.w(TAG, "LAN server watchdog: should be running but stopped - starting")
                             startWifiServer(deviceName, localMac, remoteMac)
                         } else if (!shouldBeRunning && serverRunning) {
-                            Log.d(TAG, "WiFi server watchdog: should NOT be running but is - stopping")
+                            Log.d(TAG, "LAN server watchdog: should NOT be running but is - stopping")
                             stopWifiServer()
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "WiFi server watchdog error (non-fatal): ${e.message}", e)
+                    Log.e(TAG, "LAN server watchdog error (non-fatal): ${e.message}", e)
                     // Continue running despite errors
                 }
-                
-                delay(5000) // Check every 5 seconds
+
+                delay(3000) // Check every 3 seconds (improved from 5s for faster response)
             }
         }
     }
@@ -362,7 +365,7 @@ class TransportManager(
                     val hasKey = encryptionManager.hasKey(remoteMac)
                     val internetRunning = internetMonitorJob?.isActive == true
                     val btConnected = bluetoothTransport?.isConnected() == true
-                    
+
                     val shouldBeEnabled = shouldInternetBeEnabled(btConnected)
 
                     if (hasKey) {
@@ -377,7 +380,7 @@ class TransportManager(
                 } catch (e: Exception) {
                     Log.e(TAG, "Internet watchdog error: ${e.message}")
                 }
-                delay(5000)
+                delay(3000) // Check every 3 seconds (improved from 5s for faster response)
             }
         }
     }
@@ -466,16 +469,21 @@ class TransportManager(
 
     private fun shouldInternetBeEnabled(btConnected: Boolean): Boolean {
         if ((currentInternetRule and INTERNET_RULE_ALWAYS) != 0) return true
-        
+
+        // Combined rule: BT disconnected OR app open
+        if ((currentInternetRule and INTERNET_RULE_BT_OR_APP) != 0) {
+            if (!btConnected || isPhoneAppOpen) return true
+        }
+
         var shouldEnable = false
         if ((currentInternetRule and INTERNET_RULE_BT_FALLBACK) != 0) {
             if (!btConnected) shouldEnable = true
         }
-        
+
         if ((currentInternetRule and INTERNET_RULE_MAINACTIVITY) != 0) {
             if (isPhoneAppOpen) shouldEnable = true
         }
-        
+
         return shouldEnable
     }
 
@@ -532,8 +540,8 @@ class TransportManager(
 
         val newState = if (btConnected || wifiConnected || internetConnected) {
             val types = mutableListOf<String>()
-            if (btConnected) types.add("Bluetooth")
-            if (wifiConnected) types.add("WiFi")
+            if (btConnected) types.add("BT")
+            if (wifiConnected) types.add("LAN")
             if (internetConnected) types.add("Internet")
 
             val typeString = types.joinToString("+")

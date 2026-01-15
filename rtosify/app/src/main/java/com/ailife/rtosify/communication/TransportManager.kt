@@ -66,15 +66,17 @@ class TransportManager(
         private const val TAG = "TransportManager"
         private val APP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
         
-        // WiFi Rules (matching BluetoothService/NetworkSettingsActivity)
+        // LAN Rules (matching BluetoothService/NetworkSettingsActivity)
         const val WIFI_RULE_BT_FALLBACK = 1
         const val WIFI_RULE_MAINACTIVITY = 2
         const val WIFI_RULE_ALWAYS = 4
-        
+        const val WIFI_RULE_BT_OR_APP = 8  // Enable when BT disconnected OR app open
+
         // Internet Rules
         const val INTERNET_RULE_BT_FALLBACK = 1
         const val INTERNET_RULE_MAINACTIVITY = 2
         const val INTERNET_RULE_ALWAYS = 4
+        const val INTERNET_RULE_BT_OR_APP = 8  // Enable when BT disconnected OR app open
     }
 
     /**
@@ -374,54 +376,63 @@ class TransportManager(
     }
 
     private fun shouldWifiBeEnabled(): Boolean {
-        // Force WiFi on during pairing
+        // Force LAN on during pairing
         if (wifiForceForPairing) return true
-        
+
         // Don't connect if temporarily disabled (e.g., during re-pairing)
         if (wifiTemporarilyDisabled) return false
-        
+
         val prefs = devicePrefManager.getActiveDevicePrefs()
         val rule = prefs.getInt("wifi_activation_rule", WIFI_RULE_BT_FALLBACK)
-        
+
         // Always rule takes precedence
         if ((rule and WIFI_RULE_ALWAYS) != 0) return true
-        
+
+        val btConnected = bluetoothTransport?.isConnected() == true
+
+        // Combined rule: BT disconnected OR app open
+        if ((rule and WIFI_RULE_BT_OR_APP) != 0) {
+            if (!btConnected || isAppInForeground) return true
+        }
+
         var shouldEnable = false
-        
+
         // BT Fallback rule
         if ((rule and WIFI_RULE_BT_FALLBACK) != 0) {
-            val btConnected = bluetoothTransport?.isConnected() == true
             if (!btConnected) shouldEnable = true
         }
-        
+
         // App foreground rule (when any app UI is visible)
         if ((rule and WIFI_RULE_MAINACTIVITY) != 0) {
             if (isAppInForeground) shouldEnable = true
         }
-        
+
         return shouldEnable
     }
     
     private fun shouldInternetBeEnabled(): Boolean {
         val prefs = devicePrefManager.getActiveDevicePrefs()
         val rule = prefs.getInt("internet_activation_rule", 0) // Default disabled
-        
+
         if ((rule and INTERNET_RULE_ALWAYS) != 0) return true
-        
+
+        val btConnected = bluetoothTransport?.isConnected() == true
+
+        // Combined rule: BT disconnected OR app open
+        if ((rule and INTERNET_RULE_BT_OR_APP) != 0) {
+            if (!btConnected || isAppInForeground) return true
+        }
+
         var shouldEnable = false
-        
+
         if ((rule and INTERNET_RULE_BT_FALLBACK) != 0) {
-            val btConnected = bluetoothTransport?.isConnected() == true
-            // Also check WiFi? Usually Internet is fallback if BOTH BT and WiFi are down, 
-            // or if we just want remote access. 
-            // Let's assume it falls back if BT is disconnected (implying out of range).
             if (!btConnected) shouldEnable = true
         }
-        
+
         if ((rule and INTERNET_RULE_MAINACTIVITY) != 0) {
             if (isAppInForeground) shouldEnable = true
         }
-        
+
         return shouldEnable
     }
     
@@ -484,8 +495,8 @@ class TransportManager(
 
         val newState = if (btConnected || wifiConnected || internetConnected) {
             val types = mutableListOf<String>()
-            if (btConnected) types.add("Bluetooth")
-            if (wifiConnected) types.add("WiFi")
+            if (btConnected) types.add("BT")
+            if (wifiConnected) types.add("LAN")
             if (internetConnected) types.add("Internet")
 
             val typeString = types.joinToString("+")

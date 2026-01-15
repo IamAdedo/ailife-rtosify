@@ -38,7 +38,7 @@
                 android:textSize="24sp" />
         </LinearLayout>
 
-        <!-- Pairing Card -->
+        <!-- Connection Status Card (moved to top for visibility) -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -53,28 +53,146 @@
                 android:orientation="vertical"
                 android:padding="20dp">
 
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-bold"
+                    android:text="@string/network_status_title"
+                    android:textColor="@android:color/white"
+                    android:textSize="18sp" />
+
+                <!-- Active Connection Summary -->
+                <TextView
+                    android:id="@+id/tvActiveConnection"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Active: --"
+                    android:textColor="#4CAF50"
+                    android:textSize="14sp" />
+
+                <!-- Connection Layers Status -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:orientation="vertical">
+
+                    <!-- Bluetooth Status -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="4dp">
+
+                        <View
+                            android:id="@+id/indicatorBt"
+                            android:layout_width="8dp"
+                            android:layout_height="8dp"
+                            android:background="@drawable/status_indicator_off" />
+
+                        <TextView
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:text="Bluetooth"
+                            android:textColor="#888888"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/tvBtStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="sans-serif-medium"
+                            android:text="Disconnected"
+                            android:textColor="@android:color/white"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <!-- LAN Status -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="4dp">
+
+                        <View
+                            android:id="@+id/indicatorLan"
+                            android:layout_width="8dp"
+                            android:layout_height="8dp"
+                            android:background="@drawable/status_indicator_off" />
+
+                        <TextView
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:text="LAN"
+                            android:textColor="#888888"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/tvLanStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="sans-serif-medium"
+                            android:text="Standby"
+                            android:textColor="@android:color/white"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                    <!-- Internet Status -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingVertical="4dp">
+
+                        <View
+                            android:id="@+id/indicatorInternet"
+                            android:layout_width="8dp"
+                            android:layout_height="8dp"
+                            android:background="@drawable/status_indicator_off" />
+
+                        <TextView
+                            android:layout_width="80dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:text="Internet"
+                            android:textColor="#888888"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/tvInternetStatus"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="sans-serif-medium"
+                            android:text="Disabled"
+                            android:textColor="@android:color/white"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- Pair Button -->
                 <Button
                     android:id="@+id/btnPairForInternet"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
                     android:text="@string/network_pair_for_internet"
                     android:textColor="@android:color/white"
-                    style="@style/Widget.MaterialComponents.Button" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="@string/network_pair_desc"
-                    android:textColor="#888888"
-                    android:textSize="14sp" />
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- WiFi Activation Rules Card -->
+        <!-- LAN Activation Rules Card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
             app:cardBackgroundColor="#1E1E1E"
             app:cardCornerRadius="16dp"
             app:strokeWidth="0dp">
@@ -97,167 +215,114 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginBottom="12dp"
                     android:text="@string/network_activation_desc"
                     android:textColor="#888888"
                     android:textSize="14sp" />
 
-                <LinearLayout
+                <RadioGroup
+                    android:id="@+id/radioGroupLan"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
 
-                    <!-- Rule 0: BT Fallback -->
-                    <LinearLayout
+                    <RadioButton
+                        android:id="@+id/radioLanDisabled"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="12dp"
-                        android:background="?attr/selectableItemBackground"
-                        android:orientation="vertical"
-                        android:padding="12dp">
+                        android:paddingVertical="8dp"
+                        android:text="@string/network_rule_disabled"
+                        android:textColor="@android:color/white"
+                        android:textSize="15sp"
+                        android:buttonTint="#888888" />
 
-                        <CheckBox
-                            android:id="@+id/checkBoxBtFallback"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="sans-serif-medium"
-                            android:text="@string/network_rule_bt_fallback"
-                            android:textColor="@android:color/white"
-                            android:textSize="16sp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="32dp"
-                            android:text="@string/network_rule_bt_fallback_desc"
-                            android:textColor="#666666"
-                            android:textSize="12sp" />
-                    </LinearLayout>
-
-                    <!-- Rule 1: MainActivity Open -->
-                    <LinearLayout
+                    <RadioButton
+                        android:id="@+id/radioLanBtFallback"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="12dp"
-                        android:background="?attr/selectableItemBackground"
-                        android:orientation="vertical"
-                        android:padding="12dp">
+                        android:paddingVertical="8dp"
+                        android:text="@string/network_rule_bt_fallback"
+                        android:textColor="@android:color/white"
+                        android:textSize="15sp"
+                        android:buttonTint="#888888" />
 
-                        <CheckBox
-                            android:id="@+id/checkBoxMainActivity"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="sans-serif-medium"
-                            android:text="@string/network_rule_mainactivity"
-                            android:textColor="@android:color/white"
-                            android:textSize="16sp" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="32dp"
-                            android:text="@string/network_rule_mainactivity_desc"
-                            android:textColor="#666666"
-                            android:textSize="12sp" />
-                    </LinearLayout>
-
-                    <!-- Rule 2: Always -->
-                    <LinearLayout
+                    <RadioButton
+                        android:id="@+id/radioLanAppOpen"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="?attr/selectableItemBackground"
-                        android:orientation="vertical"
-                        android:padding="12dp">
+                        android:paddingVertical="8dp"
+                        android:text="@string/network_rule_mainactivity"
+                        android:textColor="@android:color/white"
+                        android:textSize="15sp"
+                        android:buttonTint="#888888" />
 
-                        <CheckBox
-                            android:id="@+id/checkBoxAlways"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="sans-serif-medium"
-                            android:text="@string/network_rule_always"
-                            android:textColor="@android:color/white"
-                            android:textSize="16sp" />
+                    <RadioButton
+                        android:id="@+id/radioLanBtOrApp"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingVertical="8dp"
+                        android:text="@string/network_rule_bt_or_app"
+                        android:textColor="@android:color/white"
+                        android:textSize="15sp"
+                        android:buttonTint="#888888" />
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginStart="32dp"
-                            android:text="@string/network_rule_always_desc"
-                            android:textColor="#666666"
-                            android:textSize="12sp" />
-                    </LinearLayout>
-                </LinearLayout>
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+                    <RadioButton
+                        android:id="@+id/radioLanAlways"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingVertical="8dp"
+                        android:text="@string/network_rule_always"
+                        android:textColor="@android:color/white"
+                        android:textSize="15sp"
+                        android:buttonTint="#888888" />
+                </RadioGroup>
 
-        <!-- Advanced Settings Card -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            app:cardBackgroundColor="#1E1E1E"
-            app:cardCornerRadius="16dp"
-            app:strokeWidth="0dp">
+                <!-- Fixed IP Option -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="16dp"
+                    android:background="#333333" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp">
+                <CheckBox
+                    android:id="@+id/checkBoxFixedIp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/network_fixed_ip_enabled"
+                    android:textColor="@android:color/white"
+                    android:textSize="15sp"
+                    android:buttonTint="#888888" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:fontFamily="sans-serif-bold"
-                    android:text="@string/network_advanced_settings_title"
-                    android:textColor="@android:color/white"
-                    android:textSize="18sp" />
+                    android:layout_marginStart="32dp"
+                    android:text="@string/network_fixed_ip_desc"
+                    android:textColor="#666666"
+                    android:textSize="12sp" />
 
-                <LinearLayout
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/layoutFixedIp"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:orientation="vertical">
+                    android:layout_marginStart="32dp"
+                    android:layout_marginTop="8dp"
+                    android:hint="@string/network_fixed_ip_hint"
+                    android:textColorHint="#444444"
+                    android:visibility="gone"
+                    app:boxBackgroundColor="#2A2A2A"
+                    app:boxStrokeColor="@android:color/white"
+                    app:hintTextColor="@android:color/white">
 
-                    <CheckBox
-                        android:id="@+id/checkBoxFixedIp"
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etFixedIp"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:fontFamily="sans-serif-medium"
-                        android:text="@string/network_fixed_ip_enabled"
+                        android:inputType="textUri|textFilter"
                         android:textColor="@android:color/white"
-                        android:textSize="16sp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="32dp"
-                        android:text="@string/network_fixed_ip_desc"
-                        android:textColor="#666666"
-                        android:textSize="12sp" />
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/layoutFixedIp"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="32dp"
-                        android:layout_marginTop="8dp"
-                        android:hint="@string/network_fixed_ip_hint"
-                        android:textColorHint="#444444"
-                        android:visibility="gone"
-                        app:boxBackgroundColor="#2A2A2A"
-                        app:boxStrokeColor="@android:color/white"
-                        app:hintTextColor="@android:color/white">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etFixedIp"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textUri|textFilter"
-                            android:textColor="@android:color/white"
-                            android:textSize="14sp" />
-                    </com.google.android.material.textfield.TextInputLayout>
-                </LinearLayout>
+                        android:textSize="14sp" />
+                </com.google.android.material.textfield.TextInputLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -265,7 +330,7 @@
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
             app:cardBackgroundColor="#1E1E1E"
             app:cardCornerRadius="16dp"
             app:strokeWidth="0dp">
@@ -288,77 +353,95 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginBottom="12dp"
                     android:text="@string/network_internet_desc"
                     android:textColor="#888888"
                     android:textSize="14sp" />
 
-                <LinearLayout
+                <RadioGroup
+                    android:id="@+id/radioGroupInternet"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical">
 
-                    <!-- Rule 0: BT Fallback -->
-                    <LinearLayout
+                    <RadioButton
+                        android:id="@+id/radioInternetDisabled"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="12dp"
-                        android:background="?attr/selectableItemBackground"
-                        android:orientation="vertical"
-                        android:padding="12dp">
+                        android:paddingVertical="8dp"
+                        android:text="@string/network_rule_disabled"
+                        android:textColor="@android:color/white"
+                        android:textSize="15sp"
+                        android:buttonTint="#888888" />
 
-                        <CheckBox
-                            android:id="@+id/checkBoxInternetBtFallback"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="sans-serif-medium"
-                            android:text="@string/network_rule_bt_fallback"
-                            android:textColor="@android:color/white"
-                            android:textSize="16sp" />
-                    </LinearLayout>
-
-                    <!-- Rule 1: MainActivity Open -->
-                    <LinearLayout
+                    <RadioButton
+                        android:id="@+id/radioInternetBtFallback"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="12dp"
-                        android:background="?attr/selectableItemBackground"
-                        android:orientation="vertical"
-                        android:padding="12dp">
+                        android:paddingVertical="8dp"
+                        android:text="@string/network_rule_bt_fallback"
+                        android:textColor="@android:color/white"
+                        android:textSize="15sp"
+                        android:buttonTint="#888888" />
 
-                        <CheckBox
-                            android:id="@+id/checkBoxInternetMainActivity"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="sans-serif-medium"
-                            android:text="@string/network_rule_mainactivity"
-                            android:textColor="@android:color/white"
-                            android:textSize="16sp" />
-                    </LinearLayout>
-
-                    <!-- Rule 2: Always -->
-                    <LinearLayout
+                    <RadioButton
+                        android:id="@+id/radioInternetAppOpen"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="?attr/selectableItemBackground"
-                        android:orientation="vertical"
-                        android:padding="12dp">
+                        android:paddingVertical="8dp"
+                        android:text="@string/network_rule_mainactivity"
+                        android:textColor="@android:color/white"
+                        android:textSize="15sp"
+                        android:buttonTint="#888888" />
 
-                        <CheckBox
-                            android:id="@+id/checkBoxInternetAlways"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="sans-serif-medium"
-                            android:text="@string/network_rule_always"
-                            android:textColor="@android:color/white"
-                            android:textSize="16sp" />
-                    </LinearLayout>
+                    <RadioButton
+                        android:id="@+id/radioInternetBtOrApp"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingVertical="8dp"
+                        android:text="@string/network_rule_bt_or_app"
+                        android:textColor="@android:color/white"
+                        android:textSize="15sp"
+                        android:buttonTint="#888888" />
+
+                    <RadioButton
+                        android:id="@+id/radioInternetAlways"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingVertical="8dp"
+                        android:text="@string/network_rule_always"
+                        android:textColor="@android:color/white"
+                        android:textSize="15sp"
+                        android:buttonTint="#888888" />
+                </RadioGroup>
+
+                <!-- Server Settings (Expandable) -->
+                <LinearLayout
+                    android:id="@+id/layoutServerSettings"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:orientation="vertical">
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#333333" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="Server Configuration"
+                        android:textColor="#AAAAAA"
+                        android:textSize="12sp" />
 
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:hint="Signaling Server URL"
+                        android:layout_marginTop="12dp"
+                        android:hint="@string/network_signaling_url_hint"
                         android:textColorHint="#444444"
                         app:boxBackgroundColor="#2A2A2A"
                         app:boxStrokeColor="@android:color/white"
@@ -369,7 +452,6 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="textUri"
-                            android:text="ws://192.168.1.10:8080"
                             android:textColor="@android:color/white"
                             android:textSize="14sp" />
                     </com.google.android.material.textfield.TextInputLayout>
@@ -377,7 +459,7 @@
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
+                        android:layout_marginTop="12dp"
                         android:hint="@string/network_stun_url_hint"
                         android:textColorHint="#444444"
                         app:boxBackgroundColor="#2A2A2A"
@@ -389,7 +471,6 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="textUri"
-                            android:text="stun:stun.cloudflare.com:3478"
                             android:textColor="@android:color/white"
                             android:textSize="14sp" />
                     </com.google.android.material.textfield.TextInputLayout>
@@ -397,7 +478,7 @@
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
+                        android:layout_marginTop="12dp"
                         android:hint="@string/network_turn_url_hint"
                         android:textColorHint="#444444"
                         app:boxBackgroundColor="#2A2A2A"
@@ -416,7 +497,7 @@
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
+                        android:layout_marginTop="12dp"
                         android:hint="@string/network_turn_username_hint"
                         android:textColorHint="#444444"
                         app:boxBackgroundColor="#2A2A2A"
@@ -435,7 +516,7 @@
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
+                        android:layout_marginTop="12dp"
                         android:hint="@string/network_turn_password_hint"
                         android:textColorHint="#444444"
                         app:boxBackgroundColor="#2A2A2A"
@@ -450,16 +531,14 @@
                             android:textColor="@android:color/white"
                             android:textSize="14sp" />
                     </com.google.android.material.textfield.TextInputLayout>
-                    
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Connection Status Card -->
+        <!-- Network Details Card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
             app:cardBackgroundColor="#1E1E1E"
             app:cardCornerRadius="16dp"
             app:strokeWidth="0dp">
@@ -474,21 +553,20 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-bold"
-                    android:text="@string/network_status_title"
+                    android:text="Network Details"
                     android:textColor="@android:color/white"
                     android:textSize="18sp" />
 
-                <!-- Phone Status Section -->
+                <!-- Phone Network -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
                     android:fontFamily="sans-serif-medium"
-                    android:text="Phone WiFi"
+                    android:text="Phone"
                     android:textColor="#AAAAAA"
                     android:textSize="12sp" />
 
-                <!-- Phone SSID -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -500,7 +578,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="SSID"
+                        android:text="Network"
                         android:textColor="#888888"
                         android:textSize="14sp" />
 
@@ -514,7 +592,6 @@
                         android:textSize="14sp" />
                 </LinearLayout>
 
-                <!-- Phone IP -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -546,17 +623,16 @@
                     android:layout_marginTop="12dp"
                     android:background="#333333" />
 
-                <!-- Watch Status Section -->
+                <!-- Watch Network -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     android:fontFamily="sans-serif-medium"
-                    android:text="Companion WiFi"
+                    android:text="Watch"
                     android:textColor="#AAAAAA"
                     android:textSize="12sp" />
 
-                <!-- Watch SSID -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -568,7 +644,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="SSID"
+                        android:text="Network"
                         android:textColor="#888888"
                         android:textSize="14sp" />
 
@@ -582,7 +658,6 @@
                         android:textSize="14sp" />
                 </LinearLayout>
 
-                <!-- Watch IP -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -608,7 +683,6 @@
                         android:textSize="14sp" />
                 </LinearLayout>
 
-                <!-- Encryption Info -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
