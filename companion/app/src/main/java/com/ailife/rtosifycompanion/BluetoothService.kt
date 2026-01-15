@@ -1889,12 +1889,13 @@ class BluetoothService : Service() {
             encryptionManager.initializeForDevice(deviceMac)
             encryptionManager.setActiveDevice(deviceMac)
             Log.d(TAG, "initializeEncryptionForDevice: mac=$deviceMac")
-            
+
             // Watch always starts WiFi as server
+            // deviceMac is the phone's MAC - use it as remoteMac for encryption
             serviceScope.launch {
                 val watchMac = prefs.getString("wifi_advertised_mac", "") ?: ""
                 val deviceName = android.bluetooth.BluetoothAdapter.getDefaultAdapter()?.name ?: android.os.Build.MODEL
-                transportManager.startWifiServer(deviceName, watchMac, watchMac)
+                transportManager.startWifiServer(deviceName, watchMac, deviceMac)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize encryption", e)
@@ -2572,11 +2573,11 @@ class BluetoothService : Service() {
         val encryptionKey = ProtocolHelper.extractStringField(message, "encryptionKey") ?: return
         
         Log.i(TAG, "Received WiFi key exchange request from $phoneMac for watch $watchMac")
-        // CRITICAL: Import key using watchMac (companion's own MAC), not phoneMac
-        // because all WiFi encryption/decryption uses the companion's MAC as the key identifier
-        val success = encryptionManager.importKey(watchMac, encryptionKey)
+        // Import key using phoneMac (remote device's MAC) because WifiIntranetTransport
+        // uses remoteMac for encryption/decryption key lookups
+        val success = encryptionManager.importKey(phoneMac, encryptionKey)
         if (success) {
-            encryptionManager.setActiveDevice(watchMac)
+            encryptionManager.setActiveDevice(phoneMac)
             
             // Save MACs for future restarts
             prefs.edit().apply {
@@ -2586,11 +2587,11 @@ class BluetoothService : Service() {
             
             // Enable pairing mode to keep WiFi server running during pairing
             transportManager.enableWifiPairingMode()
-            
-            // Start WiFi server
+
+            // Start WiFi server with phoneMac as remoteMac for encryption
             serviceScope.launch {
                 val deviceName = android.bluetooth.BluetoothAdapter.getDefaultAdapter()?.name ?: android.os.Build.MODEL
-                transportManager.startWifiServer(deviceName, watchMac, watchMac)
+                transportManager.startWifiServer(deviceName, watchMac, phoneMac)
             }
         }
         

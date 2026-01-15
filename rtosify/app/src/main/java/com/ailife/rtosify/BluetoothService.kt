@@ -312,9 +312,9 @@ class BluetoothService : Service() {
 
     fun sendWifiKeyExchange(key: String) {
         val watchMac = getConnectedDeviceMac() ?: return
-        // We try to get local MAC, but if restricted, a dummy or empty one will be used 
-        // as long as it's consistent for the encryption key lookup.
-        val phoneMac = BluetoothAdapter.getDefaultAdapter()?.address ?: ""
+        // Use discovered_local_mac (real MAC from watch) if available, otherwise fallback to adapter address
+        val phoneMac = prefs.getString("discovered_local_mac", null)
+            ?: BluetoothAdapter.getDefaultAdapter()?.address ?: ""
         sendMessage(ProtocolHelper.createWifiKeyExchange(phoneMac, watchMac, key))
     }
 
