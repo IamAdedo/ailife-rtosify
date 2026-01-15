@@ -614,12 +614,21 @@ class BluetoothService : Service() {
                     }
                     is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Waiting -> {
                          // If we were connected, Waiting means we just lost it
-                         if (isConnected) {
+                         if (isConnected || lastConnectedState) {
                              Log.d(TAG, "TransportManager transitioned to Waiting state - treating as disconnection")
                              handleDeviceDisconnected()
                          } else {
                              updateStatus(getString(R.string.status_waiting))
                          }
+                    }
+                    is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connecting -> {
+                        // If we were connected and switch to Connecting, it means we lost the active link
+                        if (isConnected || lastConnectedState) {
+                             Log.d(TAG, "TransportManager transitioned to Connecting state - treating as disconnection")
+                             handleDeviceDisconnected()
+                        } else {
+                             updateStatus(getString(R.string.status_connecting))
+                        }
                     }
                     else -> {}
                 }
