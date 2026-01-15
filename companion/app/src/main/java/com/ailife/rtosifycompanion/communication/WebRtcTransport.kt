@@ -24,7 +24,11 @@ class WebRtcTransport(
     private val deviceName: String,
     private val encryptionManager: EncryptionManager,
     private val signalingUrl: String,
-    private val isInitiator: Boolean
+    private val isInitiator: Boolean,
+    private val stunUrl: String? = null,
+    private val turnUrl: String? = null,
+    private val turnUsername: String? = null,
+    private val turnPassword: String? = null
 ) : CommunicationTransport {
 
     companion object {
@@ -48,6 +52,9 @@ class WebRtcTransport(
     // The ID to send signaling messages to. Defaults to remoteMac, but updates
     // if we receive an offer from a different source ID
     private var activeSignalingTarget: String = remoteMac
+
+    private val pendingIceCandidates = mutableListOf<IceCandidate>()
+    private var isRemoteDescriptionSet = false
 
     override suspend fun connect(): Boolean {
         Log.d(TAG, "connect() called - remoteMac=$remoteMac, signalingUrl=$signalingUrl, isInitiator=$isInitiator")
@@ -192,11 +199,30 @@ class WebRtcTransport(
     private fun createPeerConnection() {
         if (peerConnection != null) return
         
-        val iceServers = listOf(
-            PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer()
-        )
-
-        val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
+        val iceServers = mutableListOf<PeerConnection.IceServer>()
+        
+        // Add STUN servers
+        if (!stunUrl.isNullOrBlank()) {
+            iceServers.add(PeerConnection.IceServer.builder(stunUrl).createIceServer())
+        }
+        
+        // Always add some default public STUNs for robustness
+        iceServers.add(PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer())
+        iceServers.add(PeerConnection.IceServer.builder("stun:stun.cloudflare.com:3478").createIceServer())
+        
+        // Add TURN server if provided
+        if (!turnUrl.isNullOrBlank()) {
+            val turnBuilder = PeerConnection.IceServer.builder(turnUrl)
+            if (!turnUsername.isNullOrBlank()) turnBuilder.setUsername(turnUsername)
+            if (!turnPassword.isNullOrBlank()) turnBuilder.setPassword(turnPassword)
+            iceServers.add(turnBuilder.createIceServer())
+        }
+        
+        Log.d(TAG, "Creating PeerConnection with ${iceServers.size} ICE servers")
+        
+        val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
+            sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
+        }
 
         peerConnection = factory?.createPeerConnection(rtcConfig, object : PeerConnection.Observer {
             override fun onSignalingChange(state: PeerConnection.SignalingState?) {}
@@ -303,7 +329,11 @@ class WebRtcTransport(
         val desc = SessionDescription(SessionDescription.Type.OFFER, sdp)
         peerConnection?.setRemoteDescription(object : SimpleSdpObserver() {
             override fun onSetSuccess() {
-                Log.d(TAG, "Set remote description (Offer) success. Creating Answer...")
+                Log.d(TAG, "Set remote description (Offer) success. Processing queued candidates...")
+                isRemoteDescriptionSet = true
+                drainIceCandidates()
+
+                Log.d(TAG, "Creating Answer...")
                 peerConnection?.createAnswer(object : SdpObserver {
                     override fun onCreateSuccess(desc: SessionDescription?) {
                         Log.d(TAG, "Create Answer success. Type: ${desc?.type}")
@@ -336,7 +366,9 @@ class WebRtcTransport(
         val desc = SessionDescription(SessionDescription.Type.ANSWER, sdp)
         peerConnection?.setRemoteDescription(object : SimpleSdpObserver() {
             override fun onSetSuccess() {
-                Log.i(TAG, "Set remote description (Answer) success.")
+                Log.i(TAG, "Set remote description (Answer) success. Processing queued candidates...")
+                isRemoteDescriptionSet = true
+                drainIceCandidates()
             }
             override fun onSetFailure(s: String?) {
                 Log.e(TAG, "Set remote description (Answer) failure: $s")
@@ -346,7 +378,21 @@ class WebRtcTransport(
 
     private fun handleIceCandidate(event: SignalingClient.SignalingEvent.IceCandidate) {
         val candidate = IceCandidate(event.sdpMid, event.sdpMLineIndex, event.candidate)
-        peerConnection?.addIceCandidate(candidate)
+        if (isRemoteDescriptionSet) {
+            Log.d(TAG, "Adding ICE candidate immediately")
+            peerConnection?.addIceCandidate(candidate)
+        } else {
+            Log.d(TAG, "Queuing ICE candidate until remote description is set")
+            pendingIceCandidates.add(candidate)
+        }
+    }
+
+    private fun drainIceCandidates() {
+        Log.d(TAG, "Draining ${pendingIceCandidates.size} queued ICE candidates")
+        for (candidate in pendingIceCandidates) {
+            peerConnection?.addIceCandidate(candidate)
+        }
+        pendingIceCandidates.clear()
     }
 
     private fun sendSdp(type: String, sdp: String) {
@@ -399,6 +445,9 @@ class WebRtcTransport(
         try {
             messageChannel.close()
         } catch (_: Exception) {}
+
+        isRemoteDescriptionSet = false
+        pendingIceCandidates.clear()
 
         // 4. Close and dispose WebRTC native resources in order
         // DataChannel first, then PeerConnection, then Factory

@@ -3242,7 +3242,14 @@ class BluetoothService : Service() {
         Log.d(TAG, "Internet settings changed, notifying watch")
         val rule = activePrefs.getInt("internet_activation_rule", 0)
         val url = activePrefs.getString("internet_signaling_url", "") ?: ""
-        sendMessage(ProtocolHelper.createUpdateInternetSettings(rule, url))
+        val stunUrl = activePrefs.getString("internet_stun_url", "stun:stun.cloudflare.com:3478") ?: ""
+        val turnUrl = activePrefs.getString("internet_turn_url", "") ?: ""
+        val turnUsername = activePrefs.getString("internet_turn_username", "") ?: ""
+        val turnPassword = activePrefs.getString("internet_turn_password", "") ?: ""
+        
+        sendMessage(ProtocolHelper.createUpdateInternetSettings(
+            rule, url, stunUrl, turnUrl, turnUsername, turnPassword
+        ))
     }
 
     private fun handleSyncMac(message: ProtocolMessage) {

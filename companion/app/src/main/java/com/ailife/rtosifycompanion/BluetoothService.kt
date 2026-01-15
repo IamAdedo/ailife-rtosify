@@ -584,6 +584,9 @@ class BluetoothService : Service() {
             encryptionManager,
             mdnsDiscovery!!
         )
+        
+        // Load saved internet settings into TransportManager
+        notifyInternetSettingsChanged()
 
         serviceScope.launch {
             transportManager.incomingMessages.collect { message ->
@@ -1426,19 +1429,42 @@ class BluetoothService : Service() {
         try {
             val rule = message.data.get("rule")?.asInt ?: 0
             val url = message.data.get("url")?.asString ?: ""
+            val stunUrl = message.data.get("stunUrl")?.asString ?: ""
+            val turnUrl = message.data.get("turnUrl")?.asString ?: ""
+            val turnUsername = message.data.get("turnUsername")?.asString ?: ""
+            val turnPassword = message.data.get("turnPassword")?.asString ?: ""
             
             prefs.edit().apply {
                 putInt("internet_activation_rule", rule)
                 putString("internet_signaling_url", url)
+                putString("internet_stun_url", stunUrl)
+                putString("internet_turn_url", turnUrl)
+                putString("internet_turn_username", turnUsername)
+                putString("internet_turn_password", turnPassword)
             }.apply()
             
-            transportManager.updateInternetSettings(rule, url)
-            Log.d(TAG, "Internet settings updated: rule=$rule, url=$url")
+            transportManager.updateInternetSettings(
+                rule, url, stunUrl, turnUrl, turnUsername, turnPassword
+            )
         } catch (e: Exception) {
-            Log.e(TAG, "Error updating internet settings", e)
+            Log.e(TAG, "Error handling update internet settings: ${e.message}")
         }
     }
     
+    fun notifyInternetSettingsChanged() {
+        Log.d(TAG, "Local internet settings changed, updating transport manager")
+        val rule = prefs.getInt("internet_activation_rule", 0)
+        val url = prefs.getString("internet_signaling_url", "") ?: ""
+        val stunUrl = prefs.getString("internet_stun_url", "stun:stun.cloudflare.com:3478") ?: ""
+        val turnUrl = prefs.getString("internet_turn_url", "") ?: ""
+        val turnUsername = prefs.getString("internet_turn_username", "") ?: ""
+        val turnPassword = prefs.getString("internet_turn_password", "") ?: ""
+        
+        transportManager.updateInternetSettings(
+            rule, url, stunUrl, turnUrl, turnUsername, turnPassword
+        )
+    }
+
     private fun handleUpdateWifiRule(message: ProtocolMessage) {
         try {
             val wifiActivationRule = message.data.get("rule")?.asInt

@@ -651,10 +651,21 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.UPDATE_WIFI_RULE, data = data)
     }
 
-    fun createUpdateInternetSettings(rule: Int, url: String): ProtocolMessage {
+    fun createUpdateInternetSettings(
+        rule: Int, 
+        url: String,
+        stunUrl: String = "",
+        turnUrl: String = "",
+        turnUsername: String = "",
+        turnPassword: String = ""
+    ): ProtocolMessage {
         val data = JsonObject()
         data.addProperty("rule", rule)
         data.addProperty("url", url)
+        data.addProperty("stunUrl", stunUrl)
+        data.addProperty("turnUrl", turnUrl)
+        data.addProperty("turnUsername", turnUsername)
+        data.addProperty("turnPassword", turnPassword)
         return ProtocolMessage(type = MessageType.UPDATE_INTERNET_SETTINGS, data = data)
     }
 

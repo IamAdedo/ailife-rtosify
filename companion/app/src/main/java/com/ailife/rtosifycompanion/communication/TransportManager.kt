@@ -70,6 +70,10 @@ class TransportManager(
     @Volatile private var currentWifiRule: Int = WIFI_RULE_BT_FALLBACK
     @Volatile private var currentInternetRule: Int = 0 // Default disabled
     @Volatile private var signalingUrl: String = "ws://192.168.1.10:8080"
+    @Volatile private var stunUrl: String = "stun:stun.cloudflare.com:3478"
+    @Volatile private var turnUrl: String = ""
+    @Volatile private var turnUsername: String = ""
+    @Volatile private var turnPassword: String = ""
     @Volatile private var wifiPairingMode = false  // Force WiFi server during pairing
     @Volatile private var isPhoneAppOpen = false   // Tracks if phone app is in foreground
 
@@ -84,9 +88,20 @@ class TransportManager(
         triggerWatchdogsReevaluation()
     }
 
-    fun updateInternetSettings(rule: Int, url: String) {
+    fun updateInternetSettings(
+        rule: Int, 
+        url: String,
+        stun: String = "stun:stun.cloudflare.com:3478",
+        turn: String = "",
+        user: String = "",
+        pass: String = ""
+    ) {
         currentInternetRule = rule
         signalingUrl = url
+        stunUrl = stun
+        turnUrl = turn
+        turnUsername = user
+        turnPassword = pass
         triggerWatchdogsReevaluation()
     }
 
@@ -407,7 +422,11 @@ class TransportManager(
             deviceName = lastDeviceName ?: Build.MODEL,
             encryptionManager = encryptionManager,
             signalingUrl = signalingUrl,
-            isInitiator = false // Companion is usually receiver (answerer)
+            isInitiator = false, // Companion is usually receiver (answerer)
+            stunUrl = stunUrl,
+            turnUrl = turnUrl,
+            turnUsername = turnUsername,
+            turnPassword = turnPassword
         )
 
         try {

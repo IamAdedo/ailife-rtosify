@@ -46,6 +46,10 @@ class NetworkSettingsActivity : AppCompatActivity() {
     private lateinit var checkBoxInternetMainActivity: CheckBox
     private lateinit var checkBoxInternetAlways: CheckBox
     private lateinit var etSignalingUrl: EditText
+    private lateinit var etStunUrl: EditText
+    private lateinit var etTurnUrl: EditText
+    private lateinit var etTurnUsername: EditText
+    private lateinit var etTurnPassword: EditText
     
     private lateinit var devicePrefManager: DevicePrefManager
     
@@ -126,6 +130,10 @@ class NetworkSettingsActivity : AppCompatActivity() {
         checkBoxInternetMainActivity = findViewById(R.id.checkBoxInternetMainActivity)
         checkBoxInternetAlways = findViewById(R.id.checkBoxInternetAlways)
         etSignalingUrl = findViewById(R.id.etSignalingUrl)
+        etStunUrl = findViewById(R.id.etStunUrl)
+        etTurnUrl = findViewById(R.id.etTurnUrl)
+        etTurnUsername = findViewById(R.id.etTurnUsername)
+        etTurnPassword = findViewById(R.id.etTurnPassword)
 
         // Pairing button handler
         btnPairForInternet.setOnClickListener {
@@ -149,6 +157,11 @@ class NetworkSettingsActivity : AppCompatActivity() {
         checkBoxInternetMainActivity.isChecked = (internetRule and TransportManager.INTERNET_RULE_MAINACTIVITY) != 0
         
         etSignalingUrl.setText(devicePrefs.getString("internet_signaling_url", "ws://192.168.1.10:8080"))
+        
+        etStunUrl.setText(devicePrefs.getString("internet_stun_url", "stun:stun.cloudflare.com:3478"))
+        etTurnUrl.setText(devicePrefs.getString("internet_turn_url", ""))
+        etTurnUsername.setText(devicePrefs.getString("internet_turn_username", ""))
+        etTurnPassword.setText(devicePrefs.getString("internet_turn_password", ""))
 
         // Load Fixed IP settings
         val fixedIpEnabled = devicePrefs.getBoolean("wifi_fixed_ip_enabled", false)
@@ -202,7 +215,43 @@ class NetworkSettingsActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 devicePrefs.edit().putString("internet_signaling_url", s.toString().trim()).apply()
-                // Notify TransportManager if needed, or it will pick it up on next connection attempt
+                bluetoothService?.notifyInternetSettingsChanged()
+            }
+        })
+
+        etStunUrl.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                devicePrefs.edit().putString("internet_stun_url", s.toString().trim()).apply()
+                bluetoothService?.notifyInternetSettingsChanged()
+            }
+        })
+
+        etTurnUrl.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                devicePrefs.edit().putString("internet_turn_url", s.toString().trim()).apply()
+                bluetoothService?.notifyInternetSettingsChanged()
+            }
+        })
+
+        etTurnUsername.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                devicePrefs.edit().putString("internet_turn_username", s.toString().trim()).apply()
+                bluetoothService?.notifyInternetSettingsChanged()
+            }
+        })
+
+        etTurnPassword.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                devicePrefs.edit().putString("internet_turn_password", s.toString().trim()).apply()
+                bluetoothService?.notifyInternetSettingsChanged()
             }
         })
 

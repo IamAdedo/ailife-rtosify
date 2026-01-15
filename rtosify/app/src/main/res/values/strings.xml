@@ -712,6 +712,10 @@
     <string name="network_fixed_ip_enabled">Use Fixed IP</string>
     <string name="network_fixed_ip_desc">Connect directly to IP without mDNS (useful for VPNs/Zerotier)</string>
     <string name="network_fixed_ip_hint">Enter IP address (e.g. 10.1.1.2)</string>
+    <string name="network_stun_url_hint">STUN Server URL</string>
+    <string name="network_turn_url_hint">TURN Server URL (turn:host:port)</string>
+    <string name="network_turn_username_hint">TURN Username</string>
+    <string name="network_turn_password_hint">TURN Password</string>
     
     <!-- WiFi Pairing Activity -->
     <string name="pairing_title">WiFi Pairing</string>

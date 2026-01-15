@@ -309,8 +309,12 @@ class TransportManager(
         
         val devicePrefs = devicePrefManager.getDevicePrefs(mac)
         val signalingUrl = devicePrefs.getString("internet_signaling_url", "ws://192.168.1.10:8080") ?: "ws://192.168.1.10:8080"
+        val stunUrl = devicePrefs.getString("internet_stun_url", "stun:stun.cloudflare.com:3478")
+        val turnUrl = devicePrefs.getString("internet_turn_url", "")
+        val turnUsername = devicePrefs.getString("internet_turn_username", "")
+        val turnPassword = devicePrefs.getString("internet_turn_password", "")
         
-        Log.d(TAG, "connectInternet: mac=$mac, signalingUrl=$signalingUrl")
+        Log.d(TAG, "connectInternet: mac=$mac, signalingUrl=$signalingUrl, stunUrl=$stunUrl, turnUrl=$turnUrl")
         
         val transport = WebRtcTransport(
             context = context,
@@ -319,7 +323,11 @@ class TransportManager(
             deviceName = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager)?.adapter?.name ?: Build.MODEL,
             encryptionManager = encryptionManager,
             signalingUrl = signalingUrl,
-            isInitiator = true // Phone is usually initiator for internet connection to watch? Or watch initiates? Let's assume Phone initiates for now or both try.
+            isInitiator = true,
+            stunUrl = stunUrl,
+            turnUrl = turnUrl,
+            turnUsername = turnUsername,
+            turnPassword = turnPassword
         )
 
         try {

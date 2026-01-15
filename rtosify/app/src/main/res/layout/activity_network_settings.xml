@@ -354,12 +354,11 @@
                             android:textSize="16sp" />
                     </LinearLayout>
 
-                    <!-- Signaling Server URL -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
-                        android:hint="@string/network_signaling_url_hint"
+                        android:hint="Signaling Server URL"
                         android:textColorHint="#444444"
                         app:boxBackgroundColor="#2A2A2A"
                         app:boxStrokeColor="@android:color/white"
@@ -371,6 +370,83 @@
                             android:layout_height="wrap_content"
                             android:inputType="textUri"
                             android:text="ws://192.168.1.10:8080"
+                            android:textColor="@android:color/white"
+                            android:textSize="14sp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:hint="@string/network_stun_url_hint"
+                        android:textColorHint="#444444"
+                        app:boxBackgroundColor="#2A2A2A"
+                        app:boxStrokeColor="@android:color/white"
+                        app:hintTextColor="@android:color/white">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etStunUrl"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textUri"
+                            android:text="stun:stun.cloudflare.com:3478"
+                            android:textColor="@android:color/white"
+                            android:textSize="14sp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:hint="@string/network_turn_url_hint"
+                        android:textColorHint="#444444"
+                        app:boxBackgroundColor="#2A2A2A"
+                        app:boxStrokeColor="@android:color/white"
+                        app:hintTextColor="@android:color/white">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etTurnUrl"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textUri"
+                            android:textColor="@android:color/white"
+                            android:textSize="14sp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:hint="@string/network_turn_username_hint"
+                        android:textColorHint="#444444"
+                        app:boxBackgroundColor="#2A2A2A"
+                        app:boxStrokeColor="@android:color/white"
+                        app:hintTextColor="@android:color/white">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etTurnUsername"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="text"
+                            android:textColor="@android:color/white"
+                            android:textSize="14sp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:hint="@string/network_turn_password_hint"
+                        android:textColorHint="#444444"
+                        app:boxBackgroundColor="#2A2A2A"
+                        app:boxStrokeColor="@android:color/white"
+                        app:hintTextColor="@android:color/white">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etTurnPassword"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textPassword"
                             android:textColor="@android:color/white"
                             android:textSize="14sp" />
                     </com.google.android.material.textfield.TextInputLayout>
