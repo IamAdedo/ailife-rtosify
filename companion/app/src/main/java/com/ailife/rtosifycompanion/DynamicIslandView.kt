@@ -301,24 +301,24 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             }
             
             // Show all active connection types
-            val hasBluetooth = transportType.contains("Bluetooth") || transportType.contains("BT") || transportType.contains("Dual")
-            val hasWifi = transportType.contains("WiFi") || transportType.contains("LAN") || transportType.contains("Dual")
+            val hasBluetooth = transportType.contains("BT") || transportType.contains("Bluetooth")
+            val hasLan = transportType.contains("LAN") || transportType.contains("WiFi")
             val hasInternet = transportType.contains("Internet")
 
-            val activeCount = listOf(hasBluetooth, hasWifi, hasInternet).count { it }
+            val activeCount = listOf(hasBluetooth, hasLan, hasInternet).count { it }
             val iconMargin = if (activeCount > 1) dpToPx(4) else 0
 
             if (hasBluetooth) {
                 container.addView(ImageView(context).apply {
                     layoutParams = LinearLayout.LayoutParams(iconSize, iconSize).apply {
-                        if (hasWifi || hasInternet) marginEnd = iconMargin
+                        if (hasLan || hasInternet) marginEnd = iconMargin
                     }
                     setImageResource(R.drawable.ic_bluetooth)
                     setColorFilter(Color.parseColor("#30D158"))
                 })
             }
 
-            if (hasWifi) {
+            if (hasLan) {
                 container.addView(ImageView(context).apply {
                     layoutParams = LinearLayout.LayoutParams(iconSize, iconSize).apply {
                         if (hasInternet) marginEnd = iconMargin
@@ -337,7 +337,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             }
 
             // Fallback if no connection type detected but still "connected"
-            if (!hasBluetooth && !hasWifi && !hasInternet && transportType.isNotEmpty()) {
+            if (!hasBluetooth && !hasLan && !hasInternet) {
                 container.addView(ImageView(context).apply {
                     layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
                     setImageResource(R.drawable.ic_bluetooth)

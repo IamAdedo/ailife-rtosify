@@ -224,7 +224,18 @@ class TransportManager(
         try {
             if (transport.connect()) {
                 bluetoothTransport = transport
+                
+                // Update watchdog info from BT connection
+                val deviceName = transport.getRemoteDeviceName() ?: "Phone"
+                val deviceMac = transport.getRemoteAddress() ?: "02:00:00:00:00:00"
+                
+                lastDeviceName = deviceName
+                lastRemoteMac = deviceMac
+                // Use a default for localMac if unknown, or wait for WiFi key exchange to set it properly
+                if (lastLocalMac == null) lastLocalMac = "02:00:00:00:00:00"
+                
                 updateConnectionState()
+                triggerWatchdogsReevaluation()
                 
                 try {
                     transport.receive().collect { msg ->
@@ -425,7 +436,8 @@ class TransportManager(
                     internetTransport = null
                     connectInternet(deviceMac)
                 }
-                delay(10000) // Re-check every 10 seconds if disconnected
+                // 30s retry as requested
+                delay(30000)
             }
         }
     }
@@ -498,19 +510,19 @@ class TransportManager(
         if ((currentInternetRule and INTERNET_RULE_ALWAYS) != 0) return true
 
         val lanConnected = wifiTransport?.isConnected() == true
+        val appOpen = isPhoneAppOpen
 
-        var shouldEnable = false
-
-        // BT and LAN fallback: enable only when BOTH are disconnected
+        // Rule: Enable if BT or LAN are disconnected (Fallback)
         if ((currentInternetRule and INTERNET_RULE_BT_LAN_FALLBACK) != 0) {
-            if (!btConnected && !lanConnected) shouldEnable = true
+            if (!btConnected && !lanConnected) return true
         }
 
+        // Rule: Enable when Phonne App is in foreground
         if ((currentInternetRule and INTERNET_RULE_MAINACTIVITY) != 0) {
-            if (isPhoneAppOpen) shouldEnable = true
+            if (appOpen) return true
         }
 
-        return shouldEnable
+        return false
     }
 
     /**

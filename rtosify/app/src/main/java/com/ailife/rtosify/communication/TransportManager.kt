@@ -222,8 +222,8 @@ class TransportManager(
                         val connected = connectWifi(deviceMac)
                         updateConnectionState() // Update state after connection attempt
                         if (!connected) {
-                            // Wait after failed attempt before retrying
-                            delay(3000)
+                            // Wait after failed attempt before retrying with jitter
+                            delay(3000 + (Math.random() * 2000).toLong())
                             continue
                         }
                     }
@@ -317,7 +317,9 @@ class TransportManager(
                         val connected = connectInternet(deviceMac)
                         updateConnectionState()
                         if (!connected) {
-                            delay(5000) // Longer delay for internet retry
+                            // Longer jittered delay for internet retry to avoid sync issues
+                            // 5s retry as requested
+                            delay(5000)
                             continue
                         }
                     }
@@ -462,8 +464,10 @@ class TransportManager(
     
     var isAppInForeground: Boolean = false
         set(value) {
-            field = value
-            // Force re-eval needs to happen in trigger
+            if (field != value) {
+                field = value
+                triggerWifiReevaluation()
+            }
         }
 
     suspend fun send(message: ProtocolMessage): Boolean {

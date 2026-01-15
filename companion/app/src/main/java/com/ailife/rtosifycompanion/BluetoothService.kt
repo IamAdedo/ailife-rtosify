@@ -251,7 +251,7 @@ class BluetoothService : Service() {
     @Volatile var currentStatus: String = "" // Will be initialized in onCreate
     @Volatile var currentDeviceName: String? = null
     @Volatile var currentTransportType: String = ""
-    @Volatile var isConnected: Boolean = false
+    val isConnected: Boolean get() = transportManager.isBtConnected()
 
     fun getConnectedDeviceMac(): String? {
         val state = transportManager.connectionState.value
@@ -610,12 +610,13 @@ class BluetoothService : Service() {
                         handleDeviceDisconnected()
                     }
                     is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Waiting -> {
-                        updateStatus(getString(R.string.status_waiting))
-                        // If we were connected, Waiting means we just lost it
-                        if (isConnected) {
-                            Log.d(TAG, "TransportManager transitioned to Waiting state - treating as disconnection")
-                            handleDeviceDisconnected()
-                        }
+                         // If we were connected, Waiting means we just lost it
+                         if (isConnected) {
+                             Log.d(TAG, "TransportManager transitioned to Waiting state - treating as disconnection")
+                             handleDeviceDisconnected()
+                         } else {
+                             updateStatus(getString(R.string.status_waiting))
+                         }
                     }
                     else -> {}
                 }
@@ -1049,7 +1050,7 @@ class BluetoothService : Service() {
     private fun handleDeviceConnected(deviceName: String, mac: String?, transportType: String = "") {
         if (isConnected && currentTransportType == transportType) return 
         
-        isConnected = true
+        // No manual assignment needed
         isTransferring = false
         lastMessageTime = System.currentTimeMillis()
         currentDeviceName = deviceName
@@ -1102,10 +1103,8 @@ class BluetoothService : Service() {
     }
     
     private fun handleDeviceDisconnected() {
-        if (!isConnected) return
-        
         val wasConnected = isConnected
-        isConnected = false
+        // No manual assignment needed
         currentDeviceName = null
         
         // Notify Dynamic Island
@@ -1323,7 +1322,7 @@ class BluetoothService : Service() {
                 // Stop WiFi transport if phone disabled it to save battery
                 val state = transportManager.connectionState.value
                 val wifiConnected = state is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected && 
-                                   (state.type == "WiFi" || state.type == "Dual")
+                                   (state.type.contains("LAN") || state.type.contains("WiFi"))
                 if (!it && wifiConnected) {
                     serviceScope.launch {
                         transportManager.stopWifiServer()
@@ -4757,7 +4756,6 @@ class BluetoothService : Service() {
 
         val wasConnected = isConnected
         stopAllCommunication()
-        isConnected = false
         currentDeviceName = null
 // REMOVED: bluetoothSocket cleanup
 

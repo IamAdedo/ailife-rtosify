@@ -270,7 +270,7 @@ class BluetoothService : Service() {
 
     @Volatile var currentStatus: String = "" // Will be initialized in onCreate
     @Volatile var currentDeviceName: String? = null
-    @Volatile var isConnected: Boolean = false
+    val isConnected: Boolean get() = transportManager.isBtConnected()
     
     fun isWifiTransportActive(): Boolean {
         return transportManager.isWifiConnected()
@@ -569,13 +569,17 @@ class BluetoothService : Service() {
             transportManager.connectionState.collect { state ->
                 when(state) {
                     is com.ailife.rtosify.communication.TransportManager.ConnectionState.Connected -> {
-                         isConnected = true
                          currentDeviceName = state.deviceName ?: getString(R.string.device_name_default)
                          
                          // Show transport type in status - handle combined types
                          val statusText = buildConnectionStatusText(state.type, currentDeviceName ?: "")
                          updateStatus(statusText)
                          Log.d(TAG, "Device connected via ${state.type}: $currentDeviceName")
+                         
+                         // Trigger activity callback
+                         mainHandler.post {
+                             callback?.onDeviceConnected(currentDeviceName ?: "")
+                         }
                          
                          // Start periodic status updates when connected
                          if (statusUpdateJob?.isActive != true) {
@@ -586,20 +590,22 @@ class BluetoothService : Service() {
                          sendMessage(ProtocolHelper.createSyncPhoneState(transportManager.isAppInForeground))
                     }
                     is com.ailife.rtosify.communication.TransportManager.ConnectionState.Disconnected -> {
-                         isConnected = false
                          currentDeviceName = null
                          Log.d(TAG, "Device disconnected")
                          updateStatus(getString(R.string.status_disconnected))
                          
+                         // Trigger activity callback
+                         mainHandler.post {
+                             callback?.onDeviceDisconnected()
+                         }
+                         
                          statusUpdateJob?.cancel()
                     }
                     is com.ailife.rtosify.communication.TransportManager.ConnectionState.Connecting -> {
-                         isConnected = false
                          currentDeviceName = null
                          updateStatus(getString(R.string.status_starting))
                     }
                     is com.ailife.rtosify.communication.TransportManager.ConnectionState.Waiting -> {
-                         isConnected = false
                          currentDeviceName = null
                          updateStatus(getString(R.string.status_stopped))
                     }
@@ -1314,6 +1320,9 @@ class BluetoothService : Service() {
 
             // Send automation settings to watch (watch will handle the logic)
             sendAutomationSettings()
+            
+            // Sync foreground state twice (immediate and after debounce)
+            sendMessage(ProtocolHelper.createSyncPhoneState(transportManager.isAppInForeground))
         }
         // Auto BT Tether: Enable phone BT tethering + watch internet
         if (activePrefs.getBoolean("auto_bt_tether_enabled", false)) {
@@ -2609,7 +2618,7 @@ class BluetoothService : Service() {
         val wasConnected = isConnected
 
         forceDisconnect()
-        isConnected = false
+        // isConnected is now a getter
         currentDeviceName = null
 
         if (wasConnected || currentNotificationStatus != getString(R.string.status_stopped)) {
@@ -2631,16 +2640,21 @@ class BluetoothService : Service() {
         val hasLan = type.contains("WiFi") || type.contains("LAN")
         val hasInternet = type.contains("Internet")
 
-        return when {
-            hasBluetooth && hasLan && hasInternet -> getString(R.string.status_connected_to_all, deviceName)
-            hasBluetooth && hasLan -> getString(R.string.status_connected_to_dual, deviceName)
-            hasBluetooth && hasInternet -> getString(R.string.status_connected_to_bt_internet, deviceName)
-            hasLan && hasInternet -> getString(R.string.status_connected_to_wifi_internet, deviceName)
-            hasLan -> getString(R.string.status_connected_to_wifi, deviceName)
-            hasInternet -> getString(R.string.status_connected_to_internet, deviceName)
-            hasBluetooth -> getString(R.string.status_connected_to_bt, deviceName)
-            else -> getString(R.string.status_connected_to, deviceName)
-        }
+        if (!hasBluetooth && !hasLan && !hasInternet) return getString(R.string.status_connected_to, deviceName)
+
+        val sb = StringBuilder()
+        sb.append(getString(R.string.status_connected_to, deviceName))
+        sb.append(" (")
+        
+        val transports = mutableListOf<String>()
+        if (hasBluetooth) transports.add("BT")
+        if (hasLan) transports.add("LAN")
+        if (hasInternet) transports.add("Internet")
+        
+        sb.append(transports.joinToString("+"))
+        sb.append(")")
+        
+        return sb.toString()
     }
 
     private fun updateStatus(text: String) {

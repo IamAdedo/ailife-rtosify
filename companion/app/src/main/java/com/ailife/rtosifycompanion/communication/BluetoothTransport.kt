@@ -21,8 +21,8 @@ class BluetoothTransport(
 
     companion object {
         private const val TAG = "BluetoothTransport"
-        private const val KEEPALIVE_INTERVAL = 5000L  // 5 seconds
-        private const val KEEPALIVE_TIMEOUT = 15000L  // 15 seconds
+        private const val KEEPALIVE_INTERVAL = 3000L  // 3 seconds
+        private const val KEEPALIVE_TIMEOUT = 8000L    // 8 seconds
     }
 
     private var inputStream: DataInputStream? = null

@@ -408,7 +408,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
             lanConnected -> "Connected"
             lanRule == 0 -> "Disabled"
             lanShouldBeActive -> "Disconnected"
-            else -> "Standby"
+            else -> "Paused by rule"
         }
 
         // Update Internet indicator
@@ -424,7 +424,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
             internetConnected -> "Connected"
             internetRule == 0 -> "Disabled"
             internetShouldBeActive -> "Disconnected"
-            else -> "Standby"
+            else -> "Paused by rule"
         }
 
         // Update active connection summary using TransportManager
