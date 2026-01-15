@@ -1107,10 +1107,12 @@ class BluetoothService : Service() {
         // No manual assignment needed
         currentDeviceName = null
         
-        // Notify Dynamic Island
+        // Notify Dynamic Island - Explicitly clear transport
+        Log.d(TAG, "Broadcasting disconnect state to Dynamic Island")
         sendBroadcast(
             Intent(ACTION_CONNECTION_STATE_CHANGED).apply {
                 putExtra("connected", false)
+                putExtra("transport", "") // Explicitly clear transport
                 setPackage(packageName)
             }
         )

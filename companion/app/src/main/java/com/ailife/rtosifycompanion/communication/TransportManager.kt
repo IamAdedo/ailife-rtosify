@@ -332,8 +332,14 @@ class TransportManager(
                     val serverRunning = wifiServerJob?.isActive == true
                     val btConnected = bluetoothTransport?.isConnected() == true
 
+                    val internetEnabled = shouldInternetBeEnabled(btConnected)
+
                     // Logic based on rules (OR logic: if any active rule matches, enable LAN)
+                    // CRITICAL FIX: If Internet is enabled, we MUST enable LAN server too, 
+                    // because LAN is strictly better/faster/cheaper than Internet.
+                    // This prevents the "Connected via Internet" issue when devices are on the same WiFi.
                     val shouldBeRunning = wifiPairingMode ||
+                        internetEnabled || 
                         ((currentWifiRule and WIFI_RULE_ALWAYS) != 0) ||
                         (((currentWifiRule and WIFI_RULE_BT_OR_APP) != 0) && (!btConnected || isPhoneAppOpen)) ||
                         (((currentWifiRule and WIFI_RULE_MAINACTIVITY) != 0) && isPhoneAppOpen) ||
@@ -341,10 +347,10 @@ class TransportManager(
 
                     if (hasKey) {
                         if (shouldBeRunning && !serverRunning) {
-                            Log.w(TAG, "LAN server watchdog: should be running but stopped - starting")
+                            Log.w(TAG, "LAN server watchdog: starting (Rules matched or Internet enabled)")
                             startWifiServer(deviceName, localMac, remoteMac)
                         } else if (!shouldBeRunning && serverRunning) {
-                            Log.d(TAG, "LAN server watchdog: should NOT be running but is - stopping")
+                            Log.d(TAG, "LAN server watchdog: stopping (No rules matched)")
                             stopWifiServer()
                         }
                     }
@@ -437,8 +443,8 @@ class TransportManager(
                     internetTransport = null
                     connectInternet(deviceMac)
                 }
-                // 30s retry as requested
-                delay(30000)
+                // 10s retry as requested
+                delay(10000)
             }
         }
     }
