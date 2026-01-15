@@ -695,6 +695,8 @@
     <string name="network_rule_mainactivity_desc">LAN for high-speed transfers only</string>
     <string name="network_rule_bt_or_app">When BT disconnected OR App open</string>
     <string name="network_rule_bt_or_app_desc">Enable LAN in either condition</string>
+    <string name="network_rule_bt_lan_fallback">When BT and LAN disconnected</string>
+    <string name="network_rule_bt_lan_fallback_desc">Fallback when both BT and LAN are unavailable</string>
     <string name="network_rule_always">Always enabled</string>
     <string name="network_rule_always_desc">Always prefer LAN over Bluetooth</string>
     <string name="network_status_title">Connection Status</string>

@@ -37,11 +37,38 @@ class TransportManager(
         const val WIFI_RULE_BT_OR_APP = 8  // Enable when BT disconnected OR app open
 
         // Internet Activation Rules (Bitmask)
-        const val INTERNET_RULE_BT_FALLBACK = 1
+        const val INTERNET_RULE_BT_LAN_FALLBACK = 1  // Enable when both BT and LAN disconnected
         const val INTERNET_RULE_MAINACTIVITY = 2
         const val INTERNET_RULE_ALWAYS = 4
-        const val INTERNET_RULE_BT_OR_APP = 8  // Enable when BT disconnected OR app open
     }
+
+    /**
+     * Returns the current connection status string (e.g., "Connected via BT+LAN")
+     */
+    fun getConnectionStatusString(): String {
+        val bt = bluetoothTransport
+        val wifi = wifiTransport
+        val internet = internetTransport
+
+        val btConnected = bt != null && bt.isConnected()
+        val wifiConnected = wifi != null && wifi.isConnected()
+        val internetConnected = internet != null && internet.isConnected()
+
+        if (!btConnected && !wifiConnected && !internetConnected) {
+            return "Disconnected"
+        }
+
+        val types = mutableListOf<String>()
+        if (btConnected) types.add("BT")
+        if (wifiConnected) types.add("LAN")
+        if (internetConnected) types.add("Internet")
+
+        return "Connected via ${types.joinToString("+")}"
+    }
+
+    fun isBtConnected(): Boolean = bluetoothTransport?.isConnected() == true
+    fun isLanConnected(): Boolean = wifiTransport?.isConnected() == true
+    fun isInternetTransportConnected(): Boolean = internetTransport?.isConnected() == true
 
     private var bluetoothTransport: BluetoothTransport? = null
     private var wifiTransport: WifiIntranetTransport? = null
@@ -69,7 +96,7 @@ class TransportManager(
     
     @Volatile private var isConnectingWifi = false
     @Volatile private var isConnectingInternet = false
-    @Volatile private var currentWifiRule: Int = WIFI_RULE_BT_FALLBACK
+    @Volatile private var currentWifiRule: Int = 0 // Default disabled
     @Volatile private var currentInternetRule: Int = 0 // Default disabled
     @Volatile private var signalingUrl: String = "ws://192.168.1.10:8080"
     @Volatile private var stunUrl: String = "stun:stun.cloudflare.com:3478"
@@ -470,14 +497,13 @@ class TransportManager(
     private fun shouldInternetBeEnabled(btConnected: Boolean): Boolean {
         if ((currentInternetRule and INTERNET_RULE_ALWAYS) != 0) return true
 
-        // Combined rule: BT disconnected OR app open
-        if ((currentInternetRule and INTERNET_RULE_BT_OR_APP) != 0) {
-            if (!btConnected || isPhoneAppOpen) return true
-        }
+        val lanConnected = wifiTransport?.isConnected() == true
 
         var shouldEnable = false
-        if ((currentInternetRule and INTERNET_RULE_BT_FALLBACK) != 0) {
-            if (!btConnected) shouldEnable = true
+
+        // BT and LAN fallback: enable only when BOTH are disconnected
+        if ((currentInternetRule and INTERNET_RULE_BT_LAN_FALLBACK) != 0) {
+            if (!btConnected && !lanConnected) shouldEnable = true
         }
 
         if ((currentInternetRule and INTERNET_RULE_MAINACTIVITY) != 0) {

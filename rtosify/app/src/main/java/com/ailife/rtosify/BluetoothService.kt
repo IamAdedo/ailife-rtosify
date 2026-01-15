@@ -2627,16 +2627,16 @@ class BluetoothService : Service() {
         stopSelf()
     }
     private fun buildConnectionStatusText(type: String, deviceName: String): String {
-        val hasBluetooth = type.contains("Bluetooth")
-        val hasWifi = type.contains("WiFi")
+        val hasBluetooth = type.contains("Bluetooth") || type.contains("BT")
+        val hasLan = type.contains("WiFi") || type.contains("LAN")
         val hasInternet = type.contains("Internet")
 
         return when {
-            hasBluetooth && hasWifi && hasInternet -> getString(R.string.status_connected_to_all, deviceName)
-            hasBluetooth && hasWifi -> getString(R.string.status_connected_to_dual, deviceName)
+            hasBluetooth && hasLan && hasInternet -> getString(R.string.status_connected_to_all, deviceName)
+            hasBluetooth && hasLan -> getString(R.string.status_connected_to_dual, deviceName)
             hasBluetooth && hasInternet -> getString(R.string.status_connected_to_bt_internet, deviceName)
-            hasWifi && hasInternet -> getString(R.string.status_connected_to_wifi_internet, deviceName)
-            hasWifi -> getString(R.string.status_connected_to_wifi, deviceName)
+            hasLan && hasInternet -> getString(R.string.status_connected_to_wifi_internet, deviceName)
+            hasLan -> getString(R.string.status_connected_to_wifi, deviceName)
             hasInternet -> getString(R.string.status_connected_to_internet, deviceName)
             hasBluetooth -> getString(R.string.status_connected_to_bt, deviceName)
             else -> getString(R.string.status_connected_to, deviceName)

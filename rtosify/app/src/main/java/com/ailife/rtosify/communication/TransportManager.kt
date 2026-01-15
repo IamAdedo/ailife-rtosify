@@ -73,11 +73,38 @@ class TransportManager(
         const val WIFI_RULE_BT_OR_APP = 8  // Enable when BT disconnected OR app open
 
         // Internet Rules
-        const val INTERNET_RULE_BT_FALLBACK = 1
+        const val INTERNET_RULE_BT_LAN_FALLBACK = 1  // Enable when both BT and LAN disconnected
         const val INTERNET_RULE_MAINACTIVITY = 2
         const val INTERNET_RULE_ALWAYS = 4
-        const val INTERNET_RULE_BT_OR_APP = 8  // Enable when BT disconnected OR app open
     }
+
+    /**
+     * Returns the current connection status string (e.g., "Connected via BT+LAN")
+     */
+    fun getConnectionStatusString(): String {
+        val bt = bluetoothTransport
+        val wifi = wifiTransport
+        val internet = internetTransport
+
+        val btConnected = bt != null && bt.isConnected()
+        val wifiConnected = wifi != null && wifi.isConnected()
+        val internetConnected = internet != null && internet.isConnected()
+
+        if (!btConnected && !wifiConnected && !internetConnected) {
+            return "Disconnected"
+        }
+
+        val types = mutableListOf<String>()
+        if (btConnected) types.add("BT")
+        if (wifiConnected) types.add("LAN")
+        if (internetConnected) types.add("Internet")
+
+        return "Connected via ${types.joinToString("+")}"
+    }
+
+    fun isBtConnected(): Boolean = bluetoothTransport?.isConnected() == true
+    fun isLanConnected(): Boolean = wifiTransport?.isConnected() == true
+    fun isInternetTransportConnected(): Boolean = internetTransport?.isConnected() == true
 
     /**
      * Starts the client logic: Auto-reconnect Bluetooth and WiFi monitoring.
@@ -383,7 +410,7 @@ class TransportManager(
         if (wifiTemporarilyDisabled) return false
 
         val prefs = devicePrefManager.getActiveDevicePrefs()
-        val rule = prefs.getInt("wifi_activation_rule", WIFI_RULE_BT_FALLBACK)
+        val rule = prefs.getInt("wifi_activation_rule", 0) // Default disabled
 
         // Always rule takes precedence
         if ((rule and WIFI_RULE_ALWAYS) != 0) return true
@@ -417,16 +444,13 @@ class TransportManager(
         if ((rule and INTERNET_RULE_ALWAYS) != 0) return true
 
         val btConnected = bluetoothTransport?.isConnected() == true
-
-        // Combined rule: BT disconnected OR app open
-        if ((rule and INTERNET_RULE_BT_OR_APP) != 0) {
-            if (!btConnected || isAppInForeground) return true
-        }
+        val lanConnected = wifiTransport?.isConnected() == true
 
         var shouldEnable = false
 
-        if ((rule and INTERNET_RULE_BT_FALLBACK) != 0) {
-            if (!btConnected) shouldEnable = true
+        // BT and LAN fallback: enable only when BOTH are disconnected
+        if ((rule and INTERNET_RULE_BT_LAN_FALLBACK) != 0) {
+            if (!btConnected && !lanConnected) shouldEnable = true
         }
 
         if ((rule and INTERNET_RULE_MAINACTIVITY) != 0) {

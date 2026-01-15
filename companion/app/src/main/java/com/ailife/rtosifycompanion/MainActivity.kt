@@ -547,12 +547,15 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         progressBarMain.visibility =
                 if (!isConnected && status.contains(getString(R.string.status_connecting))) View.VISIBLE else View.INVISIBLE
 
-        if (isConnected) {
-            tvWatchStatusBig.text = getString(R.string.status_connected)
+        // Use TransportManager's connection status string for accurate display
+        val connectionStatus = bluetoothService?.getConnectionStatusString() ?: status
+
+        if (isConnected || connectionStatus.startsWith("Connected")) {
+            tvWatchStatusBig.text = connectionStatus
             tvWatchStatusBig.setTextColor(Color.GREEN)
             imgWatchStatus.setImageTintList(ColorStateList.valueOf(Color.GREEN))
         } else {
-            tvWatchStatusBig.text = getString(R.string.status_disconnected)
+            tvWatchStatusBig.text = connectionStatus
             tvWatchStatusBig.setTextColor(Color.RED)
             imgWatchStatus.setImageTintList(ColorStateList.valueOf(Color.RED))
         }
@@ -686,14 +689,25 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     override fun onStatusChanged(status: String) {
-        runOnUiThread { updateStatusUI(status, bluetoothService?.isConnected == true, bluetoothService?.currentTransportType ?: "") }
+        runOnUiThread {
+            val connectionStatus = bluetoothService?.getConnectionStatusString() ?: status
+            val isConnected = connectionStatus.startsWith("Connected")
+            updateStatusUI(connectionStatus, isConnected)
+        }
     }
     override fun onDeviceConnected(deviceName: String, transportType: String) {
-        runOnUiThread { updateStatusUI(getString(R.string.status_connected), true, transportType) }
+        runOnUiThread {
+            val connectionStatus = bluetoothService?.getConnectionStatusString()
+                ?: getString(R.string.status_connected)
+            updateStatusUI(connectionStatus, true)
+        }
     }
     override fun onDeviceDisconnected() {
         runOnUiThread {
-            updateStatusUI(getString(R.string.status_disconnected), false)
+            val connectionStatus = bluetoothService?.getConnectionStatusString()
+                ?: getString(R.string.status_disconnected)
+            val isConnected = connectionStatus.startsWith("Connected")
+            updateStatusUI(connectionStatus, isConnected)
             if (uploadDialog?.isShowing == true) {
                 // If the progress is already 100%, do not treat the disconnection as a failure.
                 if (uploadProgressBar?.progress != 100) {

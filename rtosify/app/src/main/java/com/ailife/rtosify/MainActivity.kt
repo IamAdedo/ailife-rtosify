@@ -221,8 +221,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         startWatchStatusPolling()
         
         // Trigger WiFi connection if MainActivity rule is set
-        val wifiRule = prefs.getInt("wifi_activation_rule", BluetoothService.WIFI_RULE_BT_FALLBACK)
-        if ((wifiRule and BluetoothService.WIFI_RULE_MAINACTIVITY) != 0) {
+        val wifiRule = prefs.getInt("wifi_activation_rule", 0) // Default disabled
+        if ((wifiRule and BluetoothService.WIFI_RULE_MAINACTIVITY) != 0 ||
+            (wifiRule and BluetoothService.WIFI_RULE_BT_OR_APP) != 0) {
             bluetoothService?.triggerWifiConnectionForMainActivity()
         }
     }
@@ -1452,17 +1453,27 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     override fun onStatusChanged(status: String) {
         android.util.Log.d("MainActivity", "onStatusChanged received: status='$status'")
-        runOnUiThread { 
+        runOnUiThread {
             android.util.Log.d("MainActivity", "onStatusChanged runOnUiThread: calling updateStatusUI")
-            updateStatusUI(status, bluetoothService?.isConnected == true) 
+            // Use TransportManager's connection status string for accurate display
+            val connectionStatus = bluetoothService?.transportManager?.getConnectionStatusString() ?: status
+            val isConnected = connectionStatus.startsWith("Connected")
+            updateStatusUI(connectionStatus, isConnected)
         }
     }
     override fun onDeviceConnected(deviceName: String) {
-        runOnUiThread { updateStatusUI(getString(R.string.status_connected), true) }
+        runOnUiThread {
+            val connectionStatus = bluetoothService?.transportManager?.getConnectionStatusString()
+                ?: getString(R.string.status_connected)
+            updateStatusUI(connectionStatus, true)
+        }
     }
     override fun onDeviceDisconnected() {
         runOnUiThread {
-            updateStatusUI(getString(R.string.status_disconnected), false)
+            val connectionStatus = bluetoothService?.transportManager?.getConnectionStatusString()
+                ?: getString(R.string.status_disconnected)
+            val isConnected = connectionStatus.startsWith("Connected")
+            updateStatusUI(connectionStatus, isConnected)
             if (uploadDialog?.isShowing == true) {
                 // Se o progresso já for 100%, não trate a desconexão como falha.
                 if (uploadProgressBar?.progress != 100) {

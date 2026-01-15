@@ -262,6 +262,10 @@ class BluetoothService : Service() {
         }
     }
 
+    fun getConnectionStatusString(): String {
+        return transportManager.getConnectionStatusString()
+    }
+
     // JSON Protocol - message types defined in Protocol.kt
 
     companion object {

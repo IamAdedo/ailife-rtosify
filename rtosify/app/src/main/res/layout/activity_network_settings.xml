@@ -375,11 +375,11 @@
                         android:buttonTint="#888888" />
 
                     <RadioButton
-                        android:id="@+id/radioInternetBtFallback"
+                        android:id="@+id/radioInternetBtLanFallback"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:paddingVertical="8dp"
-                        android:text="@string/network_rule_bt_fallback"
+                        android:text="@string/network_rule_bt_lan_fallback"
                         android:textColor="@android:color/white"
                         android:textSize="15sp"
                         android:buttonTint="#888888" />
@@ -390,16 +390,6 @@
                         android:layout_height="wrap_content"
                         android:paddingVertical="8dp"
                         android:text="@string/network_rule_mainactivity"
-                        android:textColor="@android:color/white"
-                        android:textSize="15sp"
-                        android:buttonTint="#888888" />
-
-                    <RadioButton
-                        android:id="@+id/radioInternetBtOrApp"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:paddingVertical="8dp"
-                        android:text="@string/network_rule_bt_or_app"
                         android:textColor="@android:color/white"
                         android:textSize="15sp"
                         android:buttonTint="#888888" />

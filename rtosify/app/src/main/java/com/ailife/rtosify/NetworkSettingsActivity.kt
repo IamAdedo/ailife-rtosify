@@ -48,9 +48,8 @@ class NetworkSettingsActivity : AppCompatActivity() {
     // Internet Rules
     private lateinit var radioGroupInternet: RadioGroup
     private lateinit var radioInternetDisabled: RadioButton
-    private lateinit var radioInternetBtFallback: RadioButton
+    private lateinit var radioInternetBtLanFallback: RadioButton
     private lateinit var radioInternetAppOpen: RadioButton
-    private lateinit var radioInternetBtOrApp: RadioButton
     private lateinit var radioInternetAlways: RadioButton
 
     // Other views
@@ -167,9 +166,8 @@ class NetworkSettingsActivity : AppCompatActivity() {
         // Internet Radio Group
         radioGroupInternet = findViewById(R.id.radioGroupInternet)
         radioInternetDisabled = findViewById(R.id.radioInternetDisabled)
-        radioInternetBtFallback = findViewById(R.id.radioInternetBtFallback)
+        radioInternetBtLanFallback = findViewById(R.id.radioInternetBtLanFallback)
         radioInternetAppOpen = findViewById(R.id.radioInternetAppOpen)
-        radioInternetBtOrApp = findViewById(R.id.radioInternetBtOrApp)
         radioInternetAlways = findViewById(R.id.radioInternetAlways)
 
         // Other views
@@ -193,8 +191,8 @@ class NetworkSettingsActivity : AppCompatActivity() {
     private fun loadSettings() {
         val devicePrefs = devicePrefManager.getActiveDevicePrefs()
 
-        // Load LAN rule
-        val lanRule = devicePrefs.getInt("wifi_activation_rule", BluetoothService.WIFI_RULE_BT_FALLBACK)
+        // Load LAN rule (default: disabled)
+        val lanRule = devicePrefs.getInt("wifi_activation_rule", 0)
         when {
             lanRule == 0 -> radioLanDisabled.isChecked = true
             (lanRule and BluetoothService.WIFI_RULE_ALWAYS) != 0 -> radioLanAlways.isChecked = true
@@ -204,13 +202,12 @@ class NetworkSettingsActivity : AppCompatActivity() {
             else -> radioLanDisabled.isChecked = true
         }
 
-        // Load Internet rule
+        // Load Internet rule (default: disabled)
         val internetRule = devicePrefs.getInt("internet_activation_rule", 0)
         when {
             internetRule == 0 -> radioInternetDisabled.isChecked = true
             (internetRule and TransportManager.INTERNET_RULE_ALWAYS) != 0 -> radioInternetAlways.isChecked = true
-            (internetRule and TransportManager.INTERNET_RULE_BT_OR_APP) != 0 -> radioInternetBtOrApp.isChecked = true
-            (internetRule and TransportManager.INTERNET_RULE_BT_FALLBACK) != 0 -> radioInternetBtFallback.isChecked = true
+            (internetRule and TransportManager.INTERNET_RULE_BT_LAN_FALLBACK) != 0 -> radioInternetBtLanFallback.isChecked = true
             (internetRule and TransportManager.INTERNET_RULE_MAINACTIVITY) != 0 -> radioInternetAppOpen.isChecked = true
             else -> radioInternetDisabled.isChecked = true
         }
@@ -332,9 +329,8 @@ class NetworkSettingsActivity : AppCompatActivity() {
     private fun saveInternetRule() {
         val newRule = when (radioGroupInternet.checkedRadioButtonId) {
             R.id.radioInternetDisabled -> 0
-            R.id.radioInternetBtFallback -> TransportManager.INTERNET_RULE_BT_FALLBACK
+            R.id.radioInternetBtLanFallback -> TransportManager.INTERNET_RULE_BT_LAN_FALLBACK
             R.id.radioInternetAppOpen -> TransportManager.INTERNET_RULE_MAINACTIVITY
-            R.id.radioInternetBtOrApp -> TransportManager.INTERNET_RULE_BT_OR_APP
             R.id.radioInternetAlways -> TransportManager.INTERNET_RULE_ALWAYS
             else -> 0
         }
@@ -345,7 +341,14 @@ class NetworkSettingsActivity : AppCompatActivity() {
         bluetoothService?.notifyInternetSettingsChanged()
         bluetoothService?.notifyWifiRuleChanged()
 
-        Toast.makeText(this, "Internet rule updated", Toast.LENGTH_SHORT).show()
+        val ruleName = when (newRule) {
+            0 -> "Disabled"
+            TransportManager.INTERNET_RULE_BT_LAN_FALLBACK -> getString(R.string.network_rule_bt_lan_fallback)
+            TransportManager.INTERNET_RULE_MAINACTIVITY -> getString(R.string.network_rule_mainactivity)
+            TransportManager.INTERNET_RULE_ALWAYS -> getString(R.string.network_rule_always)
+            else -> "Unknown"
+        }
+        Toast.makeText(this, "Internet: $ruleName", Toast.LENGTH_SHORT).show()
     }
 
     private fun updatePairingButton() {
@@ -364,53 +367,71 @@ class NetworkSettingsActivity : AppCompatActivity() {
         val lanConnected = bluetoothService?.isWifiConnected() == true
         val internetConnected = bluetoothService?.isInternetConnected() == true
 
-        // Update indicators
+        val lanRule = devicePrefManager.getActiveDevicePrefs().getInt("wifi_activation_rule", 0)
+        val internetRule = devicePrefManager.getActiveDevicePrefs().getInt("internet_activation_rule", 0)
+
+        // Determine LAN status: Connected, Disconnected (rule enabled but not connected), Standby (waiting for conditions), Disabled
+        val lanShouldBeActive = when {
+            lanRule == 0 -> false
+            (lanRule and BluetoothService.WIFI_RULE_ALWAYS) != 0 -> true
+            (lanRule and BluetoothService.WIFI_RULE_BT_OR_APP) != 0 -> !btConnected || true // app is open when this screen is shown
+            (lanRule and BluetoothService.WIFI_RULE_BT_FALLBACK) != 0 -> !btConnected
+            (lanRule and BluetoothService.WIFI_RULE_MAINACTIVITY) != 0 -> true // app is open
+            else -> false
+        }
+
+        // Determine Internet status
+        val internetShouldBeActive = when {
+            internetRule == 0 -> false
+            (internetRule and TransportManager.INTERNET_RULE_ALWAYS) != 0 -> true
+            (internetRule and TransportManager.INTERNET_RULE_BT_LAN_FALLBACK) != 0 -> !btConnected && !lanConnected
+            (internetRule and TransportManager.INTERNET_RULE_MAINACTIVITY) != 0 -> true // app is open
+            else -> false
+        }
+
+        // Update BT indicator
         indicatorBt.setBackgroundResource(
-            if (btConnected) R.drawable.status_indicator_on else R.drawable.status_indicator_off
+            if (btConnected) R.drawable.status_indicator_on else R.drawable.status_indicator_disconnected
         )
+        tvBtStatus.text = if (btConnected) "Connected" else "Disconnected"
+
+        // Update LAN indicator
         indicatorLan.setBackgroundResource(
             when {
                 lanConnected -> R.drawable.status_indicator_on
-                devicePrefManager.getActiveDevicePrefs().getInt("wifi_activation_rule", 0) != 0 ->
-                    R.drawable.status_indicator_standby
-                else -> R.drawable.status_indicator_off
+                lanRule == 0 -> R.drawable.status_indicator_off
+                lanShouldBeActive -> R.drawable.status_indicator_disconnected  // Should be on but isn't
+                else -> R.drawable.status_indicator_standby  // Waiting for conditions
             }
         )
+        tvLanStatus.text = when {
+            lanConnected -> "Connected"
+            lanRule == 0 -> "Disabled"
+            lanShouldBeActive -> "Disconnected"
+            else -> "Standby"
+        }
+
+        // Update Internet indicator
         indicatorInternet.setBackgroundResource(
             when {
                 internetConnected -> R.drawable.status_indicator_on
-                devicePrefManager.getActiveDevicePrefs().getInt("internet_activation_rule", 0) != 0 ->
-                    R.drawable.status_indicator_standby
-                else -> R.drawable.status_indicator_off
+                internetRule == 0 -> R.drawable.status_indicator_off
+                internetShouldBeActive -> R.drawable.status_indicator_disconnected
+                else -> R.drawable.status_indicator_standby
             }
         )
-
-        // Update status text
-        tvBtStatus.text = if (btConnected) "Connected" else "Disconnected"
-        tvLanStatus.text = when {
-            lanConnected -> "Connected"
-            devicePrefManager.getActiveDevicePrefs().getInt("wifi_activation_rule", 0) != 0 -> "Standby"
-            else -> "Disabled"
-        }
         tvInternetStatus.text = when {
             internetConnected -> "Connected"
-            devicePrefManager.getActiveDevicePrefs().getInt("internet_activation_rule", 0) != 0 -> "Standby"
-            else -> "Disabled"
+            internetRule == 0 -> "Disabled"
+            internetShouldBeActive -> "Disconnected"
+            else -> "Standby"
         }
 
-        // Update active connection summary
-        val activeTypes = mutableListOf<String>()
-        if (btConnected) activeTypes.add("BT")
-        if (lanConnected) activeTypes.add("LAN")
-        if (internetConnected) activeTypes.add("Internet")
-
-        tvActiveConnection.text = if (activeTypes.isNotEmpty()) {
-            "Active: ${activeTypes.joinToString("+")}"
-        } else {
-            "Active: --"
-        }
+        // Update active connection summary using TransportManager
+        val statusString = bluetoothService?.transportManager?.getConnectionStatusString() ?: "Disconnected"
+        tvActiveConnection.text = statusString
         tvActiveConnection.setTextColor(
-            if (activeTypes.isNotEmpty()) 0xFF4CAF50.toInt() else 0xFF888888.toInt()
+            if (statusString.startsWith("Connected")) 0xFF4CAF50.toInt() else 0xFFF44336.toInt()
         )
     }
 

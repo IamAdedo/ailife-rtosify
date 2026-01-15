@@ -302,7 +302,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             
             // Show all active connection types
             val hasBluetooth = transportType.contains("Bluetooth") || transportType.contains("BT") || transportType.contains("Dual")
-            val hasWifi = transportType.contains("WiFi") || transportType.contains("Dual")
+            val hasWifi = transportType.contains("WiFi") || transportType.contains("LAN") || transportType.contains("Dual")
             val hasInternet = transportType.contains("Internet")
 
             val activeCount = listOf(hasBluetooth, hasWifi, hasInternet).count { it }
