@@ -75,7 +75,8 @@ class PermissionActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_permission)
         
-        val appBarLayout = findViewById<com.google.android.material.appbar.AppBarLayout>(R.id.toolbar).parent as? android.view.View
+        val toolbarView = findViewById<View>(R.id.toolbar)
+        val appBarLayout = toolbarView.parent as? android.view.View
         EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, findViewById(R.id.recyclerViewPermissions))
         // Also handle the finish button at the bottom if it's visible
         val btnFinishInset = findViewById<View>(R.id.btnFinishPermission)
@@ -210,7 +211,9 @@ class PermissionActivity : AppCompatActivity() {
         )
 
         // 6. Root
-        val isRoot = Shell.isAppGrantedRoot() == true || (Shell.getCachedShell()?.isRoot == true)
+        // Force check if not known
+        val isRoot = Shell.rootAccess()
+        android.util.Log.d("PermissionActivity", "Root status: $isRoot")
         perms.add(
                 PermissionItem(
                         "ROOT",
@@ -473,7 +476,7 @@ class PermissionActivity : AppCompatActivity() {
                 } catch (e: Exception) {}
             }
             "ROOT" -> {
-                Shell.getShell { /* Triggers root request */}
+                Shell.getShell { updatePermissionList() }
             }
             "LOCATION" -> requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 103)
             "LOCATION_BG" -> {

@@ -186,7 +186,7 @@ class PermissionActivity : AppCompatActivity() {
         )
 
         // 4. Root
-        val isRoot = (Shell.isAppGrantedRoot() == true)
+        val isRoot = Shell.isAppGrantedRoot() == true || (Shell.getCachedShell()?.isRoot == true)
         perms.add(
                 PermissionItem(
                         "ROOT",
