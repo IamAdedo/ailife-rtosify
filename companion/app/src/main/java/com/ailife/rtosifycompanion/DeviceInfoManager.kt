@@ -40,20 +40,35 @@ class DeviceInfoManager(private val context: Context) {
     }
 
     private fun getStorageUsage(): String {
-        val path = Environment.getDataDirectory()
-        val stat = StatFs(path.path)
-        val blockSize = stat.blockSizeLong
-        val totalBlocks = stat.blockCountLong
-        val availableBlocks = stat.availableBlocksLong
+        try {
+            val storageStatsManager =
+                    context.getSystemService(Context.STORAGE_STATS_SERVICE) as android.app.usage.StorageStatsManager
+            val storageManager = context.getSystemService(Context.STORAGE_SERVICE) as android.os.storage.StorageManager
 
-        val total = totalBlocks * blockSize
-        val available = availableBlocks * blockSize
-        val used = total - available
+            val totalBytes = storageStatsManager.getTotalBytes(android.os.storage.StorageManager.UUID_DEFAULT)
+            val freeBytes = storageStatsManager.getFreeBytes(android.os.storage.StorageManager.UUID_DEFAULT)
+            val usedBytes = totalBytes - freeBytes
 
-        val totalMsg = Formatter.formatShortFileSize(context, total)
-        val usedMsg = Formatter.formatShortFileSize(context, used)
+            val totalMsg = Formatter.formatShortFileSize(context, totalBytes)
+            val usedMsg = Formatter.formatShortFileSize(context, usedBytes)
 
-        return "$usedMsg / $totalMsg"
+            return "$usedMsg / $totalMsg"
+        } catch (e: Exception) {
+            val path = Environment.getDataDirectory()
+            val stat = StatFs(path.path)
+            val blockSize = stat.blockSizeLong
+            val totalBlocks = stat.blockCountLong
+            val availableBlocks = stat.availableBlocksLong
+
+            val total = totalBlocks * blockSize
+            val available = availableBlocks * blockSize
+            val used = total - available
+
+            val totalMsg = Formatter.formatShortFileSize(context, total)
+            val usedMsg = Formatter.formatShortFileSize(context, used)
+
+            return "$usedMsg / $totalMsg"
+        }
     }
 
     private fun getProcessorName(): String {
