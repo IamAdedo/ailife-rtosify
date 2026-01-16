@@ -558,9 +558,13 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                 FrameLayout.LayoutParams(dpToPx(ICON_SIZE_DP), dpToPx(ICON_SIZE_DP))
                         scaleType = ImageView.ScaleType.CENTER_CROP
 
-                        // Priority: senderIcon > groupIcon > largeIcon > smallIcon
+                        // Priority: Group Icon (if group chat) > Sender Icon > Large Icon > Small Icon
                         val iconBitmap =
                                 when {
+                                    notif.isGroupConversation && notif.groupIcon != null ->
+                                            decodeBase64ToBitmap(notif.groupIcon)
+                                    notif.isGroupConversation && notif.largeIcon != null ->
+                                            decodeBase64ToBitmap(notif.largeIcon)
                                     notif.senderIcon != null ->
                                             decodeBase64ToBitmap(notif.senderIcon)
                                     notif.groupIcon != null -> decodeBase64ToBitmap(notif.groupIcon)
@@ -702,6 +706,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
                                     val iconBitmap =
                                             when {
+                                                notif.isGroupConversation && notif.groupIcon != null ->
+                                                        decodeBase64ToBitmap(notif.groupIcon)
+                                                notif.isGroupConversation && notif.largeIcon != null ->
+                                                        decodeBase64ToBitmap(notif.largeIcon)
                                                 notif.senderIcon != null ->
                                                         decodeBase64ToBitmap(notif.senderIcon)
                                                 notif.groupIcon != null ->
@@ -895,6 +903,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
                         val iconBitmap =
                                 when {
+                                    notif.isGroupConversation && notif.groupIcon != null ->
+                                            decodeBase64ToBitmap(notif.groupIcon)
+                                    notif.isGroupConversation && notif.largeIcon != null ->
+                                            decodeBase64ToBitmap(notif.largeIcon)
                                     notif.senderIcon != null ->
                                             decodeBase64ToBitmap(notif.senderIcon)
                                     notif.groupIcon != null -> decodeBase64ToBitmap(notif.groupIcon)
@@ -1029,15 +1041,24 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                 gravity = Gravity.CENTER_VERTICAL
                             }
 
-                    message.senderIcon?.let { base64SenderIcon ->
-                        decodeBase64ToBitmap(base64SenderIcon)?.let { senderBitmap ->
+                    // Determine if this message is from self
+                    val msgSenderName = message.senderName
+                    val isMe = msgSenderName == null ||
+                               msgSenderName == notif.selfName ||
+                               msgSenderName.equals("Me", ignoreCase = true) ||
+                               msgSenderName.equals("You", ignoreCase = true)
+
+                    // Use selfIcon for own messages, senderIcon for others
+                    val iconBase64 = if (isMe) notif.selfIcon ?: message.senderIcon else message.senderIcon
+                    iconBase64?.let { base64Icon ->
+                        decodeBase64ToBitmap(base64Icon)?.let { iconBitmap ->
                             val senderIconView =
                                     ImageView(context).apply {
                                         layoutParams =
                                                 LinearLayout.LayoutParams(dpToPx(24), dpToPx(24))
                                                         .apply { marginEnd = dpToPx(8) }
                                         scaleType = ImageView.ScaleType.CENTER_CROP
-                                        setImageBitmap(getCircularBitmap(senderBitmap))
+                                        setImageBitmap(getCircularBitmap(iconBitmap))
                                     }
                             messageLayout.addView(senderIconView)
                         }

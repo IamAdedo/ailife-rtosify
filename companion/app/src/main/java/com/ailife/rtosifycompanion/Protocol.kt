@@ -194,9 +194,14 @@ data class NotificationData(
         val groupIcon: String? = null, // Base64 encoded group icon (EXTRA_CONVERSATION_ICON)
         val senderIcon: String? = null, // Base64 encoded sender icon (from MessagingStyle)
         val senderName: String? = null, // Name of the sender
+        val selfIcon: String? = null, // Base64 encoded self/user icon (for replies)
+        val selfName: String? = null, // Display name for self (e.g., "You")
         val bigPicture: String? = null, // Base64 encoded - for BigPictureStyle
         val messages: List<NotificationMessageData> = emptyList(), // History of messages
-        val actions: List<NotificationActionData> = emptyList()
+        val actions: List<NotificationActionData> = emptyList(),
+        val isGroupConversation: Boolean = false, // Whether this is a group chat
+        val conversationTitle: String? = null, // Explicit conversation title (API 30+)
+        val shortcutId: String? = null // For linking to conversation shortcuts (API 30+)
 )
 
 data class NotificationMessageData(

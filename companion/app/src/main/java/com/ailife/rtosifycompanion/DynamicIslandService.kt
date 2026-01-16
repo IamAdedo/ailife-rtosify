@@ -45,7 +45,18 @@ class DynamicIslandService : Service() {
                 override fun onReceive(context: Context?, intent: Intent?) {
                     when (intent?.action) {
                         BluetoothService.ACTION_SHOW_IN_DYNAMIC_ISLAND -> {
+                            val notifKey = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_KEY)
                             val notifJson = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_JSON)
+
+                            if (notifKey != null) {
+                                val cachedNotif = NotificationCache.get(notifKey)
+                                if (cachedNotif != null) {
+                                    showNotification(cachedNotif)
+                                    return
+                                }
+                            }
+
+                            // Fallback to JSON if old method or cache miss (though ideally avoided)
                             if (notifJson != null) {
                                 try {
                                     val notif =
@@ -503,7 +514,8 @@ class DynamicIslandService : Service() {
                 NotificationMessageData(
                         text = replyText,
                         timestamp = System.currentTimeMillis(),
-                        senderName = getString(R.string.reply_sender_me) // Matches BluetoothService logic for user replies
+                        senderName = notif.selfName ?: getString(R.string.reply_sender_me),
+                        senderIcon = notif.selfIcon
                 )
 
         // Update the notification in the queue

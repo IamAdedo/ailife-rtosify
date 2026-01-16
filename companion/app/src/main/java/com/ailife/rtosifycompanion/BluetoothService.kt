@@ -4381,9 +4381,12 @@ class BluetoothService : Service() {
                 // Route to Dynamic Island
                 performNotificationAlert()
 
+                // Cache the notification data to avoid TransactionTooLargeException
+                NotificationCache.put(notif.key, notif)
+
                 val intent =
                         Intent(ACTION_SHOW_IN_DYNAMIC_ISLAND).apply {
-                            putExtra(EXTRA_NOTIF_JSON, Gson().toJson(notif))
+                            putExtra(EXTRA_NOTIF_KEY, notif.key)
                             setPackage(packageName)
                         }
                 sendBroadcast(intent)
@@ -4469,10 +4472,11 @@ class BluetoothService : Service() {
 
             // 4. Use MessagingStyle if we have messages or it's a group
             if (notif.messages.isNotEmpty() || notif.groupIcon != null) {
-                val userName = getString(R.string.reply_sender_me)
+                // Use selfName from notification, fallback to localized "Me"
+                val userName = notif.selfName ?: getString(R.string.reply_sender_me)
 
-                // Use app small icon as a "default" for the user to avoid wrong fallbacks
-                val userIcon = notif.smallIcon?.let { decodeBase64ToBitmap(it) }
+                // Use selfIcon if available, fallback to smallIcon
+                val userIcon = (notif.selfIcon ?: notif.smallIcon)?.let { decodeBase64ToBitmap(it) }
                 val userBuilder = androidx.core.app.Person.Builder().setName(userName)
                 userIcon?.let {
                     userBuilder.setIcon(
@@ -4483,9 +4487,9 @@ class BluetoothService : Service() {
 
                 val style = NotificationCompat.MessagingStyle(user)
 
-                if (notif.groupIcon != null || notif.messages.any { it.senderName != null }) {
-                    style.conversationTitle = title
-                    style.isGroupConversation = notif.groupIcon != null
+                if (notif.isGroupConversation || notif.messages.any { it.senderName != null }) {
+                    style.conversationTitle = notif.conversationTitle ?: title
+                    style.isGroupConversation = notif.isGroupConversation
                 }
 
                 // Add all messages from the history
@@ -4493,13 +4497,16 @@ class BluetoothService : Service() {
                     val msgSenderName = msg.senderName
 
                     // Robust "Me" detection:
-                    // 1. Exact name match ("Me")
-                    // 2. OR null name (commonly used for 'self' in MessagingStyle history)
-                    val isMe = msgSenderName == null || msgSenderName == userName
+                    // 1. null name (commonly used for 'self' in MessagingStyle)
+                    // 2. Exact match with selfName from notification
+                    // 3. Common self identifiers: "Me", "You"
+                    val isMe = msgSenderName == null ||
+                               msgSenderName == notif.selfName ||
+                               msgSenderName.equals("Me", ignoreCase = true) ||
+                               msgSenderName.equals("You", ignoreCase = true)
 
                     if (isMe) {
-                        // For outgoing/echoed replies, pass null or the user person
-                        // to let the system use the default user icon
+                        // For outgoing/echoed replies, use the user person with selfIcon
                         style.addMessage(msg.text, msg.timestamp, user)
                     } else {
                         val sender =
@@ -4666,7 +4673,8 @@ class BluetoothService : Service() {
                             NotificationMessageData(
                                     text = replyText,
                                     timestamp = System.currentTimeMillis(),
-                                    senderName = getString(R.string.reply_sender_me)
+                                    senderName = data.selfName ?: getString(R.string.reply_sender_me),
+                                    senderIcon = data.selfIcon
                             )
                     data.copy(messages = data.messages + newMessage)
                 } else {
