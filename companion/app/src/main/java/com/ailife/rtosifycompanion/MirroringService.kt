@@ -50,6 +50,9 @@ class MirroringService : Service() {
         private var lastData: Intent? = null
         private var lastDpi: Int = 240
         private var lastHighQuality: Boolean = false
+        
+        // Direct callback to avoid Broadcast overhead
+        @Volatile var frameCallback: ((String, Boolean) -> Unit)? = null
     }
 
     private var mediaProjection: MediaProjection? = null
@@ -317,12 +320,19 @@ class MirroringService : Service() {
                         Log.d(TAG, "Frame #$frameCount: size=${encoded.length}B, keyframe=$isKeyFrame")
                     }
                     
-                    // Send to BluetoothService via Broadcast
-                    val intent = Intent("com.ailife.rtosifycompanion.SCREEN_DATA_AVAILABLE")
-                    intent.setPackage(packageName) // Make it explicit for Android 14+
-                    intent.putExtra("data", encoded)
-                    intent.putExtra("isKeyFrame", isKeyFrame)
-                    sendBroadcast(intent)
+                    
+                    // Optimization: Use direct callback if available to avoid Broadcast overhead (lag in background)
+                    val callback = frameCallback
+                    if (callback != null) {
+                        callback(encoded, isKeyFrame)
+                    } else {
+                        // Fallback: Send to BluetoothService via Broadcast
+                        val intent = Intent("com.ailife.rtosifycompanion.SCREEN_DATA_AVAILABLE")
+                        intent.setPackage(packageName) // Make it explicit for Android 14+
+                        intent.putExtra("data", encoded)
+                        intent.putExtra("isKeyFrame", isKeyFrame)
+                        sendBroadcast(intent)
+                    }
                 }
                 codec?.releaseOutputBuffer(outputBufferId, false)
             }

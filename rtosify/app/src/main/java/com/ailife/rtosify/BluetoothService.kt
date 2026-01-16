@@ -674,6 +674,7 @@ class BluetoothService : Service() {
                 IntentFilter().apply {
                     addAction(ACTION_SCREEN_DATA_AVAILABLE)
                     addAction(ACTION_SEND_REMOTE_INPUT)
+                    addAction(MirroringService.ACTION_MIRROR_STATE_CHANGED)
                     addAction("com.ailife.rtosify.SEND_MIRROR_STOP")
                     addAction("com.ailife.rtosify.UPDATE_REMOTE_RESOLUTION")
                 }
@@ -702,6 +703,18 @@ class BluetoothService : Service() {
         if (activePrefs.getBoolean("force_bt_enabled", false)) {
             startBluetoothEnforcement()
         }
+        
+        // Initialize mirroring state
+        transportManager.updateMirroringState(MirroringService.isRunning)
+        
+        // Register direct frame callback
+        MirroringService.frameCallback = { data, isKeyFrame ->
+            if (isConnected) {
+                // Send directly to avoid main thread/broadcast bottleneck
+                // sendMessage launches a coroutine, which is fine
+                sendMessage(ProtocolHelper.createMirrorData(data, isKeyFrame))
+            }
+        }
     }
     
     private fun registerProcessLifecycleObserver() {
@@ -727,7 +740,9 @@ class BluetoothService : Service() {
                     
                     // Sync state to watch
                     if (isConnected) {
-                        sendMessage(ProtocolHelper.createSyncPhoneState(false))
+                        // Keep "open" state if mirroring is running
+                        val effectiveForeground = MirroringService.isRunning
+                        sendMessage(ProtocolHelper.createSyncPhoneState(effectiveForeground))
                     }
                 }
             }
@@ -3077,6 +3092,15 @@ class BluetoothService : Service() {
                             val x = intent.getFloatExtra("x", 0f)
                             val y = intent.getFloatExtra("y", 0f)
                             this@BluetoothService.sendMessage(ProtocolHelper.createRemoteInput(action, x, y))
+                        }
+                        MirroringService.ACTION_MIRROR_STATE_CHANGED -> {
+                            val isRunning = MirroringService.isRunning
+                            Log.d(TAG, "Mirroring state changed: isRunning=$isRunning")
+                            transportManager.updateMirroringState(isRunning)
+                            
+                            // Update remote device about our "open" state
+                            val isForeground = transportManager.isAppInForeground
+                            sendMessage(ProtocolHelper.createSyncPhoneState(isForeground || isRunning))
                         }
                         "com.ailife.rtosify.SEND_MIRROR_STOP" -> {
                             Log.d(TAG, "Sending mirror stop command to companion")

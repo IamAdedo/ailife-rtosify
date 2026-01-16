@@ -44,6 +44,7 @@ class TransportManager(
     
     @Volatile private var wifiTemporarilyDisabled = false
     @Volatile private var wifiForceForPairing = false
+    @Volatile private var isMirroring = false
     
     private var discoveredLocalMac: String? = null
     
@@ -431,10 +432,11 @@ class TransportManager(
         if ((rule and WIFI_RULE_ALWAYS) != 0) return true
 
         val btConnected = bluetoothTransport?.isConnected() == true
+        val appActive = isAppInForeground || isMirroring
 
         // Combined rule: BT disconnected OR app open
         if ((rule and WIFI_RULE_BT_OR_APP) != 0) {
-            if (!btConnected || isAppInForeground) return true
+            if (!btConnected || appActive) return true
         }
 
         var shouldEnable = false
@@ -446,7 +448,7 @@ class TransportManager(
 
         // App foreground rule (when any app UI is visible)
         if ((rule and WIFI_RULE_MAINACTIVITY) != 0) {
-            if (isAppInForeground) shouldEnable = true
+            if (appActive) shouldEnable = true
         }
 
         return shouldEnable
@@ -469,7 +471,7 @@ class TransportManager(
         }
 
         if ((rule and INTERNET_RULE_MAINACTIVITY) != 0) {
-            if (isAppInForeground) shouldEnable = true
+            if (isAppInForeground || isMirroring) shouldEnable = true
         }
 
         return shouldEnable
@@ -482,6 +484,14 @@ class TransportManager(
                 triggerWifiReevaluation()
             }
         }
+
+    fun updateMirroringState(active: Boolean) {
+        if (isMirroring != active) {
+            isMirroring = active
+            Log.d(TAG, "Mirroring state changed: $active")
+            triggerWifiReevaluation()
+        }
+    }
 
     suspend fun send(message: ProtocolMessage): Boolean {
         // Priority 1: WiFi (Fastest, Local)

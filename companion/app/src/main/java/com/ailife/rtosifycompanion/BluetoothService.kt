@@ -739,6 +739,14 @@ class BluetoothService : Service() {
 
         // Bind to Shizuku UserService if available
         bindUserServiceIfNeeded()
+
+        // Register direct frame callback for Mirroring
+        MirroringService.frameCallback = { data, isKeyFrame ->
+            if (isConnected) {
+                // Send directly to avoid main thread/broadcast bottleneck
+                sendMessage(ProtocolHelper.createMirrorData(data, isKeyFrame))
+            }
+        }
     }
 
     private fun bindUserServiceIfNeeded() {
