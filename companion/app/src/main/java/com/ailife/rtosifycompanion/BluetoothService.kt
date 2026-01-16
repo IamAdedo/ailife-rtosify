@@ -1197,6 +1197,7 @@ class BluetoothService : Service() {
             MessageType.REQUEST_WIFI_SCAN -> serviceScope.launch { handleRequestWifiScan() }
             MessageType.CONNECT_WIFI -> handleConnectWifi(message)
             MessageType.CAMERA_FRAME -> handleCameraFrame(message)
+            MessageType.CAMERA_RECORDING_STATUS -> handleCameraRecordingStatus(message)
             MessageType.REQUEST_FILE_LIST -> handleRequestFileList(message)
             MessageType.REQUEST_FILE_DOWNLOAD -> handleRequestFileDownload(message)
             MessageType.DELETE_FILE -> handleDeleteFile(message)
@@ -2578,6 +2579,19 @@ class BluetoothService : Service() {
             sendBroadcast(intent)
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error handling camera frame: ${e.message}")
+        }
+    }
+
+    private fun handleCameraRecordingStatus(message: ProtocolMessage) {
+        try {
+            val isRecording = ProtocolHelper.extractStringField(message, "isRecording")?.toBoolean() 
+                ?: message.data.get("isRecording")?.asBoolean ?: false
+            val intent = Intent(CameraRemoteActivity.ACTION_RECORD_STATUS_CHANGED)
+            intent.putExtra(CameraRemoteActivity.EXTRA_RECORD_STATUS, isRecording)
+            intent.setPackage(packageName)
+            sendBroadcast(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling record status: ${e.message}")
         }
     }
 

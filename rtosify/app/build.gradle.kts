@@ -62,6 +62,7 @@ dependencies {
     implementation("androidx.camera:camera-camera2:${camerax_version}")
     implementation("androidx.camera:camera-lifecycle:${camerax_version}")
     implementation("androidx.camera:camera-view:${camerax_version}")
+    implementation("androidx.camera:camera-video:${camerax_version}")
     implementation("androidx.camera:camera-extensions:${camerax_version}")
 
     // Health charts

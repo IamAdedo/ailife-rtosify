@@ -755,5 +755,9 @@
     <string name="pairing_error_test">Encryption verification failed</string>
     <string name="wifi_already_paired">LAN Already Paired</string>
     <string name="wifi_repair">Re-pair</string>
+    <string name="camera_shutter">Shutter</string>
+    <string name="camera_record">Record</string>
+    <string name="camera_record_started">Recording started</string>
+    <string name="camera_record_stopped">Recording stopped</string>
 </resources>
 

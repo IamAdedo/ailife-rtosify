@@ -423,4 +423,5 @@
     <string name="network_turn_url_hint">TURN Server URL (turn:host:port)</string>
     <string name="network_turn_username_hint">TURN Username</string>
     <string name="network_turn_password_hint">TURN Password</string>
+    <string name="camera_record">Record</string>
 </resources>

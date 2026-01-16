@@ -905,6 +905,8 @@ class BluetoothService : Service() {
             MessageType.CAMERA_START -> handleCameraStart()
             MessageType.CAMERA_STOP -> handleCameraStop()
             MessageType.CAMERA_SHUTTER -> handleCameraShutter()
+            MessageType.CAMERA_RECORD_START -> handleCameraRecordStart()
+            MessageType.CAMERA_RECORD_STOP -> handleCameraRecordStop()
             MessageType.RESPONSE_FILE_LIST -> handleResponseFileList(message)
             MessageType.HEALTH_DATA_UPDATE -> handleHealthDataReceived(message)
             MessageType.RESPONSE_HEALTH_HISTORY -> handleHealthHistoryReceived(message)
@@ -1718,6 +1720,18 @@ class BluetoothService : Service() {
 
     private fun handleCameraShutter() {
         val intent = Intent(CameraActivity.ACTION_TAKE_PICTURE)
+        intent.setPackage(packageName)
+        sendBroadcast(intent)
+    }
+
+    private fun handleCameraRecordStart() {
+        val intent = Intent(CameraActivity.ACTION_START_VIDEO)
+        intent.setPackage(packageName)
+        sendBroadcast(intent)
+    }
+
+    private fun handleCameraRecordStop() {
+        val intent = Intent(CameraActivity.ACTION_STOP_VIDEO)
         intent.setPackage(packageName)
         sendBroadcast(intent)
     }

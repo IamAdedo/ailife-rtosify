@@ -61,6 +61,9 @@ object MessageType {
     const val CAMERA_STOP = "camera_stop"
     const val CAMERA_FRAME = "camera_frame"
     const val CAMERA_SHUTTER = "camera_shutter"
+    const val CAMERA_RECORD_START = "camera_record_start"
+    const val CAMERA_RECORD_STOP = "camera_record_stop"
+    const val CAMERA_RECORDING_STATUS = "camera_recording_status"
     const val REQUEST_FILE_LIST = "request_file_list"
     const val RESPONSE_FILE_LIST = "response_file_list"
     const val REQUEST_FILE_DOWNLOAD = "request_file_download"
@@ -1051,6 +1054,20 @@ object ProtocolHelper {
 
     fun createCameraShutter(): ProtocolMessage {
         return ProtocolMessage(type = MessageType.CAMERA_SHUTTER)
+    }
+
+    fun createCameraRecordStart(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.CAMERA_RECORD_START)
+    }
+
+    fun createCameraRecordStop(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.CAMERA_RECORD_STOP)
+    }
+
+    fun createCameraRecordingStatus(isRecording: Boolean): ProtocolMessage {
+        val data = com.google.gson.JsonObject()
+        data.addProperty("isRecording", isRecording)
+        return ProtocolMessage(type = MessageType.CAMERA_RECORDING_STATUS, data = data)
     }
 
     fun createWifiKeyExchange(localMac: String, targetMac: String, encryptionKey: String): ProtocolMessage {
