@@ -158,17 +158,23 @@ class CameraActivity : AppCompatActivity() {
                 .build()
             videoCapture = VideoCapture.withOutput(recorder)
 
+            // Check if high quality mode should be enabled (LAN connected + HQ setting enabled)
+            val isLanConnected = bluetoothService?.isWifiConnected() == true
+            val devicePrefManager = DevicePrefManager(this)
+            val hqEnabled = devicePrefManager.getActiveDevicePrefs().getBoolean("hq_lan_enabled", false)
+            val useHighQuality = isLanConnected && hqEnabled
+
             // Analyzer for streaming frames
             val imageAnalyzer = ImageAnalysis.Builder()
                 .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
                 .also {
-                    it.setAnalyzer(cameraExecutor, FrameAnalyzer { base64 ->
+                    it.setAnalyzer(cameraExecutor, FrameAnalyzer({ base64 ->
                          if (isBound && bluetoothService != null) {
                              bluetoothService?.sendCameraFrame(base64)
                          }
-                    })
+                    }, useHighQuality))
                 }
 
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
@@ -287,10 +293,14 @@ class CameraActivity : AppCompatActivity() {
         )
     }
 
-    private class FrameAnalyzer(private val listener: (String) -> Unit) : ImageAnalysis.Analyzer {
+    private class FrameAnalyzer(
+        private val listener: (String) -> Unit,
+        private val highQualityMode: Boolean = false
+    ) : ImageAnalysis.Analyzer {
 
         private var lastFrameTime = 0L
-        private val FRAME_INTERVAL = 200L // Limit to ~5 FPS to save bandwidth
+        // High quality: 15 FPS (67ms interval), Normal: 5 FPS (200ms interval)
+        private val FRAME_INTERVAL = if (highQualityMode) 67L else 200L
 
         override fun analyze(image: ImageProxy) {
             val currentTime = System.currentTimeMillis()
@@ -305,9 +315,12 @@ class CameraActivity : AppCompatActivity() {
             image.close()
 
             if (bitmap != null) {
-                val resized = Bitmap.createScaledBitmap(bitmap, 200, 200, false)
+                // High quality: 400x400 @ 60%, Normal: 200x200 @ 40%
+                val size = if (highQualityMode) 400 else 200
+                val quality = if (highQualityMode) 60 else 40
+                val resized = Bitmap.createScaledBitmap(bitmap, size, size, false)
                 val baos = ByteArrayOutputStream()
-                resized.compress(Bitmap.CompressFormat.JPEG, 40, baos)
+                resized.compress(Bitmap.CompressFormat.JPEG, quality, baos)
                 val base64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP)
                 listener(base64)
             }

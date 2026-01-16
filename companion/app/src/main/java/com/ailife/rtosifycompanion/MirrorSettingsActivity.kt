@@ -48,16 +48,30 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
 
     private val screenCaptureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == RESULT_OK && result.data != null) {
+            // Check if high quality mode should be enabled (LAN connected)
+            val isLanConnected = bluetoothService?.isLanConnected() == true
+            val hqEnabled = prefs.getBoolean("hq_lan_enabled", false)
+            val useHighQuality = isLanConnected && hqEnabled
+
             val intent = Intent(this, MirroringService::class.java).apply {
                 putExtra(MirroringService.EXTRA_RESULT_CODE, result.resultCode)
                 putExtra(MirroringService.EXTRA_DATA, result.data)
+                putExtra(MirroringService.EXTRA_HIGH_QUALITY, useHighQuality)
+
+                // Get current metrics
+                val metrics = resources.displayMetrics
+                putExtra(MirroringService.EXTRA_WIDTH, metrics.widthPixels)
+                putExtra(MirroringService.EXTRA_HEIGHT, metrics.heightPixels)
+                putExtra(MirroringService.EXTRA_DPI, metrics.densityDpi)
             }
             ContextCompat.startForegroundService(this, intent)
-            
+
             // Send message to phone to open MirrorActivity
+            // Note: MirroringService will calculate the actual encoding resolution,
+            // but we send the raw screen size here so the viewer knows the aspect ratio.
             val metrics = resources.displayMetrics
             bluetoothService?.sendMessage(ProtocolHelper.createMirrorStart(metrics.widthPixels, metrics.heightPixels, metrics.densityDpi))
-            
+
             btnStartMirror.text = getString(R.string.mirror_stop)
         }
     }

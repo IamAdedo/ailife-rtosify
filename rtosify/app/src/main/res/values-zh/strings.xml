@@ -692,4 +692,7 @@
     <string name="dialog_remove_device_title">移除设备</string>
     <string name="dialog_remove_device_message">您确定要移除 %s 吗？移除后需要重新配对才能使用。</string>
     <string name="dialog_remove_device_confirm">移除</string>
+
+    <string name="network_hq_lan_enabled">局域网高质量流传输</string>
+    <string name="network_hq_lan_desc">通过局域网连接时使用更高质量和帧率进行相机及屏幕镜像</string>
 </resources>

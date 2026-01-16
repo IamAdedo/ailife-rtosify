@@ -257,6 +257,8 @@ class BluetoothService : Service() {
     @Volatile var currentTransportType: String = ""
     val isConnected: Boolean get() = if (::transportManager.isInitialized) transportManager.isAnyTransportConnected() else false
 
+    fun isLanConnected(): Boolean = if (::transportManager.isInitialized) transportManager.isLanConnected() else false
+
     fun getConnectedDeviceMac(): String? {
         val state = transportManager.connectionState.value
         return if (state is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected) {
@@ -1443,7 +1445,11 @@ class BluetoothService : Service() {
                 prefs.edit().putString("internet_signaling_url", it).apply()
                 Log.d(TAG, "Internet signaling URL updated via SettingsUpdate: $it")
             }
-            
+            settings.hqLanEnabled?.let {
+                prefs.edit().putBoolean("hq_lan_enabled", it).apply()
+                Log.d(TAG, "HQ LAN setting updated: $it")
+            }
+
             // Apply updated settings to TransportManager if they changed
             val rule = settings.internetActivationRule ?: prefs.getInt("internet_activation_rule", 0)
             val url = settings.internetSignalingUrl ?: prefs.getString("internet_signaling_url", "") ?: ""

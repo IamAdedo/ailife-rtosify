@@ -40,6 +40,7 @@ class MirroringService : Service() {
         const val EXTRA_WIDTH = "width"
         const val EXTRA_HEIGHT = "height"
         const val EXTRA_DPI = "dpi"
+        const val EXTRA_HIGH_QUALITY = "high_quality"
         const val ACTION_MIRROR_STATE_CHANGED = "com.ailife.rtosify.MIRROR_STATE_CHANGED"
         
         var isRunning = false
@@ -48,13 +49,15 @@ class MirroringService : Service() {
         private var lastResultCode: Int = 0
         private var lastData: Intent? = null
         private var lastDpi: Int = 240
+        private var lastHighQuality: Boolean = false
     }
 
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var codec: MediaCodec? = null
     private var isRunning = false
-    
+    private var highQualityMode = false
+
     private val bufferInfo = MediaCodec.BufferInfo()
     private val handler = Handler(Looper.getMainLooper())
 
@@ -102,6 +105,7 @@ class MirroringService : Service() {
         val width = intent?.getIntExtra(EXTRA_WIDTH, 480) ?: 480
         val height = intent?.getIntExtra(EXTRA_HEIGHT, 854) ?: 854
         val dpi = intent?.getIntExtra(EXTRA_DPI, 240) ?: 240
+        val highQuality = intent?.getBooleanExtra(EXTRA_HIGH_QUALITY, false) ?: false
 
         // Register receiver for stop commands
         val filter = IntentFilter("com.ailife.rtosify.STOP_MIRROR")
@@ -115,6 +119,8 @@ class MirroringService : Service() {
             lastResultCode = resultCode
             lastData = data
             lastDpi = dpi
+            lastHighQuality = highQuality
+            highQualityMode = highQuality
             startMirroring(resultCode, data, width, height, dpi)
         } else {
             stopSelf()
@@ -139,12 +145,15 @@ class MirroringService : Service() {
                 val metrics = resources.displayMetrics
                 val newW = metrics.widthPixels
                 val newH = metrics.heightPixels
-                
-                Log.d(TAG, "Re-starting mirroring with new resolution: ${newW}x${newH}")
-                
+
+                // Check if HQ mode should be updated
+                highQualityMode = lastHighQuality
+
+                Log.d(TAG, "Re-starting mirroring with new resolution: ${newW}x${newH}, HQ=$highQualityMode")
+
                 // Signal current loop to stop
                 isRunning = false
-                
+
                 // Wait a bit for the loop to actually exit
                 handler.postDelayed({
                     // Cleanup virtual display and codec, but keep mediaProjection
@@ -157,7 +166,7 @@ class MirroringService : Service() {
                     } catch (e: Exception) {
                         Log.e(TAG, "Error during partial cleanup: ${e.message}")
                     }
-                    
+
                     // Re-setup codec and virtual display
                     setupCodec(newW, newH)
                     val surface = codec?.createInputSurface()
@@ -167,14 +176,14 @@ class MirroringService : Service() {
                         DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                         surface, null, handler
                     )
-                    
+
                     codec?.start()
                     isRunning = true
-                    
+
                     Thread {
                         drainAndSend()
                     }.start()
-                    
+
                     Log.d(TAG, "Mirroring refreshed with new resolution: ${newW}x${newH}")
                 }, 200)
             }
@@ -227,13 +236,18 @@ class MirroringService : Service() {
     private fun setupCodec(width: Int, height: Int) {
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height)
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-        format.setInteger(MediaFormat.KEY_BIT_RATE, 300000) // 300kbps for better BT compatibility
-        format.setInteger(MediaFormat.KEY_FRAME_RATE, 8) // Reduced from 10 to 8fps
+
+        // Use higher quality settings when on LAN with HQ mode enabled
+        val bitrate = if (highQualityMode) 1500000 else 300000 // 1.5Mbps vs 300kbps
+        val frameRate = if (highQualityMode) 24 else 8 // 24fps vs 8fps
+
+        format.setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
+        format.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
         format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2) // 2 seconds between I-frames
 
         codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
         codec?.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-        Log.d(TAG, "Codec configured: ${width}x${height}, 300kbps, 8fps")
+        Log.d(TAG, "Codec configured: ${width}x${height}, ${bitrate/1000}kbps, ${frameRate}fps, HQ=$highQualityMode")
     }
 
     private fun drainAndSend() {

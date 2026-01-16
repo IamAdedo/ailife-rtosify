@@ -804,10 +804,17 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private val screenCaptureLauncher =
             registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                 if (result.resultCode == RESULT_OK && result.data != null) {
+                    // Check if high quality mode should be enabled (LAN connected + HQ setting enabled)
+                    val isLanConnected = bluetoothService?.isWifiConnected() == true
+                    val activePrefs = devicePrefManager.getActiveDevicePrefs()
+                    val hqEnabled = activePrefs.getBoolean("hq_lan_enabled", false)
+                    val useHighQuality = isLanConnected && hqEnabled
+
                     val intent =
                             Intent(this, MirroringService::class.java).apply {
                                 putExtra(MirroringService.EXTRA_RESULT_CODE, result.resultCode)
                                 putExtra(MirroringService.EXTRA_DATA, result.data)
+                                putExtra(MirroringService.EXTRA_HIGH_QUALITY, useHighQuality)
                             }
                     ContextCompat.startForegroundService(this, intent)
 

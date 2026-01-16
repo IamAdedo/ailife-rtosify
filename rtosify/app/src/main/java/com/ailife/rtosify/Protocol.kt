@@ -287,7 +287,8 @@ data class SettingsUpdateData(
         val forceBtEnabled: Boolean? = null,
         val shareSyncEnabled: Boolean? = null,
         val internetActivationRule: Int? = null,
-        val internetSignalingUrl: String? = null
+        val internetSignalingUrl: String? = null,
+        val hqLanEnabled: Boolean? = null
 )
 
 data class HealthDataUpdate(

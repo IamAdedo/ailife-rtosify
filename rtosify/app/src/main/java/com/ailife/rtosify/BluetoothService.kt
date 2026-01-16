@@ -1409,7 +1409,8 @@ class BluetoothService : Service() {
                         forceBtEnabled = activePrefs.getBoolean("force_bt_enabled", false),
                         shareSyncEnabled = activePrefs.getBoolean("sharing_sync_enabled", false),
                         internetActivationRule = activePrefs.getInt("internet_activation_rule", 0),
-                        internetSignalingUrl = activePrefs.getString("internet_signaling_url", "")
+                        internetSignalingUrl = activePrefs.getString("internet_signaling_url", ""),
+                        hqLanEnabled = activePrefs.getBoolean("hq_lan_enabled", false)
                 )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
         

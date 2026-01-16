@@ -40,6 +40,7 @@ class MirroringService : Service() {
         const val EXTRA_WIDTH = "width"
         const val EXTRA_HEIGHT = "height"
         const val EXTRA_DPI = "dpi"
+        const val EXTRA_HIGH_QUALITY = "high_quality"
         const val ACTION_MIRROR_STATE_CHANGED = "com.ailife.rtosifycompanion.MIRROR_STATE_CHANGED"
         
         var isRunning = false
@@ -48,13 +49,15 @@ class MirroringService : Service() {
         private var lastResultCode: Int = 0
         private var lastData: Intent? = null
         private var lastDpi: Int = 240
+        private var lastHighQuality: Boolean = false
     }
 
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var codec: MediaCodec? = null
     private var isRunning = false
-    
+    private var highQualityMode = false
+
     private val bufferInfo = MediaCodec.BufferInfo()
     private val handler = Handler(Looper.getMainLooper())
 
@@ -102,6 +105,7 @@ class MirroringService : Service() {
         val width = intent?.getIntExtra(EXTRA_WIDTH, 480) ?: 480
         val height = intent?.getIntExtra(EXTRA_HEIGHT, 854) ?: 854
         val dpi = intent?.getIntExtra(EXTRA_DPI, 240) ?: 240
+        val highQuality = intent?.getBooleanExtra(EXTRA_HIGH_QUALITY, false) ?: false
 
         // Register receiver for stop commands
         val filter = IntentFilter("com.ailife.rtosifycompanion.STOP_MIRROR")
@@ -115,6 +119,8 @@ class MirroringService : Service() {
             lastResultCode = resultCode
             lastData = data
             lastDpi = dpi
+            lastHighQuality = highQuality
+            highQualityMode = highQuality
             startMirroring(resultCode, data, width, height, dpi)
         } else {
             stopSelf()
@@ -138,12 +144,15 @@ class MirroringService : Service() {
                 val metrics = resources.displayMetrics
                 val newW = metrics.widthPixels
                 val newH = metrics.heightPixels
-                
-                Log.d(TAG, "Re-starting mirroring with new resolution: ${newW}x${newH}")
-                
+
+                // Check if HQ mode should be updated
+                highQualityMode = lastHighQuality
+
+                Log.d(TAG, "Re-starting mirroring with new resolution: ${newW}x${newH}, HQ=$highQualityMode")
+
                 // Signal current loop to stop
                 isRunning = false
-                
+
                 // Wait a bit for the loop to actually exit
                 handler.postDelayed({
                     // Cleanup virtual display and codec, but keep mediaProjection
@@ -156,7 +165,7 @@ class MirroringService : Service() {
                     } catch (e: Exception) {
                         Log.e(TAG, "Error during partial cleanup: ${e.message}")
                     }
-                    
+
                     // Re-setup codec and virtual display
                     setupCodec(newW, newH)
                     val surface = codec?.createInputSurface()
@@ -166,14 +175,14 @@ class MirroringService : Service() {
                         DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                         surface, null, handler
                     )
-                    
+
                     codec?.start()
                     isRunning = true
-                    
+
                     Thread {
                         drainAndSend()
                     }.start()
-                    
+
                     Log.d(TAG, "Mirroring refreshed with new resolution: ${newW}x${newH}")
                 }, 200)
             }
@@ -227,18 +236,58 @@ class MirroringService : Service() {
     }
 
     private fun setupCodec(width: Int, height: Int) {
-        // Use lower resolution for watch's small screen and Bluetooth bandwidth
-        val scaledWidth = 320  // Much smaller for watch
-        val scaledHeight = 568
-        
+        // Dynamic scaling: Target ~360px on the shortest side for watch performance (or higher for HQ)
+        val targetShortSide = if (highQualityMode) 480 else 360
+        val isPortrait = height > width
+        val shortSide = if (isPortrait) width else height
+
+        var scaledWidth = width
+        var scaledHeight = height
+
+        if (shortSide > targetShortSide) {
+            val scale = targetShortSide.toFloat() / shortSide.toFloat()
+            scaledWidth = (width * scale).toInt()
+            scaledHeight = (height * scale).toInt()
+        }
+
+        // Ensure even dimensions (required for some encoders)
+        if (scaledWidth % 2 != 0) scaledWidth--
+        if (scaledHeight % 2 != 0) scaledHeight--
+
+        Log.d(TAG, "Setting up codec: Input=${width}x${height}, Scaled=${scaledWidth}x${scaledHeight}, HQ=$highQualityMode")
+
         val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, scaledWidth, scaledHeight)
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-        format.setInteger(MediaFormat.KEY_BIT_RATE, 200000) // Very low bitrate for Bluetooth
-        format.setInteger(MediaFormat.KEY_FRAME_RATE, 5) // Low FPS
-        format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 3) // Longer keyframe interval
+
+        // Use higher quality settings when on LAN with HQ mode enabled
+        val bitrate = if (highQualityMode) 1000000 else 250000 // 1Mbps vs 250kbps
+        val frameRate = if (highQualityMode) 20 else 10 // 20fps vs 10fps
+
+        format.setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
+        format.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
+        format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2) // 2 seconds between I-frames
         format.setInteger(MediaFormat.KEY_PROFILE, MediaCodecInfo.CodecProfileLevel.AVCProfileBaseline)
         format.setInteger(MediaFormat.KEY_LEVEL, MediaCodecInfo.CodecProfileLevel.AVCLevel31)
 
+        try {
+            codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+            codec?.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            Log.d(TAG, "Codec configured: ${scaledWidth}x${scaledHeight}, ${bitrate/1000}kbps, ${frameRate}fps")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to configure codec: ${e.message}")
+            // Fallback to safe default if scaling fails
+            fallbackSetupCodec()
+        }
+    }
+
+    private fun fallbackSetupCodec() {
+        Log.w(TAG, "Using fallback safe resolution (320x568)")
+        val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, 320, 568)
+        format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+        format.setInteger(MediaFormat.KEY_BIT_RATE, 200000)
+        format.setInteger(MediaFormat.KEY_FRAME_RATE, 5)
+        format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5)
+        
         codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
         codec?.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
     }

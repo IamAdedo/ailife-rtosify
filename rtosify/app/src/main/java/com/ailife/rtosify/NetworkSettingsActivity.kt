@@ -58,6 +58,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
     private lateinit var checkBoxFixedIp: CheckBox
     private lateinit var layoutFixedIp: View
     private lateinit var etFixedIp: EditText
+    private lateinit var checkBoxHqLan: CheckBox
     private lateinit var tvCurrentWifi: TextView
     private lateinit var tvPhoneIp: TextView
     private lateinit var tvWatchWifi: TextView
@@ -181,6 +182,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
         checkBoxFixedIp = findViewById(R.id.checkBoxFixedIp)
         layoutFixedIp = findViewById(R.id.layoutFixedIp)
         etFixedIp = findViewById(R.id.etFixedIp)
+        checkBoxHqLan = findViewById(R.id.checkBoxHqLan)
         tvCurrentWifi = findViewById(R.id.tvCurrentWifi)
         tvPhoneIp = findViewById(R.id.tvPhoneIp)
         tvWatchWifi = findViewById(R.id.tvWatchWifi)
@@ -232,6 +234,10 @@ class NetworkSettingsActivity : AppCompatActivity() {
         checkBoxFixedIp.isChecked = fixedIpEnabled
         etFixedIp.setText(fixedIpAddress)
         layoutFixedIp.visibility = if (fixedIpEnabled) View.VISIBLE else View.GONE
+
+        // Load High Quality LAN setting
+        val hqLanEnabled = devicePrefs.getBoolean("hq_lan_enabled", false)
+        checkBoxHqLan.isChecked = hqLanEnabled
     }
 
     private fun setupListeners() {
@@ -268,6 +274,12 @@ class NetworkSettingsActivity : AppCompatActivity() {
                 .putString("wifi_fixed_ip_address", text).apply()
             bluetoothService?.notifyWifiRuleChanged()
         })
+
+        // High Quality LAN
+        checkBoxHqLan.setOnCheckedChangeListener { _, isChecked ->
+            devicePrefManager.getActiveDevicePrefs().edit()
+                .putBoolean("hq_lan_enabled", isChecked).apply()
+        }
 
         // Internet server settings
         etSignalingUrl.addTextChangedListener(createTextWatcher { text ->
