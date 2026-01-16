@@ -54,6 +54,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
 
     // Other views
     private lateinit var btnPairForInternet: Button
+    private lateinit var btnTestInternet: Button
     private lateinit var checkBoxFixedIp: CheckBox
     private lateinit var layoutFixedIp: View
     private lateinit var etFixedIp: EditText
@@ -189,6 +190,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
         etTurnUrl = findViewById(R.id.etTurnUrl)
         etTurnUsername = findViewById(R.id.etTurnUsername)
         etTurnPassword = findViewById(R.id.etTurnPassword)
+        btnTestInternet = findViewById(R.id.btnTestInternet)
     }
 
     private fun loadSettings() {
@@ -234,6 +236,11 @@ class NetworkSettingsActivity : AppCompatActivity() {
         // Pair button
         btnPairForInternet.setOnClickListener {
             startActivity(Intent(this, WiFiPairingActivity::class.java))
+        }
+
+        // Test button
+        btnTestInternet.setOnClickListener {
+            startActivity(Intent(this, InternetTestActivity::class.java))
         }
 
         // LAN RadioGroup

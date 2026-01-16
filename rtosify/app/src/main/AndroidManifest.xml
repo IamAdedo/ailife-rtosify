@@ -246,6 +246,12 @@
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Smartwatch" />
 
+        <activity
+            android:name=".InternetTestActivity"
+            android:exported="false"
+            android:parentActivityName=".NetworkSettingsActivity"
+            android:theme="@style/Theme.Smartwatch" />
+
         <!-- Serviço Bluetooth -->
         <!-- Adicionado "location" para permitir leitura de Wi-Fi em background -->
         <service

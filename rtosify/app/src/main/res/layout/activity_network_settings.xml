@@ -521,6 +521,15 @@
                             android:textColor="@android:color/white"
                             android:textSize="14sp" />
                     </com.google.android.material.textfield.TextInputLayout>
+                    <Button
+                        android:id="@+id/btnTestInternet"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:text="@string/network_test_configuration"
+                        android:textColor="@android:color/white"
+                        style="@style/Widget.MaterialComponents.Button.TextButton"
+                        app:icon="@android:drawable/ic_menu_info_details" />
                 </LinearLayout>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
