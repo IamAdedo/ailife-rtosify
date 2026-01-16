@@ -527,7 +527,12 @@ class WebRtcTransport(
         }
     }
 
-    override fun isConnected(): Boolean = _connectionState.value
+    override fun isConnected(): Boolean {
+        if (!_connectionState.value) return false
+        val now = System.currentTimeMillis()
+        // If we're open but haven't heard anything in over a minute (timeout), it's dead
+        return (now - lastMessageReceivedTime) <= 60000
+    }
 
     override fun getTransportType(): String = "Internet (WebRTC)"
 

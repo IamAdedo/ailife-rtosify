@@ -296,7 +296,11 @@ class WifiIntranetTransport(
 
     override fun receive(): Flow<ProtocolMessage> = messageChannel.receiveAsFlow()
 
-    override fun isConnected(): Boolean = connected
+    override fun isConnected(): Boolean {
+        if (!connected) return false
+        val elapsed = System.currentTimeMillis() - lastReceiveTime
+        return elapsed <= KEEPALIVE_TIMEOUT
+    }
 
     override fun getTransportType(): String = "WiFi Intranet"
 

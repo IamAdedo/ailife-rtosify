@@ -261,8 +261,9 @@ class TransportManager(
                         _incomingMessages.send(msg)
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "BT receive error", e)
+                    Log.e(TAG, "BT receive error: ${e.message}")
                 } finally {
+                    Log.w(TAG, "Cleaning up BluetoothTransport - connection ended.")
                     bluetoothTransport = null
                     updateConnectionState()
                 }
@@ -314,8 +315,9 @@ class TransportManager(
                                 _incomingMessages.send(msg)
                             }
                         } catch (e: Exception) {
-                            Log.e(TAG, "WiFi receive error", e)
+                            Log.e(TAG, "WiFi receive error: ${e.message}")
                         } finally {
+                            Log.w(TAG, "Cleaning up WifiTransport - connection ended.")
                             wifiTransport = null
                             updateConnectionState()
                         }
@@ -516,8 +518,9 @@ class TransportManager(
                             _incomingMessages.send(msg)
                         }
                     } catch (e: Exception) {
-                        Log.e(TAG, "Internet receive error", e)
+                        Log.e(TAG, "Internet receive error: ${e.message}")
                     } finally {
+                        Log.w(TAG, "Cleaning up InternetTransport - connection ended.")
                         internetTransport = null
                         updateConnectionState()
                         transport.disconnect()
@@ -643,7 +646,7 @@ class TransportManager(
     }
 
     fun forceDisconnect() {
-        Log.d(TAG, "Force disconnect requested")
+        Log.d(TAG, "Force disconnect requested for all transports")
         scope.launch {
             bluetoothTransport?.disconnect()
             bluetoothTransport = null
@@ -651,6 +654,15 @@ class TransportManager(
             wifiTransport = null
             internetTransport?.disconnect()
             internetTransport = null
+            updateConnectionState()
+        }
+    }
+
+    fun forceDisconnectBluetooth() {
+        Log.d(TAG, "Force disconnect requested for Bluetooth transport")
+        scope.launch {
+            bluetoothTransport?.disconnect()
+            bluetoothTransport = null
             updateConnectionState()
         }
     }

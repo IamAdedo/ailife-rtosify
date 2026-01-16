@@ -496,10 +496,10 @@ class BluetoothService : Service() {
                 override fun onReceive(context: Context?, intent: Intent?) {
                     if (intent?.action == BluetoothDevice.ACTION_ACL_DISCONNECTED) {
                         val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
-                        Log.d(TAG, "ACL Disconnected: ${device?.address}, current isConnected=$isConnected")
-                        if (isConnected) {
-                            // Link layer disconnect detected, force transport cleanup
-                            transportManager.forceDisconnect()
+                        Log.d(TAG, "ACL Disconnected for $device. Cleaning up Bluetooth transport.")
+                        // Only force disconnect Bluetooth, letting other transports (LAN/Internet) survive if they are active
+                        if (::transportManager.isInitialized) {
+                            transportManager.forceDisconnectBluetooth()
                         }
                     }
                 }
@@ -1132,8 +1132,10 @@ class BluetoothService : Service() {
         // Use logic-OR with lastConnectedState to catch disconnection even if isConnected is already false
         val wasConnected = isConnected || lastConnectedState
         lastConnectedState = false
-        // No manual assignment needed
+        
+        // Explicitly reset transport state so that reconnections of the same type are processed as "new"
         currentDeviceName = null
+        currentTransportType = ""
         
         // Notify Dynamic Island - Explicitly clear transport
         Log.d(TAG, "Broadcasting disconnect state to Dynamic Island")
