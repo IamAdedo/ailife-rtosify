@@ -31,8 +31,8 @@ class BluetoothTransport(
     private val messageChannel = Channel<ProtocolMessage>(Channel.BUFFERED)
     private var receiveJob: Job? = null
     private var keepaliveJob: Job? = null
-    private var connected = false
-    private var lastReceiveTime = 0L
+    @Volatile private var connected = false
+    @Volatile private var lastReceiveTime = 0L
 
     override suspend fun connect(): Boolean = withContext(Dispatchers.IO) {
         try {

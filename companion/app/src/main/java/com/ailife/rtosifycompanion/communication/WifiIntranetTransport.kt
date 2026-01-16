@@ -205,10 +205,10 @@ class WifiIntranetTransport(
     }
 
     private fun startKeepalive() {
-        keepaliveJob = CoroutineScope(Dispatchers.IO).launch {
+        // Monitor timeout in a separate job that doesn't do I/O
+        CoroutineScope(Dispatchers.IO).launch {
             while (isActive && connected) {
-                delay(KEEPALIVE_INTERVAL)
-                
+                delay(1000) // Check every second
                 val elapsed = System.currentTimeMillis() - lastReceiveTime
                 if (elapsed > KEEPALIVE_TIMEOUT) {
                     val diff = elapsed - KEEPALIVE_TIMEOUT
@@ -216,6 +216,13 @@ class WifiIntranetTransport(
                     disconnect()
                     break
                 }
+            }
+        }
+
+        // Send keepalive pings in another job
+        keepaliveJob = CoroutineScope(Dispatchers.IO).launch {
+            while (isActive && connected) {
+                delay(KEEPALIVE_INTERVAL)
                 
                 // Send keepalive ping (-1 message length)
                 try {

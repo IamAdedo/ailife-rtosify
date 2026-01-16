@@ -41,8 +41,8 @@ class WifiIntranetTransport(
     private val messageChannel = Channel<ProtocolMessage>(Channel.BUFFERED)
     private var receiveJob: Job? = null
     private var keepaliveJob: Job? = null
-    private var connected = false
-    private var lastReceiveTime = 0L
+    @Volatile private var connected = false
+    @Volatile private var lastReceiveTime = 0L
 
     override suspend fun connect(): Boolean = withContext(Dispatchers.IO) {
         try {
@@ -207,16 +207,23 @@ class WifiIntranetTransport(
     }
 
     private fun startKeepalive() {
-        keepaliveJob = CoroutineScope(Dispatchers.IO).launch {
+        // Monitor timeout in a separate job that doesn't do I/O
+        CoroutineScope(Dispatchers.IO).launch {
             while (isActive && connected) {
-                delay(KEEPALIVE_INTERVAL)
-                
+                delay(1000) // Check every second
                 val elapsed = System.currentTimeMillis() - lastReceiveTime
                 if (elapsed > KEEPALIVE_TIMEOUT) {
-                    Log.w(TAG, "WiFi keepalive timeout: ${elapsed}ms since last receive")
+                    Log.w(TAG, "WiFi keepalive timeout: ${elapsed}ms since last receive - forcing disconnect")
                     disconnect()
                     break
                 }
+            }
+        }
+
+        // Send keepalive pings in another job
+        keepaliveJob = CoroutineScope(Dispatchers.IO).launch {
+            while (isActive && connected) {
+                delay(KEEPALIVE_INTERVAL)
                 
                 // Send keepalive ping (-1 message length)
                 try {
