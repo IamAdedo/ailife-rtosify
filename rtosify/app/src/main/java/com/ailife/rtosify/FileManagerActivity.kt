@@ -76,6 +76,9 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_file_manager)
+        val appBarLayout = findViewById<View>(R.id.appBarLayout)
+        val recyclerView = findViewById<View>(R.id.recyclerViewFiles)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, recyclerView)
 
         toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)

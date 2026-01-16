@@ -132,6 +132,8 @@ class NetworkSettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_network_settings)
+        val rootLayout = findViewById<View>(R.id.rootLayout)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
         devicePrefManager = DevicePrefManager(this)
 

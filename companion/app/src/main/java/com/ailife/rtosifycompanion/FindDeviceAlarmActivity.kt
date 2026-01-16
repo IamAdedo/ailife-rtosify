@@ -56,6 +56,8 @@ class FindDeviceAlarmActivity : AppCompatActivity() {
         )
 
         setContentView(R.layout.activity_find_device_alarm)
+        val rootLayout = findViewById<android.view.View>(R.id.rootLayout)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
         val btnStopAlarm = findViewById<Button>(R.id.btnStopAlarm)
         btnStopAlarm.setOnClickListener {

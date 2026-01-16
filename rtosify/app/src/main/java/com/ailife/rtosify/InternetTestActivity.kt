@@ -33,6 +33,7 @@ class InternetTestActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_internet_test)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, findViewById(android.R.id.content))
 
         tvLogs = findViewById(R.id.tvLogs)
         scrollLog = findViewById(R.id.scrollLog)

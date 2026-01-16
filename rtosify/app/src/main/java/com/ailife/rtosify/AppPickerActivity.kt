@@ -41,6 +41,9 @@ class AppPickerActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_app_picker)
+        val appBarLayout = findViewById<View>(R.id.appBarLayout)
+        val rvHost = findViewById<View>(R.id.recyclerViewApps)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, rvHost)
 
         toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)

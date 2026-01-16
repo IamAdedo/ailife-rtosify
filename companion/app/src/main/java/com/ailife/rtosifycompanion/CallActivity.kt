@@ -13,7 +13,10 @@ import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 
-class CallActivity : Activity() {
+import androidx.appcompat.app.AppCompatActivity
+import android.view.View
+
+class CallActivity : AppCompatActivity() {
 
     private lateinit var tvName: TextView
     private lateinit var tvNumber: TextView
@@ -49,8 +52,10 @@ class CallActivity : Activity() {
                     WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
                     WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD)
         }
-
+        
         setContentView(R.layout.activity_call)
+        val rootLayout = findViewById<View>(R.id.rootLayout)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
         tvName = findViewById(R.id.tv_caller_name)
         tvNumber = findViewById(R.id.tv_caller_number)
@@ -98,7 +103,7 @@ class CallActivity : Activity() {
         }
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // Handle state updates if already open
         val state = intent?.getStringExtra("state")

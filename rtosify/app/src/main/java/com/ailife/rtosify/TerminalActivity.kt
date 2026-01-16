@@ -73,6 +73,7 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_terminal)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, findViewById(android.R.id.content))
 
         initViews()
         setupListeners()

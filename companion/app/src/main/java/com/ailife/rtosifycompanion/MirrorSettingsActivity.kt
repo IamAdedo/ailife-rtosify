@@ -65,6 +65,8 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_mirror_settings)
+        val rootLayout = findViewById<View>(R.id.rootLayout)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
         prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
         initViews()

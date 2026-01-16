@@ -81,6 +81,9 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_mirror_settings)
+        val appBarLayout = findViewById<android.view.View>(R.id.appBarLayout)
+        val scrollView = findViewById<android.view.View>(R.id.nestedScrollView)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, scrollView)
 
         devicePrefManager = DevicePrefManager(this)
         globalPrefs = devicePrefManager.getGlobalPrefs()

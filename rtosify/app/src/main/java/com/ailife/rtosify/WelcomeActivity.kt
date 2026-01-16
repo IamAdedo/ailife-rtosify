@@ -209,6 +209,7 @@ class WelcomeActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_welcome)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, findViewById(android.R.id.content))
         devicePrefManager = DevicePrefManager(this)
 
         findViewById<android.widget.Button>(R.id.btnRetry).setOnClickListener {

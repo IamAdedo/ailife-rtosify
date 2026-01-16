@@ -73,6 +73,8 @@ class WelcomeActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_welcome)
+        val rootLayout = findViewById<android.view.View>(R.id.rootLayout)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
         // Register pairing receiver
         val filter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)

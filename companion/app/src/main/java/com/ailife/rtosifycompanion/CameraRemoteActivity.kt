@@ -17,7 +17,9 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 
-class CameraRemoteActivity : Activity() {
+import androidx.appcompat.app.AppCompatActivity
+
+class CameraRemoteActivity : AppCompatActivity() {
 
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
@@ -61,6 +63,8 @@ class CameraRemoteActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_camera_remote)
+        val rootLayout = findViewById<View>(R.id.rootLayout)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
         imageView = findViewById(R.id.img_viewfinder)
         statusText = findViewById(R.id.tv_status)

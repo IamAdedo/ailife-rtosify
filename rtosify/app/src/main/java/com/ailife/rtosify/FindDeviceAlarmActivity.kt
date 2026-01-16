@@ -12,7 +12,9 @@ import android.media.RingtoneManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.os.Vibrator
 import android.util.Log
+import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import androidx.appcompat.app.AppCompatActivity
@@ -56,6 +58,8 @@ class FindDeviceAlarmActivity : AppCompatActivity() {
         )
 
         setContentView(R.layout.activity_find_device_alarm)
+        val rootLayout = findViewById<View>(R.id.rootLayout)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
         val btnStopAlarm = findViewById<Button>(R.id.btnStopAlarm)
         btnStopAlarm.setOnClickListener {

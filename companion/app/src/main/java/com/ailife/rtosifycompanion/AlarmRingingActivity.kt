@@ -38,6 +38,8 @@ class AlarmRingingActivity : AppCompatActivity() {
         }
 
         setContentView(R.layout.activity_alarm_ringing)
+        val rootLayout = findViewById<android.view.View>(R.id.rootLayout)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
         val alarmId = intent.getStringExtra(EXTRA_ALARM_ID) ?: ""
         val label = intent.getStringExtra(EXTRA_ALARM_LABEL) ?: ""

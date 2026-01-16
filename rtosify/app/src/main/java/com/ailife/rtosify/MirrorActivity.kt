@@ -64,6 +64,8 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
         super.onCreate(savedInstanceState)
         devicePrefManager = DevicePrefManager(this)
         setContentView(R.layout.activity_mirror)
+        val rootLayout = findViewById<android.view.View>(R.id.rootLayout)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         surfaceView = findViewById(R.id.surfaceView)

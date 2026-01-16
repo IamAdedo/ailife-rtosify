@@ -26,6 +26,10 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.topjohnwu.superuser.Shell
 import rikka.shizuku.Shizuku
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
+import androidx.core.view.updatePadding
 
 class PermissionActivity : AppCompatActivity() {
 
@@ -97,6 +101,19 @@ class PermissionActivity : AppCompatActivity() {
                 finish()
             }
             supportActionBar?.setDisplayHomeAsUpEnabled(false)
+        }
+        
+        // Edge-to-edge
+        val appBarLayout = findViewById<View>(R.id.appBarLayout)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, recyclerView)
+        
+        // Handle bottom inset for floating button
+        ViewCompat.setOnApplyWindowInsetsListener(btnFinish) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                bottomMargin = 16.dpToPx(this@PermissionActivity) + systemBars.bottom
+            }
+            insets
         }
 
         Shizuku.addBinderReceivedListener { updatePermissionList() }
@@ -586,7 +603,11 @@ class PermissionActivity : AppCompatActivity() {
             }
         }
     }
-
+    
+    private fun Int.dpToPx(context: Context): Int {
+        return (this * context.resources.displayMetrics.density).toInt()
+    }
+    
     private fun isWatchFaceDirAccessible(): Boolean {
         // Shizuku or Root is always enough
         if (Shizuku.pingBinder() &&

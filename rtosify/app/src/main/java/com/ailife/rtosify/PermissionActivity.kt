@@ -26,11 +26,15 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.topjohnwu.superuser.Shell
 import rikka.shizuku.Shizuku
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updateLayoutParams
+import com.ailife.rtosify.EdgeToEdgeUtils.dpToPx
 
 class PermissionActivity : AppCompatActivity() {
 
-    private lateinit var recyclerView: RecyclerView
-    private lateinit var adapter: PermissionAdapter
+    private lateinit var permRecyclerView: RecyclerView
+    private lateinit var permAdapter: PermissionAdapter
     private lateinit var toolbar: Toolbar
     private lateinit var btnFinish: View
     private var fromSetup = false
@@ -70,16 +74,30 @@ class PermissionActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_permission)
+        
+        val appBarLayout = findViewById<com.google.android.material.appbar.AppBarLayout>(R.id.toolbar).parent as? android.view.View
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, findViewById(R.id.recyclerViewPermissions))
+        // Also handle the finish button at the bottom if it's visible
+        val btnFinishInset = findViewById<View>(R.id.btnFinishPermission)
+        if (btnFinishInset != null) {
+            ViewCompat.setOnApplyWindowInsetsListener(btnFinishInset) { v, insets ->
+                val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+                v.updateLayoutParams<android.view.ViewGroup.MarginLayoutParams> {
+                    bottomMargin = systemBars.bottom + 16.dpToPx(this@PermissionActivity) // 16dp margin
+                }
+                insets
+            }
+        }
 
         toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = getString(R.string.perm_title)
 
-        recyclerView = findViewById(R.id.recyclerViewPermissions)
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        adapter = PermissionAdapter { perm -> handlePermissionClick(perm) }
-        recyclerView.adapter = adapter
+        permRecyclerView = findViewById(R.id.recyclerViewPermissions)
+        permRecyclerView.layoutManager = LinearLayoutManager(this)
+        permAdapter = PermissionAdapter { perm -> handlePermissionClick(perm) }
+        permRecyclerView.adapter = permAdapter
 
         btnFinish = findViewById(R.id.btnFinishPermission)
         fromSetup = intent.getBooleanExtra("from_setup", false)
@@ -353,7 +371,7 @@ class PermissionActivity : AppCompatActivity() {
                 )
         )
 
-        adapter.updateList(perms)
+        permAdapter.updateList(perms)
     }
 
     private fun checkPerm(perm: String): Boolean {

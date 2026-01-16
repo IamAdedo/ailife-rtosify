@@ -41,6 +41,8 @@ class ShareToPhoneActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_share_sync)
+        val rootLayout = findViewById<android.view.View>(R.id.rootLayout)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
         tvShareStatus = findViewById(R.id.tvShareStatus)
         tvSharePercentage = findViewById(R.id.tvSharePercentage)

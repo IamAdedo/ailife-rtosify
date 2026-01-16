@@ -10,7 +10,10 @@ import android.os.IBinder
 import android.widget.Button
 import android.widget.Toast
 
-class MediaControlActivity : Activity() {
+import androidx.appcompat.app.AppCompatActivity
+import android.view.View
+
+class MediaControlActivity : AppCompatActivity() {
 
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
@@ -31,6 +34,8 @@ class MediaControlActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_media_control)
+        val rootLayout = findViewById<View>(R.id.rootLayout)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
         // Bind to BluetoothService
         val intent = Intent(this, BluetoothService::class.java)

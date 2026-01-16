@@ -136,6 +136,9 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_health_detail)
+        val appBarLayout = findViewById<android.view.View>(R.id.appBarLayout)
+        val bottomNav = findViewById<android.view.View>(R.id.bottomNavigation)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, bottomNav)
 
         // Get health type from intent
         healthType = intent.getStringExtra("HEALTH_TYPE") ?: "STEPS"

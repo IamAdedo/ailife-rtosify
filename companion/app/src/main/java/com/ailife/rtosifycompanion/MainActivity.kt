@@ -130,6 +130,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         setContentView(R.layout.activity_main)
         initViews()
+        EdgeToEdgeUtils.applyEdgeToEdge(this, findViewById(R.id.mainContentScrollView))
 
 
 
@@ -147,7 +148,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         if (intent?.getBooleanExtra("request_mirror", false) == true) {

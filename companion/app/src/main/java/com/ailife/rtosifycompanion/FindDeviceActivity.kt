@@ -174,6 +174,8 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
         Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this))
 
         setContentView(R.layout.activity_find_device)
+        val rootLayout = findViewById<android.view.View>(R.id.rootLayout)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
         initViews()
         setupMap()

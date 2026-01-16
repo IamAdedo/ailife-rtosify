@@ -19,6 +19,7 @@ import android.os.Bundle
 import android.util.Log
 import android.os.IBinder
 import android.preference.PreferenceManager
+import android.view.View
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.TextView
@@ -181,6 +182,8 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
 
         Configuration.getInstance().load(this, PreferenceManager.getDefaultSharedPreferences(this))
         setContentView(R.layout.activity_find_device)
+        val rootLayout = findViewById<View>(R.id.rootLayout)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
         initViews()
         setupMap()

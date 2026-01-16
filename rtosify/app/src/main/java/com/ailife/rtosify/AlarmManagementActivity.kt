@@ -62,6 +62,9 @@ class AlarmManagementActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_alarm_management)
+        val appBarLayout = findViewById<View>(R.id.appBarLayout)
+        val recyclerView = findViewById<View>(R.id.recyclerViewAlarms)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, recyclerView)
         
         setSupportActionBar(findViewById(R.id.toolbar))
         supportActionBar?.setDisplayHomeAsUpEnabled(true)

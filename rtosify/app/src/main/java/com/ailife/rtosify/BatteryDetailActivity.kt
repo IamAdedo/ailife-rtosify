@@ -82,6 +82,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_battery_detail)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, findViewById(android.R.id.content))
 
         devicePrefManager = DevicePrefManager(this)
         globalPrefs = devicePrefManager.getGlobalPrefs()

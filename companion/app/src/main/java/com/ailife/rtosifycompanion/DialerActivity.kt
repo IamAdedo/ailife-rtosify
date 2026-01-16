@@ -13,7 +13,9 @@ import android.widget.GridLayout
 import android.widget.TextView
 import android.widget.Toast
 
-class DialerActivity : Activity() {
+import androidx.appcompat.app.AppCompatActivity
+
+class DialerActivity : AppCompatActivity() {
 
     private lateinit var tvNumber: TextView
     private var bluetoothService: BluetoothService? = null
@@ -35,6 +37,8 @@ class DialerActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_dialer)
+        val rootLayout = findViewById<View>(R.id.rootLayout)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
         tvNumber = findViewById(R.id.tv_number)
 

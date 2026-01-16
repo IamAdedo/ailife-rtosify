@@ -176,6 +176,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         setContentView(R.layout.activity_main)
         initViews()
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, mainContentScrollView)
 
         setSupportActionBar(toolbar)
         supportActionBar?.title = getString(R.string.app_title)
@@ -198,7 +199,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         if (intent?.getBooleanExtra("request_mirror", false) == true) {
