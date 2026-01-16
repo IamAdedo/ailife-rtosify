@@ -441,6 +441,7 @@ class BluetoothService : Service() {
 
         const val EXTRA_NOTIF_JSON = "extra_notif_json"
         const val EXTRA_NOTIF_KEY = "extra_notif_key"
+        const val EXTRA_NOTIF_CACHE_KEY = "extra_notif_cache_key"
         const val EXTRA_ACTION_KEY = "extra_action_key"
         const val EXTRA_REPLY_TEXT = "extra_reply_text"
 
@@ -483,14 +484,26 @@ class BluetoothService : Service() {
                     if (!isConnected) return
                     when (intent?.action) {
                         ACTION_SEND_NOTIF_TO_WATCH -> {
-                            val jsonString = intent.getStringExtra(EXTRA_NOTIF_JSON)
-                            if (jsonString != null) {
-                                try {
-                                    val gson = com.google.gson.Gson()
-                                    val notifData =
-                                            gson.fromJson(jsonString, NotificationData::class.java)
-                                    sendMessage(ProtocolHelper.createNotificationPosted(notifData))
-                                } catch (_: Exception) {}
+                            var notifData: NotificationData? = null
+                            val cacheKey = intent.getStringExtra(EXTRA_NOTIF_CACHE_KEY)
+
+                            if (cacheKey != null) {
+                                notifData = NotificationCache.remove(cacheKey)
+                            }
+
+                            if (notifData == null) {
+                                val jsonString = intent.getStringExtra(EXTRA_NOTIF_JSON)
+                                if (jsonString != null) {
+                                    try {
+                                        val gson = com.google.gson.Gson()
+                                        notifData =
+                                                gson.fromJson(jsonString, NotificationData::class.java)
+                                    } catch (_: Exception) {}
+                                }
+                            }
+
+                            if (notifData != null) {
+                                sendMessage(ProtocolHelper.createNotificationPosted(notifData))
                             }
                         }
                         ACTION_SEND_REMOVE_TO_WATCH -> {

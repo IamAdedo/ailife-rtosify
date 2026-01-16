@@ -452,11 +452,11 @@ class MyNotificationListener : NotificationListenerService() {
                             actions = actions
                     )
 
-            // Convert to JSON using Gson
-            val jsonString = gson.toJson(notificationData)
+            // Store in Cache instead of serialized JSON to avoid TransactionTooLargeException
+            NotificationCache.put(sbn.key, notificationData)
 
             val intent = Intent(BluetoothService.ACTION_SEND_NOTIF_TO_WATCH)
-            intent.putExtra(BluetoothService.EXTRA_NOTIF_JSON, jsonString)
+            intent.putExtra(BluetoothService.EXTRA_NOTIF_CACHE_KEY, sbn.key)
             intent.setPackage(packageName)
             sendBroadcast(intent)
 
