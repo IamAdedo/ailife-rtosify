@@ -487,7 +487,7 @@ class TransportManager(
         if (internet != null && internet.isConnected()) {
             if (internet.send(message)) return true
         }
-        
+        Log.w(TAG, "No active transport to send message")
         return false
     }
 

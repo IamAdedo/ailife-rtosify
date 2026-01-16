@@ -190,11 +190,15 @@ class WifiIntranetTransport(
                     }
 
                     // Parse ProtocolMessage
-                    val json = String(decryptedBytes, Charsets.UTF_8)
-                    val message = ProtocolMessage.fromJson(json)
-                    messageChannel.send(message)
+                    try {
+                        val json = String(decryptedBytes, Charsets.UTF_8)
+                        val message = ProtocolMessage.fromJson(json)
+                        messageChannel.send(message)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to parse/send message: ${e.message}")
+                    }
                 }
-            } catch (e: IOException) {
+            } catch (e: Exception) {
                 Log.e(TAG, "Receive error", e)
             } finally {
                 disconnect()

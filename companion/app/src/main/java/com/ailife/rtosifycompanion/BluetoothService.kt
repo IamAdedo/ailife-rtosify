@@ -595,6 +595,11 @@ class BluetoothService : Service() {
         // Load saved internet settings into TransportManager
         notifyInternetSettingsChanged()
 
+        // Load saved WiFi rule into TransportManager
+        val savedWifiRule = prefs.getInt("wifi_activation_rule", 0)
+        transportManager.updateWifiRule(savedWifiRule)
+        Log.d(TAG, "Loaded WiFi activation rule from prefs: $savedWifiRule")
+
         serviceScope.launch {
             transportManager.incomingMessages.collect { message ->
                 lastMessageTime = System.currentTimeMillis()

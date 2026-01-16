@@ -140,11 +140,15 @@ class TransportManager(
         val local = lastLocalMac
         val remote = lastRemoteMac
         if (name != null && local != null && remote != null) {
+            // Don't cancel/restart watchdogs - they run every 3s and will pick up changes
+            // Just ensure they're running if not already
             scope.launch {
-                wifiServerWatchdog?.cancel()
-                startWifiServerWatchdog(null, name, local, remote)
-                internetMonitorWatchdog?.cancel()
-                startInternetMonitorWatchdog(name, local, remote)
+                if (wifiServerWatchdog?.isActive != true) {
+                    startWifiServerWatchdog(null, name, local, remote)
+                }
+                if (internetMonitorWatchdog?.isActive != true) {
+                    startInternetMonitorWatchdog(name, local, remote)
+                }
             }
         }
     }
@@ -347,10 +351,10 @@ class TransportManager(
 
                     if (hasKey) {
                         if (shouldBeRunning && !serverRunning) {
-                            Log.w(TAG, "LAN server watchdog: starting (Rules matched or Internet enabled)")
+                            Log.w(TAG, "LAN server watchdog: starting (Rules matched [Rule=$currentWifiRule, BT=$btConnected, PhoneApp=$isPhoneAppOpen] or Internet enabled)")
                             startWifiServer(deviceName, localMac, remoteMac)
                         } else if (!shouldBeRunning && serverRunning) {
-                            Log.d(TAG, "LAN server watchdog: stopping (No rules matched)")
+                            Log.d(TAG, "LAN server watchdog: stopping (No rules matched [Rule=$currentWifiRule, BT=$btConnected, PhoneApp=$isPhoneAppOpen])")
                             stopWifiServer()
                         }
                     }

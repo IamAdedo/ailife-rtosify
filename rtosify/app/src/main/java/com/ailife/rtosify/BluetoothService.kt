@@ -585,9 +585,10 @@ class BluetoothService : Service() {
                          if (statusUpdateJob?.isActive != true) {
                              startPeriodicUpdates()
                          }
-                         
                          // Sync foreground state immediately on connection
-                         sendMessage(ProtocolHelper.createSyncPhoneState(transportManager.isAppInForeground))
+                         val isForeground = transportManager.isAppInForeground
+                         Log.d(TAG, "Connection established (${state.type}), syncing foreground state: $isForeground")
+                         sendMessage(ProtocolHelper.createSyncPhoneState(isForeground))
                     }
                     is com.ailife.rtosify.communication.TransportManager.ConnectionState.Disconnected -> {
                          currentDeviceName = null
