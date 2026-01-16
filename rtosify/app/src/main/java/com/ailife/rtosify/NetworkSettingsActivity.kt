@@ -98,6 +98,9 @@ class NetworkSettingsActivity : AppCompatActivity() {
         override fun onStatusChanged(status: String) {
             runOnUiThread { updateConnectionStatus() }
         }
+        override fun onTransportStatusChanged(status: TransportManager.TransportStatus) {
+            runOnUiThread { updateConnectionStatus(status) }
+        }
         override fun onDeviceConnected(deviceName: String) {
             runOnUiThread { updateConnectionStatus() }
         }
@@ -362,10 +365,12 @@ class NetworkSettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateConnectionStatus() {
-        val btConnected = bluetoothService?.isConnected == true
-        val lanConnected = bluetoothService?.isWifiConnected() == true
-        val internetConnected = bluetoothService?.isInternetConnected() == true
+    private fun updateConnectionStatus(transportStatus: TransportManager.TransportStatus? = null) {
+        val status = transportStatus ?: bluetoothService?.transportManager?.status?.value
+        
+        val btConnected = status?.isBtConnected ?: (bluetoothService?.isConnected == true)
+        val lanConnected = status?.isLanConnected ?: (bluetoothService?.isWifiConnected() == true)
+        val internetConnected = status?.isInternetConnected ?: (bluetoothService?.isInternetConnected() == true)
 
         val lanRule = devicePrefManager.getActiveDevicePrefs().getInt("wifi_activation_rule", 0)
         val internetRule = devicePrefManager.getActiveDevicePrefs().getInt("internet_activation_rule", 0)
@@ -374,7 +379,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
         val lanShouldBeActive = when {
             lanRule == 0 -> false
             (lanRule and BluetoothService.WIFI_RULE_ALWAYS) != 0 -> true
-            (lanRule and BluetoothService.WIFI_RULE_BT_OR_APP) != 0 -> !btConnected || true // app is open when this screen is shown
+            (lanRule and BluetoothService.WIFI_RULE_BT_OR_APP) != 0 -> true // app is open when this screen is shown
             (lanRule and BluetoothService.WIFI_RULE_BT_FALLBACK) != 0 -> !btConnected
             (lanRule and BluetoothService.WIFI_RULE_MAINACTIVITY) != 0 -> true // app is open
             else -> false
@@ -427,10 +432,19 @@ class NetworkSettingsActivity : AppCompatActivity() {
             else -> "Paused by rule"
         }
 
-        // Update active connection summary using TransportManager
-        val statusString = bluetoothService?.transportManager?.getConnectionStatusString() ?: "Disconnected"
+        // Update active connection summary using unified status
+        val statusString = if (status != null && status.isConnected) {
+            "Connected via ${status.typeString}"
+        } else if (status?.state is TransportManager.ConnectionState.Connecting) {
+             "Connecting..."
+        } else if (status?.state is TransportManager.ConnectionState.Waiting) {
+             "Waiting..."
+        } else {
+             "Disconnected"
+        }
+        
         tvActiveConnection.text = statusString
-        val isAnyConnected = bluetoothService?.transportManager?.isAnyTransportConnected() == true
+        val isAnyConnected = status?.isConnected ?: false
         tvActiveConnection.setTextColor(
             if (isAnyConnected) 0xFF4CAF50.toInt() else 0xFFF44336.toInt()
         )

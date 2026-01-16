@@ -246,6 +246,7 @@ class BluetoothService : Service() {
                 dndEnabled: Boolean,
                 ipAddress: String? = null
         ) {}
+        fun onTransportStatusChanged(status: com.ailife.rtosifycompanion.communication.TransportManager.TransportStatus) {}
         fun onPhoneBatteryUpdated(battery: Int, isCharging: Boolean) {}
     }
 
@@ -477,9 +478,13 @@ class BluetoothService : Service() {
             object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
                     if (intent?.action == ACTION_REQUEST_CONNECTION_STATE) {
-                        Log.d(TAG, "Dynamic Island requested connection state: $isConnected")
+                        val connected = isConnected
+                        Log.d(TAG, "Dynamic Island requested connection state: $connected")
                         val response = Intent(ACTION_CONNECTION_STATE_CHANGED)
-                        response.putExtra("connected", isConnected)
+                        response.putExtra("connected", connected)
+                        if (::transportManager.isInitialized) {
+                            response.putExtra("transport", transportManager.status.value.typeString)
+                        }
                         response.setPackage(packageName)
                         sendBroadcast(response)
                     }
@@ -608,11 +613,13 @@ class BluetoothService : Service() {
         }
 
         serviceScope.launch {
-            transportManager.connectionState.collect { state ->
+            transportManager.status.collect { status ->
+                val state = status.state
+                serviceScope.launch(Dispatchers.Main) { callback?.onTransportStatusChanged(status) }
                 when (state) {
                     is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Connected -> {
-                        val deviceName = state.deviceName ?: getString(R.string.device_name_default)
-                        handleDeviceConnected(deviceName, state.deviceMac, state.type)
+                        val deviceName = status.deviceName ?: getString(R.string.device_name_default)
+                        handleDeviceConnected(deviceName, status.deviceMac, status.typeString)
                     }
                     is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Disconnected -> {
                         handleDeviceDisconnected()
@@ -620,7 +627,7 @@ class BluetoothService : Service() {
                     is com.ailife.rtosifycompanion.communication.TransportManager.ConnectionState.Waiting -> {
                          // If we were connected, Waiting means we just lost it
                          if (isConnected || lastConnectedState) {
-                             Log.d(TAG, "TransportManager transitioned to Waiting state - treating as disconnection")
+                             Log.d(TAG, "TransportManager status updated to Waiting - treating as disconnection")
                              handleDeviceDisconnected()
                          } else {
                              updateStatus(getString(R.string.status_waiting))

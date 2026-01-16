@@ -1452,13 +1452,16 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     override fun onStatusChanged(status: String) {
-        android.util.Log.d("MainActivity", "onStatusChanged received: status='$status'")
         runOnUiThread {
-            android.util.Log.d("MainActivity", "onStatusChanged runOnUiThread: calling updateStatusUI")
-            // Use TransportManager's connection status string for accurate display
-            val connectionStatus = bluetoothService?.transportManager?.getConnectionStatusString() ?: status
-            val isConnected = bluetoothService?.transportManager?.isAnyTransportConnected() == true
-            updateStatusUI(connectionStatus, isConnected)
+            val isConnected = bluetoothService?.isConnected == true
+            updateStatusUI(status, isConnected)
+        }
+    }
+
+    override fun onTransportStatusChanged(status: com.ailife.rtosify.communication.TransportManager.TransportStatus) {
+        runOnUiThread {
+            val statusText = bluetoothService?.currentStatus ?: status.typeString
+            updateStatusUI(statusText, status.isConnected)
         }
     }
     override fun onDeviceConnected(deviceName: String) {

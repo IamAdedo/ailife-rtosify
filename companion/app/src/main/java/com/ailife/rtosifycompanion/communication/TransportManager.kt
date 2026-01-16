@@ -84,9 +84,23 @@ class TransportManager(
     private val _incomingMessages = Channel<ProtocolMessage>(Channel.BUFFERED)
     val incomingMessages: Flow<ProtocolMessage> = _incomingMessages.receiveAsFlow()
 
+    data class TransportStatus(
+        val isConnected: Boolean = false,
+        val isBtConnected: Boolean = false,
+        val isLanConnected: Boolean = false,
+        val isInternetConnected: Boolean = false,
+        val deviceName: String? = null,
+        val deviceMac: String? = null,
+        val typeString: String = "",
+        val state: ConnectionState = ConnectionState.Disconnected
+    )
+
     // Connection state
     private val _connectionState = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
+
+    private val _status = MutableStateFlow(TransportStatus())
+    val status: StateFlow<TransportStatus> = _status.asStateFlow()
 
     private var btMonitorJob: Job? = null
     private var wifiMonitorJob: Job? = null
@@ -593,16 +607,18 @@ class TransportManager(
         val wifiConnected = wifi != null && wifi.isConnected()
         val internetConnected = internet != null && internet.isConnected()
 
-        val newState = if (btConnected || wifiConnected || internetConnected) {
-            val types = mutableListOf<String>()
-            if (btConnected) types.add("BT")
-            if (wifiConnected) types.add("LAN")
-            if (internetConnected) types.add("Internet")
+        val types = mutableListOf<String>()
+        if (btConnected) types.add("BT")
+        if (wifiConnected) types.add("LAN")
+        if (internetConnected) types.add("Internet")
+        val typeString = types.joinToString("+")
 
-            val typeString = types.joinToString("+")
-            val deviceName = bt?.getRemoteDeviceName() ?: wifi?.getRemoteDeviceName() ?: internet?.getRemoteDeviceName()
-            val deviceMac = bt?.getRemoteAddress() ?: wifi?.getRemoteAddress() ?: internet?.getRemoteAddress()
+        val deviceName = bt?.getRemoteDeviceName() ?: wifi?.getRemoteDeviceName() ?: internet?.getRemoteDeviceName()
+        val deviceMac = bt?.getRemoteAddress() ?: wifi?.getRemoteAddress() ?: internet?.getRemoteAddress()
 
+        val isAnyConnected = btConnected || wifiConnected || internetConnected
+
+        val newState = if (isAnyConnected) {
             ConnectionState.Connected(typeString, deviceName, deviceMac)
         } else {
             if (isConnectingWifi || isConnectingInternet) {
@@ -612,8 +628,18 @@ class TransportManager(
             }
         }
 
-        Log.i(TAG, "Connection State Update: BT=$btConnected, LAN=$wifiConnected, Internet=$internetConnected")
+        Log.i(TAG, "Status Update: Connected=$isAnyConnected ($typeString), State=${newState.javaClass.simpleName}")
         _connectionState.value = newState
+        _status.value = TransportStatus(
+            isConnected = isAnyConnected,
+            isBtConnected = btConnected,
+            isLanConnected = wifiConnected,
+            isInternetConnected = internetConnected,
+            deviceName = deviceName,
+            deviceMac = deviceMac,
+            typeString = typeString,
+            state = newState
+        )
     }
 
     fun forceDisconnect() {

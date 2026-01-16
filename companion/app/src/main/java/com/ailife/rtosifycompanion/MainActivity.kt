@@ -690,9 +690,14 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     override fun onStatusChanged(status: String) {
         runOnUiThread {
-            val connectionStatus = bluetoothService?.getConnectionStatusString() ?: status
-            val isConnected = connectionStatus.startsWith("Connected")
-            updateStatusUI(connectionStatus, isConnected)
+            updateStatusUI(status, bluetoothService?.isConnected == true)
+        }
+    }
+
+    override fun onTransportStatusChanged(status: com.ailife.rtosifycompanion.communication.TransportManager.TransportStatus) {
+        runOnUiThread {
+            val statusDisplay = bluetoothService?.currentStatus ?: status.typeString
+            updateStatusUI(statusDisplay, status.isConnected)
         }
     }
     override fun onDeviceConnected(deviceName: String, transportType: String) {

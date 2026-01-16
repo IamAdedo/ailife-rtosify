@@ -233,6 +233,7 @@ class BluetoothService : Service() {
         fun onStatusChanged(status: String)
         fun onDeviceConnected(deviceName: String)
         fun onDeviceDisconnected()
+        fun onTransportStatusChanged(status: com.ailife.rtosify.communication.TransportManager.TransportStatus) {}
         fun onError(message: String)
         fun onScanResult(devices: List<BluetoothDevice>)
         fun onAppListReceived(appsJson: String)
@@ -566,19 +567,20 @@ class BluetoothService : Service() {
         }
         
         serviceScope.launch {
-            transportManager.connectionState.collect { state ->
-                when(state) {
+            transportManager.status.collect { status ->
+                when(val state = status.state) {
                     is com.ailife.rtosify.communication.TransportManager.ConnectionState.Connected -> {
-                         currentDeviceName = state.deviceName ?: getString(R.string.device_name_default)
+                         currentDeviceName = status.deviceName ?: getString(R.string.device_name_default)
                          
                          // Show transport type in status - handle combined types
-                         val statusText = buildConnectionStatusText(state.type, currentDeviceName ?: "")
+                         val statusText = buildConnectionStatusText(status.typeString, currentDeviceName ?: "")
                          updateStatus(statusText)
-                         Log.d(TAG, "Device connected via ${state.type}: $currentDeviceName")
+                         Log.d(TAG, "Device connected via ${status.typeString}: $currentDeviceName")
                          
                          // Trigger activity callback
                          mainHandler.post {
                              callback?.onDeviceConnected(currentDeviceName ?: "")
+                             callback?.onTransportStatusChanged(status)
                          }
                          
                          // Start periodic status updates when connected
@@ -587,7 +589,7 @@ class BluetoothService : Service() {
                          }
                          // Sync foreground state immediately on connection
                          val isForeground = transportManager.isAppInForeground
-                         Log.d(TAG, "Connection established (${state.type}), syncing foreground state: $isForeground")
+                         Log.d(TAG, "Connection status updated (${status.typeString}), syncing foreground state: $isForeground")
                          sendMessage(ProtocolHelper.createSyncPhoneState(isForeground))
                     }
                     is com.ailife.rtosify.communication.TransportManager.ConnectionState.Disconnected -> {
@@ -598,6 +600,7 @@ class BluetoothService : Service() {
                          // Trigger activity callback
                          mainHandler.post {
                              callback?.onDeviceDisconnected()
+                             callback?.onTransportStatusChanged(status)
                          }
                          
                          statusUpdateJob?.cancel()
@@ -605,10 +608,12 @@ class BluetoothService : Service() {
                     is com.ailife.rtosify.communication.TransportManager.ConnectionState.Connecting -> {
                          currentDeviceName = null
                          updateStatus(getString(R.string.status_starting))
+                         mainHandler.post { callback?.onTransportStatusChanged(status) }
                     }
                     is com.ailife.rtosify.communication.TransportManager.ConnectionState.Waiting -> {
                          currentDeviceName = null
                          updateStatus(getString(R.string.status_stopped))
+                         mainHandler.post { callback?.onTransportStatusChanged(status) }
                     }
                 }
             }
