@@ -1,5 +1,8 @@
 package com.ailife.rtosifycompanion
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.*
 import android.content.*
@@ -7,6 +10,7 @@ import android.graphics.PixelFormat
 import android.os.*
 import android.util.Log
 import android.view.*
+import android.view.animation.DecelerateInterpolator
 import androidx.core.app.NotificationCompat
 import com.google.gson.Gson
 
@@ -39,6 +43,8 @@ class DynamicIslandService : Service() {
     private var lastBatteryPercent = -1
     private var isShowingTransientState = false
     private var currentTransport = ""
+    private var isOverlayVisible = true
+    private var currentVisibilityAnimator: ObjectAnimator? = null
 
     private val receiver =
             object : BroadcastReceiver() {
@@ -350,10 +356,54 @@ class DynamicIslandService : Service() {
         // If hideWhenIdle is false, transient state stays visible until next state change
     }
 
+    private fun showOverlayAnimated() {
+        if (isOverlayVisible) return
+
+        currentVisibilityAnimator?.cancel()
+        isOverlayVisible = true
+
+        // Make visible before animating
+        overlayView.visibility = View.VISIBLE
+
+        // Animate from above the screen to normal position
+        val slideDistance = overlayView.height.takeIf { it > 0 } ?: 100.dpToPx()
+        overlayView.translationY = -slideDistance.toFloat()
+
+        currentVisibilityAnimator = ObjectAnimator.ofFloat(overlayView, "translationY", -slideDistance.toFloat(), 0f).apply {
+            duration = 300
+            interpolator = DecelerateInterpolator()
+            start()
+        }
+    }
+
+    private fun hideOverlayAnimated() {
+        if (!isOverlayVisible) return
+
+        currentVisibilityAnimator?.cancel()
+        isOverlayVisible = false
+
+        // Animate to above the screen
+        val slideDistance = overlayView.height.takeIf { it > 0 } ?: 100.dpToPx()
+
+        currentVisibilityAnimator = ObjectAnimator.ofFloat(overlayView, "translationY", 0f, -slideDistance.toFloat()).apply {
+            duration = 300
+            interpolator = DecelerateInterpolator()
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    if (!isOverlayVisible) {
+                        overlayView.visibility = View.GONE
+                        overlayView.translationY = 0f
+                    }
+                }
+            })
+            start()
+        }
+    }
+
     private fun updateState() {
         handler.post {
             if (isShowingTransientState) {
-                overlayView.visibility = View.VISIBLE
+                showOverlayAnimated()
                 // Don't override the transient UI with persistent state logic
                 return@post
             }
@@ -364,9 +414,9 @@ class DynamicIslandService : Service() {
 
             if (hideWhenIdle && !hasNotifications) {
                 overlayView.showIdleState(currentTransport)
-                overlayView.visibility = View.GONE
+                hideOverlayAnimated()
             } else {
-                overlayView.visibility = View.VISIBLE
+                showOverlayAnimated()
 
                 // Normal state logic
                 when {
@@ -578,6 +628,7 @@ class DynamicIslandService : Service() {
         }
 
         handler.removeCallbacksAndMessages(null)
+        currentVisibilityAnimator?.cancel()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
