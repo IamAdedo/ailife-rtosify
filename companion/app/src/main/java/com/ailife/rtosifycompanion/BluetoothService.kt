@@ -58,6 +58,9 @@ import androidx.core.content.edit
 import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.scale
 import androidx.core.net.toUri
+import com.ailife.rtosifycompanion.widget.MediaWidget
+import com.ailife.rtosifycompanion.widget.DashboardWidget
+import android.appwidget.AppWidgetManager
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
@@ -152,6 +155,10 @@ class BluetoothService : Service() {
 
     // REFACTORING: More robust notification control
     @Volatile private var currentNotificationStatus: String = ""
+
+    // Widget Data Cache
+    private var lastPhoneBattery = -1
+
 
     private val mainHandler = Handler(Looper.getMainLooper())
     
@@ -459,6 +466,11 @@ class BluetoothService : Service() {
                                     )
                             )
                         }
+                        MediaWidget.ACTION_CMD_PLAY_PAUSE -> sendMediaCommand(MediaControlData.CMD_PLAY_PAUSE)
+                        MediaWidget.ACTION_CMD_NEXT -> sendMediaCommand(MediaControlData.CMD_NEXT)
+                        MediaWidget.ACTION_CMD_PREV -> sendMediaCommand(MediaControlData.CMD_PREVIOUS)
+                        MediaWidget.ACTION_CMD_VOL_UP -> sendMediaCommand(MediaControlData.CMD_VOL_UP)
+                        MediaWidget.ACTION_CMD_VOL_DOWN -> sendMediaCommand(MediaControlData.CMD_VOL_DOWN)
                     }
                 }
             }
@@ -666,6 +678,11 @@ class BluetoothService : Service() {
                     addAction(ACTION_CMD_DISMISS_ON_PHONE)
                     addAction(ACTION_CMD_EXECUTE_ACTION)
                     addAction(ACTION_CMD_SEND_REPLY)
+                    addAction(MediaWidget.ACTION_CMD_PLAY_PAUSE)
+                    addAction(MediaWidget.ACTION_CMD_NEXT)
+                    addAction(MediaWidget.ACTION_CMD_PREV)
+                    addAction(MediaWidget.ACTION_CMD_VOL_UP)
+                    addAction(MediaWidget.ACTION_CMD_VOL_DOWN)
                 }
         val filterWatch = IntentFilter(ACTION_WATCH_DISMISSED_LOCAL)
         val filterHandshake = IntentFilter(ACTION_REQUEST_CONNECTION_STATE)
@@ -1272,6 +1289,8 @@ class BluetoothService : Service() {
     private fun handlePhoneBatteryUpdate(message: ProtocolMessage) {
         try {
             val data = ProtocolHelper.extractData<PhoneBatteryData>(message)
+            lastPhoneBattery = data.level
+            updateDashboardWidget()
             serviceScope.launch(Dispatchers.Main) {
                 callback?.onPhoneBatteryUpdated(data.level, data.isCharging)
             }
@@ -4017,6 +4036,31 @@ class BluetoothService : Service() {
         }
     }
 
+    fun sendMediaCommand(command: String) {
+        sendMessage(ProtocolHelper.createMediaControl(command))
+    }
+
+    private fun updateDashboardWidget() {
+        try {
+            val status = if (isConnected) getString(R.string.status_connected_to, currentDeviceName ?: "Phone") else getString(R.string.status_disconnected)
+            
+            // Get local battery level
+            val batteryManager = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+            val watchBattery = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+
+            val intent = Intent(DashboardWidget.ACTION_DASHBOARD_UPDATE).apply {
+                putExtra(DashboardWidget.EXTRA_STATUS, status)
+                putExtra(DashboardWidget.EXTRA_PHONE_BATTERY, lastPhoneBattery)
+                putExtra(DashboardWidget.EXTRA_WATCH_BATTERY, watchBattery)
+                putExtra(DashboardWidget.EXTRA_TRANSPORT, currentTransportType)
+                setPackage(packageName)
+            }
+            sendBroadcast(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating dashboard widget: ${e.message}")
+        }
+    }
+
     fun sendShutdownCommand() {
         sendMessage(ProtocolHelper.createShutdown())
     }
@@ -4854,6 +4898,8 @@ class BluetoothService : Service() {
         stopSelf()
     }
     private fun updateStatus(text: String) {
+        updateDashboardWidget()
+
         if (isStopping) return // Prevent updates if stopping
 
         currentStatus = text

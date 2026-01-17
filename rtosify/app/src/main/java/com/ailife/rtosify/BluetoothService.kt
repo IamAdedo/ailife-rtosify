@@ -58,6 +58,9 @@ import androidx.core.net.toUri
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.ailife.rtosify.widget.HealthWidget
+import com.ailife.rtosify.widget.StatusWidget
+import android.appwidget.AppWidgetManager
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
@@ -529,6 +532,12 @@ class BluetoothService : Service() {
                                 }
                             }
                         }
+                        StatusWidget.ACTION_TOGGLE_DND -> {
+                             handleDndToggle()
+                        }
+                        StatusWidget.ACTION_TOGGLE_MIRROR -> {
+                             handleMirrorToggle()
+                        }
                     }
                 }
             }
@@ -637,6 +646,8 @@ class BluetoothService : Service() {
                     addAction(ACTION_SEND_NOTIF_TO_WATCH)
                     addAction(ACTION_SEND_REMOVE_TO_WATCH)
                     addAction(ACTION_UPDATE_SETTINGS)
+                    addAction(StatusWidget.ACTION_TOGGLE_DND)
+                    addAction(StatusWidget.ACTION_TOGGLE_MIRROR)
                 }
         val filterWatch = IntentFilter(ACTION_WATCH_DISMISSED_LOCAL)
 
@@ -850,8 +861,17 @@ class BluetoothService : Service() {
             initializeLogicFromPrefs()
         }
 
-        if (DEBUG_NOTIFICATIONS)
-                Log.d(TAG, "onStartCommand: Service started, isConnected=$isConnected")
+        // Handle widget actions
+    if (intent?.action != null && intent.action!!.startsWith("com.ailife.rtosify.widget.ACTION_TOGGLE")) {
+        Log.d(TAG, "onStartCommand: Received widget action: ${intent.action}")
+        when (intent.action) {
+            StatusWidget.ACTION_TOGGLE_DND -> handleDndToggle()
+            StatusWidget.ACTION_TOGGLE_MIRROR -> handleMirrorToggle()
+        }
+    }
+
+    if (DEBUG_NOTIFICATIONS)
+            Log.d(TAG, "onStartCommand: Service started, isConnected=$isConnected")
 
         isStopping = false // Reset on start
         return START_STICKY
@@ -859,6 +879,10 @@ class BluetoothService : Service() {
 
     private fun initializeLogicFromPrefs() {
         if (!prefs.getBoolean("service_enabled", true)) return
+        
+        // Initialize DND state from system
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        dndEnabled = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
         
         // RTOSify app is phone-only, always start smartphone logic
         startSmartphoneLogic()
@@ -1103,6 +1127,12 @@ class BluetoothService : Service() {
     private suspend fun handleStatusUpdateReceived(message: ProtocolMessage) {
         try {
             val status = ProtocolHelper.extractData<StatusUpdateData>(message)
+            
+            lastBatteryLevel = status.battery
+            dndEnabled = status.dnd
+            lastWifiSsid = status.wifi
+            updateWidgets()
+
             withContext(Dispatchers.Main) {
                 callback?.onWatchStatusUpdated(
                         status.battery,
@@ -1121,6 +1151,12 @@ class BluetoothService : Service() {
     private suspend fun handleHealthDataReceived(message: ProtocolMessage) {
         try {
             val healthData = ProtocolHelper.extractData<HealthDataUpdate>(message)
+            
+            lastSteps = healthData.steps
+            lastHr = healthData.heartRate ?: 0
+            lastSpo2 = healthData.bloodOxygen ?: 0
+            updateWidgets()
+            
             withContext(Dispatchers.Main) { callback?.onHealthDataUpdated(healthData) }
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing health data: ${e.message}")
@@ -2737,6 +2773,7 @@ class BluetoothService : Service() {
                 if (DEBUG_NOTIFICATIONS) Log.e(TAG, "updateStatus erro: ${e.message}")
             }
             Log.d(TAG, "updateStatus mainHandler: calling callback?.onStatusChanged")
+            updateWidgets()
             callback?.onStatusChanged(text)
         }
     }
@@ -3296,6 +3333,74 @@ class BluetoothService : Service() {
         intent.putExtra("height", data.height)
         intent.putExtra("density", data.density)
         sendBroadcast(intent)
+    }
+
+    private fun handleDndToggle() {
+        val newState = !dndEnabled
+        
+        // 1. Toggle Local DND (if permitted)
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        if (nm.isNotificationPolicyAccessGranted) {
+            try {
+                nm.setInterruptionFilter(if (newState) NotificationManager.INTERRUPTION_FILTER_PRIORITY else NotificationManager.INTERRUPTION_FILTER_ALL)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to set local DND: ${e.message}")
+            }
+        }
+        
+        // 2. Sync to Watch
+        sendDndCommand(newState)
+        
+        // 3. Update local state and refresh widgets
+        dndEnabled = newState
+        updateWidgets()
+    }
+
+    private var dndEnabled = false
+    private var lastBatteryLevel = -1
+    private var lastWifiSsid = "Not Connected"
+    private var lastHr = -1
+    private var lastSteps = -1
+    private var lastSpo2 = -1
+
+    private fun handleMirrorToggle() {
+        if (MirroringService.isRunning) {
+             val stopIntent = Intent(this, MirroringService::class.java)
+             stopService(stopIntent)
+             // Widget will be updated via service connection/status update, 
+             // but let's do an immediate refresh if possible.
+             updateWidgets()
+        } else {
+             val intent = Intent(this, MirrorSettingsActivity::class.java).apply {
+                 putExtra("request_mirror", true)
+                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+             }
+             startActivity(intent)
+             // Mirroring starting is handled by the activity.
+        }
+    }
+
+    fun updateWidgets() {
+        // Update Status Widget
+        val statusIntent = Intent(this, StatusWidget::class.java).apply {
+            action = StatusWidget.ACTION_WIDGET_UPDATE
+            putExtra(StatusWidget.EXTRA_DEVICE_NAME, currentDeviceName ?: "Watch")
+            putExtra(StatusWidget.EXTRA_CONNECTION_STATUS, currentStatus)
+            putExtra(StatusWidget.EXTRA_BATTERY_LEVEL, lastBatteryLevel)
+            putExtra(StatusWidget.EXTRA_WIFI_SSID, lastWifiSsid)
+            putExtra(StatusWidget.EXTRA_WIDGET_DND_STATE, dndEnabled)
+        }
+        sendBroadcast(statusIntent)
+
+        // Update Health Widget
+        val healthIntent = Intent(this, HealthWidget::class.java).apply {
+            action = HealthWidget.ACTION_WIDGET_HEALTH_UPDATE
+            putExtra(HealthWidget.EXTRA_STEPS, lastSteps)
+            putExtra(HealthWidget.EXTRA_HEART_RATE, lastHr)
+            putExtra(HealthWidget.EXTRA_SPO2, lastSpo2)
+            putExtra(HealthWidget.EXTRA_TIMESTAMP, System.currentTimeMillis())
+        }
+        sendBroadcast(healthIntent)
     }
 
     // Terminal / Shell Command Response Handlers

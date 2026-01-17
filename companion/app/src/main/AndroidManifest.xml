@@ -264,6 +264,36 @@
             android:enabled="true"
             android:exported="false" />
 
+        <!-- Media Widget -->
+         <receiver
+            android:name=".widget.MediaWidget"
+            android:label="@string/widget_media_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.ailife.rtosifycompanion.widget.ACTION_MEDIA_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_media_info" />
+        </receiver>
+
+        <!-- Dashboard Widget -->
+        <receiver
+            android:name=".widget.DashboardWidget"
+            android:label="@string/widget_dashboard_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.ailife.rtosifycompanion.widget.ACTION_DASHBOARD_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_dashboard_info" />
+        </receiver>
+
 
 
         <!-- FileProvider (for APK installation) -->

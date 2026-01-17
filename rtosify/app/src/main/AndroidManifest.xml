@@ -304,11 +304,51 @@
             </intent-filter>
         </receiver>
 
-        <!-- Notification Action Receiver -->
+    <!-- Notification Action Receiver -->
         <receiver
             android:name=".NotificationActionReceiver"
             android:enabled="true"
             android:exported="false" />
+
+        <!-- Widget Configuration -->
+        <activity
+            android:name=".widget.WidgetConfigActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Smartwatch">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Status Widget -->
+        <receiver
+            android:name=".widget.StatusWidget"
+            android:label="@string/widget_status_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.ailife.rtosify.widget.ACTION_WIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_status_info" />
+        </receiver>
+
+        <!-- Health Widget -->
+        <receiver
+            android:name=".widget.HealthWidget"
+            android:label="@string/widget_health_name"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.ailife.rtosify.widget.ACTION_WIDGET_HEALTH_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_health_info" />
+        </receiver>
 
         <!-- FileProvider (OBRIGATÓRIO PARA INSTALAÇÃO) -->
         <provider

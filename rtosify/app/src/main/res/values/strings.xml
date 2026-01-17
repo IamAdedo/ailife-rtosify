@@ -764,5 +764,9 @@
     <string name="camera_record">Record</string>
     <string name="camera_record_started">Recording started</string>
     <string name="camera_record_stopped">Recording stopped</string>
+    
+    <!-- Widgets -->
+    <string name="widget_status_name">Connection Status</string>
+    <string name="widget_health_name">Health Card</string>
 </resources>
 

@@ -424,4 +424,6 @@
     <string name="network_turn_username_hint">TURN Username</string>
     <string name="network_turn_password_hint">TURN Password</string>
     <string name="camera_record">Record</string>
+    <string name="widget_media_name">Media Control</string>
+    <string name="widget_dashboard_name">Dashboard</string>
 </resources>
