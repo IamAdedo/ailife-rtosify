@@ -1179,7 +1179,20 @@ class BluetoothService : Service() {
             updateStatus(getString(R.string.status_disconnected))
             
             if (prefs.getBoolean("notify_on_disconnect", false)) {
+                Log.i(TAG, "Disconnection notification is enabled, showing now")
                 showDisconnectionNotification()
+                
+                // Also log to NotificationLogManager for history
+                val disconnectData = NotificationData(
+                    packageName = "com.ailife.rtosify",
+                    title = getString(R.string.notification_phone_disconnected_title),
+                    text = getString(R.string.notification_phone_disconnected_text),
+                    key = "system_disconnect_${System.currentTimeMillis()}",
+                    appName = "System"
+                )
+                NotificationLogManager.addLog(this, disconnectData)
+            } else {
+                Log.d(TAG, "Disconnection notification is disabled, skipping")
             }
             
             onConnectionLost()
@@ -1351,6 +1364,7 @@ class BluetoothService : Service() {
 
             // Store all automation preferences
             settings.notifyOnDisconnect?.let {
+                Log.d(TAG, "Syncing notifyOnDisconnect: $it")
                 prefs.edit().putBoolean("notify_on_disconnect", it).apply()
             }
             settings.notificationMirroringEnabled?.let {

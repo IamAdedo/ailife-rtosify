@@ -1440,8 +1440,12 @@ class BluetoothService : Service() {
     }
 
     private fun sendAutomationSettings() {
+        val notifyVal = activePrefs.getBoolean("notify_on_disconnect", false)
+        Log.d(TAG, "sendAutomationSettings: notify_on_disconnect = $notifyVal")
+        
         val settings =
                 SettingsUpdateData(
+                        notifyOnDisconnect = notifyVal,
                         clipboardSyncEnabled =
                                 activePrefs.getBoolean("clipboard_sync_enabled", false),
                         autoWifiEnabled = activePrefs.getBoolean("auto_wifi_enabled", false),
