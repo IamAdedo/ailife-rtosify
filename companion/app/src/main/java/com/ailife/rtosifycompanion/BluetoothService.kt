@@ -595,6 +595,7 @@ class BluetoothService : Service() {
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     override fun onCreate() {
         super.onCreate()
+        NotificationLogManager.init(this)
         prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE)
         val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         // bluetoothAdapter assignment removed (property removed)
@@ -4420,6 +4421,9 @@ class BluetoothService : Service() {
     private fun showMirroredNotification(message: ProtocolMessage) {
         try {
             val notif = ProtocolHelper.extractData<NotificationData>(message)
+            
+            // Log notification
+            NotificationLogManager.addLog(this, notif)
 
             // Check notification style preference
             val notificationStyle = prefs.getString("notification_style", "android") ?: "android"

@@ -251,6 +251,12 @@
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Smartwatch" />
 
+        <activity
+            android:name=".NotificationLogActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.Smartwatch" />
+
         <service
             android:name=".MirroringService"
             android:enabled="true"

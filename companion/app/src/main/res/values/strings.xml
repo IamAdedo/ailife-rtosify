@@ -40,6 +40,11 @@
     <string name="menu_mirroring_desc">Stream screen and control remotely</string>
     <string name="menu_reset_all">Reset All</string>
     <string name="menu_reset_all_desc">Clear settings and return to start</string>
+    <string name="menu_notification_log">Notification Log</string>
+    <string name="menu_notification_log_desc">View last 30 notifications</string>
+    <string name="notification_log_title">Notification Log</string>
+    <string name="notification_log_empty">No notifications logged</string>
+    <string name="notification_log_clear">Clear Log</string>
     <string name="dialog_reset_all_title">Reset All Settings?</string>
     <string name="dialog_reset_all_message">This will clear all settings and return to the start screen. Do you want to continue?</string>
     <string name="dialog_reset_all_confirm">Reset All</string>

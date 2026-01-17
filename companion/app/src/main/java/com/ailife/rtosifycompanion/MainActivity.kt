@@ -384,6 +384,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                         startActivity(Intent(this, DialerActivity::class.java))
                                     }
                                 }
+                        ),
+                        MenuOption(
+                                getString(R.string.menu_notification_log),
+                                getString(R.string.menu_notification_log_desc),
+                                android.R.drawable.ic_popup_reminder,
+                                { startActivity(Intent(this, NotificationLogActivity::class.java)) }
                         )
                 )
 
@@ -500,6 +506,15 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 startActivity(Intent(this, DialerActivity::class.java))
                             }
                         }
+                )
+        )
+
+        options.add(
+                MenuOption(
+                        getString(R.string.menu_notification_log),
+                        getString(R.string.menu_notification_log_desc),
+                        android.R.drawable.ic_popup_reminder,
+                        { startActivity(Intent(this, NotificationLogActivity::class.java)) }
                 )
         )
 
