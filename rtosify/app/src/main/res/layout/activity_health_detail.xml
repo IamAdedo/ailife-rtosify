@@ -23,424 +23,442 @@
             app:title="@string/health_steps_title" />
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Scrollable Content with Swipe Refresh -->
-    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/swipeRefresh"
+    <!-- Main Content Container with Fixed Bottom Nav -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:orientation="vertical"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
-        <androidx.core.widget.NestedScrollView
+        <!-- Scrollable Content with Swipe Refresh -->
+        <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+            android:id="@+id/swipeRefresh"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:fillViewport="true">
+            android:layout_height="0dp"
+            android:layout_weight="1">
 
-            <LinearLayout
+            <androidx.core.widget.NestedScrollView
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="16dp">
+                android:layout_height="match_parent"
+                android:fillViewport="true">
 
-                <!-- Period Toggle -->
-                <com.google.android.material.button.MaterialButtonToggleGroup
-                    android:id="@+id/togglePeriod"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    app:singleSelection="true"
-                    app:selectionRequired="true">
-
-                    <Button
-                        android:id="@+id/btnDay"
-                        style="?attr/materialButtonOutlinedStyle"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/health_period_day" />
-
-                    <Button
-                        android:id="@+id/btnWeek"
-                        style="?attr/materialButtonOutlinedStyle"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/health_period_week" />
-
-                    <Button
-                        android:id="@+id/btnMonth"
-                        style="?attr/materialButtonOutlinedStyle"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/health_period_month" />
-                </com.google.android.material.button.MaterialButtonToggleGroup>
-
-                <!-- Date Navigation -->
                 <LinearLayout
-                    android:id="@+id/layoutDateNav"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:orientation="vertical"
+                    android:padding="16dp">
 
-                    <ImageButton
-                        android:id="@+id/btnPrevDate"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="@string/health_prev_date"
-                        android:src="@drawable/ic_arrow_back"
-                        app:tint="?android:attr/textColorPrimary" />
-
-                    <TextView
-                        android:id="@+id/tvCurrentDateRange"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:gravity="center"
-                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                        tools:text="Thursday, Jan 8" />
-
-                    <ImageButton
-                        android:id="@+id/btnNextDate"
-                        android:layout_width="48dp"
-                        android:layout_height="48dp"
-                        android:background="?attr/selectableItemBackgroundBorderless"
-                        android:contentDescription="@string/health_next_date"
-                        android:rotation="180"
-                        android:src="@drawable/ic_arrow_back"
-                        app:tint="?android:attr/textColorPrimary" />
-                </LinearLayout>
-
-                <!-- Current Value Card (HR/Oxygen) -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/cardCurrentValue"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:visibility="gone"
-                    app:cardBackgroundColor="?attr/colorSurfaceContainer"
-                    app:cardCornerRadius="16dp"
-                    app:strokeWidth="0dp"
-                    tools:visibility="visible">
-
-                    <LinearLayout
+                    <!-- Period Toggle -->
+                    <com.google.android.material.button.MaterialButtonToggleGroup
+                        android:id="@+id/togglePeriod"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:padding="16dp"
-                        android:gravity="center_vertical">
+                        android:layout_marginBottom="16dp"
+                        app:singleSelection="true"
+                        app:selectionRequired="true">
 
-                        <LinearLayout
+                        <Button
+                            android:id="@+id/btnDay"
+                            style="?attr/materialButtonOutlinedStyle"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/health_current_value"
-                                android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
-                                android:textColor="?android:attr/textColorSecondary" />
-
-                            <TextView
-                                android:id="@+id/tvCurrentValue"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
-                                tools:text="72 bpm" />
-
-                            <TextView
-                                android:id="@+id/tvLastMeasured"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-                                android:textColor="?android:attr/textColorSecondary"
-                                tools:text="5 minutes ago" />
-                        </LinearLayout>
+                            android:text="@string/health_period_day" />
 
                         <Button
-                            android:id="@+id/btnMeasureNow"
-                            style="?attr/materialButtonStyle"
-                            android:layout_width="wrap_content"
+                            android:id="@+id/btnWeek"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:text="@string/health_measure_button" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
+                            android:layout_weight="1"
+                            android:text="@string/health_period_week" />
 
-                <!-- Total Stats Card (Steps Only) -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/cardTotalStats"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:visibility="gone"
-                    app:cardBackgroundColor="?attr/colorSurfaceContainer"
-                    app:cardCornerRadius="16dp"
-                    app:strokeWidth="0dp"
-                    tools:visibility="visible">
+                        <Button
+                            android:id="@+id/btnMonth"
+                            style="?attr/materialButtonOutlinedStyle"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/health_period_month" />
+                    </com.google.android.material.button.MaterialButtonToggleGroup>
 
+                    <!-- Date Navigation -->
                     <LinearLayout
+                        android:id="@+id/layoutDateNav"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                        android:layout_marginBottom="16dp"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageButton
+                            android:id="@+id/btnPrevDate"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="@string/health_prev_date"
+                            android:src="@drawable/ic_arrow_back"
+                            app:tint="?android:attr/textColorPrimary" />
 
                         <TextView
-                            android:layout_width="wrap_content"
+                            android:id="@+id/tvCurrentDateRange"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:text="@string/health_total_stats"
+                            android:layout_weight="1"
+                            android:gravity="center"
                             android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                            android:layout_marginBottom="8dp" />
+                            tools:text="Thursday, Jan 8" />
+
+                        <ImageButton
+                            android:id="@+id/btnNextDate"
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:background="?attr/selectableItemBackgroundBorderless"
+                            android:contentDescription="@string/health_next_date"
+                            android:rotation="180"
+                            android:src="@drawable/ic_arrow_back"
+                            app:tint="?android:attr/textColorPrimary" />
+                    </LinearLayout>
+
+                    <!-- Current Value Card (HR/Oxygen) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardCurrentValue"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:visibility="gone"
+                        app:cardBackgroundColor="?attr/colorSurfaceContainer"
+                        app:cardCornerRadius="16dp"
+                        app:strokeWidth="0dp"
+                        tools:visibility="visible">
 
                         <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal">
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical"
-                                android:gravity="center">
-
-                                <TextView
-                                    android:id="@+id/tvTotalSteps"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
-                                    tools:text="7,543" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="@string/health_label_steps"
-                                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-                                    android:textColor="?android:attr/textColorSecondary" />
-                            </LinearLayout>
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical"
-                                android:gravity="center">
-
-                                <TextView
-                                    android:id="@+id/tvTotalDistance"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
-                                    tools:text="5.2 km" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="@string/health_label_distance"
-                                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-                                    android:textColor="?android:attr/textColorSecondary" />
-                            </LinearLayout>
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical"
-                                android:gravity="center">
-
-                                <TextView
-                                    android:id="@+id/tvTotalCalories"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
-                                    tools:text="450" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="@string/health_label_calories"
-                                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-                                    android:textColor="?android:attr/textColorSecondary" />
-                            </LinearLayout>
-                        </LinearLayout>
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- Goal Progress Card (Steps Only) -->
-                <com.google.android.material.card.MaterialCardView
-                    android:id="@+id/cardGoalProgress"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:visibility="gone"
-                    app:cardBackgroundColor="?attr/colorSurfaceContainer"
-                    app:cardCornerRadius="16dp"
-                    app:strokeWidth="0dp"
-                    tools:visibility="visible">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
-
-                        <TextView
-                            android:id="@+id/tvGoalTitle"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="@string/health_daily_goal"
-                            android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                            android:layout_marginBottom="8dp" />
-
-                        <ProgressBar
-                            android:id="@+id/progressGoal"
-                            style="?android:attr/progressBarStyleHorizontal"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:max="100"
-                            android:progress="75"
-                            android:layout_marginBottom="8dp"
-                            tools:progress="75" />
-
-                        <TextView
-                            android:id="@+id/tvGoalProgress"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
-                            android:textColor="?android:attr/textColorSecondary"
-                            tools:text="75% complete" />
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
-
-                <!-- Chart Card -->
-                <com.google.android.material.card.MaterialCardView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    app:cardBackgroundColor="?attr/colorSurfaceContainer"
-                    app:cardCornerRadius="16dp"
-                    app:strokeWidth="0dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical">
-
-                        <FrameLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content">
-
-                            <com.github.mikephil.charting.charts.LineChart
-                                android:id="@+id/chart"
-                                android:layout_width="match_parent"
-                                android:layout_height="320dp"
-                                android:padding="8dp" />
-
-                            <com.github.mikephil.charting.charts.BarChart
-                                android:id="@+id/barChart"
-                                android:layout_width="match_parent"
-                                android:layout_height="320dp"
-                                android:padding="8dp"
-                                android:visibility="gone" />
-
-                            <!-- Empty State Message -->
-                            <TextView
-                                android:id="@+id/tvEmptyData"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_gravity="center"
-                                android:text="@string/health_no_data"
-                                android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
-                                android:textColor="?android:attr/textColorSecondary"
-                                android:visibility="gone"
-                                tools:visibility="visible" />
-                        </FrameLayout>
-
-                        <!-- Stats below chart -->
-                        <LinearLayout
-                            android:id="@+id/layoutStats"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:orientation="horizontal"
                             android:padding="16dp"
-                            android:visibility="gone"
-                            tools:visibility="visible">
+                            android:gravity="center_vertical">
 
                             <LinearLayout
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:orientation="vertical"
-                                android:gravity="center">
-
-                                <TextView
-                                    android:id="@+id/tvMinValue"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                                    tools:text="45" />
+                                android:orientation="vertical">
 
                                 <TextView
                                     android:layout_width="wrap_content"
                                     android:layout_height="wrap_content"
-                                    android:text="@string/health_label_min"
-                                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                                    android:text="@string/health_current_value"
+                                    android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
                                     android:textColor="?android:attr/textColorSecondary" />
+
+                                <TextView
+                                    android:id="@+id/tvCurrentValue"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
+                                    tools:text="72 bpm" />
+
+                                <TextView
+                                    android:id="@+id/tvLastMeasured"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                                    android:textColor="?android:attr/textColorSecondary"
+                                    tools:text="5 minutes ago" />
                             </LinearLayout>
 
-                            <LinearLayout
-                                android:layout_width="0dp"
+                            <Button
+                                android:id="@+id/btnMeasureNow"
+                                style="?attr/materialButtonStyle"
+                                android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical"
-                                android:gravity="center">
+                                android:text="@string/health_measure_button" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
 
-                                <TextView
-                                    android:id="@+id/tvAvgValue"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                                    tools:text="72" />
+                    <!-- Total Stats Card (Steps Only) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardTotalStats"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:visibility="gone"
+                        app:cardBackgroundColor="?attr/colorSurfaceContainer"
+                        app:cardCornerRadius="16dp"
+                        app:strokeWidth="0dp"
+                        tools:visibility="visible">
 
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:text="@string/health_label_avg"
-                                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-                                    android:textColor="?android:attr/textColorSecondary" />
-                            </LinearLayout>
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/health_total_stats"
+                                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                                android:layout_marginBottom="8dp" />
 
                             <LinearLayout
-                                android:layout_width="0dp"
+                                android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical"
-                                android:gravity="center">
+                                android:orientation="horizontal">
 
-                                <TextView
-                                    android:id="@+id/tvMaxValue"
-                                    android:layout_width="wrap_content"
+                                <LinearLayout
+                                    android:layout_width="0dp"
                                     android:layout_height="wrap_content"
-                                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
-                                    tools:text="95" />
+                                    android:layout_weight="1"
+                                    android:orientation="vertical"
+                                    android:gravity="center">
 
-                                <TextView
-                                    android:layout_width="wrap_content"
+                                    <TextView
+                                        android:id="@+id/tvTotalSteps"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
+                                        tools:text="7,543" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/health_label_steps"
+                                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                                        android:textColor="?android:attr/textColorSecondary" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
                                     android:layout_height="wrap_content"
-                                    android:text="@string/health_label_max"
-                                    android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-                                    android:textColor="?android:attr/textColorSecondary" />
+                                    android:layout_weight="1"
+                                    android:orientation="vertical"
+                                    android:gravity="center">
+
+                                    <TextView
+                                        android:id="@+id/tvTotalDistance"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
+                                        tools:text="5.2 km" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/health_label_distance"
+                                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                                        android:textColor="?android:attr/textColorSecondary" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical"
+                                    android:gravity="center">
+
+                                    <TextView
+                                        android:id="@+id/tvTotalCalories"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:textAppearance="@style/TextAppearance.Material3.HeadlineSmall"
+                                        tools:text="450" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/health_label_calories"
+                                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                                        android:textColor="?android:attr/textColorSecondary" />
+                                </LinearLayout>
                             </LinearLayout>
                         </LinearLayout>
-                    </LinearLayout>
-                </com.google.android.material.card.MaterialCardView>
+                    </com.google.android.material.card.MaterialCardView>
 
-            </LinearLayout>
-        </androidx.core.widget.NestedScrollView>
-    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+                    <!-- Goal Progress Card (Steps Only) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardGoalProgress"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:visibility="gone"
+                        app:cardBackgroundColor="?attr/colorSurfaceContainer"
+                        app:cardCornerRadius="16dp"
+                        app:strokeWidth="0dp"
+                        tools:visibility="visible">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="16dp">
+
+                            <TextView
+                                android:id="@+id/tvGoalTitle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/health_daily_goal"
+                                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                                android:layout_marginBottom="8dp" />
+
+                            <ProgressBar
+                                android:id="@+id/progressGoal"
+                                style="?android:attr/progressBarStyleHorizontal"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:max="100"
+                                android:progress="75"
+                                android:layout_marginBottom="8dp"
+                                tools:progress="75" />
+
+                            <TextView
+                                android:id="@+id/tvGoalProgress"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                                android:textColor="?android:attr/textColorSecondary"
+                                tools:text="75% complete" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Chart Card -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        app:cardBackgroundColor="?attr/colorSurfaceContainer"
+                        app:cardCornerRadius="16dp"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical">
+
+                            <FrameLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content">
+
+                                <com.github.mikephil.charting.charts.LineChart
+                                    android:id="@+id/chart"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="320dp"
+                                    android:padding="8dp" />
+
+                                <com.github.mikephil.charting.charts.BarChart
+                                    android:id="@+id/barChart"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="320dp"
+                                    android:padding="8dp"
+                                    android:visibility="gone" />
+
+                                <!-- Empty State Message -->
+                                <TextView
+                                    android:id="@+id/tvEmptyData"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_gravity="center"
+                                    android:text="@string/health_no_data"
+                                    android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
+                                    android:textColor="?android:attr/textColorSecondary"
+                                    android:visibility="gone"
+                                    tools:visibility="visible" />
+                            </FrameLayout>
+
+                            <!-- Stats below chart -->
+                            <LinearLayout
+                                android:id="@+id/layoutStats"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:padding="16dp"
+                                android:visibility="gone"
+                                tools:visibility="visible">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical"
+                                    android:gravity="center">
+
+                                    <TextView
+                                        android:id="@+id/tvMinValue"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                                        tools:text="45" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/health_label_min"
+                                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                                        android:textColor="?android:attr/textColorSecondary" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical"
+                                    android:gravity="center">
+
+                                    <TextView
+                                        android:id="@+id/tvAvgValue"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                                        tools:text="72" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/health_label_avg"
+                                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                                        android:textColor="?android:attr/textColorSecondary" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical"
+                                    android:gravity="center">
+
+                                    <TextView
+                                        android:id="@+id/tvMaxValue"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                                        tools:text="95" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/health_label_max"
+                                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                                        android:textColor="?android:attr/textColorSecondary" />
+                                </LinearLayout>
+                            </LinearLayout>
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                </LinearLayout>
+            </androidx.core.widget.NestedScrollView>
+        </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+        <!-- Fixed Bottom Navigation -->
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/bottomNavigation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:menu="@menu/menu_health_bottom_nav"
+            app:labelVisibilityMode="labeled"
+            app:backgroundTint="?attr/colorSurfaceContainer"
+            style="@style/Widget.Material3.BottomNavigationView" />
+    </LinearLayout>
 
     <!-- Measure Now FAB (HR/Oxygen Only) - Hidden, replaced by button in card -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -454,14 +472,5 @@
         android:visibility="gone"
         app:backgroundTint="?attr/colorPrimary"
         app:tint="@android:color/white" />
-
-    <!-- Bottom Navigation -->
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottomNavigation"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        app:menu="@menu/menu_health_bottom_nav"
-        app:labelVisibilityMode="labeled" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

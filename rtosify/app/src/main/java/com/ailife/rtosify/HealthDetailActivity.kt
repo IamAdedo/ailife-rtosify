@@ -104,6 +104,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     private var settingsDialogStepGoal: EditText? = null
     private var settingsDialogInterval: EditText? = null
     private var settingsDialogBackground: SwitchCompat? = null
+    private var settingsDialogInstantSteps: SwitchCompat? = null
 
     // Service Binding
     private var bluetoothService: BluetoothService? = null
@@ -474,7 +475,10 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         bluetoothService?.requestHealthHistory(type, startTime, endTime)
 
         // Also request current health data to populate the current value card (HR/Oxygen)
-        bluetoothService?.requestHealthData()
+        val healthPrefs = getSharedPreferences("health_prefs", Context.MODE_PRIVATE)
+        val useInstantSteps = healthPrefs.getBoolean("use_instant_steps", false)
+        val stepType = if (useInstantSteps) "RAW" else "TODAY"
+        bluetoothService?.requestHealthData(stepType)
     }
 
     private fun getTimeRange(): Pair<Long, Long> {
@@ -808,6 +812,11 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         val etInterval = dialogView.findViewById<EditText>(R.id.etMonitoringInterval)
         val switchBackground =
                 dialogView.findViewById<SwitchCompat>(R.id.switchBackgroundMonitoring)
+        val switchInstantSteps = dialogView.findViewById<SwitchCompat>(R.id.switchInstantSteps)
+
+        // Local settings (not from watch)
+        val sharedPrefs = getSharedPreferences("health_prefs", Context.MODE_PRIVATE)
+        switchInstantSteps.isChecked = sharedPrefs.getBoolean("use_instant_steps", false)
 
         // Store references for population when settings are received
         settingsDialogAge = etAge
@@ -817,6 +826,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         settingsDialogStepGoal = etStepGoal
         settingsDialogInterval = etInterval
         settingsDialogBackground = switchBackground
+        settingsDialogInstantSteps = switchInstantSteps
 
         // Request current settings from watch
         bluetoothService?.requestHealthSettings()
@@ -850,6 +860,11 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
                                     weight = etWeight.text.toString().toFloatOrNull()
                             )
                     bluetoothService?.updateHealthSettings(settings)
+                    
+                    // Save local settings
+                    val localPrefs = getSharedPreferences("health_prefs", Context.MODE_PRIVATE)
+                    localPrefs.edit().putBoolean("use_instant_steps", switchInstantSteps.isChecked).apply()
+
                     Toast.makeText(this, getString(R.string.toast_command_sent), Toast.LENGTH_SHORT)
                             .show()
 
@@ -875,6 +890,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         settingsDialogStepGoal = null
         settingsDialogInterval = null
         settingsDialogBackground = null
+        settingsDialogInstantSteps = null
     }
 
     // ServiceCallback implementations

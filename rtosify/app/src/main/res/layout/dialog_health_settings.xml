@@ -176,7 +176,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:gravity="center_vertical"
+            android:layout_marginBottom="12dp">
 
             <TextView
                 android:layout_width="0dp"
@@ -187,6 +188,26 @@
 
             <androidx.appcompat.widget.SwitchCompat
                 android:id="@+id/switchBackgroundMonitoring"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <!-- Use Instant Steps Switch -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/health_use_instant_steps"
+                android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
+
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/switchInstantSteps"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
         </LinearLayout>

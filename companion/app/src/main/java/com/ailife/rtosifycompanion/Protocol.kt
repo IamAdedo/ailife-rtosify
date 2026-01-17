@@ -722,8 +722,10 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.UPDATE_SETTINGS, data = data)
     }
 
-    fun createRequestHealthData(): ProtocolMessage {
-        return ProtocolMessage(type = MessageType.REQUEST_HEALTH_DATA)
+    fun createRequestHealthData(type: String? = null): ProtocolMessage {
+        val data = JsonObject()
+        if (type != null) data.addProperty("type", type)
+        return ProtocolMessage(type = MessageType.REQUEST_HEALTH_DATA, data = data)
     }
 
     fun createHealthDataUpdate(health: HealthDataUpdate): ProtocolMessage {

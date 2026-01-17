@@ -1213,7 +1213,7 @@ class BluetoothService : Service() {
             MessageType.DELETE_FILE -> handleDeleteFile(message)
             MessageType.UPDATE_SETTINGS -> handleUpdateSettings(message)
             MessageType.UPDATE_WIFI_RULE -> handleUpdateWifiRule(message)
-            MessageType.REQUEST_HEALTH_DATA -> handleRequestHealthData()
+            MessageType.REQUEST_HEALTH_DATA -> handleRequestHealthData(message)
             MessageType.REQUEST_HEALTH_HISTORY -> handleRequestHealthHistory(message)
             MessageType.START_LIVE_MEASUREMENT -> handleStartLiveMeasurement(message)
             MessageType.STOP_LIVE_MEASUREMENT -> handleStopLiveMeasurement()
@@ -2087,14 +2087,17 @@ class BluetoothService : Service() {
     // HEALTH DATA (STEPS, HR, OXYGEN)
     // ========================================================================
 
-    private suspend fun handleRequestHealthData() {
+    private suspend fun handleRequestHealthData(message: ProtocolMessage) {
         try {
             Log.d(TAG, "Received REQUEST_HEALTH_DATA, collecting data...")
+            // Extract type if provided (e.g. "RAW" or "TODAY")
+            val type = ProtocolHelper.extractStringField(message, "type") ?: "TODAY"
+            
             // Collect health data once when requested (not continuously)
-            val healthData = healthDataCollector.collectCurrentHealthData()
+            val healthData = healthDataCollector.collectCurrentHealthData(type)
             Log.d(
                     TAG,
-                    "Collected health data: steps=${healthData.steps}, cal=${healthData.calories}, hr=${healthData.heartRate}"
+                    "Collected health data (type=$type): steps=${healthData.steps}, cal=${healthData.calories}, hr=${healthData.heartRate}"
             )
             sendMessage(ProtocolHelper.createHealthDataUpdate(healthData))
             Log.d(TAG, "Sent health data update to phone")

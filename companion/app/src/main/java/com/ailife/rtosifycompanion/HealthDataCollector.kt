@@ -58,14 +58,14 @@ class HealthDataCollector(private val context: Context) {
      * Collect current health data using broadcast API
      * Returns cached data if broadcast fails
      */
-    suspend fun collectCurrentHealthData(): HealthDataUpdate = withContext(Dispatchers.IO) {
+    suspend fun collectCurrentHealthData(stepType: String = "TODAY"): HealthDataUpdate = withContext(Dispatchers.IO) {
         if (!isHealthAppInstalled()) {
             return@withContext createErrorState("APP_NOT_INSTALLED")
         }
 
         try {
             // Request all current health data SEQUENTIALLY (broadcast API can't handle concurrent requests)
-            val steps = requestData("STEP", "TODAY") ?: 0
+            val steps = requestData("STEP", stepType) ?: 0
             val distance = requestFloatData("DISTANCE", "TODAY") ?: 0f
             val calories = requestData("CALORIE", "TODAY") ?: 0
             val hrData = requestData("HR", "LAST")

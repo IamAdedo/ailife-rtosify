@@ -1157,8 +1157,8 @@ class BluetoothService : Service() {
         }
     }
 
-    fun requestHealthData() {
-        sendMessage(ProtocolHelper.createRequestHealthData())
+    fun requestHealthData(type: String? = null) {
+        sendMessage(ProtocolHelper.createRequestHealthData(type))
     }
 
     fun requestHealthHistory(type: String, startTime: Long, endTime: Long) {
@@ -1425,7 +1425,10 @@ class BluetoothService : Service() {
                         shareSyncEnabled = activePrefs.getBoolean("sharing_sync_enabled", false),
                         internetActivationRule = activePrefs.getInt("internet_activation_rule", 0),
                         internetSignalingUrl = activePrefs.getString("internet_signaling_url", ""),
-                        hqLanEnabled = activePrefs.getBoolean("hq_lan_enabled", false)
+                        hqLanEnabled = activePrefs.getBoolean("hq_lan_enabled", false),
+                        wakeScreenEnabled = activePrefs.getBoolean("wake_screen_enabled", false),
+                        vibrateEnabled = activePrefs.getBoolean("vibrate_enabled", false),
+                        vibrateInSilentEnabled = activePrefs.getBoolean("vibrate_silent_enabled", false)
                 )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
         

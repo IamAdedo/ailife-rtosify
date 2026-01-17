@@ -658,6 +658,7 @@
     <string name="health_height_cm">Height (cm)</string>
     <string name="health_weight_kg">Weight (kg)</string>
     <string name="health_background_monitoring">Background Monitoring</string>
+    <string name="health_use_instant_steps">Use Instant Steps (Main Activity)</string>
     <string name="health_monitoring_title">Health Monitoring</string>
 
     <!-- Notification Rules -->

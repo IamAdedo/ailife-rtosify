@@ -3,6 +3,7 @@ package com.ailife.rtosify
 import android.Manifest
 import android.bluetooth.BluetoothDevice
 import android.content.ComponentName
+import android.content.Context
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.ServiceConnection
@@ -1554,8 +1555,11 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         // Request health data only once when watch status first updates
         if (!hasRequestedHealthData && bluetoothService?.isConnected == true) {
             hasRequestedHealthData = true
-            bluetoothService?.requestHealthData()
-            Log.d("MainActivity", "Requesting health data from watch")
+            val healthPrefs = getSharedPreferences("health_prefs", Context.MODE_PRIVATE)
+            val useInstantSteps = healthPrefs.getBoolean("use_instant_steps", false)
+            val stepType = if (useInstantSteps) "RAW" else "TODAY"
+            bluetoothService?.requestHealthData(stepType)
+            Log.d("MainActivity", "Requesting health data from watch with type: $stepType")
         }
     }
 
