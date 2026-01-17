@@ -12,10 +12,12 @@ data class MenuOption(
     val subtitle: String? = null,
     val iconRes: Int,
     val onClick: () -> Unit,
-    val extraInfo: String? = null
+    val extraInfo: String? = null,
+    val titleRes: Int = 0,
+    var isEnabled: Boolean = true
 )
 
-class MenuAdapter(private val options: MutableList<MenuOption>) : RecyclerView.Adapter<MenuAdapter.MenuViewHolder>() {
+class MenuAdapter(val menuItems: MutableList<MenuOption>) : RecyclerView.Adapter<MenuAdapter.MenuViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MenuViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_menu_option, parent, false)
@@ -23,14 +25,14 @@ class MenuAdapter(private val options: MutableList<MenuOption>) : RecyclerView.A
     }
 
     override fun onBindViewHolder(holder: MenuViewHolder, position: Int) {
-        holder.bind(options[position])
+        holder.bind(menuItems[position])
     }
 
-    override fun getItemCount() = options.size
+    override fun getItemCount() = menuItems.size
 
     fun updateOptions(newOptions: List<MenuOption>) {
-        (options as MutableList).clear()
-        options.addAll(newOptions)
+        menuItems.clear()
+        menuItems.addAll(newOptions)
         notifyDataSetChanged()
     }
 
@@ -58,7 +60,15 @@ class MenuAdapter(private val options: MutableList<MenuOption>) : RecyclerView.A
                 tvExtraInfo.visibility = View.GONE
             }
 
-            itemView.setOnClickListener { item.onClick() }
+            // Handle enabled/disabled state
+            itemView.isEnabled = item.isEnabled
+            itemView.alpha = if (item.isEnabled) 1.0f else 0.5f
+
+            itemView.setOnClickListener { 
+                if (item.isEnabled) {
+                    item.onClick()
+                }
+            }
         }
     }
 }

@@ -86,6 +86,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var layoutStepsAction: LinearLayout
     private lateinit var layoutHeartRateAction: LinearLayout
     private lateinit var layoutOxygenAction: LinearLayout
+    private lateinit var layoutHealthDataContent: LinearLayout
+    private lateinit var layoutHealthAppNotInstalled: LinearLayout
 
 
 
@@ -281,6 +283,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         layoutStepsAction = findViewById(R.id.layoutStepsAction)
         layoutHeartRateAction = findViewById(R.id.layoutHeartRateAction)
         layoutOxygenAction = findViewById(R.id.layoutOxygenAction)
+        layoutHealthDataContent = findViewById(R.id.layoutHealthDataContent)
+        layoutHealthAppNotInstalled = findViewById(R.id.layoutHealthAppNotInstalled)
 
 
 
@@ -304,6 +308,17 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         appBarLayout.visibility = View.VISIBLE
         mainContentScrollView.visibility = View.VISIBLE
         setupPhoneMenu()
+
+        // Initial health UI state
+        val healthInstalled = getSharedPreferences("health_prefs", Context.MODE_PRIVATE)
+            .getBoolean("health_app_installed", true)
+        if (healthInstalled) {
+            layoutHealthDataContent.visibility = View.VISIBLE
+            layoutHealthAppNotInstalled.visibility = View.GONE
+        } else {
+            layoutHealthDataContent.visibility = View.GONE
+            layoutHealthAppNotInstalled.visibility = View.VISIBLE
+        }
     }
 
     private fun setupDndClickListener() {
@@ -731,6 +746,34 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun updateHealthDataCard(healthData: HealthDataUpdate) {
+        val healthInstalled = healthData.errorState != "APP_NOT_INSTALLED"
+        
+        // Update visibility
+        if (healthInstalled) {
+            layoutHealthDataContent.visibility = View.VISIBLE
+            layoutHealthAppNotInstalled.visibility = View.GONE
+        } else {
+            layoutHealthDataContent.visibility = View.GONE
+            layoutHealthAppNotInstalled.visibility = View.VISIBLE
+        }
+
+        // Persist state
+        val healthPrefs = getSharedPreferences("health_prefs", Context.MODE_PRIVATE)
+        if (healthPrefs.getBoolean("health_app_installed", true) != healthInstalled) {
+            healthPrefs.edit().putBoolean("health_app_installed", healthInstalled).apply()
+            
+            // Update menu
+            menuAdapter?.let { adapter ->
+                val healthIndex = adapter.menuItems.indexOfFirst { it.titleRes == R.string.menu_health_data }
+                if (healthIndex != -1) {
+                    adapter.menuItems[healthIndex].isEnabled = healthInstalled
+                    adapter.notifyItemChanged(healthIndex)
+                }
+            }
+        }
+
+        if (!healthInstalled) return
+
         // Steps with distance and calories
         tvStepsCount.text = healthData.steps.toString()
         val distance = String.format("%.2f km", healthData.distance)
@@ -755,12 +798,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             tvOxygenTime.text = getString(R.string.health_no_data)
         }
 
-        // Handle error states
+        // Handle other error states
         healthData.errorState?.let { error ->
             when (error) {
-                "APP_NOT_INSTALLED" -> {
-                    tvStepsDetails.text = getString(R.string.health_error_app_not_installed)
-                }
                 "API_DISABLED" -> {
                     tvStepsDetails.text = getString(R.string.health_error_api_disabled)
                 }
@@ -955,12 +995,13 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 getString(R.string.menu_manage_apps),
                                 getString(R.string.menu_manage_apps_desc),
                                 android.R.drawable.ic_menu_sort_by_size,
-                                // BLOQUEADO: Precisa de conexão para buscar lista
                                 {
                                     runIfConnected {
                                         startActivity(Intent(this, AppListActivity::class.java))
                                     }
-                                }
+                                },
+                                null,
+                                R.string.menu_manage_apps
                         ),
                         MenuOption(
                                 getString(R.string.menu_watchface),
@@ -975,13 +1016,14 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                                             .java
                                             )
                                     )
-                                }
+                                },
+                                null,
+                                R.string.menu_watchface
                         ),
                         MenuOption(
                                 getString(R.string.menu_notifications),
                                 getString(R.string.menu_notifications_desc),
                                 android.R.drawable.ic_popup_reminder,
-                                // BLOQUEADO: Geralmente só útil se o watch estiver ativo
                                 {
                                     runIfConnected {
                                         startActivity(
@@ -991,7 +1033,25 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                                 )
                                         )
                                     }
+                                },
+                                null,
+                                R.string.menu_notifications
+                        ),
+                        MenuOption(
+                            getString(R.string.menu_health_data),
+                            getString(R.string.menu_health_desc),
+                            R.drawable.ic_heart,
+                            {
+                                runIfConnected {
+                                    startActivity(
+                                        Intent(this, HealthDetailActivity::class.java)
+                                    )
                                 }
+                            },
+                            null,
+                            R.string.menu_health_data,
+                            getSharedPreferences("health_prefs", Context.MODE_PRIVATE)
+                                .getBoolean("health_app_installed", true)
                         ),
                         MenuOption(
                                 getString(R.string.menu_file_manager),
@@ -1001,7 +1061,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                     runIfConnected {
                                         startActivity(Intent(this, FileManagerActivity::class.java))
                                     }
-                                }
+                                },
+                                null,
+                                R.string.menu_file_manager
                         ),
                         MenuOption(
                                 getString(R.string.menu_watch_automation),
@@ -1011,62 +1073,79 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                     startActivity(
                                             Intent(this, WatchAutomationsActivity::class.java)
                                     )
-                                }
+                                },
+                                null,
+                                R.string.menu_watch_automation
                         ),
                         MenuOption(
                                 getString(R.string.menu_device_mgmt),
                                 getString(R.string.menu_device_mgmt_desc),
                                 android.R.drawable.ic_lock_power_off,
-                                { runIfConnected { showDeviceManagementMenu() } }
+                                { runIfConnected { showDeviceManagementMenu() } },
+                                null,
+                                R.string.menu_device_mgmt
                         ),
                         MenuOption(
                                 getString(R.string.menu_mirroring),
                                 getString(R.string.menu_mirroring_desc),
                                 R.drawable.ic_cast,
-                                { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
+                                { startActivity(Intent(this, MirrorSettingsActivity::class.java)) },
+                                null,
+                                R.string.menu_mirroring
                         ),
                         MenuOption(
                                 getString(R.string.menu_network_comms),
                                 getString(R.string.menu_network_comms_desc),
                                 R.drawable.ic_globe,
-                                { startActivity(Intent(this, NetworkSettingsActivity::class.java)) }
+                                { startActivity(Intent(this, NetworkSettingsActivity::class.java)) },
+                                null,
+                                R.string.menu_network_comms
                         ),
                         MenuOption(
                                 getString(R.string.menu_sync_calendar),
                                 getString(R.string.menu_sync_calendar_desc),
                                 android.R.drawable.ic_menu_today,
-                                { runIfConnected { bluetoothService?.syncCalendar() } }
+                                { runIfConnected { bluetoothService?.syncCalendar() } },
+                                null,
+                                R.string.menu_sync_calendar
                         ),
                         MenuOption(
                                 getString(R.string.menu_sync_contacts),
                                 getString(R.string.menu_sync_contacts_desc),
                                 R.drawable.ic_sync_contacts,
-                                { runIfConnected { bluetoothService?.syncContacts() } }
+                                { runIfConnected { bluetoothService?.syncContacts() } },
+                                null,
+                                R.string.menu_sync_contacts
                         ),
                         MenuOption(
                                 getString(R.string.menu_disconnect),
                                 getString(R.string.menu_disconnect_desc),
                                 android.R.drawable.ic_menu_close_clear_cancel,
-                                // PERMITIDO: O usuário precisa poder parar a busca/serviço mesmo se
-                                // não conectou
                                 {
                                     // Legacy disconnect button removed
-                                }
+                                },
+                                null,
+                                R.string.menu_disconnect
                         ),
                         MenuOption(
                                 getString(R.string.perm_title),
                                 getString(
                                         R.string.perm_notifications_desc
-                                ), // Reusing similar desc for space
+                                ),
                                 android.R.drawable.ic_menu_manage,
-                                { startActivity(Intent(this, PermissionActivity::class.java)) }
+                                { startActivity(Intent(this, PermissionActivity::class.java)) },
+                                null,
+                                R.string.perm_title
                         ),
                         MenuOption(
                                 getString(R.string.menu_reset_all),
                                 getString(R.string.menu_reset_all_desc),
                                 android.R.drawable.ic_menu_delete,
-                                { resetApp() }
+                                { resetApp() },
+                                null,
+                                R.string.menu_reset_all
                         )
+
                 )
         menuAdapter = MenuAdapter(options.toMutableList())
         recyclerViewMenu.adapter = menuAdapter
@@ -1086,10 +1165,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                     runIfConnected {
                                         startActivity(Intent(this, AppListActivity::class.java))
                                     }
-                                }
+                                },
+                                null,
+                                R.string.menu_manage_apps
                         ),
                         MenuOption(
-                                getString(R.string.menu_health),
+                                getString(R.string.menu_health_data),
                                 getString(R.string.menu_health_desc),
                                 R.drawable.ic_heart,
                                 {
@@ -1098,20 +1179,29 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                                 Intent(this, HealthDetailActivity::class.java)
                                         )
                                     }
-                                }
+                                },
+                                null,
+                                R.string.menu_health_data,
+                                getSharedPreferences("health_prefs", Context.MODE_PRIVATE)
+                                    .getBoolean("health_app_installed", true)
                         ),
                         MenuOption(
                                 getString(R.string.menu_mirroring),
                                 getString(R.string.menu_mirroring_desc),
                                 R.drawable.ic_cast,
-                                { startActivity(Intent(this, MirrorSettingsActivity::class.java)) }
+                                { startActivity(Intent(this, MirrorSettingsActivity::class.java)) },
+                                null,
+                                R.string.menu_mirroring
                         ),
                         MenuOption(
                                 getString(R.string.menu_network_comms),
                                 getString(R.string.menu_network_comms_desc),
                                 R.drawable.ic_globe,
-                                { startActivity(Intent(this, NetworkSettingsActivity::class.java)) }
+                                { startActivity(Intent(this, NetworkSettingsActivity::class.java)) },
+                                null,
+                                R.string.menu_network_comms
                         ),
+
                         MenuOption(
                                 getString(R.string.menu_alarms),
                                 getString(R.string.menu_alarms_desc),
@@ -1122,7 +1212,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                                 Intent(this, AlarmManagementActivity::class.java)
                                         )
                                     }
-                                }
+                                },
+                                null,
+                                R.string.menu_alarms
                         ),
                         MenuOption(
                                 getString(R.string.menu_terminal),
@@ -1132,8 +1224,11 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                     runIfConnected {
                                         startActivity(Intent(this, TerminalActivity::class.java))
                                     }
-                                }
+                                },
+                                null,
+                                R.string.menu_terminal
                         ),
+
                         MenuOption(
                                 getString(R.string.menu_watchface),
                                 getString(R.string.wf_title),
@@ -1552,6 +1647,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 updateCurrentWifiView()
             }
         }
+
         // Request health data only once when watch status first updates
         if (!hasRequestedHealthData && bluetoothService?.isConnected == true) {
             hasRequestedHealthData = true

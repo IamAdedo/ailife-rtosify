@@ -354,7 +354,9 @@
     <string name="reply_label">Reply</string>
 
     <!-- Health Data -->
-    <string name="menu_health">Health Data</string>
+    <string name="menu_health_data">Health Data</string>
+    <string name="health_app_not_installed">Health Tracker not installed</string>
+    <string name="health_app_install_reminder">Install Better Health Tracker on the smartwatch to access health features.</string>
     <string name="health_title">Health Data</string>
 
     <!-- Watch Face Management -->

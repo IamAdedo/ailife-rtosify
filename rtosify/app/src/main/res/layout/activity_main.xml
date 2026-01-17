@@ -418,11 +418,47 @@
                         android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
                         android:layout_marginBottom="12dp"/>
 
+                    <!-- Health Tracker Not Installed Reminder -->
                     <LinearLayout
+                        android:id="@+id/layoutHealthAppNotInstalled"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:baselineAligned="false">
+                        android:orientation="vertical"
+                        android:gravity="center_horizontal"
+                        android:visibility="gone"
+                        android:paddingVertical="8dp">
+
+                        <ImageView
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:src="@drawable/ic_heart"
+                            android:alpha="0.5"
+                            app:tint="?android:attr/textColorSecondary"
+                            android:layout_marginBottom="12dp"/>
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/health_app_install_reminder"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                            android:textColor="?android:attr/textColorSecondary"
+                            android:gravity="center"
+                            android:lineSpacingExtra="2dp"/>
+                    </LinearLayout>
+
+
+                    <!-- Content when app is installed -->
+                    <LinearLayout
+                        android:id="@+id/layoutHealthDataContent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:baselineAligned="false">
 
                         <!-- Steps Column -->
                         <LinearLayout
@@ -538,6 +574,7 @@
                                 android:maxLines="2"/>
                         </LinearLayout>
 
+                        </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

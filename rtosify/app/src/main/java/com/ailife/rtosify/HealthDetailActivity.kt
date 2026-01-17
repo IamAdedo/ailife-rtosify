@@ -547,6 +547,28 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         btnMeasureNow.text = getString(R.string.health_button_measure)
     }
 
+    override fun onHealthHistoryReceived(historyData: HealthHistoryResponse) {
+        currentHistoryData = historyData
+        currentGoal = historyData.goal
+        runOnUiThread {
+            if (historyData.errorState == "APP_NOT_INSTALLED") {
+                val healthPrefs = getSharedPreferences("health_prefs", Context.MODE_PRIVATE)
+                healthPrefs.edit().putBoolean("health_app_installed", false).apply()
+                Toast.makeText(this, R.string.health_app_not_installed, Toast.LENGTH_LONG).show()
+                finish()
+                return@runOnUiThread
+            }
+            swipeRefresh.isRefreshing = false
+
+            if (historyData.errorState != null) {
+                Toast.makeText(this, historyData.errorState, Toast.LENGTH_LONG).show()
+                return@runOnUiThread
+            }
+
+            updateChart(historyData)
+        }
+    }
+
     private fun updateChart(historyData: HealthHistoryResponse) {
         currentHistoryData = historyData
         currentGoal = historyData.goal
@@ -894,23 +916,18 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     }
 
     // ServiceCallback implementations
-    override fun onHealthHistoryReceived(historyData: HealthHistoryResponse) {
-        runOnUiThread {
-            swipeRefresh.isRefreshing = false
-
-            if (historyData.errorState != null) {
-                Toast.makeText(this, historyData.errorState, Toast.LENGTH_LONG).show()
-                return@runOnUiThread
-            }
-
-            updateChart(historyData)
-        }
-    }
-
     override fun onHealthDataUpdated(healthData: HealthDataUpdate) {
         lastHealthData = healthData
 
         runOnUiThread {
+            if (healthData.errorState == "APP_NOT_INSTALLED") {
+                val healthPrefs = getSharedPreferences("health_prefs", Context.MODE_PRIVATE)
+                healthPrefs.edit().putBoolean("health_app_installed", false).apply()
+                Toast.makeText(this, R.string.health_app_not_installed, Toast.LENGTH_LONG).show()
+                finish()
+                return@runOnUiThread
+            }
+
             // Update current value card for HR/Oxygen
             if (healthType == "HEART_RATE" || healthType == "OXYGEN") {
                 updateCurrentValueCard()
