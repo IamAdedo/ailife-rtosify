@@ -127,18 +127,18 @@ class NotificationSettingsActivity : AppCompatActivity() {
     }
 
     private fun setupCardClickListeners() {
+        // Navigate to individual system feature settings
         cardManageApps.setOnClickListener {
-            if (isNotificationServiceEnabled()) {
-                val intent = Intent(this, NotificationAppListActivity::class.java)
-                startActivity(intent)
-            }
+            startActivity(Intent(this, NotificationAppListActivity::class.java))
         }
-
         cardManageRules.setOnClickListener {
-            if (isNotificationServiceEnabled()) {
                 val intent = Intent(this, NotificationRulesActivity::class.java)
                 startActivity(intent)
             }
+        
+        // Navigate to Dynamic Island settings
+        cardDynamicIsland.setOnClickListener {
+            startActivity(Intent(this, DynamicIslandSettingsActivity::class.java))
         }
     }
 

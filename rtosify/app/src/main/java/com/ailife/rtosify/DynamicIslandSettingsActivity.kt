@@ -27,6 +27,7 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
     // Auto-hide settings
     private lateinit var spinnerAutoHideMode: Spinner
     private lateinit var switchHideWithActiveNotifs: SwitchMaterial
+    private lateinit var layoutHideWithActiveNotifs: LinearLayout
     private lateinit var cardBlacklist: View
 
     // Display settings
@@ -97,6 +98,7 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
         // Auto-hide
         spinnerAutoHideMode = findViewById(R.id.spinnerAutoHideMode)
         switchHideWithActiveNotifs = findViewById(R.id.switchHideWithActiveNotifs)
+        layoutHideWithActiveNotifs = findViewById(R.id.layoutHideWithActiveNotifs)
         cardBlacklist = findViewById(R.id.cardBlacklist)
 
         // Display settings
@@ -163,7 +165,7 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
                 // Show/hide blacklist options based on mode
                 val showBlacklistOptions = position == 2 // Hide in Blacklisted Apps
                 cardBlacklist.visibility = if (showBlacklistOptions) View.VISIBLE else View.GONE
-                switchHideWithActiveNotifs.visibility = if (showBlacklistOptions) View.VISIBLE else View.GONE
+                layoutHideWithActiveNotifs.visibility = if (showBlacklistOptions) View.VISIBLE else View.GONE
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -181,7 +183,7 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
         // Initial visibility
         val showBlacklistOptions = currentMode == 2
         cardBlacklist.visibility = if (showBlacklistOptions) View.VISIBLE else View.GONE
-        switchHideWithActiveNotifs.visibility = if (showBlacklistOptions) View.VISIBLE else View.GONE
+        layoutHideWithActiveNotifs.visibility = if (showBlacklistOptions) View.VISIBLE else View.GONE
     }
 
     private fun setupDisplaySettings() {

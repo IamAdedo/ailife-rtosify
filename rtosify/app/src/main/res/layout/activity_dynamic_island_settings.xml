@@ -1,0 +1,650 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?android:attr/colorBackground"
+        app:liftOnScroll="true">
+
+        <com.google.android.material.appbar.CollapsingToolbarLayout
+            android:layout_width="match_parent"
+            android:layout_height="120dp"
+            app:layout_scrollFlags="scroll|exitUntilCollapsed"
+            app:title="Dynamic Island"
+            app:collapsedTitleTextAppearance="@style/TextAppearance.AppCompat.Title"
+            app:expandedTitleTextAppearance="@style/TextAppearance.AppCompat.Display1"
+            app:expandedTitleMarginStart="20dp"
+            app:expandedTitleMarginBottom="20dp">
+
+            <androidx.appcompat.widget.Toolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                app:layout_collapseMode="pin"
+                app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"/>
+        </com.google.android.material.appbar.CollapsingToolbarLayout>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/nestedScrollView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="24dp">
+
+            <!-- Card: Feature Toggles -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="?android:attr/textColorSecondary"
+                app:cardBackgroundColor="?android:attr/colorBackground">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="24dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Feature Toggles"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="?android:attr/textColorPrimary"
+                        android:layout_marginBottom="8dp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="When disabled, features use standard Android notifications"
+                        android:textSize="13sp"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:layout_marginBottom="16dp"/>
+
+                    <!-- Show Phone Calls -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Show Phone Calls"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Display incoming calls in Dynamic Island"
+                                android:textSize="13sp"
+                                android:textColor="?android:attr/textColorSecondary"/>
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchShowPhoneCalls"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"/>
+                    </LinearLayout>
+
+                    <!-- Show Alarms -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Show Alarms"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Display alarm notifications in Dynamic Island"
+                                android:textSize="13sp"
+                                android:textColor="?android:attr/textColorSecondary"/>
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchShowAlarms"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"/>
+                    </LinearLayout>
+
+                    <!-- Show Disconnect -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="12dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Show Disconnect Notification"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Display disconnect event in Dynamic Island"
+                                android:textSize="13sp"
+                                android:textColor="?android:attr/textColorSecondary"/>
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchShowDisconnect"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"/>
+                    </LinearLayout>
+
+                    <!-- Show Media -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Show Media Controls"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Display media playback controls in Dynamic Island"
+                                android:textSize="13sp"
+                                android:textColor="?android:attr/textColorSecondary"/>
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchShowMedia"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"/>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card: Auto-Hide Settings -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="?android:attr/textColorSecondary"
+                app:cardBackgroundColor="?android:attr/colorBackground">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="24dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Auto-Hide Behavior"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="?android:attr/textColorPrimary"
+                        android:layout_marginBottom="16dp"/>
+
+                    <!-- Auto-Hide Mode Spinner -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginBottom="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Mode"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            android:textColor="?android:attr/textColorPrimary"
+                            android:layout_marginBottom="8dp"/>
+
+                        <Spinner
+                            android:id="@+id/spinnerAutoHideMode"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:minHeight="48dp"
+                            android:padding="12dp"
+                            android:background="@android:drawable/edit_text"/>
+                    </LinearLayout>
+
+                    <!-- Hide With Active Notifications -->
+                    <LinearLayout
+                        android:id="@+id/layoutHideWithActiveNotifs"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="16dp"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Hide Even With Active Notifications"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Hide Dynamic Island in blacklisted apps even if there are notifications"
+                                android:textSize="13sp"
+                                android:textColor="?android:attr/textColorSecondary"/>
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchHideWithActiveNotifs"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"/>
+                    </LinearLayout>
+
+                    <!-- Blacklist Management Card -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/cardBlacklist"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:foreground="?android:attr/selectableItemBackground"
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="2dp"
+                        app:strokeWidth="0dp"
+                        app:cardBackgroundColor="?android:attr/colorPrimary">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:padding="16dp">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Manage Blacklisted Apps"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="@android:color/white"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="›"
+                                android:textSize="24sp"
+                                android:textColor="@android:color/white"/>
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card: Display Settings -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="?android:attr/textColorSecondary"
+                app:cardBackgroundColor="?android:attr/colorBackground">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="24dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Display Settings"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="?android:attr/textColorPrimary"
+                        android:layout_marginBottom="16dp"/>
+
+                    <!-- Auto-collapse Timeout -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginBottom="16dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Auto-collapse Timeout"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:id="@+id/tvTimeoutValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="5 seconds"
+                                android:textSize="14sp"
+                                android:textColor="?android:attr/textColorPrimary"/>
+                        </LinearLayout>
+
+                        <SeekBar
+                            android:id="@+id/seekBarTimeout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="8"
+                            android:progress="3"/>
+                    </LinearLayout>
+
+                    <!-- Y Position -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginBottom="16dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Vertical Position"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:id="@+id/tvYValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="8 dp"
+                                android:textSize="14sp"
+                                android:textColor="?android:attr/textColorPrimary"/>
+                        </LinearLayout>
+
+                        <SeekBar
+                            android:id="@+id/seekBarY"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="100"
+                            android:progress="8"/>
+                    </LinearLayout>
+
+                    <!-- Width -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginBottom="16dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Width"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:id="@+id/tvWidthValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="150 dp"
+                                android:textSize="14sp"
+                                android:textColor="?android:attr/textColorPrimary"/>
+                        </LinearLayout>
+
+                        <SeekBar
+                            android:id="@+id/seekBarWidth"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="250"
+                            android:progress="100"/>
+                    </LinearLayout>
+
+                    <!-- Height -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Height"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:id="@+id/tvHeightValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="40 dp"
+                                android:textSize="14sp"
+                                android:textColor="?android:attr/textColorPrimary"/>
+                        </LinearLayout>
+
+                        <SeekBar
+                            android:id="@+id/seekBarHeight"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="80"
+                            android:progress="20"/>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Card: Text Settings -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="12dp"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="?android:attr/textColorSecondary"
+                app:cardBackgroundColor="?android:attr/colorBackground">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="24dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Text Settings"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="?android:attr/textColorPrimary"
+                        android:layout_marginBottom="16dp"/>
+
+                    <!-- Text Size Multiplier -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginBottom="16dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Text Size Multiplier"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:id="@+id/tvTextSizeValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="1.0x"
+                                android:textSize="14sp"
+                                android:textColor="?android:attr/textColorPrimary"/>
+                        </LinearLayout>
+
+                        <SeekBar
+                            android:id="@+id/seekBarTextSize"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="15"
+                            android:progress="5"/>
+                    </LinearLayout>
+
+                    <!-- Limit Message Length -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Limit Message Length"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Truncate long messages to fit"
+                                android:textSize="13sp"
+                                android:textColor="?android:attr/textColorSecondary"/>
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchLimitMessageLength"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"/>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

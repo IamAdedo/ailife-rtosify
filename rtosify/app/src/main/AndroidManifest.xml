@@ -160,6 +160,20 @@
             android:exported="false"
             android:parentActivityName=".NotificationSettingsActivity"
             android:theme="@style/Theme.Smartwatch" />
+        
+        <!-- Dynamic Island Settings -->
+        <activity
+            android:name=".DynamicIslandSettingsActivity"
+            android:exported="false"
+            android:parentActivityName=".NotificationSettingsActivity"
+            android:theme="@style/Theme.Smartwatch" />
+        
+        <!-- Dynamic Island App Blacklist -->
+        <activity
+            android:name=".DIBlacklistActivity"
+            android:exported="false"
+            android:parentActivityName=".DynamicIslandSettingsActivity"
+            android:theme="@style/Theme.Smartwatch" />
             
         <activity
             android:name=".AppPickerActivity"
