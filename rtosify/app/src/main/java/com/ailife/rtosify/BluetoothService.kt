@@ -596,7 +596,18 @@ class BluetoothService : Service() {
             transportManager.status.collect { status ->
                 when(val state = status.state) {
                     is com.ailife.rtosify.communication.TransportManager.ConnectionState.Connected -> {
-                         currentDeviceName = status.deviceName ?: getString(R.string.device_name_default)
+                         // Prefer stored name if available to avoid stale Bluetooth name overwriting protocol-synced name
+                         val storedName = status.deviceMac?.let { mac ->
+                             devicePrefManager.getPairedDevices().find { it.mac == mac }?.name
+                         }
+                         currentDeviceName = storedName ?: status.deviceName ?: getString(R.string.device_name_default)
+                         
+                         // Update selected device MAC in preferences
+                         if (status.deviceMac != null) {
+                             devicePrefManager.setSelectedDeviceMac(status.deviceMac)
+                             // DO NOT update device name here from Bluetooth device name - it's often stale
+                             // Device name will be updated from protocol in handleDeviceInfoUpdate which has the correct name
+                         }
                          
                          // Show transport type in status - handle combined types
                          val statusText = buildConnectionStatusText(status.typeString, currentDeviceName ?: "")
@@ -1452,6 +1463,24 @@ class BluetoothService : Service() {
 
     private fun handleDeviceInfoUpdate(message: ProtocolMessage) {
         val info = ProtocolHelper.extractData<DeviceInfoData>(message)
+        
+        // Update device name if present
+    if (info.deviceName != null && info.deviceName != "Unknown") {
+        val mac = transportManager.status.value.deviceMac
+        android.util.Log.d(TAG, "handleDeviceInfoUpdate: received name='${info.deviceName}' for MAC='$mac'")
+        if (mac != null) {
+            devicePrefManager.updateDeviceName(mac, info.deviceName)
+            currentDeviceName = info.deviceName
+            
+            // Refresh status UI
+            val statusText = buildConnectionStatusText(transportManager.status.value.typeString, info.deviceName)
+            updateStatus(statusText)
+            updateWidgets()
+        } else {
+            android.util.Log.w(TAG, "handleDeviceInfoUpdate: Cannot update name because current MAC is null")
+        }
+    }
+        
         serviceScope.launch(Dispatchers.Main) { callback?.onDeviceInfoReceived(info) }
     }
 
@@ -2812,20 +2841,20 @@ class BluetoothService : Service() {
         val hasLan = type.contains("WiFi") || type.contains("LAN")
         val hasInternet = type.contains("Internet")
 
-        if (!hasBluetooth && !hasLan && !hasInternet) return getString(R.string.status_connected_to, deviceName)
+        if (!hasBluetooth && !hasLan && !hasInternet) return getString(R.string.status_connected)
 
         val sb = StringBuilder()
-        sb.append(getString(R.string.status_connected_to, deviceName))
+        sb.append(getString(R.string.status_connected))
         sb.append(" (")
-        
+
         val transports = mutableListOf<String>()
         if (hasBluetooth) transports.add("BT")
         if (hasLan) transports.add("LAN")
         if (hasInternet) transports.add("Internet")
-        
+
         sb.append(transports.joinToString("+"))
         sb.append(")")
-        
+
         return sb.toString()
     }
 

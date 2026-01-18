@@ -16,13 +16,17 @@ class DeviceInfoManager(private val context: Context) {
     private var lastIdle: Long = 0
 
     fun getDeviceInfo(userService: IUserService? = null): DeviceInfoData {
+        val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager
+        val deviceName = bluetoothManager?.adapter?.name
+        
         return DeviceInfoData(
                 model = Build.MODEL,
                 androidVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
                 ramUsage = getRamUsage(),
                 storageUsage = getStorageUsage(),
                 processor = getProcessorName(),
-                cpuUsage = getCpuUsage(userService)
+                cpuUsage = getCpuUsage(userService),
+                deviceName = deviceName
         )
     }
 
