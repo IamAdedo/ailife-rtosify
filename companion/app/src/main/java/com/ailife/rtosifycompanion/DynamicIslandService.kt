@@ -20,6 +20,11 @@ class DynamicIslandService : Service() {
         private const val TAG = "DynamicIslandService"
         private const val NOTIFICATION_ID = 9001
         private const val CHANNEL_ID = "dynamic_island_channel"
+        
+        // Auto-hide modes
+        private const val AUTO_HIDE_ALWAYS_SHOW = 0
+        private const val AUTO_HIDE_NEVER_SHOW = 1
+        private const val AUTO_HIDE_IN_BLACKLIST = 2
 
         @Volatile var isRunning = false
     }
@@ -45,6 +50,25 @@ class DynamicIslandService : Service() {
     private var currentTransport = ""
     private var isOverlayVisible = true
     private var currentVisibilityAnimator: ObjectAnimator? = null
+    
+    // Auto-hide mode variables
+    private var autoHideMode = AUTO_HIDE_ALWAYS_SHOW
+    private var blacklistedApps = emptySet<String>()
+    private var hideWithActiveNotifs = false
+    
+    // Feature toggles
+    private var showPhoneCalls = true
+    private var showAlarms = true
+    private var showDisconnect = true
+    private var showMedia = true
+    
+    // Phone call state
+    data class PhoneCallData(
+        val number: String,
+        val contactName: String?,
+        val isRinging: Boolean
+    )
+    private var currentCall: PhoneCallData? = null
 
     private val receiver =
             object : BroadcastReceiver() {
@@ -91,7 +115,18 @@ class DynamicIslandService : Service() {
                             // ALWAYS update state on broadcast to ensure UI is in sync
                             isConnected = connected
                             currentTransport = transport
-                            showTransientConnectionState(connected, transport)
+                            if (showDisconnect || connected) {
+                                showTransientConnectionState(connected, transport)
+                            } else {
+                                // Post standard Android notification when toggle is off
+                                // TODO: Implement standard notification fallback
+                            }
+                        }
+                        "com.ailife.rtosifycompanion.INCOMING_CALL" -> {
+                            handleIncomingCallBroadcast(intent)
+                        }
+                        "com.ailife.rtosifycompanion.CALL_STATE_CHANGED" -> {
+                            handleCallStateChanged(intent)
                         }
                     }
                 }
@@ -146,6 +181,20 @@ class DynamicIslandService : Service() {
         val textMultiplier = prefs.getFloat("dynamic_island_text_multiplier", 1.0f)
         val limitMessageLength = prefs.getBoolean("dynamic_island_limit_message_length", true)
         overlayView.updateTextSettings(textMultiplier, limitMessageLength)
+        
+        // Load auto-hide mode settings
+        autoHideMode = prefs.getInt("di_auto_hide_mode", AUTO_HIDE_ALWAYS_SHOW)
+        blacklistedApps = prefs.getStringSet("di_blacklist_apps", emptySet()) ?: emptySet()
+        hideWithActiveNotifs = prefs.getBoolean("di_hide_with_active_notifs", false)
+        
+        // Load feature toggles
+        showPhoneCalls = prefs.getBoolean("di_show_phone_calls", true)
+        showAlarms = prefs.getBoolean("di_show_alarms", true)
+        showDisconnect = prefs.getBoolean("di_show_disconnect", true)
+        showMedia = prefs.getBoolean("di_show_media", true)
+        
+        Log.d(TAG, "Auto-hide mode: $autoHideMode, Blacklisted apps: ${blacklistedApps.size}, Hide with notifs: $hideWithActiveNotifs")
+        Log.d(TAG, "Feature toggles - Calls: $showPhoneCalls, Alarms: $showAlarms, Disconnect: $showDisconnect, Media: $showMedia")
 
         updateState()
     }
@@ -244,6 +293,33 @@ class DynamicIslandService : Service() {
             }
             collapseList()
         }
+        
+        overlayView.onCallAction = { action ->
+            Log.d(TAG, "Call action: $action")
+            // Send call action to BluetoothService
+            val intent = Intent("com.ailife.rtosifycompanion.CALL_ACTION")
+            intent.setPackage(packageName)
+            intent.putExtra("action", action)
+            sendBroadcast(intent)
+        }
+        
+        overlayView.onAlarmAction = { action ->
+            Log.d(TAG, "Alarm action: $action")
+            // Send alarm action to BluetoothService
+            val intent = Intent("com.ailife.rtosifycompanion.ALARM_ACTION")
+            intent.setPackage(packageName)
+            intent.putExtra("action", action)
+            sendBroadcast(intent)
+        }
+        
+        overlayView.onMediaAction = { action ->
+            Log.d(TAG, "Media action: $action")
+            // Send media action to BluetoothService
+            val intent = Intent("com.ailife.rtosifycompanion.MEDIA_ACTION")
+            intent.setPackage(packageName)
+            intent.putExtra("action", action)
+            sendBroadcast(intent)
+        }
 
         windowManager.addView(overlayView, params)
         updateState()
@@ -257,6 +333,9 @@ class DynamicIslandService : Service() {
                     addAction(BluetoothService.ACTION_UPDATE_DI_SETTINGS)
                     addAction(Intent.ACTION_BATTERY_CHANGED)
                     addAction("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED")
+                    addAction("com.ailife.rtosifycompanion.INCOMING_CALL")
+                    addAction("com.ailife.rtosifycompanion.CALL_STATE_CHANGED")
+                    addAction(MediaControlActivity.ACTION_MEDIA_STATE_UPDATE)
                 }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -330,22 +409,31 @@ class DynamicIslandService : Service() {
         isShowingTransientState = true
         transientStateRunnable?.let { handler.removeCallbacks(it) }
 
+        // Wake screen and vibrate on disconnect if enabled
+        if (!connected && showDisconnect) {
+            wakeScreenAndVibrate()
+        }
+
         // Update visibility and state first
         updateState()
 
         if (connected) {
-            overlayView.showConnectedState(transportType) // Could be an expanded version if needed
+            overlayView.showConnectedState(transportType)
         } else {
-            overlayView.showDisconnectedState()
+            if (showDisconnect) {
+                // Force show overlay for disconnect
+                showOverlayAnimated()
+                overlayView.showDisconnectedState()
+            }
+            // If showDisconnect is false, could post standard notification here
         }
 
         // Only auto-hide if the setting is enabled
         val hideWhenIdle = prefs.getBoolean("dynamic_island_hide_idle", false)
-        // Always schedule auto-hide reset to avoid getting stuck in transient state
         val timeout = if (hideWhenIdle) {
             prefs.getInt("dynamic_island_timeout", 5) * 1000L
         } else {
-            3000L // Default short timeout even if not hiding, to return to normal persistent logic
+            3000L
         }
 
         transientStateRunnable = Runnable {
@@ -353,7 +441,46 @@ class DynamicIslandService : Service() {
             updateState()
         }
         handler.postDelayed(transientStateRunnable!!, timeout)
-        // If hideWhenIdle is false, transient state stays visible until next state change
+    }
+    
+    /**
+     * Wake screen and vibrate if enabled in settings
+     */
+    private fun wakeScreenAndVibrate() {
+        try {
+            // Check if wake screen is enabled
+            val wakeEnabled = prefs.getBoolean("wake_screen_enabled", false)
+            if (wakeEnabled) {
+                val powerManager = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                if (powerManager != null) {
+                    val wakeLock = powerManager.newWakeLock(
+                        android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK or 
+                        android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                        "DynamicIsland:DisconnectWake"
+                    )
+                    wakeLock.acquire(3000) // 3 seconds
+                    wakeLock.release()
+                }
+            }
+            
+            // Check if vibrate is enabled
+            val vibrateEnabled = prefs.getBoolean("vibrate_enabled", false)
+            if (vibrateEnabled) {
+                val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+                if (vibrator?.hasVibrator() == true) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        vibrator.vibrate(
+                            android.os.VibrationEffect.createOneShot(200, android.os.VibrationEffect.DEFAULT_AMPLITUDE)
+                        )
+                    } else {
+                        @Suppress("DEPRECATION")
+                        vibrator.vibrate(200)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error waking screen or vibrating: ${e.message}")
+        }
     }
 
     private fun showOverlayAnimated() {
@@ -408,11 +535,17 @@ class DynamicIslandService : Service() {
                 return@post
             }
 
-            // Persistence logic: If hideWhenIdle is enabled, only persist if notifications exist
-            val hideWhenIdle = prefs.getBoolean("dynamic_island_hide_idle", false)
+            // Auto-hide mode logic
             val hasNotifications = notificationQueue.isNotEmpty()
+            
+            val shouldHide = when (autoHideMode) {
+                AUTO_HIDE_ALWAYS_SHOW -> false // Never hide, always visible
+                AUTO_HIDE_NEVER_SHOW -> !hasNotifications // Hide when no notifications
+                AUTO_HIDE_IN_BLACKLIST -> isInBlacklistedApp() // Hide if current app is blacklisted
+                else -> false
+            }
 
-            if (hideWhenIdle && !hasNotifications) {
+            if (shouldHide) {
                 overlayView.showIdleState(currentTransport)
                 hideOverlayAnimated()
             } else {
@@ -496,6 +629,29 @@ class DynamicIslandService : Service() {
 
         overlayView.expandToList(notificationQueue)
     }
+    
+    private fun handleMediaStateUpdate(intent: Intent) {
+        if (!showMedia) {
+            Log.d(TAG, "Media display disabled, skipping Dynamic Island display")
+            return
+        }
+        
+        val isPlaying = intent.getBooleanExtra("isPlaying", false)
+        val title = intent.getStringExtra("title") ?: "Unknown"
+        val artist = intent.getStringExtra("artist")
+        val albumArtBase64 = intent.getStringExtra("albumArt")
+        
+        if (title.isNotEmpty()) {
+            isShowingTransientState = true
+            showOverlayAnimated()
+            overlayView.showMediaPlaying(title, artist, isPlaying, albumArtBase64)
+            
+            // Keep showing until media stops
+            transientStateRunnable?.let { handler.removeCallbacks(it) }
+        }
+    }
+    
+
 
     private fun collapseList() {
         isExpanded = false
@@ -605,6 +761,125 @@ class DynamicIslandService : Service() {
             if (isExpanded) {
                 overlayView.expandToList(notificationQueue)
             } else {
+                updateState()
+            }
+        }
+    }
+    
+    /**
+     * Check if the current foreground app is in the blacklist
+     */
+    @SuppressLint("NewApi")
+    private fun isInBlacklistedApp(): Boolean {
+        if (blacklistedApps.isEmpty()) {
+            return false
+        }
+        
+        try {
+            val currentPackage = getCurrentForegroundApp()
+            if (currentPackage != null && blacklistedApps.contains(currentPackage)) {
+                // App is blacklisted - check if we should hide even with active notifications
+                if (hideWithActiveNotifs) {
+                    // Hide regardless of notifications
+                    return true
+                } else {
+                    // Only hide if no notifications
+                    return notificationQueue.isEmpty()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking blacklisted app: ${e.message}")
+        }
+        
+        return false
+    }
+    
+    /**
+     * Get the current foreground app package name using UsageStatsManager
+     */
+    @SuppressLint("NewApi")
+    private fun getCurrentForegroundApp(): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            return null
+        }
+        
+        try {
+            val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as? android.app.usage.UsageStatsManager
+            if (usageStatsManager == null) {
+                Log.w(TAG, "UsageStatsManager not available")
+                return null
+            }
+            
+            val currentTime = System.currentTimeMillis()
+            // Query events from last 1 second
+            val usageEvents = usageStatsManager.queryEvents(currentTime - 1000, currentTime)
+            
+            var lastEventPackage: String? = null
+            val event = android.app.usage.UsageEvents.Event()
+            
+            while (usageEvents.hasNextEvent()) {
+                usageEvents.getNextEvent(event)
+                if (event.eventType == android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                    lastEventPackage = event.packageName
+                }
+            }
+            
+            return lastEventPackage
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting foreground app: ${e.message}")
+            return null
+        }
+    }
+    
+    /**
+     * Handle incoming call broadcast
+     */
+    private fun handleIncomingCallBroadcast(intent: Intent) {
+        if (!showPhoneCalls) {
+            Log.d(TAG, "Phone calls disabled in Dynamic Island, using standard UI")
+            // BluetoothService will handle launching CallActivity
+            return
+        }
+        
+        val number = intent.getStringExtra("number") ?: "Unknown"
+        val contactName = intent.getStringExtra("callerId")
+        
+        Log.d(TAG, "Incoming call in Dynamic Island: $number ($contactName)")
+        
+        currentCall = PhoneCallData(
+            number = number,
+            contactName = contactName,
+            isRinging = true
+        )
+        
+        // Show call in Dynamic Island
+        isShowingTransientState = true
+        showOverlayAnimated()
+        overlayView.showPhoneCall(number, contactName, true)
+    }
+    
+    /**
+     * Handle call state changed
+     */
+    private fun handleCallStateChanged(intent: Intent) {
+        val state = intent.getStringExtra("state") ?: return
+        
+        Log.d(TAG, "Call state changed: $state")
+        
+        when (state) {
+            "ENDED", "IDLE" -> {
+                // Call ended
+                currentCall = null
+                isShowingTransientState = false
+                updateState()
+            }
+            "ACTIVE" -> {
+                // Call answered - could show different UI or hide
+                currentCall?.let {
+                    currentCall = it.copy(isRinging = false)
+                }
+                // Hide Dynamic Island while in call
+                isShowingTransientState = false
                 updateState()
             }
         }

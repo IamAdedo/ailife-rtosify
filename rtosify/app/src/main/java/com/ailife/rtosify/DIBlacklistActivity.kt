@@ -117,18 +117,40 @@ class DIBlacklistActivity : AppCompatActivity() {
 
     private fun loadInstalledApps() {
         CoroutineScope(Dispatchers.IO).launch {
-            val pm = packageManager
-            val packages = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+            // Load watch's installed apps from SharedPreferences
+            // These are sent from the watch via Bluetooth and stored locally
+            val prefs = getSharedPreferences("rtosify_prefs", MODE_PRIVATE)
+            val installedAppsJson = prefs.getString("installed_apps_list", "[]")
             
-            val apps = packages.map { appInfo ->
-                AppInfo(
-                    name = appInfo.loadLabel(pm).toString(),
-                    packageName = appInfo.packageName,
-                    isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
-                )
-            }.sortedBy { it.name.lowercase() }
+            val apps = try {
+                // Parse JSON array of installed apps
+                val jsonArray = org.json.JSONArray(installedAppsJson)
+                val appList = mutableListOf<AppInfo>()
+                
+                for (i in 0 until jsonArray.length()) {
+                    val jsonApp = jsonArray.getJSONObject(i)
+                    appList.add(AppInfo(
+                        name = jsonApp.optString("label", "Unknown"),
+                        packageName = jsonApp.optString("packageName", ""),
+                        isSystemApp = jsonApp.optBoolean("isSystem", false)
+                    ))
+                }
+                appList.sortedBy { it.name.lowercase() }
+            } catch (e: Exception) {
+                android.util.Log.e("DIBlacklist", "Error loading watch apps: ${e.message}")
+                // Fallback to empty list if watch apps not available
+                emptyList()
+            }
             
             withContext(Dispatchers.Main) {
+                if (apps.isEmpty()) {
+                    // Show a message that watch apps need to be synced
+                    android.widget.Toast.makeText(
+                        this@DIBlacklistActivity,
+                        "No watch apps found. Please ensure watch is connected.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
                 allApps = apps
                 filterApps(searchEdit.text.toString())
             }

@@ -80,9 +80,7 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
 
         initViews()
         setupFeatureToggles()
-        setupAuto
-
-        HideSettings()
+        setupAutoHideSettings()
         setupDisplaySettings()
         setupTextSettings()
         setupCardClickListeners()
@@ -172,9 +170,7 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
         }
 
         // Hide with active notifications toggle
-        switchHideWithActive
-
-        Notifs.isChecked = activePrefs.getBoolean("di_hide_with_active_notifs", false)
+        switchHideWithActiveNotifs.isChecked = activePrefs.getBoolean("di_hide_with_active_notifs", false)
         switchHideWithActiveNotifs.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean("di_hide_with_active_notifs", isChecked).apply()
             syncSettings()

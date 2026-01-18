@@ -40,8 +40,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var spinnerNotificationStyle: Spinner
     private lateinit var seekBarTimeout: SeekBar
     private lateinit var tvTimeoutValue: TextView
-    private lateinit var layoutDynamicIslandOptions: LinearLayout
-    private lateinit var switchHideWhenIdle: SwitchMaterial
+
     private lateinit var seekBarY: SeekBar
     private lateinit var tvYValue: TextView
     private lateinit var seekBarWidth: SeekBar
@@ -83,7 +82,6 @@ class NotificationSettingsActivity : AppCompatActivity() {
         setupVibrateSilentSwitch()
         setupNotificationStyleSpinner()
         setupTimeoutSeekBar()
-        setupHideWhenIdleSwitch()
         setupYSeekBar()
         setupWidthSeekBar()
         setupHeightSeekBar()
@@ -113,8 +111,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         spinnerNotificationStyle = findViewById(R.id.spinnerNotificationStyle)
         seekBarTimeout = findViewById(R.id.seekBarTimeout)
         tvTimeoutValue = findViewById(R.id.tvTimeoutValue)
-        layoutDynamicIslandOptions = findViewById(R.id.layoutDynamicIslandOptions)
-        switchHideWhenIdle = findViewById(R.id.switchHideWhenIdle)
+
         seekBarY = findViewById(R.id.seekBarY)
         tvYValue = findViewById(R.id.tvYValue)
         seekBarWidth = findViewById(R.id.seekBarWidth)
@@ -265,14 +262,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         )
     }
 
-    private fun setupHideWhenIdleSwitch() {
-        val isEnabled = activePrefs.getBoolean("dynamic_island_hide_idle", false)
-        switchHideWhenIdle.isChecked = isEnabled
-        switchHideWhenIdle.setOnCheckedChangeListener { _, isChecked ->
-            activePrefs.edit().putBoolean("dynamic_island_hide_idle", isChecked).apply()
-            syncSettings()
-        }
-    }
+
 
     private fun setupYSeekBar() {
         val y = activePrefs.getInt("dynamic_island_y", 8)
@@ -464,12 +454,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
                 val isVibrateOn = activePrefs.getBoolean("vibrate_enabled", false)
                 switchVibrateSilent.isEnabled = isVibrateOn
 
-                // Dynamic Island options depend on selected style
-                val currentStyle = activePrefs.getString("notification_style", "android")
-                val isDynamicIsland = currentStyle == "dynamic_island"
-                layoutDynamicIslandOptions.isEnabled = isDynamicIsland
-                layoutDynamicIslandOptions.alpha = if (isDynamicIsland) 1.0f else 0.4f
-                setViewGroupEnabled(layoutDynamicIslandOptions, isDynamicIsland)
+                // Dynamic Island settings are now in DynamicIslandSettingsActivity
             } else {
                 cards.forEach {
                     it.alpha = 0.4f
@@ -477,9 +462,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
                 }
                 childSwitches.forEach { it.isEnabled = false }
                 switchVibrateSilent.isEnabled = false
-                layoutDynamicIslandOptions.isEnabled = false
-                layoutDynamicIslandOptions.alpha = 0.4f
-                setViewGroupEnabled(layoutDynamicIslandOptions, false)
+
             }
         }
     }
