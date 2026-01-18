@@ -228,9 +228,9 @@ data class StatusUpdateData(
         val battery: Int,
         val charging: Boolean,
         val dnd: Boolean,
-        val wifi: String,
-        val wifiEnabled: Boolean = true,
-        val ipAddress: String? = null
+        val ipAddress: String? = null,
+        val wifiSsid: String? = null,
+        val wifiState: String? = null
 )
 
 data class FindDeviceLocationData(

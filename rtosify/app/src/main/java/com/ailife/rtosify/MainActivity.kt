@@ -1635,9 +1635,11 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             wifiSsid: String,
             wifiEnabled: Boolean,
             dndEnabled: Boolean,
-            ipAddress: String?
+            ipAddress: String?,
+            wifiState: String?
     ) {
-        currentWifiSsid = wifiSsid
+        // Only use actual SSID when connected, otherwise use empty to prevent status strings from showing
+        currentWifiSsid = if (wifiState == "CONNECTED") wifiSsid else ""
         runOnUiThread {
             updateWatchStatusCard(batteryLevel, isCharging, wifiSsid, wifiEnabled, dndEnabled)
 

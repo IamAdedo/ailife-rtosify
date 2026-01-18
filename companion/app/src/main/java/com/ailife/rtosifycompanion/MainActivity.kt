@@ -802,9 +802,18 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             wifiSsid: String,
             wifiEnabled: Boolean,
             dndEnabled: Boolean,
-            ipAddress: String?
+            ipAddress: String?,
+            wifiState: String?
     ) {
-        runOnUiThread { updateWatchStatusCard(batteryLevel, isCharging, wifiSsid, dndEnabled) }
+        val finalDisplay = when(wifiState) {
+            "CONNECTED" -> wifiSsid
+            "DISCONNECTED" -> getString(R.string.status_disconnected)
+            "DISABLED", "OFF" -> getString(R.string.wifi_status_disabled)
+            "NO_PERMISSION" -> getString(R.string.status_no_permission)
+            else -> if (wifiSsid.isNotEmpty()) wifiSsid else (wifiState ?: getString(R.string.wifi_placeholder))
+        }
+        
+        runOnUiThread { updateWatchStatusCard(batteryLevel, isCharging, finalDisplay, dndEnabled) }
     }
 
     override fun onDestroy() {

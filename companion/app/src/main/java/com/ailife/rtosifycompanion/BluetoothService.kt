@@ -251,7 +251,8 @@ class BluetoothService : Service() {
                 wifiSsid: String,
                 wifiEnabled: Boolean,
                 dndEnabled: Boolean,
-                ipAddress: String? = null
+                ipAddress: String? = null,
+                wifiState: String? = null
         ) {}
         fun onTransportStatusChanged(status: com.ailife.rtosifycompanion.communication.TransportManager.TransportStatus) {}
         fun onPhoneBatteryUpdated(battery: Int, isCharging: Boolean) {}
@@ -2058,8 +2059,10 @@ class BluetoothService : Service() {
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         val dndEnabled = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
 
-        var wifiSsid: String
+        var wifiSsid: String? = null
+        var wifiState: String
         var wifiEnabled = false
+        
         try {
             val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
             wifiEnabled = wm.isWifiEnabled
@@ -2076,49 +2079,64 @@ class BluetoothService : Service() {
                         val rawSsid = info.ssid
                         Log.d(TAG, "WiFi Status: rawSsid='$rawSsid', supplicantState=${info.supplicantState}")
 
-                        // Handle various SSID formats and edge cases
+                        // Only extract actual SSID, don't use status messages
                         wifiSsid = when {
-                            rawSsid.isNullOrEmpty() -> "Connected"
-                            rawSsid == "<unknown ssid>" -> "Connected"
-                            rawSsid == "\"<unknown ssid>\"" -> "Connected"
-                            rawSsid == "0x" -> "Connected" // Some devices return this
+                            rawSsid.isNullOrEmpty() -> null
+                            rawSsid == "<unknown ssid>" -> null
+                            rawSsid == "\"<unknown ssid>\"" -> null
+                            rawSsid == "0x" -> null
                             else -> {
-                                // Remove quotes if present
                                 val cleanSsid = rawSsid.replace("\"", "").trim()
                                 if (cleanSsid.isEmpty() || cleanSsid == "<unknown ssid>") {
-                                    "Connected"
+                                    null
                                 } else {
                                     cleanSsid
                                 }
                             }
                         }
+                        wifiState = "CONNECTED"
                     } else {
-                        wifiSsid = getString(R.string.wifi_status_disconnected)
+                        wifiSsid = null
+                        wifiState = "DISCONNECTED"
                         Log.d(TAG, "WiFi Status: Not connected, info=$info, supplicantState=${info?.supplicantState}")
                     }
                 } else {
-                    wifiSsid = getString(R.string.wifi_status_disabled)
+                    wifiSsid = null
+                    wifiState = "DISABLED"
                 }
             } else {
-                wifiSsid = getString(R.string.wifi_status_no_permission)
+                wifiSsid = null
+                wifiState = "NO_PERMISSION"
                 Log.w(TAG, "WiFi Status: No location permission")
             }
         } catch (e: Exception) {
-            wifiSsid = getString(R.string.wifi_status_error)
+            wifiSsid = null
+            wifiState = "ERROR"
             Log.e(TAG, "WiFi Status: Error collecting status", e)
         }
 
         val ipAddress = getIpAddress()
-        Log.d(TAG, "WiFi Status collected: ssid='$wifiSsid', enabled=$wifiEnabled, ip=$ipAddress")
+        Log.d(TAG, "WiFi Status collected: ssid='$wifiSsid', state='$wifiState', enabled=$wifiEnabled, ip=$ipAddress")
 
         return StatusUpdateData(
                 battery = batteryLevel,
                 charging = isCharging,
                 dnd = dndEnabled,
-                wifi = wifiSsid,
-                wifiEnabled = wifiEnabled,
-                ipAddress = ipAddress
+                ipAddress = ipAddress,
+                wifiSsid = wifiSsid,
+                wifiState = wifiState
         )
+    }
+
+    private fun broadcastStatusUpdate(status: StatusUpdateData) {
+        val intent = Intent("com.ailife.rtosifycompanion.STATUS_UPDATE")
+        // Use Gson to serialize if needed, or just broadcast that update happened
+        // For now, minimal implementation to satisfy compiler if it was missing
+        // or check if it was intended to use LocalBroadcastManager
+        
+        // LocalBroadcastManager is deprecated/missing, using standard broadcast.
+        // Ensure receivers use ContextCompat.registerReceiver with RECEIVER_NOT_EXPORTED if targeting Android 14+
+        sendBroadcast(intent)
     }
 
     private fun getIpAddress(): String? {
@@ -2279,14 +2297,35 @@ class BluetoothService : Service() {
     private suspend fun handleStatusUpdateReceived(message: ProtocolMessage) {
         try {
             val status = ProtocolHelper.extractData<StatusUpdateData>(message)
-            withContext(Dispatchers.Main) {
+            serviceScope.launch(Dispatchers.Main) {
+                // Determine logic for callback arguments based on new fields
+                // wifiSsid: String
+                // wifiEnabled: Boolean (inferred from State)
+                // wifiState: String?
+                
+                val state = status.wifiState ?: "UNKNOWN"
+                val enabled = state != "DISABLED" && state != "OFF"
+                
+                // Old 'wifi' string is gone. We must construct display SSID or pass null if not connected.
+                // Callback expects 'wifiSsid' as String. 
+                // If connected, pass SSID. If not, pass status string for display?
+                // The MainActivity update handled this logic:
+                // val displaySsid = if (wifiState == "CONNECTED") wifiSsid else wifiState ?: wifiSsid
+                
+                // So here we pass pure data.
+                val ssidData = status.wifiSsid ?: "" 
+
                 callback?.onWatchStatusUpdated(
-                        status.battery,
-                        status.charging,
-                        status.wifi,
-                        status.wifiEnabled,
-                        status.dnd
+                    status.battery,
+                    status.charging,
+                    ssidData,
+                    enabled,
+                    status.dnd,
+                    status.ipAddress,
+                    state
                 )
+            
+                broadcastStatusUpdate(status)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Status parser error: ${e.message}")

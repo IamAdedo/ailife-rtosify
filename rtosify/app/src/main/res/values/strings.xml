@@ -453,6 +453,7 @@
     <string name="notif_battery_full_text">Watch is fully charged!</string>
     <string name="notif_battery_low_text">Watch battery is at %d%%.</string>
     <string name="status_no_permission">No Permission</string>
+    <string name="wifi_status_error">Wifi Error</string>
     <string name="toast_wifi_no_networks">No WiFi networks found.</string>
     <string name="wifi_security_secured">Secured</string>
     <string name="wifi_security_open">Open</string>
@@ -797,6 +798,9 @@
     <string name="status_standby">Standby</string>
     <string name="status_paused_rule">Paused by rule</string>
     <string name="network_connected_via">Connected via %s</string>
+    <string name="wifi_status_disconnected">Disconnected</string>
+    <string name="wifi_status_disabled">Wifi Off</string>
+    <string name="wifi_status_no_permission">No Permission</string>
     <string name="network_details_title">Network Details</string>
     <string name="network_details_phone">Phone</string>
     <string name="network_details_watch">Watch</string>

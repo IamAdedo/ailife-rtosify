@@ -122,6 +122,6 @@ class ShareToPhoneActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     override fun onScanResult(devices: List<BluetoothDevice>) {}
     override fun onDownloadProgress(progress: Int) {}
     override fun onFileListReceived(path: String, filesJson: String) {}
-    override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean, ipAddress: String?) {}
+    override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean, ipAddress: String?, wifiState: String?) {}
     override fun onPhoneBatteryUpdated(battery: Int, isCharging: Boolean) {}
 }

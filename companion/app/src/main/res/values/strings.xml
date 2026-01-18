@@ -243,6 +243,7 @@
     <string name="wifi_status_disconnected">Disconnected</string>
     <string name="wifi_status_disabled">WiFi Disabled</string>
     <string name="wifi_status_no_permission">No Permission</string>
+    <string name="status_no_permission">No Permission</string>
     <string name="wifi_status_error">WiFi Error</string>
     <string name="wifi_status_connected">Connected</string>
     <string name="toast_watch_face_set">Watch face set: %1$s</string>

@@ -124,7 +124,7 @@ class ShareToWatchActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     override fun onAppListReceived(appsJson: String) {}
     override fun onDownloadProgress(progress: Int, file: java.io.File?) {}
     override fun onFileListReceived(path: String, filesJson: String) {}
-    override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean, ipAddress: String?) {}
+    override fun onWatchStatusUpdated(batteryLevel: Int, isCharging: Boolean, wifiSsid: String, wifiEnabled: Boolean, dndEnabled: Boolean, ipAddress: String?, wifiState: String?) {}
     override fun onHealthDataUpdated(healthData: HealthDataUpdate) {}
     override fun onHealthHistoryReceived(historyData: HealthHistoryResponse) {}
     override fun onHealthSettingsReceived(settings: HealthSettingsUpdate) {}

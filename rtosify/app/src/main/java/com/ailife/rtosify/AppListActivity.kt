@@ -219,7 +219,8 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             wifiSsid: String,
             wifiEnabled: Boolean,
             dndEnabled: Boolean,
-            ipAddress: String?
+            ipAddress: String?,
+            wifiState: String?
     ) {}
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {

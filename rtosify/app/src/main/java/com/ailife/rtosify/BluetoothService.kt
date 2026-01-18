@@ -252,7 +252,8 @@ class BluetoothService : Service() {
                 wifiSsid: String,
                 wifiEnabled: Boolean,
                 dndEnabled: Boolean,
-                ipAddress: String? = null
+                ipAddress: String? = null,
+                wifiState: String? = null
         ) {}
         fun onHealthDataUpdated(healthData: HealthDataUpdate) {}
         fun onHealthHistoryReceived(historyData: HealthHistoryResponse) {}
@@ -1067,7 +1068,10 @@ class BluetoothService : Service() {
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         val dndEnabled = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
 
-        var wifiSsid: String
+        var wifiSsid: String? = null
+        var wifiState: String = "UNKNOWN"
+        var displayWifi: String // Legacy/Display field
+
         try {
             if (ActivityCompat.checkSelfPermission(
                             this,
@@ -1083,40 +1087,51 @@ class BluetoothService : Service() {
                         val rawSsid = info.ssid
 
                         if (rawSsid == "<unknown ssid>" || rawSsid.isEmpty()) {
-                            wifiSsid = lastValidWifiSsid.ifEmpty { getString(R.string.status_connected) }
+                            wifiState = "CONNECTED"
+                            wifiSsid = lastValidWifiSsid.ifEmpty { null }
+                            displayWifi = wifiSsid ?: getString(R.string.status_connected)
                         } else {
                             val cleanSsid = rawSsid.replace("\"", "")
                             if (cleanSsid != "<unknown ssid>") {
                                 lastValidWifiSsid = cleanSsid
                                 wifiSsid = cleanSsid
+                                wifiState = "CONNECTED"
+                                displayWifi = cleanSsid
                             } else if (lastValidWifiSsid.isNotEmpty()) {
                                 wifiSsid = lastValidWifiSsid
+                                wifiState = "CONNECTED"
+                                displayWifi = lastValidWifiSsid
                             } else {
-                                wifiSsid = getString(R.string.status_connected)
+                                wifiState = "CONNECTED"
+                                displayWifi = getString(R.string.status_connected)
                             }
                         }
                     } else {
                         lastValidWifiSsid = ""
-                        wifiSsid = getString(R.string.status_disconnected)
+                        wifiState = "DISCONNECTED"
+                        displayWifi = getString(R.string.status_disconnected)
                     }
                 } else {
                     lastValidWifiSsid = ""
-                    wifiSsid = "Wifi Off"
+                    wifiState = "DISABLED"
+                    displayWifi = "Wifi Off"
                 }
             } else {
-                wifiSsid = getString(R.string.status_no_permission)
+                wifiState = "NO_PERMISSION"
+                displayWifi = getString(R.string.status_no_permission)
             }
         } catch (_: Exception) {
-            wifiSsid = "Erro Wifi"
+            wifiState = "ERROR"
+            displayWifi = "Erro Wifi"
         }
 
         return StatusUpdateData(
                 battery = batteryLevel,
                 charging = isCharging,
                 dnd = dndEnabled,
-                wifi = wifiSsid,
-                wifiEnabled = true, // Phone app usually implies enabled if we reached here
-                ipAddress = getIpAddress()
+                ipAddress = getIpAddress(),
+                wifiSsid = wifiSsid,
+                wifiState = wifiState
         )
     }
 
@@ -1144,17 +1159,29 @@ class BluetoothService : Service() {
             
             lastBatteryLevel = status.battery
             dndEnabled = status.dnd
-            lastWifiSsid = status.wifi
+            val state = status.wifiState ?: "UNKNOWN"
+            val displayWifi = when (state) {
+                "CONNECTED" -> status.wifiSsid ?: getString(R.string.status_connected)
+                "DISCONNECTED" -> status.wifiSsid ?: getString(R.string.wifi_status_disconnected)
+                "DISABLED", "OFF" -> status.wifiSsid ?: getString(R.string.wifi_status_disabled)
+                "NO_PERMISSION" -> status.wifiSsid ?: getString(R.string.wifi_status_no_permission)
+                else -> status.wifiSsid ?: state
+            }
+            
+            lastWifiSsid = displayWifi // Keeping this as display string for now if used elsewhere
             updateWidgets()
+
+            val isWifiEnabled = state != "DISABLED" && state != "OFF"
 
             withContext(Dispatchers.Main) {
                 callback?.onWatchStatusUpdated(
                         status.battery,
                         status.charging,
-                        status.wifi,
-                        status.wifiEnabled,
+                        displayWifi,
+                        isWifiEnabled,
                         status.dnd,
-                        status.ipAddress
+                        status.ipAddress,
+                        status.wifiState // Pass state too if callback updated
                 )
             }
         } catch (e: Exception) {

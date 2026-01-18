@@ -121,7 +121,8 @@ class NetworkSettingsActivity : AppCompatActivity() {
             wifiSsid: String,
             wifiEnabled: Boolean,
             dndEnabled: Boolean,
-            ipAddress: String?
+            ipAddress: String?,
+            wifiState: String?
         ) {
             runOnUiThread {
                 tvWatchWifi.text = if (wifiEnabled) wifiSsid else getString(R.string.network_rule_disabled)
