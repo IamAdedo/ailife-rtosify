@@ -20,7 +20,7 @@
             android:layout_height="20dp"
             android:src="@drawable/ic_heart"
             android:layout_marginEnd="6dp"
-            android:contentDescription="Health" />
+            android:contentDescription="@string/health_label_short" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -64,7 +64,7 @@
                 android:id="@+id/tvWidgetSteps"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="---"
+                android:text="@string/placeholder_dash_3"
                 android:layout_marginTop="4dp"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
@@ -99,7 +99,7 @@
                 android:id="@+id/tvWidgetHr"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="--"
+                android:text="@string/placeholder_dash_2"
                 android:layout_marginTop="4dp"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
@@ -108,7 +108,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="bpm"
+                android:text="@string/health_hr_unit"
                 android:textColor="#AAAAAA"
                 android:textSize="10sp"/>
         </LinearLayout>
@@ -133,7 +133,7 @@
                 android:id="@+id/tvWidgetSpo2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="--"
+                android:text="@string/placeholder_dash_2"
                 android:layout_marginTop="4dp"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
@@ -142,7 +142,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="%"
+                android:text="@string/health_oxygen_unit"
                 android:textColor="#AAAAAA"
                 android:textSize="10sp"/>
         </LinearLayout>

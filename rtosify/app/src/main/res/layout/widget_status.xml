@@ -18,7 +18,7 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/ic_smartwatch"
-            android:contentDescription="Device" />
+            android:contentDescription="@string/device_name_default" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -31,7 +31,7 @@
                 android:id="@+id/tvWidgetDeviceName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Watch"
+                android:text="@string/device_watch"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
                 android:textStyle="bold" />
@@ -40,7 +40,7 @@
                 android:id="@+id/tvWidgetStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Disconnected"
+                android:text="@string/status_disconnected"
                 android:textColor="#AAAAAA"
                 android:textSize="12sp" />
         </LinearLayout>
@@ -50,14 +50,14 @@
             android:layout_width="20dp"
             android:layout_height="20dp"
             android:src="@drawable/ic_battery_full"
-            android:contentDescription="Battery" />
+            android:contentDescription="@string/battery_label_level" />
 
         <TextView
             android:id="@+id/tvWidgetBattery"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="4dp"
-            android:text="--%"
+            android:text="@string/battery_percent_placeholder"
             android:textColor="#FFFFFF"
             android:textSize="12sp" />
     </LinearLayout>
@@ -82,14 +82,14 @@
             android:layout_width="16dp"
             android:layout_height="16dp"
             android:src="@drawable/ic_wifi"
-            android:contentDescription="WiFi" />
+            android:contentDescription="@string/wifi" />
 
         <TextView
             android:id="@+id/tvWidgetWifiTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
-            android:text="WiFi:"
+            android:text="@string/wifi_label_colon"
             android:textColor="#AAAAAA"
             android:textSize="12sp" />
 
@@ -101,7 +101,7 @@
             android:layout_weight="1"
             android:ellipsize="end"
             android:singleLine="true"
-            android:text="Not Connected"
+            android:text="@string/wifi_status_not_connected"
             android:textColor="#FFFFFF"
             android:textSize="12sp" />
     </LinearLayout>
@@ -138,7 +138,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_do_not_disturb"
-                android:contentDescription="DND" />
+                android:contentDescription="@string/dnd_label" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -165,12 +165,12 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_cast"
-                android:contentDescription="Mirror" />
+                android:contentDescription="@string/label_mirror" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Mirror"
+                android:text="@string/label_mirror"
                 android:textColor="#FFFFFF"
                 android:textSize="10sp"
                 android:layout_marginTop="4dp"/>

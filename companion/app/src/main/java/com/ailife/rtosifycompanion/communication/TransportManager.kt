@@ -55,15 +55,15 @@ class TransportManager(
         val internetConnected = internet != null && internet.isConnected()
 
         if (!btConnected && !wifiConnected && !internetConnected) {
-            return "Disconnected"
+            return context.getString(com.ailife.rtosifycompanion.R.string.status_disconnected)
         }
 
         val types = mutableListOf<String>()
-        if (btConnected) types.add("BT")
-        if (wifiConnected) types.add("LAN")
-        if (internetConnected) types.add("Internet")
+        if (btConnected) types.add(context.getString(com.ailife.rtosifycompanion.R.string.transport_bt))
+        if (wifiConnected) types.add(context.getString(com.ailife.rtosifycompanion.R.string.transport_lan))
+        if (internetConnected) types.add(context.getString(com.ailife.rtosifycompanion.R.string.transport_internet))
 
-        return "Connected via ${types.joinToString("+")}"
+        return context.getString(com.ailife.rtosifycompanion.R.string.status_connected_via, types.joinToString("+"))
     }
 
     fun isBtConnected(): Boolean = bluetoothTransport?.isConnected() == true

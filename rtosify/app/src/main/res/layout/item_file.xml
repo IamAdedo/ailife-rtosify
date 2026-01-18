@@ -44,7 +44,7 @@
                 android:id="@+id/tvFileInfo"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Size | Modified"
+                android:text="@string/file_info_header"
                 android:textColor="@color/colorTextSecondary"
                 android:textSize="12sp" />
 

@@ -124,8 +124,8 @@ class NetworkSettingsActivity : AppCompatActivity() {
             ipAddress: String?
         ) {
             runOnUiThread {
-                tvWatchWifi.text = if (wifiEnabled) wifiSsid else "Disabled"
-                tvWatchIp.text = ipAddress ?: "N/A"
+                tvWatchWifi.text = if (wifiEnabled) wifiSsid else getString(R.string.network_rule_disabled)
+                tvWatchIp.text = ipAddress ?: getString(R.string.label_na)
             }
         }
     }
@@ -340,14 +340,14 @@ class NetworkSettingsActivity : AppCompatActivity() {
         bluetoothService?.notifyWifiRuleChanged()
 
         val ruleName = when (newRule) {
-            0 -> "Disabled"
+            0 -> getString(R.string.network_rule_disabled)
             BluetoothService.WIFI_RULE_BT_FALLBACK -> getString(R.string.network_rule_bt_fallback)
             BluetoothService.WIFI_RULE_MAINACTIVITY -> getString(R.string.network_rule_mainactivity)
             BluetoothService.WIFI_RULE_BT_OR_APP -> getString(R.string.network_rule_bt_or_app)
             BluetoothService.WIFI_RULE_ALWAYS -> getString(R.string.network_rule_always)
-            else -> "Unknown"
+            else -> getString(R.string.label_unknown)
         }
-        Toast.makeText(this, "LAN: $ruleName", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.toast_lan_config, ruleName), Toast.LENGTH_SHORT).show()
     }
 
     private fun saveInternetRule() {
@@ -366,13 +366,13 @@ class NetworkSettingsActivity : AppCompatActivity() {
         bluetoothService?.notifyWifiRuleChanged()
 
         val ruleName = when (newRule) {
-            0 -> "Disabled"
+            0 -> getString(R.string.network_rule_disabled)
             TransportManager.INTERNET_RULE_BT_LAN_FALLBACK -> getString(R.string.network_rule_bt_lan_fallback)
             TransportManager.INTERNET_RULE_MAINACTIVITY -> getString(R.string.network_rule_mainactivity)
             TransportManager.INTERNET_RULE_ALWAYS -> getString(R.string.network_rule_always)
-            else -> "Unknown"
+            else -> getString(R.string.label_unknown)
         }
-        Toast.makeText(this, "Internet: $ruleName", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.toast_internet_config, ruleName), Toast.LENGTH_SHORT).show()
     }
 
     private fun updatePairingButton() {
@@ -419,7 +419,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
         indicatorBt.setBackgroundResource(
             if (btConnected) R.drawable.status_indicator_on else R.drawable.status_indicator_disconnected
         )
-        tvBtStatus.text = if (btConnected) "Connected" else "Disconnected"
+        tvBtStatus.text = if (btConnected) getString(R.string.status_connected) else getString(R.string.status_disconnected)
 
         // Update LAN indicator
         indicatorLan.setBackgroundResource(
@@ -431,10 +431,10 @@ class NetworkSettingsActivity : AppCompatActivity() {
             }
         )
         tvLanStatus.text = when {
-            lanConnected -> "Connected"
-            lanRule == 0 -> "Disabled"
-            lanShouldBeActive -> "Disconnected"
-            else -> "Paused by rule"
+            lanConnected -> getString(R.string.status_connected)
+            lanRule == 0 -> getString(R.string.network_rule_disabled)
+            lanShouldBeActive -> getString(R.string.status_disconnected)
+            else -> getString(R.string.status_paused_rule)
         }
 
         // Update Internet indicator
@@ -447,21 +447,21 @@ class NetworkSettingsActivity : AppCompatActivity() {
             }
         )
         tvInternetStatus.text = when {
-            internetConnected -> "Connected"
-            internetRule == 0 -> "Disabled"
-            internetShouldBeActive -> "Disconnected"
-            else -> "Paused by rule"
+            internetConnected -> getString(R.string.status_connected)
+            internetRule == 0 -> getString(R.string.network_rule_disabled)
+            internetShouldBeActive -> getString(R.string.status_disconnected)
+            else -> getString(R.string.status_paused_rule)
         }
 
         // Update active connection summary using unified status
         val statusString = if (status != null && status.isConnected) {
-            "Connected via ${status.typeString}"
+            getString(R.string.network_connected_via, status.typeString)
         } else if (status?.state is TransportManager.ConnectionState.Connecting) {
-             "Connecting..."
+             getString(R.string.status_connecting)
         } else if (status?.state is TransportManager.ConnectionState.Waiting) {
-             "Waiting..."
+             getString(R.string.status_waiting)
         } else {
-             "Disconnected"
+             getString(R.string.status_disconnected)
         }
         
         tvActiveConnection.text = statusString
@@ -477,7 +477,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
             val info = wm.connectionInfo
             if (info != null && info.supplicantState == android.net.wifi.SupplicantState.COMPLETED) {
                 val ssid = info.ssid.replace("\"", "")
-                tvCurrentWifi.text = if (ssid == "<unknown ssid>") "Connected" else ssid
+                tvCurrentWifi.text = if (ssid == "<unknown ssid>") getString(R.string.status_connected) else ssid
 
                 val ip = info.ipAddress
                 tvPhoneIp.text = if (ip == 0) "N/A" else String.format(
@@ -489,11 +489,11 @@ class NetworkSettingsActivity : AppCompatActivity() {
                 )
             } else {
                 tvCurrentWifi.text = getString(R.string.network_not_on_wifi)
-                tvPhoneIp.text = "N/A"
+                tvPhoneIp.text = getString(R.string.label_na)
             }
         } else {
-            tvCurrentWifi.text = "Disabled"
-            tvPhoneIp.text = "N/A"
+            tvCurrentWifi.text = getString(R.string.network_rule_disabled)
+            tvPhoneIp.text = getString(R.string.label_na)
         }
     }
 

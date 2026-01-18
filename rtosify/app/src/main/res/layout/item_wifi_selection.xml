@@ -30,7 +30,7 @@
             android:layout_height="wrap_content"
             android:textSize="16sp"
             android:textStyle="bold"
-            android:text="SSID Name"
+            android:text="@string/wifi_ssid_header"
             android:textColor="?android:attr/textColorPrimary"/>
 
         <TextView
@@ -38,7 +38,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="12sp"
-            android:text="Secured"
+            android:text="@string/wifi_security_secured"
             android:textColor="?android:attr/textColorSecondary"/>
     </LinearLayout>
 

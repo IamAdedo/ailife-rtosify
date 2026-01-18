@@ -32,7 +32,7 @@
                 android:id="@+id/tvTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Finding Phone"
+                android:text="@string/find_phone_title"
                 android:textColor="@android:color/white"
                 android:textSize="18sp"
                 android:textStyle="bold" />
@@ -54,7 +54,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
-                    android:text="Signal: --"
+                    android:text="@string/label_signal"
                     android:textColor="@android:color/white"
                     android:textSize="14sp" />
 
@@ -65,7 +65,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Distance: Calculating..."
+                android:text="@string/status_calculating"
                 android:textColor="@android:color/darker_gray"
                 android:textSize="14sp" />
 
@@ -74,7 +74,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Last updated: Waiting..."
+                android:text="@string/status_last_updated_waiting"
                 android:textColor="@android:color/darker_gray"
                 android:textSize="12sp"
                 android:textStyle="italic" />
@@ -116,7 +116,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
-                    android:text="Phone"
+                    android:text="@string/device_phone"
                     android:textColor="@android:color/white"
                     android:textSize="12sp" />
 
@@ -139,7 +139,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
-                    android:text="Watch"
+                    android:text="@string/device_watch"
                     android:textColor="@android:color/white"
                     android:textSize="12sp" />
 
@@ -166,7 +166,7 @@
             android:layout_height="wrap_content"
             android:layout_margin="8dp"
             android:backgroundTint="@android:color/holo_blue_dark"
-            android:text="Ring Phone"
+            android:text="@string/action_ring_phone"
             android:textColor="@android:color/white" />
 
         <!-- Stop Finding Button -->
@@ -177,7 +177,7 @@
             android:layout_height="wrap_content"
             android:layout_margin="8dp"
             android:backgroundTint="@android:color/holo_red_dark"
-            android:text="Stop Finding"
+            android:text="@string/action_stop_finding"
             android:textColor="@android:color/white" />
 
     </LinearLayout>

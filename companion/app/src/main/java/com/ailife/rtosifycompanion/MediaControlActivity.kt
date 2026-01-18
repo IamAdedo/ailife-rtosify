@@ -286,8 +286,8 @@ class MediaControlActivity : AppCompatActivity() {
             totalTime.text = formatTime(localDuration)
         } else {
             progressBar.progress = 0
-            currentTime.text = "0:00"
-            totalTime.text = "0:00"
+            currentTime.text = getString(R.string.media_time_placeholder)
+            totalTime.text = getString(R.string.media_time_placeholder)
         }
     }
     

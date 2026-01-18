@@ -39,7 +39,7 @@ class MediaWidget : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (intent.action == ACTION_MEDIA_UPDATE) {
-            val title = intent.getStringExtra(EXTRA_TITLE) ?: "No Media"
+            val title = intent.getStringExtra(EXTRA_TITLE) ?: context.getString(R.string.media_no_media_short)
             val artist = intent.getStringExtra(EXTRA_ARTIST) ?: ""
             val isPlaying = intent.getBooleanExtra(EXTRA_IS_PLAYING, false)
 

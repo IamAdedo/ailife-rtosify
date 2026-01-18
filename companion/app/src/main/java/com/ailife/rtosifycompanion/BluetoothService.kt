@@ -1339,7 +1339,7 @@ class BluetoothService : Service() {
             
             // Broadcast to MediaWidget
             val widgetIntent = Intent(com.ailife.rtosifycompanion.widget.MediaWidget.ACTION_MEDIA_UPDATE).apply {
-                putExtra(com.ailife.rtosifycompanion.widget.MediaWidget.EXTRA_TITLE, data.title ?: "No Media")
+                putExtra(com.ailife.rtosifycompanion.widget.MediaWidget.EXTRA_TITLE, data.title ?: getString(R.string.media_no_media_short))
                 putExtra(com.ailife.rtosifycompanion.widget.MediaWidget.EXTRA_ARTIST, data.artist ?: "")
                 putExtra(com.ailife.rtosifycompanion.widget.MediaWidget.EXTRA_IS_PLAYING, data.isPlaying)
                 setPackage(packageName)

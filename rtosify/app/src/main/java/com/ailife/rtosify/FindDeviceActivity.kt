@@ -290,7 +290,7 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
             phoneMarker = Marker(mapView).apply {
                 icon = ContextCompat.getDrawable(this@FindDeviceActivity, R.drawable.ic_phone)
                 icon.setTint(Color.BLUE) // Tint for visibility
-                title = "Phone (You)"
+                title = getString(R.string.device_phone_you)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 mapView.overlays.add(this)
             }
@@ -335,7 +335,7 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
                 // Wait, legend says green for watch. 
                 // Or user said "Red/Blue"? I'll use Green to match XML legend I saw.
                 // Re-reading user request: "make the actual pin on the map in a different color then white"
-                title = "Watch"
+                title = getString(R.string.network_details_watch)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 mapView.overlays.add(this)
             }
@@ -389,17 +389,17 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
 
             val displayText = if (distance < 10 && abs(currentRssi) < 80) {
                 val rssiDistance = estimateDistanceFromRssi(currentRssi)
-                "Distance: ~${rssiDistance}m (Bluetooth)"
+                getString(R.string.find_dist_bt, rssiDistance)
             } else {
                 when {
-                    distance >= 1000 -> "Distance: %.2f km (GPS)".format(distance / 1000)
-                    else -> "Distance: %.0f m (GPS)".format(distance)
+                    distance >= 1000 -> getString(R.string.find_dist_gps_km, distance / 1000)
+                    else -> getString(R.string.find_dist_gps_m, distance)
                 }
             }
 
             tvDistance.text = displayText
         } else {
-            tvDistance.text = "Distance: Waiting for location..."
+            tvDistance.text = getString(R.string.find_dist_waiting)
         }
     }
 
@@ -415,14 +415,14 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
 
     private fun updateSignalStrength(rssi: Int) {
         val strength = when {
-            rssi > -50 -> "Excellent"
-            rssi > -60 -> "Good"
-            rssi > -70 -> "Fair"
-            rssi > -80 -> "Weak"
-            else -> "Very Weak"
+            rssi > -50 -> getString(R.string.find_rssi_excellent)
+            rssi > -60 -> getString(R.string.find_rssi_good)
+            rssi > -70 -> getString(R.string.find_rssi_fair)
+            rssi > -80 -> getString(R.string.find_rssi_weak)
+            else -> getString(R.string.find_rssi_very_weak)
         }
 
-        tvSignalStrength.text = "Signal: $strength ($rssi dBm)"
+        tvSignalStrength.text = getString(R.string.find_signal_format, strength, rssi)
     }
 
     private fun toggleRingDevice() {
@@ -434,12 +434,12 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
         bluetoothService?.sendFindDeviceCommand(isRinging)
         
         if (isRinging) {
-            btnRingDevice.text = "Stop Ringing"
+            btnRingDevice.text = getString(R.string.action_ring_stop)
             btnRingDevice.backgroundTintList = android.content.res.ColorStateList.valueOf(
                 ContextCompat.getColor(this, android.R.color.holo_orange_dark)
             )
         } else {
-            btnRingDevice.text = "Ring Watch"
+            btnRingDevice.text = getString(R.string.action_ring_watch)
             btnRingDevice.backgroundTintList = android.content.res.ColorStateList.valueOf(
                 ContextCompat.getColor(this, android.R.color.holo_blue_dark)
             )
@@ -448,11 +448,11 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
 
     private fun updateLastUpdatedText() {
         if (lastUpdateTimestamp == 0L) {
-            tvLastUpdated.text = "Last updated: Waiting for data..."
+            tvLastUpdated.text = getString(R.string.find_updated_waiting)
             return
         }
         val diffSeconds = (System.currentTimeMillis() - lastUpdateTimestamp) / 1000
-        tvLastUpdated.text = "Last updated: ${diffSeconds}s ago"
+        tvLastUpdated.text = getString(R.string.find_updated_format, diffSeconds)
     }
 
     private fun requestManualLocationUpdate() {

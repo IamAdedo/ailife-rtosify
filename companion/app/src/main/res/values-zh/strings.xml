@@ -40,6 +40,11 @@
     <string name="menu_mirroring_desc">流式传输屏幕并远程控制</string>
     <string name="menu_reset_all">重置所有</string>
     <string name="menu_reset_all_desc">清除设置并返回开始屏幕</string>
+    <string name="menu_notification_log">通知日志</string>
+    <string name="menu_notification_log_desc">查看最近 30 条通知</string>
+    <string name="notification_log_title">通知日志</string>
+    <string name="notification_log_empty">暂无通知记录</string>
+    <string name="notification_log_clear">清除日志</string>
     <string name="dialog_reset_all_title">重置所有设置？</string>
     <string name="dialog_reset_all_message">这将清除所有设置并返回开始屏幕。是否继续？</string>
     <string name="dialog_reset_all_confirm">重置所有</string>
@@ -401,6 +406,14 @@
     <string name="toast_not_connected">未连接</string>
     <string name="media_vol_label">音量</string>
     <string name="media_btn_play">播放</string>
+    <string name="media_vol_up_desc">增加音量</string>
+    <string name="media_vol_down_desc">降低音量</string>
+    <string name="media_play_pause_desc">播放/暂停</string>
+    <string name="media_prev_desc">上一曲</string>
+    <string name="media_next_desc">下一曲</string>
+    <string name="media_album_art_desc">专辑封面</string>
+    <string name="media_unknown_artist">未知艺术家</string>
+
     <string name="mirror_stop">停止镜像</string>
     <string name="mirror_requesting">正在请求手机屏幕...</string>
     <string name="status_phone_not_connected">手机未连接</string>
@@ -419,4 +432,53 @@
     <string name="di_channel_desc">灵动岛通知叠加层</string>
     <string name="di_active_title">灵动岛已激活</string>
     <string name="di_active_desc">正在显示通知</string>
+    <string name="network_stun_url_hint">STUN 服务器 URL</string>
+    <string name="network_turn_url_hint">TURN 服务器 URL (turn:host:port)</string>
+    <string name="network_turn_username_hint">TURN 用户名</string>
+    <string name="network_turn_password_hint">TURN 密码</string>
+    <string name="camera_record">录像</string>
+    <string name="widget_media_name">媒体控制</string>
+    <string name="widget_dashboard_name">仪表盘</string>
+
+    <!-- Hardcoded String Extractions -->
+    <string name="find_phone_title">查找手机</string>
+    <string name="label_signal">信号: --</string>
+    <string name="status_calculating">计算中...</string>
+    <string name="status_last_updated_waiting">上次更新: 等待中...</string>
+    <string name="device_phone">手机</string>
+    <string name="device_watch">手表</string>
+    <string name="action_ring_phone">响铃查找手机</string>
+    <string name="action_stop_finding">停止查找</string>
+    <string name="label_transport">传输</string>
+    <string name="label_transport_bt">蓝牙</string>
+    <string name="label_link">链接</string>
+    <string name="label_mirror">镜像</string>
+    <string name="label_plus">+</string>
+    <string name="label_minus">-</string>
+    <string name="media_album_art">专辑封面</string>
+    <string name="media_volume_label">音量</string>
+    <string name="media_no_media_short">无媒体</string>
+    <string name="media_no_media">无媒体播放</string>
+    <string name="battery_percent_placeholder">--%</string>
+    <string name="label_not_connected">未连接</string>
+    <string name="media_time_placeholder">0:00</string>
+
+    <string name="find_device_watch_you">手表 (你)</string>
+    <string name="find_device_dist_bt">距离: ~%s米 (蓝牙)</string>
+    <string name="find_device_dist_gps_km">距离: %.2f 公里 (GPS)</string>
+    <string name="find_device_dist_gps_m">距离: %.0f 米 (GPS)</string>
+    <string name="find_device_dist_waiting">距离: 等待位置...</string>
+    <string name="find_device_signal_format">信号: %s (%d dBm)</string>
+    <string name="find_device_rssi_excellent">极好</string>
+    <string name="find_device_rssi_good">良好</string>
+    <string name="find_device_rssi_fair">一般</string>
+    <string name="find_device_rssi_weak">弱</string>
+    <string name="find_device_rssi_very_weak">极弱</string>
+    <string name="find_device_updated_format">上次更新: %d秒前</string>
+    <string name="action_ring_stop">停止响铃</string>
+
+    <string name="transport_bt">蓝牙</string>
+    <string name="transport_lan">局域网</string>
+    <string name="transport_internet">互联网</string>
+    <string name="status_connected_via">已连接 (%s)</string>
 </resources>

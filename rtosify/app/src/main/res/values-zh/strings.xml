@@ -104,18 +104,12 @@
     <string name="dialog_reset_all_cancel">取消</string>
     <string name="menu_network_comms">网络通信</string>
     <string name="menu_network_comms_desc">配置 WiFi 内网设置</string>
-    <string name="network_pair_for_internet">配对互联网连接</string>
     <string name="network_pair_desc">交换加密密钥以进行安全的 WiFi 通信</string>
     <string name="network_encryption_info_title">安全连接</string>
     <string name="network_encryption_info_message">所有通过 WiFi/互联网的消息均使用 AES-256-GCM 加密。\n\n您的通信是安全且私密的。</string>
     <string name="network_encryption_finish">知道了</string>
 
     <!-- WiFi Pairing Activity -->
-    <string name="pairing_title">WiFi 配对</string>
-    <string name="pairing_step_key_exchange">步骤 1：交换加密密钥</string>
-    <string name="pairing_step_discovery">步骤 2：在网络上发现设备</string>
-    <string name="pairing_step_connecting">步骤 3：通过 WiFi 连接</string>
-    <string name="pairing_step_testing">步骤 4：验证安全连接</string>
     <string name="pairing_complete">WiFi 配对成功！</string>
     <string name="pairing_failed">WiFi 配对失败</string>
     <string name="pairing_close">完成</string>
@@ -369,7 +363,7 @@
     <string name="reply_label">回复</string>
 
     <!-- Health Data -->
-    <string name="menu_health">健康数据</string>
+    <string name="menu_health_data">健康数据</string>
     <string name="health_title">健康数据</string>
 
     <!-- Watch Face Management -->
@@ -695,4 +689,136 @@
 
     <string name="network_hq_lan_enabled">局域网高质量流传输</string>
     <string name="network_hq_lan_desc">通过局域网连接时使用更高质量和帧率进行相机及屏幕镜像</string>
+    <string name="camera_shutter">快门</string>
+    <string name="camera_record">录像</string>
+    <string name="camera_record_started">录像已开始</string>
+    <string name="camera_record_stopped">录像已停止</string>
+
+    <!-- Widgets -->
+    <string name="widget_status_name">连接状态</string>
+    <string name="widget_health_name">健康卡片</string>
+
+    <!-- Hardcoded String Extractions -->
+    <string name="file_info_header">大小 | 修改时间</string>
+    <string name="wifi_ssid_header">SSID 名称</string>
+    <string name="rule_whitelist_label">白名单</string>
+    <string name="wifi_label_colon">WiFi:</string>
+    <string name="wifi_status_not_connected">未连接</string>
+    <string name="device_watch">手表</string>
+    <string name="label_mirror">镜像</string>
+    <string name="placeholder_dash_2">--</string>
+    <string name="placeholder_dash_3">---</string>
+    <string name="health_label_short">健康</string>
+    <string name="dnd_label">勿扰</string>
+
+    <string name="battery_percent_placeholder">--%</string>
+    <string name="wifi">WiFi</string>
+    <!-- Health -->
+    <string name="health_use_instant_steps">使用即时步数 (主界面)</string>
+
+    <!-- Network Settings -->
+    <string name="network_settings_title">网络通信</string>
+    <string name="network_test_configuration">测试配置</string>
+    <string name="internet_test_title">Internet 配置测试</string>
+    <string name="internet_test_start">始测试</string>
+    <string name="internet_test_signaling">信令</string>
+    <string name="internet_test_stun">STUN</string>
+    <string name="internet_test_turn">TURN</string>
+    <string name="internet_test_log_title">测试日志</string>
+    <string name="internet_test_connecting_signaling">正在连接信令服务器: %s</string>
+    <string name="internet_test_signaling_ok">信令: 连接已建立</string>
+    <string name="internet_test_signaling_fail">信令: 连接失败: %s</string>
+    <string name="internet_test_stun_gathering">正在收集 STUN 候选: %s</string>
+    <string name="internet_test_stun_candidate">STUN: 发现候选 (%s)</string>
+    <string name="internet_test_stun_ok">STUN: 成功收集 srflx 候选</string>
+    <string name="internet_test_stun_fail">STUN: 收集失败</string>
+    <string name="internet_test_turn_gathering">正在收集 TURN 候选: %s</string>
+    <string name="internet_test_turn_candidate">TURN: 发现候选 (%s)</string>
+    <string name="internet_test_turn_ok">TURN: 成功收集 relay 候选</string>
+    <string name="internet_test_turn_fail">TURN: 收集失败 (验证凭据)</string>
+    <string name="network_activation_rules_title">LAN 激活规则</string>
+    <string name="network_activation_desc">选择何时使用 LAN 替代蓝牙</string>
+    <string name="network_rule_disabled">已禁用</string>
+    <string name="network_rule_bt_fallback">当蓝牙断开时</string>
+    <string name="network_rule_bt_fallback_desc">如果蓝牙失败则回退到 LAN</string>
+    <string name="network_rule_mainactivity">当应用打开时</string>
+    <string name="network_rule_mainactivity_desc">仅用于高速传输的 LAN</string>
+    <string name="network_rule_bt_or_app">当蓝牙断开或应用打开时</string>
+    <string name="network_rule_bt_or_app_desc">在任一条件下启用 LAN</string>
+    <string name="network_rule_bt_lan_fallback">当蓝牙和 LAN 都断开时</string>
+    <string name="network_rule_bt_lan_fallback_desc">当蓝牙和 LAN 都不可用时回退</string>
+    <string name="network_rule_always">始终启用</string>
+    <string name="network_rule_always_desc">始终优先使用 LAN</string>
+    <string name="network_status_title">连接状态</string>
+    <string name="network_pair_for_internet">配对 LAN/Internet</string>
+    <string name="network_advanced_settings_title">高级设置</string>
+    <string name="network_internet_settings_title">Internet 设置</string>
+    <string name="network_internet_desc">配置应用何时使用 Internet 连接到手表。需要信令服务器。</string>
+    <string name="network_signaling_url_hint">信令服务器 URL</string>
+    <string name="network_fixed_ip_enabled">使用固定 IP</string>
+    <string name="network_fixed_ip_desc">直接连接 IP 而不使用 mDNS (适用于 VPN/Zerotier)</string>
+    <string name="network_fixed_ip_hint">输入 IP 地址 (例如 10.1.1.2)</string>
+
+    <!-- WiFi Pairing -->
+    <string name="pairing_title">LAN 配对</string>
+    <string name="pairing_step_key_exchange">步骤 1: 交换加密密钥</string>
+    <string name="pairing_step_discovery">步骤 2: 在网络上发现设备</string>
+    <string name="pairing_step_connecting">步骤 3: 通过 LAN 连接</string>
+    <string name="pairing_step_testing">步骤 4: 验证安全连接</string>
+    <string name="wifi_repair">重新配对</string>
+    <string name="wifi_already_paired">LAN 已配对</string>
+
+    <!-- Notification Settings -->
+    <string name="di_text_size">文字大小</string>
+    <string name="di_text_size_multiplier">%1$.1fx</string>
+    <string name="di_message_length_limit">限制消息长度</string>
+    <string name="di_message_length_limit_desc">截断长消息至 2 行</string>
+
+    <!-- Watch Automation -->
+    <string name="automation_sharing_sync_title">共享同步</string>
+    <string name="automation_sharing_sync_desc">转发共享内容 (链接、文本) 到手表</string>
+
+    <!-- Find Device Activity -->
+    <string name="find_watch_title">查找手表</string>
+    <string name="label_signal_default">信号: --</string>
+    <string name="status_calculating">距离: 计算中...</string>
+    <string name="status_last_updated_waiting">上次更新: 等待中...</string>
+    <string name="device_phone_you">手机 (你)</string>
+    <string name="action_ring_watch">响铃查找手表</string>
+    <string name="action_stop_finding">停止查找</string>
+
+    <string name="network_active_format">活动: %s</string>
+    <string name="network_label_bluetooth">蓝牙</string>
+    <string name="network_label_lan">LAN</string>
+    <string name="network_label_internet">Internet</string>
+    <string name="status_standby">待机</string>
+    <string name="status_paused_rule">根据规则暂停</string>
+    <string name="network_connected_via">连接方式: %s</string>
+    <string name="network_details_title">网络详情</string>
+    <string name="network_details_phone">手机</string>
+    <string name="network_details_watch">手表</string>
+    <string name="network_label_network">网络</string>
+    <string name="network_label_ip">IP 地址</string>
+    <string name="label_na">N/A</string>
+    <string name="label_unknown">未知</string>
+    <string name="network_server_config">服务器配置</string>
+
+    <string name="find_dist_bt">距离: ~%sm (蓝牙)</string>
+    <string name="find_dist_gps_km">距离: %.2f km (GPS)</string>
+    <string name="find_dist_gps_m">距离: %.0f m (GPS)</string>
+    <string name="find_dist_waiting">距离: 等待位置...</string>
+    <string name="find_rssi_excellent">极好</string>
+    <string name="find_rssi_good">良好</string>
+    <string name="find_rssi_fair">一般</string>
+    <string name="find_rssi_weak">较弱</string>
+    <string name="find_rssi_very_weak">微弱</string>
+    <string name="find_signal_format">信号: %1$s (%2$d dBm)</string>
+    <string name="action_ring_stop">停止响铃</string>
+    <string name="find_updated_waiting">上次更新: 等待数据...</string>
+    <string name="find_updated_format">上次更新: %d秒前</string>
+
+    <string name="toast_lan_config">局域网: %s</string>
+    <string name="toast_internet_config">互联网: %s</string>
+    <string name="status_connecting">连接中...</string>
+
 </resources>

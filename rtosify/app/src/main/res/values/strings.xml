@@ -768,5 +768,61 @@
     <!-- Widgets -->
     <string name="widget_status_name">Connection Status</string>
     <string name="widget_health_name">Health Card</string>
+
+    <!-- Hardcoded String Extractions -->
+    <string name="file_info_header">Size | Modified</string>
+    <string name="wifi_ssid_header">SSID Name</string>
+    <string name="rule_whitelist_label">WHITELIST</string>
+    <string name="wifi_label_colon">WiFi:</string>
+    <string name="wifi_status_not_connected">Not Connected</string>
+    <string name="device_watch">Watch</string>
+    <string name="label_mirror">Mirror</string>
+    <string name="placeholder_dash_2">--</string>
+    <string name="placeholder_dash_3">---</string>
+    <string name="health_label_short">Health</string>
+    <string name="dnd_label">DND</string>
+    <string name="battery_percent_placeholder">--%</string>
+    <string name="wifi">WiFi</string>
+    <string name="find_watch_title">Finding Watch</string>
+    <string name="label_signal_default">Signal: --</string>
+    <string name="status_calculating">Distance: Calculating...</string>
+    <string name="status_last_updated_waiting">Last updated: Waiting...</string>
+    <string name="device_phone_you">Phone (You)</string>
+    <string name="action_ring_watch">Ring Watch</string>
+    <string name="action_stop_finding">Stop Finding</string>
+    <string name="network_active_format">Active: %s</string>
+    <string name="network_label_bluetooth">Bluetooth</string>
+    <string name="network_label_lan">LAN</string>
+    <string name="network_label_internet">Internet</string>
+    <string name="status_standby">Standby</string>
+    <string name="status_paused_rule">Paused by rule</string>
+    <string name="network_connected_via">Connected via %s</string>
+    <string name="network_details_title">Network Details</string>
+    <string name="network_details_phone">Phone</string>
+    <string name="network_details_watch">Watch</string>
+    <string name="network_label_network">Network</string>
+    <string name="network_label_ip">IP Address</string>
+    <string name="label_na">N/A</string>
+    <string name="label_unknown">Unknown</string>
+    <string name="network_server_config">Server Configuration</string>
+
+    <string name="find_dist_bt">Distance: ~%sm (Bluetooth)</string>
+    <string name="find_dist_gps_km">Distance: %.2f km (GPS)</string>
+    <string name="find_dist_gps_m">Distance: %.0f m (GPS)</string>
+    <string name="find_dist_waiting">Distance: Waiting for location...</string>
+    <string name="find_rssi_excellent">Excellent</string>
+    <string name="find_rssi_good">Good</string>
+    <string name="find_rssi_fair">Fair</string>
+    <string name="find_rssi_weak">Weak</string>
+    <string name="find_rssi_very_weak">Very Weak</string>
+    <string name="find_signal_format">Signal: %1$s (%2$d dBm)</string>
+    <string name="action_ring_stop">Stop Ringing</string>
+    <string name="find_updated_waiting">Last updated: Waiting for data...</string>
+    <string name="find_updated_format">Last updated: %ds ago</string>
+
+    <string name="toast_lan_config">LAN: %s</string>
+    <string name="toast_internet_config">Internet: %s</string>
+    <string name="status_connecting">Connecting...</string>
+
 </resources>
 

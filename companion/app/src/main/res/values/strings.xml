@@ -439,4 +439,45 @@
     <string name="camera_record">Record</string>
     <string name="widget_media_name">Media Control</string>
     <string name="widget_dashboard_name">Dashboard</string>
+
+    <!-- Hardcoded String Extractions -->
+    <string name="find_phone_title">Finding Phone</string>
+    <string name="label_signal">Signal: --</string>
+    <string name="status_calculating">Calculating...</string>
+    <string name="status_last_updated_waiting">Last updated: Waiting...</string>
+    <string name="device_phone">Phone</string>
+    <string name="device_watch">Watch</string>
+    <string name="action_ring_phone">Ring Phone</string>
+    <string name="action_stop_finding">Stop Finding</string>
+    <string name="label_transport">Transport</string>
+    <string name="label_transport_bt">BT</string>
+    <string name="label_link">Link</string>
+    <string name="label_mirror">Mirror</string>
+    <string name="label_plus">+</string>
+    <string name="label_minus">-</string>
+    <string name="media_album_art">Album Art</string>
+    <string name="media_volume_label">VOLUME</string>
+    <string name="media_no_media_short">No Media</string>
+    <string name="battery_percent_placeholder">--%</string>
+    <string name="label_not_connected">Not connected</string>
+    <string name="media_time_placeholder">0:00</string>
+
+    <string name="find_device_watch_you">Watch (You)</string>
+    <string name="find_device_dist_bt">Distance: ~%sm (Bluetooth)</string>
+    <string name="find_device_dist_gps_km">Distance: %.2f km (GPS)</string>
+    <string name="find_device_dist_gps_m">Distance: %.0f m (GPS)</string>
+    <string name="find_device_dist_waiting">Distance: Waiting for location...</string>
+    <string name="find_device_signal_format">Signal: %s (%d dBm)</string>
+    <string name="find_device_rssi_excellent">Excellent</string>
+    <string name="find_device_rssi_good">Good</string>
+    <string name="find_device_rssi_fair">Fair</string>
+    <string name="find_device_rssi_weak">Weak</string>
+    <string name="find_device_rssi_very_weak">Very Weak</string>
+    <string name="find_device_updated_format">Last updated: %ds ago</string>
+    <string name="action_ring_stop">Stop Ringing</string>
+
+    <string name="transport_bt">BT</string>
+    <string name="transport_lan">LAN</string>
+    <string name="transport_internet">Internet</string>
+    <string name="status_connected_via">Connected via %s</string>
 </resources>
