@@ -67,6 +67,24 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:text="General"
+                        android:textSize="18sp"
+                        android:textStyle="bold"
+                        android:textColor="?android:attr/textColorPrimary"
+                        android:layout_marginBottom="8dp"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Choose how notifications are displayed"
+                        android:textSize="13sp"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:layout_marginBottom="16dp"/>
+
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
                         android:text="Feature Toggles"
                         android:textSize="18sp"
                         android:textStyle="bold"
@@ -275,7 +293,7 @@
                             android:layout_height="wrap_content"
                             android:minHeight="48dp"
                             android:padding="12dp"
-                            android:background="@android:drawable/edit_text"/>
+                            android:background="?android:attr/editTextBackground"/>
                     </LinearLayout>
 
                     <!-- Hide With Active Notifications -->

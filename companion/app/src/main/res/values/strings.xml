@@ -433,6 +433,7 @@
     <string name="di_channel_desc">Dynamic Island notification overlay</string>
     <string name="di_active_title">Dynamic Island Active</string>
     <string name="di_active_desc">Showing notifications</string>
+    <string name="di_alarm_triggered">Alarm</string>
     <string name="network_stun_url_hint">STUN Server URL</string>
     <string name="network_turn_url_hint">TURN Server URL (turn:host:port)</string>
     <string name="network_turn_username_hint">TURN Username</string>

@@ -451,6 +451,38 @@ class BluetoothService : Service() {
                                     )
                             )
                         }
+                        "com.ailife.rtosifycompanion.CALL_ACTION" -> {
+                            val action = intent.getStringExtra("action")
+                            Log.d(TAG, "Handling Dynamic Island call action: $action")
+                            if (action == "answer") {
+                                sendMessage(ProtocolMessage(type = MessageType.ANSWER_CALL))
+                            } else if (action == "reject") {
+                                sendMessage(ProtocolMessage(type = MessageType.REJECT_CALL))
+                            }
+                        }
+                        "com.ailife.rtosifycompanion.ALARM_ACTION" -> {
+                            val action = intent.getStringExtra("action")
+                            Log.d(TAG, "Handling Dynamic Island alarm action: $action")
+                            
+                            val alarmIntent = Intent()
+                            if (action == "snooze") {
+                                alarmIntent.action = "com.ailife.rtosifycompanion.SNOOZE_ALARM"
+                            } else {
+                                alarmIntent.action = "com.ailife.rtosifycompanion.DISMISS_ALARM"
+                            }
+                            
+                            alarmIntent.setPackage(packageName)
+                            sendBroadcast(alarmIntent)
+                        }
+                        "com.ailife.rtosifycompanion.MEDIA_ACTION" -> {
+                            val action = intent.getStringExtra("action")
+                            Log.d(TAG, "Handling Dynamic Island media action: $action")
+                            if (action == "play") {
+                                sendMediaCommand(MediaControlData.CMD_PLAY)
+                            } else if (action == "pause") {
+                                sendMediaCommand(MediaControlData.CMD_PAUSE)
+                            }
+                        }
                         "com.ailife.rtosifycompanion.UPDATE_REMOTE_RESOLUTION" -> {
                             val width = intent.getIntExtra("width", 0)
                             val height = intent.getIntExtra("height", 0)
@@ -691,6 +723,9 @@ class BluetoothService : Service() {
                     addAction(MediaWidget.ACTION_CMD_PREV)
                     addAction(MediaWidget.ACTION_CMD_VOL_UP)
                     addAction(MediaWidget.ACTION_CMD_VOL_DOWN)
+                    addAction("com.ailife.rtosifycompanion.CALL_ACTION")
+                    addAction("com.ailife.rtosifycompanion.ALARM_ACTION")
+                    addAction("com.ailife.rtosifycompanion.MEDIA_ACTION")
                 }
         val filterWatch = IntentFilter(ACTION_WATCH_DISMISSED_LOCAL)
         val filterHandshake = IntentFilter(ACTION_REQUEST_CONNECTION_STATE)
@@ -4546,7 +4581,8 @@ class BluetoothService : Service() {
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
                 val iconBase64 = Base64.encodeToString(stream.toByteArray(), Base64.NO_WRAP)
 
-                apps.add(AppInfo(name = appName, packageName = packageName, icon = iconBase64))
+                val isSystemApp = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+                apps.add(AppInfo(name = appName, packageName = packageName, icon = iconBase64, isSystemApp = isSystemApp))
             } catch (_: Exception) {}
         }
         return apps
@@ -6443,28 +6479,50 @@ class BluetoothService : Service() {
 
         Log.d(TAG, "Incoming call: $number ($callerId)")
 
-        val intent =
-                Intent(this, CallActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    putExtra("number", number)
-                    putExtra("callerId", callerId)
-                }
-        startActivity(intent)
+        val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+        val style = prefs.getString("notification_style", "android")
+        
+        if (style != "dynamic_island") {
+            val intent =
+                    Intent(this, CallActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        putExtra("number", number)
+                        putExtra("callerId", callerId)
+                    }
+            startActivity(intent)
+        }
+
+        // Also broadcast to Dynamic Island
+        sendBroadcast(Intent("com.ailife.rtosifycompanion.INCOMING_CALL").apply {
+            putExtra("number", number)
+            putExtra("callerId", callerId)
+            setPackage(packageName)
+        })
     }
 
     private fun handleCallStateChanged(message: ProtocolMessage) {
         val state = ProtocolHelper.extractStringField(message, "state")
         Log.d(TAG, "Call state changed: $state")
 
-        // Notify CallActivity to close if it's idle
-        val intent =
-                Intent(this, CallActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    putExtra("state", state)
-                }
-        startActivity(intent)
+        val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+        val style = prefs.getString("notification_style", "android")
+        
+        if (style != "dynamic_island" || state == "IDLE") {
+            val intent =
+                    Intent(this, CallActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        putExtra("state", state)
+                    }
+            startActivity(intent)
+        }
+
+        // Also broadcast to Dynamic Island
+        sendBroadcast(Intent("com.ailife.rtosifycompanion.CALL_STATE_CHANGED").apply {
+            putExtra("state", state)
+            setPackage(packageName)
+        })
     }
 
     private fun parseDumpsysBatteryStats(output: String): Map<String, Double> {

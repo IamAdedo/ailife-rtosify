@@ -373,7 +373,8 @@ data class FileChunkData(
 data class AppInfo(
         val name: String,
         val packageName: String,
-        val icon: String // Base64 encoded PNG
+        val icon: String, // Base64 encoded PNG
+        val isSystemApp: Boolean = false
 )
 
 data class WifiScanResultData(

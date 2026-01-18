@@ -128,6 +128,15 @@ class DynamicIslandService : Service() {
                         "com.ailife.rtosifycompanion.CALL_STATE_CHANGED" -> {
                             handleCallStateChanged(intent)
                         }
+                        MediaControlActivity.ACTION_MEDIA_STATE_UPDATE -> {
+                            handleMediaStateUpdate(intent)
+                        }
+                        "com.ailife.rtosifycompanion.ALARM_TRIGGERED" -> {
+                            handleAlarmTriggerBroadcast(intent)
+                        }
+                        "com.ailife.rtosifycompanion.ALARM_CLEARED" -> {
+                            handleAlarmCleared()
+                        }
                     }
                 }
             }
@@ -295,21 +304,35 @@ class DynamicIslandService : Service() {
         }
         
         overlayView.onCallAction = { action ->
-            Log.d(TAG, "Call action: $action")
+            Log.d(TAG, "Call action: $action - clearing Dynamic Island")
             // Send call action to BluetoothService
             val intent = Intent("com.ailife.rtosifycompanion.CALL_ACTION")
             intent.setPackage(packageName)
             intent.putExtra("action", action)
             sendBroadcast(intent)
+            
+            // Clear Dynamic Island after a brief delay to ensure action is sent
+            handler.postDelayed({
+                currentCall = null
+                isShowingTransientState = false
+                updateState()
+            }, 100)
         }
         
         overlayView.onAlarmAction = { action ->
-            Log.d(TAG, "Alarm action: $action")
-            // Send alarm action to BluetoothService
+            Log.d(TAG, "Alarm action: $action - clearing Dynamic Island")
+            // Send alarm action to BluetoothService to stop ringtone
             val intent = Intent("com.ailife.rtosifycompanion.ALARM_ACTION")
             intent.setPackage(packageName)
             intent.putExtra("action", action)
             sendBroadcast(intent)
+            
+            // Clear Dynamic Island after a brief delay
+            handler.postDelayed({
+                isShowingTransientState = false
+                transientStateRunnable?.let { handler.removeCallbacks(it) }
+                updateState()
+            }, 100)
         }
         
         overlayView.onMediaAction = { action ->
@@ -332,10 +355,12 @@ class DynamicIslandService : Service() {
                     addAction(BluetoothService.ACTION_DISMISS_FROM_DYNAMIC_ISLAND)
                     addAction(BluetoothService.ACTION_UPDATE_DI_SETTINGS)
                     addAction(Intent.ACTION_BATTERY_CHANGED)
-                    addAction("com.ailife.rtosifycompanion.CONNECTION_STATE_CHANGED")
+                    addAction(BluetoothService.ACTION_CONNECTION_STATE_CHANGED)
                     addAction("com.ailife.rtosifycompanion.INCOMING_CALL")
                     addAction("com.ailife.rtosifycompanion.CALL_STATE_CHANGED")
                     addAction(MediaControlActivity.ACTION_MEDIA_STATE_UPDATE)
+                    addAction("com.ailife.rtosifycompanion.ALARM_TRIGGERED")
+                    addAction("com.ailife.rtosifycompanion.ALARM_CLEARED")
                 }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -576,6 +601,12 @@ class DynamicIslandService : Service() {
     private fun showNotification(notif: NotificationData) {
         Log.d(TAG, "Showing notification in Dynamic Island: ${notif.title}")
 
+        // Check if notification package is blacklisted
+        if (blacklistedApps.isNotEmpty() && blacklistedApps.contains(notif.packageName)) {
+            Log.d(TAG, "Notification from blacklisted app ${notif.packageName}, skipping Dynamic Island display")
+            return
+        }
+
         // Add to queue
         notificationQueue.removeAll { it.key == notif.key } // Remove duplicates
         notificationQueue.add(0, notif) // Add to front
@@ -589,6 +620,48 @@ class DynamicIslandService : Service() {
         }
 
         // Force visibility update to unhide if necessary
+        updateState()
+    }
+
+    private fun handleAlarmTriggerBroadcast(intent: Intent) {
+        if (!showAlarms) return
+        
+        val id = intent.getStringExtra("alarm_id") ?: "unknown"
+        val label = intent.getStringExtra("label") ?: "Alarm"
+        
+        // Create a dummy NotificationData for the alarm UI
+        val dummyNotif = NotificationData(
+            packageName = packageName,
+            title = label,
+            text = getString(R.string.di_alarm_triggered),
+            key = "alarm_$id",
+            appName = getString(R.string.app_name)
+        )
+        
+        handleAlarmNotification(dummyNotif)
+    }
+
+
+    private fun handleAlarmNotification(notif: NotificationData) {
+        Log.d(TAG, "Handling alarm notification in Dynamic Island")
+        isShowingTransientState = true
+        showOverlayAnimated()
+        overlayView.showAlarm(notif.title, notif.text)
+        
+        // Alarms typically don't auto-hide like normal notifications
+        // but we'll use a longer timeout or wait for dismissal
+        transientStateRunnable?.let { handler.removeCallbacks(it) }
+        transientStateRunnable = Runnable {
+            isShowingTransientState = false
+            updateState()
+        }
+        handler.postDelayed(transientStateRunnable!!, 30000) // 30 seconds for alarm
+    }
+    
+    private fun handleAlarmCleared() {
+        Log.d(TAG, "Alarm cleared, removing from Dynamic Island")
+        isShowingTransientState = false
+        transientStateRunnable?.let { handler.removeCallbacks(it) }
         updateState()
     }
 
@@ -639,15 +712,19 @@ class DynamicIslandService : Service() {
         val isPlaying = intent.getBooleanExtra("isPlaying", false)
         val title = intent.getStringExtra("title") ?: "Unknown"
         val artist = intent.getStringExtra("artist")
-        val albumArtBase64 = intent.getStringExtra("albumArt")
+        val albumArtBase64 = intent.getStringExtra("albumArtBase64")
         
-        if (title.isNotEmpty()) {
+        if (title.isNotEmpty() && title != "Unknown") {
             isShowingTransientState = true
             showOverlayAnimated()
-            overlayView.showMediaPlaying(title, artist, isPlaying, albumArtBase64)
+            overlayView.showMediaState(title, artist, isPlaying, albumArtBase64)
             
             // Keep showing until media stops
             transientStateRunnable?.let { handler.removeCallbacks(it) }
+        } else {
+            // Media stopped or session cleared
+            overlayView.showMediaState(null, null, false, null)
+            updateState() // Return to persistent state logic
         }
     }
     
@@ -874,11 +951,8 @@ class DynamicIslandService : Service() {
                 updateState()
             }
             "ACTIVE" -> {
-                // Call answered - could show different UI or hide
-                currentCall?.let {
-                    currentCall = it.copy(isRinging = false)
-                }
-                // Hide Dynamic Island while in call
+                // Call answered - clear Dynamic Island immediately
+                currentCall = null
                 isShowingTransientState = false
                 updateState()
             }

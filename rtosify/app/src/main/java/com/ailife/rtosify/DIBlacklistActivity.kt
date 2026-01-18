@@ -31,8 +31,29 @@ class DIBlacklistActivity : AppCompatActivity() {
     private val activePrefs: SharedPreferences
         get() = devicePrefManager.getActiveDevicePrefs()
     
+    private val appsReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            if (intent?.action == BluetoothService.ACTION_APPS_RECEIVED) {
+                val json = intent.getStringExtra("apps_json") ?: return
+                onAppsReceived(json)
+            }
+        }
+    }
+    
     private var allApps = listOf<AppInfo>()
     private var bluetoothService: BluetoothService? = null
+
+    private val serviceConnection = object : android.content.ServiceConnection {
+        override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) {
+            bluetoothService = (service as? BluetoothService.LocalBinder)?.getService()
+            // Request apps once bound
+            bluetoothService?.requestWatchApps()
+        }
+
+        override fun onServiceDisconnected(name: android.content.ComponentName?) {
+            bluetoothService = null
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,21 +72,20 @@ class DIBlacklistActivity : AppCompatActivity() {
 
         // Bind to BluetoothService
         val serviceIntent = Intent(this, BluetoothService::class.java)
-        bindService(serviceIntent, object : android.content.ServiceConnection {
-            override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) {
-                bluetoothService = (service as? BluetoothService.LocalBinder)?.getService()
-            }
-
-            override fun onServiceDisconnected(name: android.content.ComponentName?) {
-                bluetoothService = null
-            }
-        }, BIND_AUTO_CREATE)
+        bindService(serviceIntent, serviceConnection, BIND_AUTO_CREATE)
+        
+        // Register receiver for watch apps
+        val filter = android.content.IntentFilter(BluetoothService.ACTION_APPS_RECEIVED)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(appsReceiver, filter, RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(appsReceiver, filter)
+        }
 
         initViews()
         setupSearch()
         setupSystemAppsToggle()
         setupRecyclerView()
-        loadInstalledApps()
     }
 
     private fun initViews() {
@@ -115,46 +135,32 @@ class DIBlacklistActivity : AppCompatActivity() {
         recyclerView.adapter = adapter
     }
 
-    private fun loadInstalledApps() {
-        CoroutineScope(Dispatchers.IO).launch {
-            // Load watch's installed apps from SharedPreferences
-            // These are sent from the watch via Bluetooth and stored locally
-            val prefs = getSharedPreferences("rtosify_prefs", MODE_PRIVATE)
-            val installedAppsJson = prefs.getString("installed_apps_list", "[]")
-            
-            val apps = try {
-                // Parse JSON array of installed apps
-                val jsonArray = org.json.JSONArray(installedAppsJson)
-                val appList = mutableListOf<AppInfo>()
-                
-                for (i in 0 until jsonArray.length()) {
-                    val jsonApp = jsonArray.getJSONObject(i)
-                    appList.add(AppInfo(
-                        name = jsonApp.optString("label", "Unknown"),
-                        packageName = jsonApp.optString("packageName", ""),
-                        isSystemApp = jsonApp.optBoolean("isSystem", false)
-                    ))
-                }
-                appList.sortedBy { it.name.lowercase() }
-            } catch (e: Exception) {
-                android.util.Log.e("DIBlacklist", "Error loading watch apps: ${e.message}")
-                // Fallback to empty list if watch apps not available
-                emptyList()
+    private fun onAppsReceived(json: String) {
+        try {
+            val jsonArray = org.json.JSONArray(json)
+            val apps = mutableListOf<AppInfo>()
+            for (i in 0 until jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i)
+                apps.add(AppInfo(
+                    name = obj.getString("name"),
+                    packageName = obj.getString("package"),
+                    icon = obj.optString("icon"),
+                    isSystemApp = obj.optBoolean("isSystemApp", false)
+                ))
             }
             
-            withContext(Dispatchers.Main) {
-                if (apps.isEmpty()) {
-                    // Show a message that watch apps need to be synced
-                    android.widget.Toast.makeText(
-                        this@DIBlacklistActivity,
-                        "No watch apps found. Please ensure watch is connected.",
-                        android.widget.Toast.LENGTH_LONG
-                    ).show()
-                }
-                allApps = apps
-                filterApps(searchEdit.text.toString())
-            }
+            allApps = apps.sortedBy { it.name.lowercase() }
+            filterApps(searchEdit.text.toString())
+        } catch (e: Exception) {
+            android.util.Log.e("DIBlacklist", "Error parsing received apps: ${e.message}")
         }
+    }
+
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterReceiver(appsReceiver)
+        unbindService(serviceConnection)
     }
 
     private fun onAppBlacklistChanged(packageName: String, isBlacklisted: Boolean) {
@@ -182,14 +188,11 @@ class DIBlacklistActivity : AppCompatActivity() {
         }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        // Unbind service if needed
-    }
 
     data class AppInfo(
         val name: String,
         val packageName: String,
+        val icon: String?,
         val isSystemApp: Boolean
     )
 }

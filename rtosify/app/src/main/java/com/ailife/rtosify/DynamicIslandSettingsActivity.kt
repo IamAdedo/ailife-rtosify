@@ -145,9 +145,10 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
         }
     }
 
+
     private fun setupAutoHideSettings() {
         // Auto-hide mode spinner
-        val autoHideModes = arrayOf("Always Show", "Never Show", "Hide in Blacklisted Apps")
+        val autoHideModes = arrayOf("Always Show", "Always Hide", "Hide in Blacklisted Apps")
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, autoHideModes)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerAutoHideMode.adapter = adapter

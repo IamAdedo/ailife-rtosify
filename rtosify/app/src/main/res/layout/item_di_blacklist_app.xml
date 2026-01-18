@@ -11,6 +11,14 @@
     android:clickable="true"
     android:focusable="true">
 
+    <ImageView
+        android:id="@+id/ivAppIcon"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_marginEnd="16dp"
+        android:scaleType="centerInside"
+        android:src="@mipmap/ic_launcher"/>
+
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"

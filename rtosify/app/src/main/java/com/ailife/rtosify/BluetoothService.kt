@@ -441,7 +441,8 @@ class BluetoothService : Service() {
     companion object {
         const val ACTION_SEND_NOTIF_TO_WATCH = "com.ailife.rtosify.ACTION_SEND_NOTIF"
         const val ACTION_SEND_REMOVE_TO_WATCH = "com.ailife.rtosify.ACTION_SEND_REMOVE"
-        const val ACTION_WATCH_DISMISSED_LOCAL = "com.ailife.rtosify.DISMISSED_LOCAL"
+        const val ACTION_WATCH_DISMISSED_LOCAL = "com.ailife.rtosify.WATCH_DISMISSED_LOCAL"
+        const val ACTION_APPS_RECEIVED = "com.ailife.rtosify.APPS_RECEIVED"
         const val ACTION_CMD_DISMISS_ON_PHONE = "com.ailife.rtosify.CMD_DISMISS_PHONE"
         const val ACTION_CMD_EXECUTE_ACTION = "com.ailife.rtosify.CMD_EXECUTE_ACTION"
         const val ACTION_CMD_SEND_REPLY = "com.ailife.rtosify.CMD_SEND_REPLY"
@@ -1395,6 +1396,12 @@ class BluetoothService : Service() {
         }
     }
 
+    fun requestWatchApps() {
+        if (isConnected) {
+            sendMessage(ProtocolHelper.createRequestApps())
+        }
+    }
+
     private suspend fun handleShareReceived(message: ProtocolMessage) {
         if (!activePrefs.getBoolean("sharing_sync_enabled", false)) return
         try {
@@ -1793,6 +1800,12 @@ class BluetoothService : Service() {
                 MediaControlData.CMD_PLAY_PAUSE,
                 MediaControlData.CMD_NEXT,
                 MediaControlData.CMD_PREVIOUS -> {
+                    // Try to use MediaSessionListener for direct control first
+                    if (mediaSessionListener?.sendCommand(controlData.command) == true) {
+                        Log.d(TAG, "Media command handled via MediaSessionListener: ${controlData.command}")
+                        return
+                    }
+
                     val keyCode =
                             when (controlData.command) {
                                 MediaControlData.CMD_PLAY -> KeyEvent.KEYCODE_MEDIA_PLAY
@@ -2751,11 +2764,17 @@ class BluetoothService : Service() {
                 obj.put("name", app.name)
                 obj.put("package", app.packageName)
                 obj.put("icon", app.icon)
+                obj.put("isSystemApp", app.isSystemApp)
                 jsonArray.put(obj)
             }
 
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                 callback?.onAppListReceived(jsonArray.toString())
+                
+                // Also broadcast for other activities
+                val broadcastIntent = Intent(ACTION_APPS_RECEIVED)
+                broadcastIntent.putExtra("apps_json", jsonArray.toString())
+                sendBroadcast(broadcastIntent)
             }
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error parsing app list: ${e.message}")

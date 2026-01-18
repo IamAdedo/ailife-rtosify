@@ -112,6 +112,31 @@ class MediaSessionListener(
             Log.e(TAG, "Error stopping MediaSessionListener", e)
         }
     }
+
+    fun sendCommand(command: String): Boolean {
+        val controller = activeController ?: return false
+        try {
+            when (command) {
+                MediaControlData.CMD_PLAY -> controller.transportControls.play()
+                MediaControlData.CMD_PAUSE -> controller.transportControls.pause()
+                MediaControlData.CMD_PLAY_PAUSE -> {
+                    val state = controller.playbackState?.state
+                    if (state == PlaybackState.STATE_PLAYING) {
+                        controller.transportControls.pause()
+                    } else {
+                        controller.transportControls.play()
+                    }
+                }
+                MediaControlData.CMD_NEXT -> controller.transportControls.skipToNext()
+                MediaControlData.CMD_PREVIOUS -> controller.transportControls.skipToPrevious()
+                else -> return false
+            }
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending media command via controller: $command", e)
+            return false
+        }
+    }
     
     fun getCurrentState(): MediaStateData {
         return lastMediaState ?: createEmptyState()

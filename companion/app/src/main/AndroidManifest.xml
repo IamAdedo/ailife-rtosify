@@ -177,13 +177,14 @@
             </intent-filter>
         </receiver>
 
-        <!-- Alarm Receiver -->
         <receiver
             android:name=".AlarmReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.ailife.rtosifycompanion.ALARM_TRIGGER" />
+                <action android:name="com.ailife.rtosifycompanion.DISMISS_ALARM" />
+                <action android:name="com.ailife.rtosifycompanion.SNOOZE_ALARM" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>

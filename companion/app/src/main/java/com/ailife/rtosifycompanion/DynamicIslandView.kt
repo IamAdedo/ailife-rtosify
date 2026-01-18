@@ -78,6 +78,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                             LayoutParams(dpToPx(pillWidthCollapsed), dpToPx(pillHeightCollapsed))
                                     .apply { gravity = Gravity.CENTER_HORIZONTAL }
                     background = createPillBackground()
+                    outlineProvider = ViewOutlineProvider.BACKGROUND
+                    clipToOutline = true
                     elevation = dpToPx(8).toFloat()
                     clipChildren = false
                     clipToPadding = false
@@ -1519,90 +1521,101 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         resetContentPadding()
         
         val callContainer = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
+            orientation = LinearLayout.HORIZONTAL
             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            gravity = Gravity.CENTER
-            setPadding(dpToPx(8))
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dpToPx(12), 0, dpToPx(12), 0)
         }
         
-        // Call status indicator (if ringing)
         if (isRinging) {
+            // [Left] Answer button
             callContainer.addView(TextView(context).apply {
-                text = "Incoming Call"
-                setTextColor(Color.parseColor("#34C759"))
-                textSize = getScaledTextSize(9f)
+                layoutParams = LinearLayout.LayoutParams(dpToPx(44), dpToPx(44))
+                text = "✓"
+                setTextColor(Color.WHITE)
+                textSize = getScaledTextSize(18f)
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#34C759"))
+                    shape = GradientDrawable.OVAL
+                }
+                setOnClickListener { onCallAction?.invoke("answer") }
+            })
+        } else {
+            // Active call icon
+            callContainer.addView(TextView(context).apply {
+                layoutParams = LinearLayout.LayoutParams(dpToPx(44), dpToPx(44))
+                text = "📞"
+                textSize = getScaledTextSize(14f)
                 gravity = Gravity.CENTER
             })
         }
         
+        // [Center] Name and Number
+        val infoContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+            gravity = Gravity.CENTER
+            setPadding(dpToPx(8), 0, dpToPx(8), 0)
+        }
+        
         // Caller name or number
-        callContainer.addView(TextView(context).apply {
+        infoContainer.addView(TextView(context).apply {
             text = contactName ?: number
             setTextColor(Color.WHITE)
             textSize = getScaledTextSize(13f)
             gravity = Gravity.CENTER
-            setPadding(0, dpToPx(2), 0, dpToPx(2))
             maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
         })
         
         // Number (if we have contact name)
         if (contactName != null) {
-            callContainer.addView(TextView(context).apply {
+            infoContainer.addView(TextView(context).apply {
                 text = number
                 setTextColor(Color.parseColor("#8E8E93"))
-                textSize = getScaledTextSize(9f)
+                textSize = getScaledTextSize(10f)
                 gravity = Gravity.CENTER
                 maxLines = 1
             })
         }
         
-        // Action buttons (only if ringing)
+        callContainer.addView(infoContainer)
+        
         if (isRinging) {
-            val buttonContainer = LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER
-                setPadding(0, dpToPx(6), 0, 0)
-            }
-            
-            // Decline button
-            buttonContainer.addView(TextView(context).apply {
+            // [Right] Reject button
+            callContainer.addView(TextView(context).apply {
+                layoutParams = LinearLayout.LayoutParams(dpToPx(44), dpToPx(44))
                 text = "✕"
                 setTextColor(Color.WHITE)
-                textSize = getScaledTextSize(12f)
+                textSize = getScaledTextSize(18f)
                 gravity = Gravity.CENTER
-                setPadding(dpToPx(12), dpToPx(4), dpToPx(12), dpToPx(4))
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#FF3B30"))
-                    cornerRadius = dpToPx(10).toFloat()
+                    shape = GradientDrawable.OVAL
                 }
-                setOnClickListener { onCallAction?.invoke("decline") }
+                setOnClickListener { onCallAction?.invoke("reject") }
             })
-            
-            // Spacing
-            buttonContainer.addView(View(context).apply {
-                layoutParams = LinearLayout.LayoutParams(dpToPx(10), 0)
-            })
-            
-            // Accept button
-            buttonContainer.addView(TextView(context).apply {
-                text = "✓"
+        } else {
+            // Hang up button
+            callContainer.addView(TextView(context).apply {
+                layoutParams = LinearLayout.LayoutParams(dpToPx(44), dpToPx(44))
+                text = "End"
                 setTextColor(Color.WHITE)
-                textSize = getScaledTextSize(12f)
+                textSize = getScaledTextSize(10f)
                 gravity = Gravity.CENTER
-                setPadding(dpToPx(12), dpToPx(4), dpToPx(12), dpToPx(4))
                 background = GradientDrawable().apply {
-                    setColor(Color.parseColor("#34C759"))
-                    cornerRadius = dpToPx(10).toFloat()
+                    setColor(Color.parseColor("#FF3B30"))
+                    shape = GradientDrawable.OVAL
                 }
-                setOnClickListener { onCallAction?.invoke("accept") }
+                setOnClickListener { onCallAction?.invoke("reject") }
             })
-            
-            callContainer.addView(buttonContainer)
         }
         
         contentContainer.addView(callContainer)
-        animateToExpanded {}
+        if (isRinging) {
+            animateToExpanded {}
+        }
     }
     
     // Callback for call actions
@@ -1621,36 +1634,44 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         resetContentPadding()
         
         val alarmContainer = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            gravity = Gravity.CENTER
-            setPadding(dpToPx(8))
-        }
-        
-        // Alarm icon + time
-        val timeContainer = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dpToPx(12), 0, dpToPx(12), 0)
         }
         
-        timeContainer.addView(TextView(context).apply {
+        // [Left] Snooze button
+        alarmContainer.addView(TextView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(dpToPx(44), dpToPx(44))
             text = "⏰"
-            textSize = getScaledTextSize(14f)
-            setPadding(0, 0, dpToPx(4), 0)
+            setTextColor(Color.WHITE)
+            textSize = getScaledTextSize(18f)
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#FF9500")) // Orange for snooze
+                shape = GradientDrawable.OVAL
+            }
+            setOnClickListener { onAlarmAction?.invoke("snooze") }
         })
         
-        timeContainer.addView(TextView(context).apply {
+        // [Center] Label and Time
+        val infoContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+            gravity = Gravity.CENTER
+            setPadding(dpToPx(8), 0, dpToPx(8), 0)
+        }
+        
+        infoContainer.addView(TextView(context).apply {
             text = alarmTime
             setTextColor(Color.WHITE)
             textSize = getScaledTextSize(14f)
             gravity = Gravity.CENTER
+            setTypeface(null, Typeface.BOLD)
         })
         
-        alarmContainer.addView(timeContainer)
-        
-        // Alarm label
-        if (alarmLabel != null) {
-            alarmContainer.addView(TextView(context).apply {
+        if (!alarmLabel.isNullOrBlank()) {
+            infoContainer.addView(TextView(context).apply {
                 text = alarmLabel
                 setTextColor(Color.parseColor("#8E8E93"))
                 textSize = getScaledTextSize(10f)
@@ -1660,132 +1681,102 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             })
         }
         
-        // Snooze/Dismiss buttons
-        val buttonContainer = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setPadding(0, dpToPx(6), 0, 0)
-        }
+        alarmContainer.addView(infoContainer)
         
-        // Snooze button
-        buttonContainer.addView(TextView(context).apply {
-            text = "Snooze"
+        // [Right] Dismiss button
+        alarmContainer.addView(TextView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(dpToPx(44), dpToPx(44))
+            text = "✕"
             setTextColor(Color.WHITE)
-            textSize = getScaledTextSize(10f)
+            textSize = getScaledTextSize(18f)
             gravity = Gravity.CENTER
-            setPadding(dpToPx(10), dpToPx(4), dpToPx(10), dpToPx(4))
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#FF9500"))
-                cornerRadius = dpToPx(10).toFloat()
-            }
-            setOnClickListener { onAlarmAction?.invoke("snooze") }
-        })
-        
-        buttonContainer.addView(View(context).apply {
-            layoutParams = LinearLayout.LayoutParams(dpToPx(10), 0)
-        })
-        
-        // Dismiss button
-        buttonContainer.addView(TextView(context).apply {
-            text = "Dismiss"
-            setTextColor(Color.WHITE)
-            textSize = getScaledTextSize(10f)
-            gravity = Gravity.CENTER
-            setPadding(dpToPx(10), dpToPx(4), dpToPx(10), dpToPx(4))
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#34C759"))
-                cornerRadius = dpToPx(10).toFloat()
+                setColor(Color.parseColor("#FF3B30"))
+                shape = GradientDrawable.OVAL
             }
             setOnClickListener { onAlarmAction?.invoke("dismiss") }
         })
         
-        alarmContainer.addView(buttonContainer)
         contentContainer.addView(alarmContainer)
         animateToExpanded {}
     }
     
-    /**
-     * Show simplified media playback in Dynamic Island
-     */
-    fun showMediaPlaying(title: String, artist: String?, isPlaying: Boolean, albumArtBase64: String?) {
+    fun showMediaState(title: String?, artist: String?, isPlaying: Boolean, albumArtBase64: String?) {
+        if (title == null || title.isEmpty() || title == "Unknown") {
+            showIdleState("")
+            return
+        }
+        
         currentState = State.MEDIA_PLAYING
         expandedContainer.visibility = GONE
         contentContainer.visibility = VISIBLE
         closeContainer.visibility = GONE
         iconContainer.visibility = GONE
         contentContainer.removeAllViews()
-        contentContainer.setPadding(0) // No padding for background image
+        contentContainer.setPadding(0) // Fill background
         
-        val mediaContainer = FrameLayout(context).apply {
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-        }
-        
-        // Album art background (blurred)
-        if (albumArtBase64 != null) {
-            val albumBitmap = decodeBase64ToBitmap(albumArtBase64)
-            if (albumBitmap != null) {
-                val backgroundView = ImageView(context).apply {
-                    layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-                    scaleType = ImageView.ScaleType.CENTER_CROP
-                    setImageBitmap(albumBitmap)
-                    alpha = 0.3f // Dim for text visibility
-                }
-                mediaContainer.addView(backgroundView)
+        // Ensure pill is at collapsed size
+        animateToCollapsed {
+            contentContainer.removeAllViews() // Clear again just in case overlap during animation
+            
+            val mediaContainer = FrameLayout(context).apply {
+                layoutParams = LayoutParams(dpToPx(pillWidthCollapsed), dpToPx(pillHeightCollapsed))
             }
-        }
-        
-        // Dark overlay for text readability
-        mediaContainer.addView(View(context).apply {
-            layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            setBackgroundColor(Color.parseColor("#AA000000"))
-        })
-        
-        // Content overlay
-        val contentLayout = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-            gravity = Gravity.CENTER
-            setPadding(dpToPx(8))
-        }
-        
-        // Scrolling title
-        contentLayout.addView(TextView(context).apply {
-            text = title
-            setTextColor(Color.WHITE)
-            textSize = getScaledTextSize(12f)
-            gravity = Gravity.CENTER
-            maxLines = 1
-            ellipsize = android.text.TextUtils.TruncateAt.MARQUEE
-            marqueeRepeatLimit = -1
-            isSingleLine = true
-            isSelected = true // Start marquee
-        })
-        
-        // Artist
-        if (artist != null) {
-            contentLayout.addView(TextView(context).apply {
-                text = artist
-                setTextColor(Color.parseColor("#CCCCCC"))
-                textSize = getScaledTextSize(9f)
+            
+            // Album art background (blurred/dimmed)
+            if (albumArtBase64 != null) {
+                val albumBitmap = decodeBase64ToBitmap(albumArtBase64)
+                if (albumBitmap != null) {
+                    val backgroundView = ImageView(context).apply {
+                        layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                        scaleType = ImageView.ScaleType.CENTER_CROP
+                        setImageBitmap(albumBitmap)
+                        alpha = 0.4f // Dim for text visibility
+                    }
+                    mediaContainer.addView(backgroundView)
+                }
+            } else {
+                // Dim dark background if no art
+                mediaContainer.setBackgroundColor(Color.parseColor("#33000000"))
+            }
+            
+            // Content overlay
+            val contentLayout = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            
+            // Play/Pause button on the left
+            val playPauseBtn = TextView(context).apply {
+                layoutParams = LinearLayout.LayoutParams(dpToPx(40), LayoutParams.MATCH_PARENT)
+                text = if (isPlaying) "⏸" else "▶"
+                setTextColor(Color.WHITE)
+                textSize = getScaledTextSize(16f)
                 gravity = Gravity.CENTER
+                setOnClickListener { onMediaAction?.invoke(if (isPlaying) "pause" else "play") }
+            }
+            contentLayout.addView(playPauseBtn)
+            
+            // Scrolling title (Marquee)
+            val titleView = TextView(context).apply {
+                layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginEnd = dpToPx(10)
+                }
+                text = title
+                setTextColor(Color.WHITE)
+                textSize = getScaledTextSize(11f)
                 maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-            })
+                ellipsize = android.text.TextUtils.TruncateAt.MARQUEE
+                marqueeRepeatLimit = -1
+                isSingleLine = true
+                isSelected = true // Start marquee
+            }
+            contentLayout.addView(titleView)
+            
+            mediaContainer.addView(contentLayout)
+            contentContainer.addView(mediaContainer)
         }
-        
-        // Play/Pause button
-        contentLayout.addView(TextView(context).apply {
-            text = if (isPlaying) "⏸" else "▶"
-            setTextColor(Color.WHITE)
-            textSize = getScaledTextSize(16f)
-            gravity = Gravity.CENTER
-            setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4))
-            setOnClickListener { onMediaAction?.invoke(if (isPlaying) "pause" else "play") }
-        })
-        
-        mediaContainer.addView(contentLayout)
-        contentContainer.addView(mediaContainer)
-        animateToExpanded {}
     }
     
     // Callbacks

@@ -28,6 +28,7 @@ class AlarmReceiver : BroadcastReceiver() {
         const val ACTION_SNOOZE_ALARM = "com.ailife.rtosifycompanion.SNOOZE_ALARM"
         
         private var ringtone: Ringtone? = null
+        private var vibrator: Vibrator? = null
         
         fun stopAlarmSound() {
             ringtone?.let {
@@ -111,18 +112,32 @@ class AlarmReceiver : BroadcastReceiver() {
         // Vibrate
         vibrateDevice(context)
         
-        // Launch full-screen activity
-        val activityIntent = Intent(context, AlarmRingingActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            putExtra(AlarmRingingActivity.EXTRA_ALARM_ID, alarmId)
-            putExtra(AlarmRingingActivity.EXTRA_ALARM_LABEL, label)
-            putExtra(AlarmRingingActivity.EXTRA_ALARM_HOUR, alarm?.hour ?: 0)
-            putExtra(AlarmRingingActivity.EXTRA_ALARM_MINUTE, alarm?.minute ?: 0)
-        }
-        context.startActivity(activityIntent)
+        // Launch full-screen activity only if notification style is NOT dynamic_island
+        val prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+        val style = prefs.getString("notification_style", "android")
         
-        // Also show notification as backup
-        showAlarmNotification(context, alarmId, label)
+        if (style != "dynamic_island") {
+            val activityIntent = Intent(context, AlarmRingingActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra(AlarmRingingActivity.EXTRA_ALARM_ID, alarmId)
+                putExtra(AlarmRingingActivity.EXTRA_ALARM_LABEL, label)
+                putExtra(AlarmRingingActivity.EXTRA_ALARM_HOUR, alarm?.hour ?: 0)
+                putExtra(AlarmRingingActivity.EXTRA_ALARM_MINUTE, alarm?.minute ?: 0)
+            }
+            context.startActivity(activityIntent)
+            
+            // Also show notification as backup
+            showAlarmNotification(context, alarmId, label)
+        } else {
+            Log.d(TAG, "Dynamic Island style enabled, routing directly")
+            val directIntent = Intent("com.ailife.rtosifycompanion.ALARM_TRIGGERED")
+            directIntent.setPackage(context.packageName)
+            directIntent.putExtra("alarm_id", alarmId)
+            directIntent.putExtra("label", label)
+            directIntent.putExtra("hour", alarm?.hour ?: 0)
+            directIntent.putExtra("minute", alarm?.minute ?: 0)
+            context.sendBroadcast(directIntent)
+        }
         
         // Reschedule if it's a repeating alarm
         rescheduleIfNeeded(context, alarmId)
@@ -133,6 +148,11 @@ class AlarmReceiver : BroadcastReceiver() {
         
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(NOTIFICATION_ID)
+        
+        // Clear Dynamic Island
+        val clearIntent = Intent("com.ailife.rtosifycompanion.ALARM_CLEARED")
+        clearIntent.setPackage(context.packageName)
+        context.sendBroadcast(clearIntent)
         
         Log.d(TAG, "Alarm dismissed")
     }
@@ -145,6 +165,11 @@ class AlarmReceiver : BroadcastReceiver() {
         
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(NOTIFICATION_ID)
+        
+        // Clear Dynamic Island
+        val clearIntent = Intent("com.ailife.rtosifycompanion.ALARM_CLEARED")
+        clearIntent.setPackage(context.packageName)
+        context.sendBroadcast(clearIntent)
         
         // Schedule snooze for 10 minutes
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
@@ -221,19 +246,24 @@ class AlarmReceiver : BroadcastReceiver() {
             }
         }
         ringtone = null
+        
+        // Stop vibration
+        vibrator?.cancel()
+        vibrator = null
+        Log.d(TAG, "Vibration stopped")
     }
     
     private fun vibrateDevice(context: Context) {
         try {
-            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+            vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
             
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val pattern = longArrayOf(0, 500, 500, 500, 500, 500)
-                vibrator.vibrate(VibrationEffect.createWaveform(pattern, 0))
+                vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
             } else {
                 @Suppress("DEPRECATION")
                 val pattern = longArrayOf(0, 500, 500, 500, 500, 500)
-                vibrator.vibrate(pattern, 0)
+                vibrator?.vibrate(pattern, 0)
             }
             
             Log.d(TAG, "Vibration started")
