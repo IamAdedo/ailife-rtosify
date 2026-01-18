@@ -1522,15 +1522,6 @@ class BluetoothService : Service() {
                         autoDataEnabled = activePrefs.getBoolean("auto_data_enabled", false),
                         autoBtTetherEnabled =
                                 activePrefs.getBoolean("auto_bt_tether_enabled", false),
-                        // New Dynamic Island settings
-                        notificationStyle = activePrefs.getString("notification_style", "android"),
-                        dynamicIslandTimeout = activePrefs.getInt("dynamic_island_timeout", 5),
-                        dynamicIslandY = activePrefs.getInt("dynamic_island_y", 8),
-                        dynamicIslandWidth = activePrefs.getInt("dynamic_island_width", 150),
-                        dynamicIslandHeight = activePrefs.getInt("dynamic_island_height", 40),
-                        dynamicIslandHideWhenIdle = activePrefs.getBoolean("dynamic_island_hide_idle", false),
-                        dynamicIslandTextMultiplier = activePrefs.getFloat("dynamic_island_text_multiplier", 1.0f),
-                        dynamicIslandLimitMessageLength = activePrefs.getBoolean("dynamic_island_limit_message_length", true),
                         forceBtEnabled = activePrefs.getBoolean("force_bt_enabled", false),
                         shareSyncEnabled = activePrefs.getBoolean("sharing_sync_enabled", false),
                         internetActivationRule = activePrefs.getInt("internet_activation_rule", 0),
@@ -1542,12 +1533,42 @@ class BluetoothService : Service() {
                 )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
         
+        // Sync Dynamic Island settings separately
+        syncDynamicIslandSettings()
+        
         // Local enforcement update
         if (activePrefs.getBoolean("force_bt_enabled", false)) {
             startBluetoothEnforcement()
         } else {
             stopBluetoothEnforcement()
         }
+    }
+
+    fun syncDynamicIslandSettings() {
+        Log.d(TAG, "syncDynamicIslandSettings: Sending all DI settings to watch")
+        
+        val settings = SettingsUpdateData(
+                // Notification style
+                notificationStyle = activePrefs.getString("notification_style", "android"),
+                // Display settings
+                dynamicIslandTimeout = activePrefs.getInt("dynamic_island_timeout", 5),
+                dynamicIslandY = activePrefs.getInt("dynamic_island_y", 8),
+                dynamicIslandWidth = activePrefs.getInt("dynamic_island_width", 150),
+                dynamicIslandHeight = activePrefs.getInt("dynamic_island_height", 40),
+                // Auto-hide settings
+                dynamicIslandAutoHideMode = activePrefs.getInt("di_auto_hide_mode", 0),
+                dynamicIslandBlacklistApps = activePrefs.getStringSet("di_blacklist_apps", emptySet())?.toList(),
+                dynamicIslandHideWithActiveNotifs = activePrefs.getBoolean("di_hide_with_active_notifs", false),
+                // Text settings
+                dynamicIslandTextMultiplier = activePrefs.getFloat("dynamic_island_text_multiplier", 1.0f),
+                dynamicIslandLimitMessageLength = activePrefs.getBoolean("dynamic_island_limit_message_length", true),
+                // Feature toggles
+                diShowPhoneCalls = activePrefs.getBoolean("di_show_phone_calls", true),
+                diShowAlarms = activePrefs.getBoolean("di_show_alarms", true),
+                diShowDisconnect = activePrefs.getBoolean("di_show_disconnect", true),
+                diShowMedia = activePrefs.getBoolean("di_show_media", true)
+        )
+        sendMessage(ProtocolHelper.createUpdateSettings(settings))
     }
 
     private fun startBluetoothEnforcement() {

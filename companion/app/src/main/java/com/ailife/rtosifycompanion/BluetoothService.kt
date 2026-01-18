@@ -1506,6 +1506,51 @@ class BluetoothService : Service() {
                 prefs.edit().putBoolean("dynamic_island_limit_message_length", it).apply()
                 Log.d(TAG, "Dynamic Island Limit Message Length updated: $it")
             }
+            // New auto-hide mode settings
+            settings.dynamicIslandAutoHideMode?.let {
+                prefs.edit().putInt("di_auto_hide_mode", it).apply()
+                Log.d(TAG, "Dynamic Island Auto-Hide Mode updated: $it (0=Always, 1=Never, 2=Blacklist)")
+            }
+            settings.dynamicIslandBlacklistApps?.let {
+                prefs.edit().putStringSet("di_blacklist_apps", it.toSet()).apply()
+                Log.d(TAG, "Dynamic Island Blacklist Apps updated: ${it.size} apps")
+            }
+            settings.dynamicIslandHideWithActiveNotifs?.let {
+                prefs.edit().putBoolean("di_hide_with_active_notifs", it).apply()
+                Log.d(TAG, "Dynamic Island Hide With Active Notifs updated: $it")
+            }
+            // Feature toggles
+            settings.diShowPhoneCalls?.let {
+                prefs.edit().putBoolean("di_show_phone_calls", it).apply()
+                Log.d(TAG, "Dynamic Island Show Phone Calls updated: $it")
+            }
+            settings.diShowAlarms?.let {
+                prefs.edit().putBoolean("di_show_alarms", it).apply()
+                Log.d(TAG, "Dynamic Island Show Alarms updated: $it")
+            }
+            settings.diShowDisconnect?.let {
+                prefs.edit().putBoolean("di_show_disconnect", it).apply()
+                Log.d(TAG, "Dynamic Island Show Disconnect updated: $it")
+            }
+            settings.diShowMedia?.let {
+                prefs.edit().putBoolean("di_show_media", it).apply()
+                Log.d(TAG, "Dynamic Island Show Media updated: $it")
+            }
+            
+            // Broadcast settings update to Dynamic Island Service if any DI setting changed
+            if (settings.notificationStyle != null || settings.dynamicIslandTimeout != null ||
+                settings.dynamicIslandY != null || settings.dynamicIslandWidth != null ||
+                settings.dynamicIslandHeight != null || settings.dynamicIslandAutoHideMode != null ||
+                settings.dynamicIslandBlacklistApps != null || settings.dynamicIslandHideWithActiveNotifs != null ||  
+                settings.dynamicIslandTextMultiplier != null || settings.dynamicIslandLimitMessageLength != null ||
+                settings.diShowPhoneCalls != null || settings.diShowAlarms != null ||
+                settings.diShowDisconnect != null || settings.diShowMedia != null) {
+                val intent = Intent(ACTION_UPDATE_DI_SETTINGS)
+                intent.setPackage(packageName)
+                sendBroadcast(intent)
+                Log.d(TAG, "Broadcast ACTION_UPDATE_DI_SETTINGS to Dynamic Island Service")
+            }
+            
             settings.forceBtEnabled?.let {
                 prefs.edit().putBoolean("force_bt_enabled", it).apply()
                 Log.d(TAG, "Force Bluetooth setting updated: $it")
@@ -1539,9 +1584,6 @@ class BluetoothService : Service() {
 
             // Internet settings handled via dedicated rule message or inside SettingsUpdateData if added there
             // Checking if SettingsUpdateData was updated in Protocol.kt (wait, did I check Protocol.kt for internet settings?)
-            
-            // Notify DynamicIslandService of settings change
-            sendBroadcast(Intent(ACTION_UPDATE_DI_SETTINGS).setPackage(packageName))
 
             Log.d(TAG, "Automation settings updated from phone")
         } catch (e: Exception) {

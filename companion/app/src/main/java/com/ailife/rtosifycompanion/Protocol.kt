@@ -298,9 +298,17 @@ data class SettingsUpdateData(
         val dynamicIslandY: Int? = null,
         val dynamicIslandWidth: Int? = null,
         val dynamicIslandHeight: Int? = null,
-        val dynamicIslandHideWhenIdle: Boolean? = null,
+        val dynamicIslandHideWhenIdle: Boolean? = null, // DEPRECATED: Use dynamicIslandAutoHideMode
+        val dynamicIslandAutoHideMode: Int? = null, // 0=Always Show, 1=Never Show, 2=Hide in Blacklist
+        val dynamicIslandBlacklistApps: List<String>? = null, // Package names to hide DI when in foreground
+        val dynamicIslandHideWithActiveNotifs: Boolean? = null, // Hide even with active notifications in blacklisted apps
         val dynamicIslandTextMultiplier: Float? = null,
         val dynamicIslandLimitMessageLength: Boolean? = null,
+        // Dynamic Island feature toggles
+        val diShowPhoneCalls: Boolean? = null, // Show phone calls in DI (default: true)
+        val diShowAlarms: Boolean? = null, // Show alarms in DI (default: true)
+        val diShowDisconnect: Boolean? = null, // Show disconnect in DI (default: true)
+        val diShowMedia: Boolean? = null, // Show media controls in DI (default: true)
         val forceBtEnabled: Boolean? = null,
         val shareSyncEnabled: Boolean? = null,
         val internetActivationRule: Int? = null,
