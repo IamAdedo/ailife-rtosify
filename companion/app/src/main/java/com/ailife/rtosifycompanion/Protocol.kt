@@ -57,6 +57,8 @@ object MessageType {
     const val EXECUTE_NOTIFICATION_ACTION = "execute_notification_action"
     const val SEND_NOTIFICATION_REPLY = "send_notification_reply"
     const val MEDIA_CONTROL = "media_control"
+    const val MEDIA_STATE_UPDATE = "media_state_update"
+    const val REQUEST_MEDIA_STATE = "request_media_state"
     const val CAMERA_START = "camera_start"
     const val CAMERA_STOP = "camera_stop"
     const val CAMERA_FRAME = "camera_frame"
@@ -175,6 +177,17 @@ data class MediaControlData(val command: String, val volume: Int? = null) {
         const val CMD_VOL_DOWN = "VOL_DOWN"
     }
 }
+
+data class MediaStateData(
+    val isPlaying: Boolean,
+    val title: String?,
+    val artist: String?,
+    val album: String?,
+    val duration: Long,        // milliseconds
+    val position: Long,        // milliseconds
+    val volume: Int,           // 0-100
+    val albumArtBase64: String? // null if no art available
+)
 
 data class NotificationActionData(
         val title: String,

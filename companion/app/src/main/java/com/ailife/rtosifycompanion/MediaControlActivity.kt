@@ -1,28 +1,90 @@
 package com.ailife.rtosifycompanion
 
 import android.app.Activity
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.ServiceConnection
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Bundle
+import android.os.Handler
 import android.os.IBinder
-import android.widget.Button
+import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.util.Base64
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
+import android.view.animation.AnimationUtils
+import android.view.animation.ScaleAnimation
 
 import androidx.appcompat.app.AppCompatActivity
 import android.view.View
+import androidx.core.content.ContextCompat
 
 class MediaControlActivity : AppCompatActivity() {
 
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
+    private var vibrator: Vibrator? = null
+    
+    private lateinit var btnPlayPause: ImageButton
+    private lateinit var albumArt: ImageView
+    private lateinit var trackTitle: TextView
+    private lateinit var trackArtist: TextView
+    private lateinit var progressBar: ProgressBar
+    private lateinit var currentTime: TextView
+    private lateinit var totalTime: TextView
+    private lateinit var volumeLevel: TextView
+    
+    private var currentMediaState: MediaStateData? = null
+    private val progressHandler = Handler(Looper.getMainLooper())
+    private var isProgressRunning = false
+    private var localPosition = 0L
+    private var localDuration = 0L
+
+    private val mediaStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ACTION_MEDIA_STATE_UPDATE) {
+                val isPlaying = intent.getBooleanExtra("isPlaying", false)
+                val title = intent.getStringExtra("title")
+                val artist = intent.getStringExtra("artist")
+                val duration = intent.getLongExtra("duration", 0L)
+                val position = intent.getLongExtra("position", 0L)
+                val volume = intent.getIntExtra("volume", 0)
+                val albumArtBase64 = intent.getStringExtra("albumArtBase64")
+                
+                val mediaState = MediaStateData(
+                    isPlaying = isPlaying,
+                    title = title,
+                    artist = artist,
+                    album = null,
+                    duration = duration,
+                    position = position,
+                    volume = volume,
+                    albumArtBase64 = albumArtBase64
+                )
+                
+                updateMediaState(mediaState)
+            }
+        }
+    }
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as BluetoothService.LocalBinder
             bluetoothService = binder.getService()
             isBound = true
+            
+            // Request initial media state
+            requestMediaState()
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -37,40 +99,214 @@ class MediaControlActivity : AppCompatActivity() {
         val rootLayout = findViewById<View>(R.id.rootLayout)
         EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
+        vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        btnPlayPause = findViewById(R.id.btn_play_pause)
+        albumArt = findViewById(R.id.albumArt)
+        trackTitle = findViewById(R.id.trackTitle)
+        trackArtist = findViewById(R.id.trackArtist)
+        progressBar = findViewById(R.id.progressBar)
+        currentTime = findViewById(R.id.currentTime)
+        totalTime = findViewById(R.id.totalTime)
+        volumeLevel = findViewById(R.id.volumeLevel)
+
         // Bind to BluetoothService
         val intent = Intent(this, BluetoothService::class.java)
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        
+        // Register media state receiver
+        val filter = IntentFilter(ACTION_MEDIA_STATE_UPDATE)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.registerReceiver(this, mediaStateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(mediaStateReceiver, filter)
+        }
 
         setupListeners()
+        
+        // Add fade-in animation
+        rootLayout.alpha = 0f
+        rootLayout.animate()
+            .alpha(1f)
+            .setDuration(300)
+            .start()
+            
+        // Enable marquee for title
+        trackTitle.isSelected = true
     }
 
     private fun setupListeners() {
-        findViewById<Button>(R.id.btn_play_pause).setOnClickListener {
+        btnPlayPause.setOnClickListener {
+            animateButton(it)
             sendCommand(MediaControlData.CMD_PLAY_PAUSE)
         }
 
-        findViewById<Button>(R.id.btn_next).setOnClickListener {
+        findViewById<ImageButton>(R.id.btn_next).setOnClickListener {
+            animateButton(it)
             sendCommand(MediaControlData.CMD_NEXT)
         }
 
-        findViewById<Button>(R.id.btn_prev).setOnClickListener {
+        findViewById<ImageButton>(R.id.btn_prev).setOnClickListener {
+            animateButton(it)
             sendCommand(MediaControlData.CMD_PREVIOUS)
         }
 
-        findViewById<Button>(R.id.btn_vol_up).setOnClickListener {
+        findViewById<ImageButton>(R.id.btn_vol_up).setOnClickListener {
+            animateButton(it)
             sendCommand(MediaControlData.CMD_VOL_UP)
         }
 
-        findViewById<Button>(R.id.btn_vol_down).setOnClickListener {
+        findViewById<ImageButton>(R.id.btn_vol_down).setOnClickListener {
+            animateButton(it)
             sendCommand(MediaControlData.CMD_VOL_DOWN)
         }
+    }
+
+    private fun animateButton(view: View) {
+        // Haptic feedback
+        if (vibrator?.hasVibrator() == true) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vibrator?.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator?.vibrate(30)
+            }
+        }
+        
+        // Scale animation
+        val scaleDown = ScaleAnimation(
+            1f, 0.9f,
+            1f, 0.9f,
+            ScaleAnimation.RELATIVE_TO_SELF, 0.5f,
+            ScaleAnimation.RELATIVE_TO_SELF, 0.5f
+        )
+        scaleDown.duration = 100
+        scaleDown.fillAfter = false
+        
+        view.startAnimation(scaleDown)
+        
+        view.postDelayed({
+            val scaleUp = ScaleAnimation(
+                0.9f, 1f,
+                0.9f, 1f,
+                ScaleAnimation.RELATIVE_TO_SELF, 0.5f,
+                ScaleAnimation.RELATIVE_TO_SELF, 0.5f
+            )
+            scaleUp.duration = 100
+            scaleUp.fillAfter = false
+            view.startAnimation(scaleUp)
+        }, 100)
+    }
+    
+    private fun requestMediaState() {
+        if (isBound && bluetoothService?.isConnected == true) {
+            val message = ProtocolMessage(type = MessageType.REQUEST_MEDIA_STATE)
+            bluetoothService?.sendMessage(message)
+        }
+    }
+    
+    private fun updateMediaState(state: MediaStateData) {
+        currentMediaState = state
+        
+        // Update play/pause button icon
+        btnPlayPause.setImageResource(
+            if (state.isPlaying) R.drawable.ic_media_pause else R.drawable.ic_media_play
+        )
+        
+        // Update track info
+        trackTitle.text = state.title ?: getString(R.string.media_no_media)
+        trackArtist.text = state.artist ?: getString(R.string.media_unknown_artist)
+        
+        // Update progress with received state
+        localPosition = state.position
+        localDuration = state.duration
+        updateProgressUI()
+        
+        // Start/stop progress animation based on playback state
+        if (state.isPlaying && state.duration > 0) {
+            startProgressUpdates()
+        } else {
+            stopProgressUpdates()
+        }
+        
+        // Update volume
+        volumeLevel.text = state.volume.toString()
+        
+        // Update album art
+        if (state.albumArtBase64 != null) {
+            try {
+                val decodedBytes = Base64.decode(state.albumArtBase64, Base64.DEFAULT)
+                val bitmap = BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+                albumArt.setImageBitmap(bitmap)
+            } catch (e: Exception) {
+                albumArt.setImageResource(0)
+                albumArt.setBackgroundResource(R.drawable.bg_album_art_placeholder)
+            }
+        } else {
+            albumArt.setImageResource(0)
+            albumArt.setBackgroundResource(R.drawable.bg_album_art_placeholder)
+        }
+    }
+    
+    private fun startProgressUpdates() {
+        if (isProgressRunning) return
+        isProgressRunning = true
+        progressHandler.post(progressUpdateRunnable)
+    }
+    
+    private fun stopProgressUpdates() {
+        isProgressRunning = false
+        progressHandler.removeCallbacks(progressUpdateRunnable)
+    }
+    
+    private val progressUpdateRunnable = object : Runnable {
+        override fun run() {
+            if (isProgressRunning && localDuration > 0) {
+                // Increment position by 1 second
+                localPosition += 1000
+                
+                // Don't exceed duration
+                if (localPosition > localDuration) {
+                    localPosition = localDuration
+                    stopProgressUpdates()
+                }
+                
+                updateProgressUI()
+                
+                // Schedule next update in 1 second
+                progressHandler.postDelayed(this, 1000)
+            }
+        }
+    }
+    
+    private fun updateProgressUI() {
+        if (localDuration > 0) {
+            val progress = ((localPosition.toFloat() / localDuration.toFloat()) * 100).toInt()
+            progressBar.progress = progress
+            currentTime.text = formatTime(localPosition)
+            totalTime.text = formatTime(localDuration)
+        } else {
+            progressBar.progress = 0
+            currentTime.text = "0:00"
+            totalTime.text = "0:00"
+        }
+    }
+    
+    private fun formatTime(millis: Long): String {
+        val seconds = (millis / 1000).toInt()
+        val minutes = seconds / 60
+        val secs = seconds % 60
+        return String.format("%d:%02d", minutes, secs)
     }
 
     private fun sendCommand(command: String) {
         if (isBound && bluetoothService != null) {
             if (bluetoothService?.isConnected == true) {
                 bluetoothService?.sendMediaCommand(command)
-                // Toast removed as requested
+                
+                // Request fresh state after command to sync UI
+                Handler(Looper.getMainLooper()).postDelayed({
+                    requestMediaState()
+                }, 300)
             } else {
                 Toast.makeText(this, getString(R.string.toast_not_connected), Toast.LENGTH_SHORT).show()
             }
@@ -79,9 +315,19 @@ class MediaControlActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        stopProgressUpdates()
+        
+        try {
+            unregisterReceiver(mediaStateReceiver)
+        } catch (e: Exception) {}
+        
         if (isBound) {
             unbindService(serviceConnection)
             isBound = false
         }
+    }
+    
+    companion object {
+        const val ACTION_MEDIA_STATE_UPDATE = "com.ailife.rtosifycompanion.MEDIA_STATE_UPDATE"
     }
 }

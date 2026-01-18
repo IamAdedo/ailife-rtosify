@@ -471,6 +471,12 @@ class BluetoothService : Service() {
                         MediaWidget.ACTION_CMD_PREV -> sendMediaCommand(MediaControlData.CMD_PREVIOUS)
                         MediaWidget.ACTION_CMD_VOL_UP -> sendMediaCommand(MediaControlData.CMD_VOL_UP)
                         MediaWidget.ACTION_CMD_VOL_DOWN -> sendMediaCommand(MediaControlData.CMD_VOL_DOWN)
+                        MediaWidget.ACTION_MEDIA_UPDATE -> {
+                            // Widget requesting current state
+                            if (isConnected) {
+                                sendMessage(ProtocolMessage(type = MessageType.REQUEST_MEDIA_STATE))
+                            }
+                        }
                     }
                 }
             }
@@ -1286,6 +1292,7 @@ class BluetoothService : Service() {
             MessageType.SYNC_PHONE_STATE -> handleSyncPhoneState(message)
             MessageType.SHARE_SYNC -> handleShareReceived(message)
             MessageType.UPDATE_INTERNET_SETTINGS -> handleUpdateInternetSettings(message)
+            MessageType.MEDIA_STATE_UPDATE -> handleMediaStateUpdate(message)
             else -> Log.w(TAG, "Unknown message type: ${message.type}")
         }
     }
@@ -1310,6 +1317,38 @@ class BluetoothService : Service() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing phone battery update: ${e.message}", e)
+        }
+    }
+    
+    private fun handleMediaStateUpdate(message: ProtocolMessage) {
+        try {
+            val data = ProtocolHelper.extractData<MediaStateData>(message)
+            
+            // Broadcast to MediaControlActivity
+            val intent = Intent(MediaControlActivity.ACTION_MEDIA_STATE_UPDATE).apply {
+                putExtra("isPlaying", data.isPlaying)
+                putExtra("title", data.title)
+                putExtra("artist", data.artist)
+                putExtra("duration", data.duration)
+                putExtra("position", data.position)
+                putExtra("volume", data.volume)
+                putExtra("albumArtBase64", data.albumArtBase64)
+                setPackage(packageName)
+            }
+            sendBroadcast(intent)
+            
+            // Broadcast to MediaWidget
+            val widgetIntent = Intent(com.ailife.rtosifycompanion.widget.MediaWidget.ACTION_MEDIA_UPDATE).apply {
+                putExtra(com.ailife.rtosifycompanion.widget.MediaWidget.EXTRA_TITLE, data.title ?: "No Media")
+                putExtra(com.ailife.rtosifycompanion.widget.MediaWidget.EXTRA_ARTIST, data.artist ?: "")
+                putExtra(com.ailife.rtosifycompanion.widget.MediaWidget.EXTRA_IS_PLAYING, data.isPlaying)
+                setPackage(packageName)
+            }
+            sendBroadcast(widgetIntent)
+            
+            Log.d(TAG, "Media state broadcast: ${data.title} - ${data.artist}, playing=${data.isPlaying}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing media state update: ${e.message}", e)
         }
     }
 

@@ -143,6 +143,9 @@ class BluetoothService : Service() {
                 }
             }
 
+    // Media Session Listener
+    private var mediaSessionListener: MediaSessionListener? = null
+
     @Volatile private var lastMessageTime: Long = 0L
 
     @Volatile private var isTransferring: Boolean = false
@@ -715,6 +718,16 @@ class BluetoothService : Service() {
             startBluetoothEnforcement()
         }
         
+        // Initialize MediaSessionListener
+        mediaSessionListener = MediaSessionListener(this, object : MediaSessionListener.MediaStateCallback {
+            override fun onMediaStateChanged(mediaState: MediaStateData) {
+               if (isConnected) {
+                    sendMediaState(mediaState)
+                }
+            }
+        })
+        mediaSessionListener?.start()
+        
         // Initialize mirroring state
         transportManager.updateMirroringState(MirroringService.isRunning)
         
@@ -954,6 +967,7 @@ class BluetoothService : Service() {
             MessageType.FIND_DEVICE_LOCATION_REQUEST -> handleFindDeviceLocationRequest(message)
             MessageType.FIND_DEVICE_LOCATION_UPDATE -> handleFindDeviceLocationUpdate(message)
             MessageType.MEDIA_CONTROL -> handleMediaControl(message)
+            MessageType.REQUEST_MEDIA_STATE -> handleRequestMediaState()
             MessageType.CAMERA_START -> handleCameraStart()
             MessageType.CAMERA_STOP -> handleCameraStop()
             MessageType.CAMERA_SHUTTER -> handleCameraShutter()
@@ -1755,6 +1769,32 @@ class BluetoothService : Service() {
         } catch (e: Exception) {
             Log.e(TAG, "Error handling media control: ${e.message}")
         }
+    }
+
+    private fun handleRequestMediaState() {
+        try {
+            val currentState = mediaSessionListener?.getCurrentState() ?: MediaStateData(
+                isPlaying = false,
+                title = null,
+                artist = null,
+                album = null,
+                duration = 0L,
+                position = 0L,
+                volume = 0,
+                albumArtBase64 = null
+            )
+            sendMediaState(currentState)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling request media state: ${e.message}")
+        }
+    }
+    
+    private fun sendMediaState(mediaState: MediaStateData) {
+        val message = ProtocolMessage(
+            type = MessageType.MEDIA_STATE_UPDATE,
+            data = com.google.gson.Gson().toJsonTree(mediaState).asJsonObject
+        )
+        sendMessage(message)
     }
 
     private fun handleCameraStart() {
@@ -2966,6 +3006,17 @@ class BluetoothService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        isStopping = true
+
+        Log.d(TAG, "BluetoothService destroying...")
+
+        stopBluetoothEnforcement()
+        stopClipboardMonitoring()
+        stopFindPhoneAlarm()
+        
+        // Stop media session listener
+        mediaSessionListener?.stop()
+        mediaSessionListener = null
 
         serviceScope.launch {
             transportManager.stopAll()

@@ -1,91 +1,197 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:padding="8dp">
+    android:background="#000000">
 
-    <TextView
-        android:id="@+id/title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/menu_media_control"
-        android:textColor="#FFFFFF"
-        android:textSize="14sp"
-        android:layout_marginBottom="16dp" />
-
-    <!-- Volume Control -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
         android:gravity="center"
-        android:orientation="horizontal"
-        android:layout_marginBottom="16dp">
+        android:padding="12dp">
 
-        <Button
-            android:id="@+id/btn_vol_down"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
-            android:backgroundTint="#333333"
-            android:text="-"
-            android:textSize="24sp"
-            android:textColor="#FFFFFF" />
+        <!-- Album Art Section - Compact for smartwatch -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            android:layout_marginBottom="8dp">
 
-        <TextView
+            <ImageView
+                android:id="@+id/albumArt"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:background="@drawable/bg_album_art_placeholder"
+                android:contentDescription="@string/media_album_art_desc" />
+        </androidx.cardview.widget.CardView>
+
+        <!-- Track Info Section - Compact -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginBottom="8dp">
+
+            <TextView
+                android:id="@+id/trackTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/media_no_media"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:singleLine="true"
+                android:scrollHorizontally="true"
+                android:focusable="true"
+                android:focusableInTouchMode="true" />
+
+            <TextView
+                android:id="@+id/trackArtist"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/media_unknown_artist"
+                android:textColor="#AAAAAA"
+                android:textSize="11sp"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+
+        <!-- Progress Section - Compact -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginBottom="8dp"
+            android:paddingHorizontal="8dp">
+
+            <ProgressBar
+                android:id="@+id/progressBar"
+                style="@android:style/Widget.ProgressBar.Horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:progressTint="#00BCD4"
+                android:progressBackgroundTint="#303030"
+                android:max="100"
+                android:progress="0" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="4dp">
+
+                <TextView
+                    android:id="@+id/currentTime"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="0:00"
+                    android:textColor="#80FFFFFF"
+                    android:textSize="9sp"
+                    android:gravity="start" />
+
+                <TextView
+                    android:id="@+id/totalTime"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="0:00"
+                    android:textColor="#80FFFFFF"
+                    android:textSize="9sp"
+                    android:gravity="end" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Playback Controls - Compact horizontal layout -->
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/media_vol_label"
-            android:textColor="#AAAAAA"
-            android:textSize="12sp"
-            android:layout_marginHorizontal="16dp" />
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginBottom="6dp">
 
-        <Button
-            android:id="@+id/btn_vol_up"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
-            android:backgroundTint="#333333"
-            android:text="+"
-            android:textSize="24sp"
-            android:textColor="#FFFFFF" />
+            <ImageButton
+                android:id="@+id/btn_prev"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_media_button_secondary"
+                android:src="@drawable/ic_media_prev"
+                android:contentDescription="@string/media_prev_desc"
+                android:scaleType="centerInside"
+                android:padding="10dp" />
+
+            <ImageButton
+                android:id="@+id/btn_play_pause"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:background="@drawable/bg_media_button_primary"
+                android:src="@drawable/ic_media_play"
+                android:contentDescription="@string/media_play_pause_desc"
+                android:scaleType="centerInside"
+                android:padding="14dp"
+                android:layout_marginHorizontal="10dp" />
+
+            <ImageButton
+                android:id="@+id/btn_next"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/bg_media_button_secondary"
+                android:src="@drawable/ic_media_next"
+                android:contentDescription="@string/media_next_desc"
+                android:scaleType="centerInside"
+                android:padding="10dp" />
+        </LinearLayout>
+
+        <!-- Volume Controls - Simplified horizontal -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <ImageButton
+                android:id="@+id/btn_vol_down"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_media_button_volume"
+                android:src="@drawable/ic_volume_down"
+                android:contentDescription="@string/media_vol_down_desc"
+                android:scaleType="centerInside"
+                android:padding="8dp" />
+
+            <TextView
+                android:id="@+id/volumeLevel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="--"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:minWidth="32dp"
+                android:gravity="center"
+                android:layout_marginHorizontal="8dp" />
+
+            <ImageButton
+                android:id="@+id/btn_vol_up"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_media_button_volume"
+                android:src="@drawable/ic_volume_up"
+                android:contentDescription="@string/media_vol_up_desc"
+                android:scaleType="centerInside"
+                android:padding="8dp" />
+        </LinearLayout>
+
     </LinearLayout>
 
-    <!-- Playback Control -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:orientation="horizontal">
-
-        <Button
-            android:id="@+id/btn_prev"
-            android:layout_width="50dp"
-            android:layout_height="50dp"
-            android:backgroundTint="#222222"
-            android:text="&lt;&lt;"
-            android:textSize="12sp"
-            android:textColor="#FFFFFF" />
-
-        <Button
-            android:id="@+id/btn_play_pause"
-            android:layout_width="70dp"
-            android:layout_height="70dp"
-            android:backgroundTint="#009688"
-            android:text="@string/media_btn_play"
-            android:textSize="14sp"
-            android:textColor="#FFFFFF"
-            android:layout_marginHorizontal="12dp" />
-
-        <Button
-            android:id="@+id/btn_next"
-            android:layout_width="50dp"
-            android:layout_height="50dp"
-            android:backgroundTint="#222222"
-            android:text="&gt;&gt;"
-            android:textSize="12sp"
-            android:textColor="#FFFFFF" />
-    </LinearLayout>
-
-</LinearLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -406,6 +406,14 @@
     <string name="toast_not_connected">Not connected</string>
     <string name="media_vol_label">VOL</string>
     <string name="media_btn_play">Play</string>
+    <string name="media_vol_up_desc">Volume Up</string>
+    <string name="media_vol_down_desc">Volume Down</string>
+    <string name="media_play_pause_desc">Play/Pause</string>
+    <string name="media_prev_desc">Previous Track</string>
+    <string name="media_next_desc">Next Track</string>
+    <string name="media_album_art_desc">Album Art</string>
+    <string name="media_no_media">No Media Playing</string>
+    <string name="media_unknown_artist">Unknown Artist</string>
     <string name="mirror_stop">Stop Mirroring</string>
     <string name="mirror_requesting">Requesting phone screen...</string>
     <string name="status_phone_not_connected">Phone not connected</string>
