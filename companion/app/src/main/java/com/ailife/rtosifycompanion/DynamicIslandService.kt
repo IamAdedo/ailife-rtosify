@@ -251,13 +251,17 @@ class DynamicIslandService : Service() {
         
         foregroundCheckRunnable = object : Runnable {
             override fun run() {
-                // Only update if blacklist state changed
+                // Update blacklist state
                 val wasInBlacklist = isCurrentlyInBlacklistedApp
                 isInBlacklistedApp()  // Updates isCurrentlyInBlacklistedApp
                 
                 if (wasInBlacklist != isCurrentlyInBlacklistedApp) {
+                    // Blacklist state changed - update display
                     Log.d(TAG, "Blacklist state changed: $wasInBlacklist -> $isCurrentlyInBlacklistedApp")
                     updateState()
+                } else if (isCurrentlyInBlacklistedApp) {
+                    // In blacklist - only check if we should hide/show, don't re-render
+                    checkBlacklistVisibility()
                 }
                 
                 handler.postDelayed(this, 500) // Check every 500ms
@@ -271,9 +275,52 @@ class DynamicIslandService : Service() {
         foregroundCheckRunnable?.let {
             handler.removeCallbacks(it)
             foregroundCheckRunnable = null
+            Log.d(TAG, "Stopped periodic foreground app checking")
         }
     }
-
+    
+    /**
+     * Check if overlay should be hidden/shown based on blacklist state
+     * Does NOT re-render the current state, only toggles visibility
+     */
+    private fun checkBlacklistVisibility() {
+        handler.post {
+            // Determine current state
+            val currentState = when {
+                isExpanded -> "expanded"
+                currentNotification != null -> "active_notification"
+                currentCall != null -> "call"
+                currentAlarm != null -> "alarm"
+                activeState != null && System.currentTimeMillis() < activeState!!.expiresAt -> "active_transient"
+                currentMedia != null -> "media"
+                notificationQueue.isNotEmpty() -> "notification_icons"
+                isCharging -> "charging"
+                !isConnected -> "disconnected"
+                else -> "idle"
+            }
+            
+            // Check if should hide
+            val shouldHide = when (currentState) {
+                "expanded", "active_notification", "call", "alarm" -> false
+                "active_transient" -> false  // Show for 5s
+                "notification_icons", "media" -> hideWithActiveNotifs
+                "idle", "charging", "disconnected" -> true
+                else -> false
+            }
+            
+            Log.d(TAG, "checkBlacklistVisibility: state=$currentState, shouldHide=$shouldHide, isVisible=$isOverlayVisible")
+            
+            // Only toggle visibility, don't re-render
+            if (shouldHide && isOverlayVisible) {
+                Log.d(TAG, "Hiding overlay")
+                hideOverlayAnimated()
+            } else if (!shouldHide && !isOverlayVisible) {
+                Log.d(TAG, "Showing overlay")
+                showOverlayAnimated()
+            }
+        }
+    }
+    
     private fun Int.dpToPx(): Int = (this * resources.displayMetrics.density).toInt()
 
     private fun requestInitialConnectionState() {
@@ -660,17 +707,33 @@ class DynamicIslandService : Service() {
                     if (!isCurrentlyInBlacklistedApp) {
                         false
                     } else {
-                        // Don't hide continuous or active states
-                        if (currentCall != null || currentAlarm != null || 
-                            currentNotification != null || isExpanded || activeState != null) {
-                            false
-                        } else if (hideWithActiveNotifs) {
-                            // Can hide media and notification icons
-                            true
-                        } else {
-                            // Only hide true idle states
-                            currentState == "idle" || currentState == "charging" || currentState == "disconnected"
+                        // Check based on current state
+                        val result = when (currentState) {
+                            // Never hide these
+                            "expanded", "active_notification", "call", "alarm" -> false
+                            
+                            // Show active transient for 5s, then hide when expired
+                            "active_transient" -> {
+                                Log.d(TAG, "Active transient in blacklist, showing for 5s")
+                                false  // Show it, will auto-hide when expires
+                            }
+                            
+                            // Hide based on toggle
+                            "notification_icons", "media" -> {
+                                Log.d(TAG, "State=$currentState, hideWithActiveNotifs=$hideWithActiveNotifs")
+                                hideWithActiveNotifs
+                            }
+                            
+                            // Always hide idle states
+                            "idle", "charging", "disconnected" -> {
+                                Log.d(TAG, "Idle state $currentState in blacklist, hiding")
+                                true
+                            }
+                            
+                            else -> false
                         }
+                        Log.d(TAG, "Blacklist hide decision: $result")
+                        result
                     }
                 }
                 
@@ -905,21 +968,16 @@ class DynamicIslandService : Service() {
 
 
     private fun collapseList() {
+        Log.d(TAG, "collapseList: isExpanded=$isExpanded -> false")
         isExpanded = false
 
-        // Check if we should hide immediately when in blacklisted app
-        if (autoHideMode == AUTO_HIDE_IN_BLACKLIST && isCurrentlyInBlacklistedApp) {
-            // If hideWithActiveNotifs is ON, hide immediately
-            // If OFF, only hide if no notifications
-            if (hideWithActiveNotifs || notificationQueue.isEmpty()) {
-                hideOverlayAnimated()
-                return
-            }
-        }
-
+        // Always collapse to icons or update state
+        // Hiding is handled by checkBlacklistVisibility
         if (notificationQueue.isNotEmpty()) {
+            Log.d(TAG, "Collapsing to icons (${notificationQueue.size} notifications)")
             overlayView.collapseToIcons(notificationQueue)
         } else {
+            Log.d(TAG, "No notifications, calling updateState")
             updateState()
         }
     }
@@ -1029,6 +1087,7 @@ class DynamicIslandService : Service() {
     
     /**
      * Check if the current foreground app is in the blacklist
+     * Updates isCurrentlyInBlacklistedApp cache
      */
     @SuppressLint("NewApi")
     private fun isInBlacklistedApp(): Boolean {
@@ -1046,22 +1105,11 @@ class DynamicIslandService : Service() {
                 isCurrentlyInBlacklistedApp = blacklistedApps.contains(currentPackage)
             }
             // If getCurrentForegroundApp() returned null, keep using cached state
-            
-            if (isCurrentlyInBlacklistedApp) {
-                // App is blacklisted - check if we should hide even with active notifications
-                if (hideWithActiveNotifs) {
-                    // ON: Hide even with notifications in queue, but NOT when actively showing one
-                    return currentNotification == null
-                } else {
-                    // OFF: Only hide if no notifications in queue at all
-                    return notificationQueue.isEmpty()
-                }
-            }
         } catch (e: Exception) {
             Log.e(TAG, "Error checking blacklisted app: ${e.message}")
         }
         
-        return false
+        return isCurrentlyInBlacklistedApp
     }
     
     /**
