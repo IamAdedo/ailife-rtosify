@@ -481,6 +481,14 @@ class BluetoothService : Service() {
                                 sendMediaCommand(MediaControlData.CMD_PLAY)
                             } else if (action == "pause") {
                                 sendMediaCommand(MediaControlData.CMD_PAUSE)
+                            } else if (action == "prev") {
+                                sendMediaCommand(MediaControlData.CMD_PREVIOUS)
+                            } else if (action == "next") {
+                                sendMediaCommand(MediaControlData.CMD_NEXT)
+                            } else if (action == "vol_up") {
+                                sendMediaCommand(MediaControlData.CMD_VOL_UP)
+                            } else if (action == "vol_down") {
+                                sendMediaCommand(MediaControlData.CMD_VOL_DOWN)
                             }
                         }
                         "com.ailife.rtosifycompanion.UPDATE_REMOTE_RESOLUTION" -> {

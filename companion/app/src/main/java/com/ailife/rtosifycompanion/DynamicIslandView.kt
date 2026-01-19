@@ -14,6 +14,9 @@ import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.animation.DecelerateInterpolator
 import android.widget.*
+import android.content.res.ColorStateList
+import android.os.Handler
+import android.os.Looper
 import androidx.core.view.setPadding
 
 class DynamicIslandView(context: Context) : FrameLayout(context) {
@@ -49,6 +52,13 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     private var startY: Float = 0f
 
     private var currentState: State = State.IDLE
+    
+    // Media playback tracking
+    private var mediaProgressHandler: Handler? = null
+    private var mediaStartTime: Long = 0
+    private var mediaStartPosition: Long = 0
+    private var mediaDuration: Long = 0
+    private var isMediaPlaying: Boolean = false
 
     private enum class State {
         IDLE,
@@ -58,6 +68,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         PHONE_CALL,
         ALARM,
         MEDIA_PLAYING,
+        MEDIA_EXPANDED,
         NOTIFICATION_EXPANDED,
         NOTIFICATION_COLLAPSED,
         LIST_EXPANDED
@@ -87,8 +98,9 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                     setOnClickListener {
                         if (currentState == State.NOTIFICATION_COLLAPSED ||
                                         currentState == State.NOTIFICATION_EXPANDED ||
-                                        currentState == State.LIST_EXPANDED
-                        ) {
+                                        currentState == State.LIST_EXPANDED ||
+                                        currentState == State.MEDIA_PLAYING ||
+                                        currentState == State.MEDIA_EXPANDED) {
                             onPillClick?.invoke()
                         }
                     }
@@ -163,7 +175,13 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                         topMargin = dpToPx(60)
                                     } // Pill height (40dp) + extra spacing (20dp)
                     visibility = GONE
-                    addView(expandedList)
+                    
+                    // Wrapper to resolve "only one direct child" scroller issue
+                    val wrapper = FrameLayout(context).apply {
+                        tag = "scroll_wrapper"
+                    }
+                    wrapper.addView(expandedList)
+                    addView(wrapper)
                 }
 
         pillContainer.addView(contentContainer)
@@ -185,6 +203,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     fun showIdleState(transportType: String = "") {
         if (currentState == State.IDLE) return
         currentState = State.IDLE
+        
+        stopMediaProgressAnimation() // Clean up media animation
 
         expandedContainer.visibility = GONE
         pillContainer.alpha = 1f
@@ -870,6 +890,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     }
 
     fun expandToList(notifications: List<NotificationData>) {
+        val wrapper = expandedContainer.findViewWithTag<FrameLayout>("scroll_wrapper")
+        wrapper?.findViewWithTag<View>("media_expanded_layout")?.visibility = GONE
+        expandedList.visibility = VISIBLE
+
         // If already in list view, just update the list items
         if (currentState == State.LIST_EXPANDED) {
             expandedList.removeAllViews()
@@ -907,6 +931,11 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 addClearAllButton()
             }
 
+            expandedContainer.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(200)
+                    .start()
             // Show Close UI in pill
             contentContainer.visibility = GONE
             iconContainer.visibility = GONE
@@ -1863,6 +1892,359 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             
             mediaContainer.addView(contentLayout)
             contentContainer.addView(mediaContainer)
+        }
+    }
+    
+    fun expandWithMedia(title: String?, artist: String?, isPlaying: Boolean, albumArtBase64: String?, 
+                        position: Long = 0, duration: Long = 0, volume: Int = 0) {
+        val isAlreadyMediaExpanded = currentState == State.MEDIA_EXPANDED
+        
+        // Store playback state for progress animation
+        this.isMediaPlaying = isPlaying
+        this.mediaDuration = duration
+        if (isPlaying && !isAlreadyMediaExpanded) {
+            mediaStartTime = System.currentTimeMillis()
+            mediaStartPosition = position
+        }
+        
+        val wrapper = expandedContainer.findViewWithTag<FrameLayout>("scroll_wrapper") ?: return
+        expandedList.visibility = GONE
+        
+        var mediaLayout = wrapper.findViewWithTag<FrameLayout>("media_expanded_layout")
+        
+        // If already expanded, just update the views
+        if (isAlreadyMediaExpanded && mediaLayout != null) {
+            updateExpandedMediaUI(mediaLayout, title, artist, isPlaying, albumArtBase64, position, duration, volume)
+            return
+        }
+        
+        currentState = State.MEDIA_EXPANDED
+
+        // Initialize or Clear media layout
+        if (mediaLayout == null) {
+            mediaLayout = FrameLayout(context).apply {
+                tag = "media_expanded_layout"
+                layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+            }
+            wrapper.addView(mediaLayout)
+        } else {
+            mediaLayout.removeAllViews()
+        }
+        
+        mediaLayout.visibility = VISIBLE
+        
+        // Hide pill content
+        contentContainer.visibility = GONE
+        iconContainer.visibility = GONE
+        
+        // Collapse pill and show close UI like notifications
+        animateToCollapsed {
+            closeContainer.visibility = VISIBLE
+            
+            val currentMediaLayout = wrapper.findViewWithTag<FrameLayout>("media_expanded_layout") ?: return@animateToCollapsed
+            currentMediaLayout.removeAllViews()
+
+            val mainLayout = LinearLayout(context).apply {
+                tag = "media_main_layout"
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                gravity = Gravity.CENTER_HORIZONTAL
+            }
+            
+            // Background cover art with 100% opacity
+            if (albumArtBase64 != null) {
+                val albumBitmap = decodeBase64ToBitmap(albumArtBase64)
+                if (albumBitmap != null) {
+                    val backgroundView = ImageView(context).apply {
+                        tag = "media_background"
+                        layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                        scaleType = ImageView.ScaleType.CENTER_CROP
+                        setImageBitmap(albumBitmap)
+                        alpha = 1.0f // 100% opacity
+                    }
+                    currentMediaLayout.addView(backgroundView)
+                    
+                    // Dark overlay for text readability
+                    val overlay = View(context).apply {
+                        layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                        setBackgroundColor(Color.parseColor("#CC000000")) // 80% dark overlay
+                    }
+                    currentMediaLayout.addView(overlay)
+                }
+            } else {
+                // Solid dark background if no art
+                val darkBg = View(context).apply {
+                    layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                    setBackgroundColor(Color.parseColor("#1C1C1E"))
+                }
+                currentMediaLayout.addView(darkBg)
+            }
+            
+            // Header: Title and Artist
+            val headerLayout = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(0, 0, 0, dpToPx(8))
+            }
+            
+            val titleView = TextView(context).apply {
+                tag = "media_title"
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+                text = title ?: "Unknown Title"
+                setTextColor(Color.WHITE)
+                textSize = getScaledTextSize(18f)
+                setTypeface(null, android.graphics.Typeface.BOLD)
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            }
+            headerLayout.addView(titleView)
+            
+            val artistView = TextView(context).apply {
+                tag = "media_artist"
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+                text = artist ?: "Unknown Artist"
+                setTextColor(Color.LTGRAY)
+                textSize = getScaledTextSize(14f)
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            }
+            headerLayout.addView(artistView)
+            
+            mainLayout.addView(headerLayout)
+
+            // Progress Bar
+            val progressLayout = LinearLayout(context).apply {
+                tag = "media_progress_layout"
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                setPadding(0, 0, 0, dpToPx(12))
+                visibility = if (duration > 0) VISIBLE else GONE
+            }
+
+            val progressBar = android.widget.ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+                tag = "media_progress_bar"
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(4))
+                max = if (duration > 0) duration.toInt() else 100
+                progress = if (duration > 0) position.toInt() else 0
+                progressDrawable = context.getDrawable(android.R.drawable.progress_horizontal)
+                progressTintList = ColorStateList.valueOf(Color.WHITE)
+            }
+            progressLayout.addView(progressBar)
+
+            val timeLayout = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+            }
+
+            val posText = TextView(context).apply {
+                tag = "media_position"
+                layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+                text = formatTime(position)
+                setTextColor(Color.LTGRAY)
+                textSize = getScaledTextSize(10f)
+            }
+            timeLayout.addView(posText)
+
+            val durText = TextView(context).apply {
+                tag = "media_duration"
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+                text = formatTime(duration)
+                setTextColor(Color.LTGRAY)
+                textSize = getScaledTextSize(10f)
+            }
+            timeLayout.addView(durText)
+
+            progressLayout.addView(timeLayout)
+            mainLayout.addView(progressLayout)
+            
+            // Playback Controls
+            val playbackLayout = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                gravity = Gravity.CENTER
+                setPadding(0, 0, 0, dpToPx(8))
+            }
+            
+            val prevBtn = createControlButton("⏮", 24f) { onMediaAction?.invoke("prev") }
+            playbackLayout.addView(prevBtn)
+            
+            val playPauseBtn = createControlButton(if (isPlaying) "⏸" else "▶", 32f) { 
+                tag = "media_play_pause"
+                onMediaAction?.invoke(if (isPlaying) "pause" else "play") 
+            }
+            playbackLayout.addView(playPauseBtn)
+            
+            val nextBtn = createControlButton("⏭", 24f) { onMediaAction?.invoke("next") }
+            playbackLayout.addView(nextBtn)
+            
+            mainLayout.addView(playbackLayout)
+            
+            // Volume Controls
+            val volumeLayout = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dpToPx(10), 0, dpToPx(10), 0)
+            }
+            
+            val volIcon = TextView(context).apply {
+                text = "🔉"
+                textSize = getScaledTextSize(14f)
+                setTextColor(Color.WHITE)
+                setPadding(0, 0, dpToPx(8), 0)
+                setOnClickListener { onMediaAction?.invoke("vol_down") }
+            }
+            volumeLayout.addView(volIcon)
+
+            val volumeBar = android.widget.ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+                tag = "media_volume_bar"
+                layoutParams = LinearLayout.LayoutParams(0, dpToPx(4), 1f)
+                max = 100
+                progress = volume
+                progressTintList = ColorStateList.valueOf(Color.WHITE)
+                progressBackgroundTintList = ColorStateList.valueOf(Color.parseColor("#44FFFFFF"))
+            }
+            volumeLayout.addView(volumeBar)
+
+            val volMaxIcon = TextView(context).apply {
+                text = "🔊"
+                textSize = getScaledTextSize(14f)
+                setTextColor(Color.WHITE)
+                setPadding(dpToPx(8), 0, 0, 0)
+                setOnClickListener { onMediaAction?.invoke("vol_up") }
+            }
+            volumeLayout.addView(volMaxIcon)
+            
+            mainLayout.addView(volumeLayout)
+            currentMediaLayout.addView(mainLayout)
+            
+            // Smooth fade-in animation
+            expandedContainer.visibility = VISIBLE
+            expandedContainer.alpha = 0f
+            expandedContainer.translationY = -dpToPx(10).toFloat()
+            expandedContainer.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(300)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+                   
+            // Start progress animation if playing
+            if (isPlaying) {
+                startMediaProgressAnimation()
+            }
+        }
+    }
+    
+    private fun startMediaProgressAnimation() {
+        mediaProgressHandler?.removeCallbacksAndMessages(null)
+        if (mediaProgressHandler == null) {
+            mediaProgressHandler = Handler(Looper.getMainLooper())
+        }
+        
+        val updateProgress = object : Runnable {
+            override fun run() {
+                if (isMediaPlaying && mediaDuration > 0) {
+                    val elapsed = System.currentTimeMillis() - mediaStartTime
+                    val currentPos = mediaStartPosition + elapsed
+                    
+                    val wrapper = expandedContainer.findViewWithTag<FrameLayout>("scroll_wrapper")
+                    val mediaLayout = wrapper?.findViewWithTag<FrameLayout>("media_expanded_layout")
+                    
+                    mediaLayout?.findViewWithTag<android.widget.ProgressBar>("media_progress_bar")?.apply {
+                        if (currentPos <= mediaDuration) {
+                            progress = currentPos.toInt()
+                        }
+                    }
+                    mediaLayout?.findViewWithTag<TextView>("media_position")?.text = formatTime(currentPos)
+                    
+                    if (currentPos < mediaDuration) {
+                        mediaProgressHandler?.postDelayed(this, 500) // Update every 500ms
+                    }
+                }
+            }
+        }
+        mediaProgressHandler?.post(updateProgress)
+    }
+    
+    private fun stopMediaProgressAnimation() {
+        mediaProgressHandler?.removeCallbacksAndMessages(null)
+    }
+
+    private fun updateExpandedMediaUI(wrapper: View, title: String?, artist: String?, isPlaying: Boolean, 
+                                     albumArtBase64: String?, position: Long, duration: Long, volume: Int) {
+        // Update playback state for progress animation
+        val wasPlaying = this.isMediaPlaying
+        this.isMediaPlaying = isPlaying
+        this.mediaDuration = duration
+        
+        if (isPlaying && !wasPlaying) {
+            // Started playing
+            mediaStartTime = System.currentTimeMillis()
+            mediaStartPosition = position
+            startMediaProgressAnimation()
+        } else if (!isPlaying && wasPlaying) {
+            // Paused
+            stopMediaProgressAnimation()
+        } else if (isPlaying) {
+            // Playing - update position reference if provided position changed significantly
+            val elapsed = System.currentTimeMillis() - mediaStartTime
+            val estimatedPos = mediaStartPosition + elapsed
+            if (Math.abs(estimatedPos - position) > 2000) { // More than 2s difference
+                mediaStartTime = System.currentTimeMillis()
+                mediaStartPosition = position
+            }
+        }
+        
+        wrapper.findViewWithTag<TextView>("media_title")?.text = title ?: "Unknown Title"
+        wrapper.findViewWithTag<TextView>("media_artist")?.text = artist ?: "Unknown Artist"
+        wrapper.findViewWithTag<TextView>("media_play_pause")?.apply {
+            text = if (isPlaying) "⏸" else "▶"
+            setOnClickListener { onMediaAction?.invoke(if (isPlaying) "pause" else "play") }
+        }
+        
+        wrapper.findViewWithTag<View>("media_progress_layout")?.visibility = if (duration > 0) VISIBLE else GONE
+        wrapper.findViewWithTag<android.widget.ProgressBar>("media_progress_bar")?.apply {
+            if (duration > 0) {
+                max = duration.toInt()
+                if (!isPlaying) {
+                    progress = position.toInt()
+                }
+            }
+        }
+        if (!isPlaying) {
+            wrapper.findViewWithTag<TextView>("media_position")?.text = formatTime(position)
+        }
+        wrapper.findViewWithTag<TextView>("media_duration")?.text = formatTime(duration)
+        
+        wrapper.findViewWithTag<android.widget.ProgressBar>("media_volume_bar")?.progress = volume
+    }
+
+    private fun formatTime(ms: Long): String {
+        val seconds = (ms / 1000) % 60
+        val minutes = (ms / (1000 * 60)) % 60
+        val hours = (ms / (1000 * 60 * 60)) % 24
+        return if (hours > 0) {
+            String.format("%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format("%d:%02d", minutes, seconds)
+        }
+    }
+    
+    private fun createControlButton(icon: String, size: Float, onClick: () -> Unit): TextView {
+        return TextView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(dpToPx(60), dpToPx(60))
+            text = icon
+            setTextColor(Color.WHITE)
+            textSize = getScaledTextSize(size)
+            gravity = Gravity.CENTER
+            setOnClickListener { onClick() }
+            
+            // Basic ripple effect
+            val outValue = android.util.TypedValue()
+            context.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true)
+            setBackgroundResource(outValue.resourceId)
         }
     }
     

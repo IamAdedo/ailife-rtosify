@@ -81,7 +81,10 @@ class DynamicIslandService : Service() {
         val title: String,
         val artist: String?,
         val isPlaying: Boolean,
-        val albumArtBase64: String?
+        val albumArtBase64: String?,
+        val position: Long = 0,
+        val duration: Long = 0,
+        val volume: Int = 0
     )
     
     enum class TransientType {
@@ -381,8 +384,11 @@ class DynamicIslandService : Service() {
         // Handle pill clicks (for expanding/collapsing list)
         overlayView.onPillClick = {
             if (isExpanded) {
-                // If expanded list is showing, collapse it
+                // If expanded list/media is showing, collapse it
                 collapseList()
+            } else if (currentMedia != null) {
+                // Media is playing - expand to show media controls
+                expandMedia()
             } else if (notificationQueue.isNotEmpty()) {
                 // Has notifications - expand to show list
                 expandToList()
@@ -709,6 +715,7 @@ class DynamicIslandService : Service() {
             // Determine current state based on priority
             val currentState = when {
                 // User interaction (highest priority)
+                isExpanded && currentMedia != null -> "media_expanded"
                 isExpanded -> "expanded"
                 
                 // Active transient state (5 second display) - Higher priority for disconnects/animations
@@ -759,6 +766,18 @@ class DynamicIslandService : Service() {
             
             // Display the appropriate state
             when (currentState) {
+                "media_expanded" -> {
+                    overlayView.expandWithMedia(
+                        currentMedia!!.title,
+                        currentMedia!!.artist,
+                        currentMedia!!.isPlaying,
+                        currentMedia!!.albumArtBase64,
+                        currentMedia!!.position,
+                        currentMedia!!.duration,
+                        currentMedia!!.volume
+                    )
+                }
+                
                 "expanded", "active_notification" -> {
                     // Already showing, don't change
                     return@post
@@ -957,6 +976,16 @@ class DynamicIslandService : Service() {
 
         overlayView.expandToList(notificationQueue)
     }
+
+    private fun expandMedia() {
+        if (currentMedia == null) return
+
+        isExpanded = true
+        currentNotification = null
+        collapseRunnable?.let { handler.removeCallbacks(it) }
+
+        updateState()
+    }
     
     private fun handleMediaStateUpdate(intent: Intent) {
         if (!showMedia) {
@@ -968,6 +997,10 @@ class DynamicIslandService : Service() {
         val title = intent.getStringExtra("title")
         val artist = intent.getStringExtra("artist")
         val albumArtBase64 = intent.getStringExtra("albumArtBase64")
+        
+        val position = intent.getLongExtra("position", 0)
+        val duration = intent.getLongExtra("duration", 0)
+        val volume = intent.getIntExtra("volume", 0)
         
         Log.d(TAG, "Media update: title='$title', isPlaying=$isPlaying")
         
@@ -982,7 +1015,10 @@ class DynamicIslandService : Service() {
                 title = title,
                 artist = artist,
                 isPlaying = isPlaying,
-                albumArtBase64 = albumArtBase64
+                albumArtBase64 = albumArtBase64,
+                position = position,
+                duration = duration,
+                volume = volume
             )
         }
         
