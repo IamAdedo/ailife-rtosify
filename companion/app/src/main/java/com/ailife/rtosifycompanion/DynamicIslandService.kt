@@ -816,12 +816,26 @@ class DynamicIslandService : Service() {
                 // Idle states (priority order)
                 "media" -> {
                     Log.d(TAG, "Showing media: ${currentMedia!!.title}")
-                    overlayView.showMediaState(
-                        currentMedia!!.title,
-                        currentMedia!!.artist,
-                        currentMedia!!.isPlaying,
-                        currentMedia!!.albumArtBase64
-                    )
+                    if (isExpanded && currentState == "media_expanded") {
+                        // Keep expanded media controls
+                        overlayView.expandWithMedia(
+                            currentMedia!!.title,
+                            currentMedia!!.artist,
+                            currentMedia!!.isPlaying,
+                            currentMedia!!.albumArtBase64,
+                            currentMedia!!.position,
+                            currentMedia!!.duration,
+                            currentMedia!!.volume
+                        )
+                    } else {
+                        // Show collapsed media player
+                        overlayView.showMediaState(
+                            currentMedia!!.title,
+                            currentMedia!!.artist,
+                            currentMedia!!.isPlaying,
+                            currentMedia!!.albumArtBase64
+                        )
+                    }
                 }
                 
                 "notification_icons" -> {

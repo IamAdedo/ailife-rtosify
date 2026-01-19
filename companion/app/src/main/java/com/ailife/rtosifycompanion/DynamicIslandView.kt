@@ -1823,6 +1823,11 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             return
         }
         
+        // CRITICAL: Don't show collapsed media if we're in expanded state
+        if (currentState == State.MEDIA_EXPANDED) {
+            return
+        }
+        
         currentState = State.MEDIA_PLAYING
         expandedContainer.visibility = GONE
         contentContainer.visibility = VISIBLE
@@ -1933,7 +1938,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         
         mediaLayout.visibility = VISIBLE
         
-        // Hide pill content
+        // IMPORTANT: Hide pill content to show only close UI
         contentContainer.visibility = GONE
         iconContainer.visibility = GONE
         
@@ -1985,7 +1990,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
                 gravity = Gravity.CENTER_HORIZONTAL
-                setPadding(0, 0, 0, dpToPx(8))
+                setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(8))
             }
             
             val titleView = TextView(context).apply {
@@ -2018,7 +2023,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 tag = "media_progress_layout"
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
-                setPadding(0, 0, 0, dpToPx(12))
+                setPadding(dpToPx(12), 0, dpToPx(12), dpToPx(12))
                 visibility = if (duration > 0) VISIBLE else GONE
             }
 
@@ -2063,15 +2068,16 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 orientation = LinearLayout.HORIZONTAL
                 layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
                 gravity = Gravity.CENTER
-                setPadding(0, 0, 0, dpToPx(8))
+                setPadding(dpToPx(12), 0, dpToPx(12), dpToPx(8))
             }
             
             val prevBtn = createControlButton("⏮", 24f) { onMediaAction?.invoke("prev") }
             playbackLayout.addView(prevBtn)
             
             val playPauseBtn = createControlButton(if (isPlaying) "⏸" else "▶", 32f) { 
-                tag = "media_play_pause"
                 onMediaAction?.invoke(if (isPlaying) "pause" else "play") 
+            }.apply {
+                tag = "media_play_pause"
             }
             playbackLayout.addView(playPauseBtn)
             
@@ -2080,41 +2086,56 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             
             mainLayout.addView(playbackLayout)
             
-            // Volume Controls
+            // Volume Controls - Larger touch targets for watch
             val volumeLayout = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
-                gravity = Gravity.CENTER_VERTICAL
-                setPadding(dpToPx(10), 0, dpToPx(10), 0)
+                gravity = Gravity.CENTER
+                setPadding(dpToPx(12), dpToPx(4), dpToPx(12), dpToPx(8))
             }
             
-            val volIcon = TextView(context).apply {
-                text = "🔉"
+            val volLabel = TextView(context).apply {
+                text = "Volume"
+                textSize = getScaledTextSize(12f)
+                setTextColor(Color.LTGRAY)
+                layoutParams = LinearLayout.LayoutParams(dpToPx(60), LayoutParams.WRAP_CONTENT)
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            volumeLayout.addView(volLabel)
+            
+            val volDownBtn = createControlButton("−", 28f) { 
+                onMediaAction?.invoke("vol_down") 
+            }.apply {
+                layoutParams = LinearLayout.LayoutParams(dpToPx(70), dpToPx(50))
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#4D2C2C2E")) // Semi-transparent
+                    cornerRadius = dpToPx(8).toFloat()
+                }
+                (layoutParams as LinearLayout.LayoutParams).marginEnd = dpToPx(8)
+            }
+            volumeLayout.addView(volDownBtn)
+            
+            val volText = TextView(context).apply {
+                tag = "media_volume_text"
+                text = "$volume%"
                 textSize = getScaledTextSize(14f)
                 setTextColor(Color.WHITE)
-                setPadding(0, 0, dpToPx(8), 0)
-                setOnClickListener { onMediaAction?.invoke("vol_down") }
+                layoutParams = LinearLayout.LayoutParams(dpToPx(50), LayoutParams.WRAP_CONTENT)
+                gravity = Gravity.CENTER
             }
-            volumeLayout.addView(volIcon)
-
-            val volumeBar = android.widget.ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
-                tag = "media_volume_bar"
-                layoutParams = LinearLayout.LayoutParams(0, dpToPx(4), 1f)
-                max = 100
-                progress = volume
-                progressTintList = ColorStateList.valueOf(Color.WHITE)
-                progressBackgroundTintList = ColorStateList.valueOf(Color.parseColor("#44FFFFFF"))
+            volumeLayout.addView(volText)
+            
+            val volUpBtn = createControlButton("+", 28f) { 
+                onMediaAction?.invoke("vol_up") 
+            }.apply {
+                layoutParams = LinearLayout.LayoutParams(dpToPx(70), dpToPx(50))
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#4D2C2C2E")) // Semi-transparent
+                    cornerRadius = dpToPx(8).toFloat()
+                }
+                (layoutParams as LinearLayout.LayoutParams).marginStart = dpToPx(8)
             }
-            volumeLayout.addView(volumeBar)
-
-            val volMaxIcon = TextView(context).apply {
-                text = "🔊"
-                textSize = getScaledTextSize(14f)
-                setTextColor(Color.WHITE)
-                setPadding(dpToPx(8), 0, 0, 0)
-                setOnClickListener { onMediaAction?.invoke("vol_up") }
-            }
-            volumeLayout.addView(volMaxIcon)
+            volumeLayout.addView(volUpBtn)
             
             mainLayout.addView(volumeLayout)
             currentMediaLayout.addView(mainLayout)
@@ -2197,6 +2218,15 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             }
         }
         
+        // Update cover art if changed
+        val currentBg = wrapper.findViewWithTag<ImageView>("media_background")
+        if (albumArtBase64 != null) {
+            val albumBitmap = decodeBase64ToBitmap(albumArtBase64)
+            if (albumBitmap != null && currentBg != null) {
+                currentBg.setImageBitmap(albumBitmap)
+            }
+        }
+        
         wrapper.findViewWithTag<TextView>("media_title")?.text = title ?: "Unknown Title"
         wrapper.findViewWithTag<TextView>("media_artist")?.text = artist ?: "Unknown Artist"
         wrapper.findViewWithTag<TextView>("media_play_pause")?.apply {
@@ -2218,7 +2248,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         }
         wrapper.findViewWithTag<TextView>("media_duration")?.text = formatTime(duration)
         
-        wrapper.findViewWithTag<android.widget.ProgressBar>("media_volume_bar")?.progress = volume
+        wrapper.findViewWithTag<TextView>("media_volume_text")?.text = "$volume%"
     }
 
     private fun formatTime(ms: Long): String {
