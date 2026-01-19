@@ -53,6 +53,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     private enum class State {
         IDLE,
         DISCONNECTED,
+        DISCONNECTED_EXPANDED,
         CHARGING,
         PHONE_CALL,
         ALARM,
@@ -286,6 +287,92 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             container.addView(phoneIcon)
             contentContainer.addView(container)
         }
+    }
+
+    fun showExpandedDisconnected() {
+        currentState = State.DISCONNECTED_EXPANDED
+
+        expandedContainer.visibility = GONE
+        iconContainer.visibility = GONE
+        closeContainer.visibility = GONE
+        contentContainer.visibility = VISIBLE
+        contentContainer.removeAllViews()
+
+        // Create disconnected content layout
+        val disconnectedLayout = LinearLayout(context).apply {
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dpToPx(16), dpToPx(8), dpToPx(16), dpToPx(8))
+
+            // Disconnect icon on the left
+            val iconContainer = FrameLayout(context).apply {
+                layoutParams = LinearLayout.LayoutParams(dpToPx(ICON_SIZE_DP), dpToPx(ICON_SIZE_DP)).apply {
+                    marginEnd = dpToPx(12)
+                }
+            }
+
+            val iconBackground = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#424242"))
+            }
+
+            val iconView = ImageView(context).apply {
+                layoutParams = FrameLayout.LayoutParams(dpToPx(ICON_SIZE_DP * 0.7f), dpToPx(ICON_SIZE_DP * 0.7f)).apply {
+                    gravity = Gravity.CENTER
+                }
+                setImageResource(R.drawable.ic_smartphone)
+                setColorFilter(Color.GRAY)
+            }
+
+            val crossLine = object : View(context) {
+                override fun onDraw(canvas: Canvas) {
+                    super.onDraw(canvas)
+                    val paint = Paint().apply {
+                        isAntiAlias = true
+                        color = Color.RED
+                        strokeWidth = dpToPx(2).toFloat()
+                    }
+                    canvas.drawLine(0f, 0f, width.toFloat(), height.toFloat(), paint)
+                    canvas.drawLine(width.toFloat(), 0f, 0f, height.toFloat(), paint)
+                }
+            }.apply {
+                layoutParams = FrameLayout.LayoutParams(dpToPx(ICON_SIZE_DP), dpToPx(ICON_SIZE_DP))
+            }
+
+            iconContainer.background = iconBackground
+            iconContainer.addView(iconView)
+            iconContainer.addView(crossLine)
+            addView(iconContainer)
+
+            // Text content
+            val textContainer = LinearLayout(context).apply {
+                layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+                orientation = LinearLayout.VERTICAL
+            }
+
+            val titleView = TextView(context).apply {
+                text = context.getString(R.string.notification_phone_disconnected_title)
+                textSize = getScaledTextSize(14f)
+                setTextColor(Color.WHITE)
+                typeface = Typeface.DEFAULT_BOLD
+            }
+
+            val subtitleView = TextView(context).apply {
+                text = context.getString(R.string.notification_phone_disconnected_text)
+                textSize = getScaledTextSize(12f)
+                setTextColor(Color.parseColor("#AAAAAA"))
+            }
+
+            textContainer.addView(titleView)
+            textContainer.addView(subtitleView)
+            addView(textContainer)
+        }
+
+        contentContainer.addView(disconnectedLayout)
+
+        // Animate to expanded size
+        animateToExpanded {}
     }
 
     fun showConnectedState(transportType: String = "") {

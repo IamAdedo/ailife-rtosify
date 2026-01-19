@@ -1221,8 +1221,16 @@ class BluetoothService : Service() {
             updateStatus(getString(R.string.status_disconnected))
             
             if (prefs.getBoolean("notify_on_disconnect", false)) {
-                Log.i(TAG, "Disconnection notification is enabled, showing now")
-                showDisconnectionNotification()
+                val style = prefs.getString("notification_style", "android")
+                val diShowDisconnect = prefs.getBoolean("di_show_disconnect", true)
+                
+                // Skip android notification if using Dynamic Island and DI disconnect notification is enabled
+                if (style == "dynamic_island" && diShowDisconnect) {
+                    Log.d(TAG, "Dynamic Island disconnect notification is enabled, skipping standard android notification")
+                } else {
+                    Log.i(TAG, "Disconnection notification is enabled, showing now")
+                    showDisconnectionNotification()
+                }
                 
                 // Also log to NotificationLogManager for history
                 val disconnectData = NotificationData(

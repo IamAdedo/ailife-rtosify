@@ -532,15 +532,15 @@ class DynamicIslandService : Service() {
         if (charging) {
             // Set active state with timeout
             val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
-            activeState = TransientState(
+            val stateInstance = TransientState(
                 type = if (animate) TransientType.CHARGING_ANIMATION else TransientType.NONE,
                 expiresAt = System.currentTimeMillis() + timeout
             )
+            activeState = stateInstance
             
             // Schedule state update when active state expires
             handler.postDelayed({
-                if (activeState?.type == TransientType.CHARGING_ANIMATION || 
-                    activeState?.type == TransientType.NONE) {
+                if (activeState === stateInstance) {
                     activeState = null
                     updateState()
                 }
@@ -554,18 +554,22 @@ class DynamicIslandService : Service() {
         // Wake screen and vibrate on disconnect if enabled
         if (!connected && showDisconnect) {
             wakeScreenAndVibrate()
+            
+            // Trigger expanded disconnect alert
+            overlayView.showExpandedDisconnected()
         }
         
         // Set active state with timeout
         val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
-        activeState = TransientState(
+        val stateInstance = TransientState(
             type = TransientType.CONNECTION_CHANGE,
             expiresAt = System.currentTimeMillis() + timeout
         )
+        activeState = stateInstance
         
         // Schedule state update when active state expires
         handler.postDelayed({
-            if (activeState?.type == TransientType.CONNECTION_CHANGE) {
+            if (activeState === stateInstance) {
                 activeState = null
                 updateState()
             }
@@ -707,15 +711,15 @@ class DynamicIslandService : Service() {
                 // User interaction (highest priority)
                 isExpanded -> "expanded"
                 
+                // Active transient state (5 second display) - Higher priority for disconnects/animations
+                activeState != null && System.currentTimeMillis() < activeState!!.expiresAt -> "active_transient"
+                
                 // Active notification (5 second display)
                 currentNotification != null -> "active_notification"
                 
                 // Continuous states (can't be interrupted)
                 currentCall != null -> "call"
                 currentAlarm != null -> "alarm"
-                
-                // Active transient state (5 second display)
-                activeState != null && System.currentTimeMillis() < activeState!!.expiresAt -> "active_transient"
                 
                 // Idle states (persistent, priority order: media > notifications > charging > connection)
                 currentMedia != null -> "media"
@@ -777,6 +781,8 @@ class DynamicIslandService : Service() {
                         TransientType.CONNECTION_CHANGE -> {
                             if (isConnected) {
                                 overlayView.showConnectedState(currentTransport)
+                            } else if (showDisconnect) {
+                                overlayView.showExpandedDisconnected()
                             } else {
                                 overlayView.showDisconnectedState()
                             }
@@ -808,8 +814,12 @@ class DynamicIslandService : Service() {
                 }
                 
                 "disconnected" -> {
+                if (activeState?.type == TransientType.CONNECTION_CHANGE && !isConnected) {
+                    overlayView.showExpandedDisconnected()
+                } else {
                     overlayView.showDisconnectedState()
                 }
+            }
                 
                 "idle" -> {
                     overlayView.showIdleState(currentTransport)
@@ -882,17 +892,18 @@ class DynamicIslandService : Service() {
         Log.d(TAG, "Handling alarm notification in Dynamic Island")
         
         // Set alarm state
-        currentAlarm = AlarmData(
+        val alarmInstance = AlarmData(
             id = notif.key.removePrefix("alarm_"),
             label = notif.title
         )
+        currentAlarm = alarmInstance
         
         // Priority alert: Wake screen
         wakeScreen(5000)
         
         // Schedule auto-clear after 30 seconds
         handler.postDelayed({
-            if (currentAlarm?.id == notif.key.removePrefix("alarm_")) {
+            if (currentAlarm === alarmInstance) {
                 currentAlarm = null
                 updateState()
             }
@@ -919,7 +930,12 @@ class DynamicIslandService : Service() {
 
         // Schedule auto-collapse
         val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
-        collapseRunnable = Runnable { collapseNotification() }
+        val capturedNotif = notif
+        collapseRunnable = Runnable { 
+            if (currentNotification === capturedNotif) {
+                collapseNotification() 
+            }
+        }
         handler.postDelayed(collapseRunnable!!, timeout)
     }
 
