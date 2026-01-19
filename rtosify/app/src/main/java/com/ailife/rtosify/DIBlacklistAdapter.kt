@@ -57,6 +57,9 @@ class DIBlacklistAdapter(
                 appIcon.setImageResource(R.mipmap.ic_launcher)
             }
             
+            // Remove listener before updating state to prevent unwanted triggers during recycling
+            checkbox.setOnCheckedChangeListener(null)
+            
             val isBlacklisted = blacklistedPackages.contains(app.packageName)
             checkbox.isChecked = isBlacklisted
             
@@ -71,6 +74,7 @@ class DIBlacklistAdapter(
                 appIcon.alpha = 1.0f
             }
             
+            // Set listener after updating state
             checkbox.setOnCheckedChangeListener { _, isChecked ->
                 if (isChecked) {
                     blacklistedPackages.add(app.packageName)

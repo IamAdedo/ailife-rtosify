@@ -40,6 +40,7 @@ class DynamicIslandService : Service() {
     private var collapseRunnable: Runnable? = null
     private var transientStateRunnable: Runnable? = null
     private val handler = Handler(Looper.getMainLooper())
+    private var foregroundCheckRunnable: Runnable? = null
 
     private var isConnected = false
     private var isCharging = false
@@ -55,6 +56,8 @@ class DynamicIslandService : Service() {
     private var autoHideMode = AUTO_HIDE_ALWAYS_SHOW
     private var blacklistedApps = emptySet<String>()
     private var hideWithActiveNotifs = false
+    private var lastForegroundApp: String? = null
+    private var isCurrentlyInBlacklistedApp = false
     
     // Feature toggles
     private var showPhoneCalls = true
@@ -206,6 +209,33 @@ class DynamicIslandService : Service() {
         Log.d(TAG, "Feature toggles - Calls: $showPhoneCalls, Alarms: $showAlarms, Disconnect: $showDisconnect, Media: $showMedia")
 
         updateState()
+        
+        // Start/stop periodic foreground app checking based on auto-hide mode
+        if (autoHideMode == AUTO_HIDE_IN_BLACKLIST && blacklistedApps.isNotEmpty()) {
+            startForegroundAppChecking()
+        } else {
+            stopForegroundAppChecking()
+        }
+    }
+    
+    private fun startForegroundAppChecking() {
+        stopForegroundAppChecking() // Stop any existing check first
+        
+        foregroundCheckRunnable = object : Runnable {
+            override fun run() {
+                updateState()
+                handler.postDelayed(this, 500) // Check every 500ms
+            }
+        }
+        handler.post(foregroundCheckRunnable!!)
+        Log.d(TAG, "Started periodic foreground app checking")
+    }
+    
+    private fun stopForegroundAppChecking() {
+        foregroundCheckRunnable?.let {
+            handler.removeCallbacks(it)
+            foregroundCheckRunnable = null
+        }
     }
 
     private fun Int.dpToPx(): Int = (this * resources.displayMetrics.density).toInt()
@@ -849,18 +879,27 @@ class DynamicIslandService : Service() {
     @SuppressLint("NewApi")
     private fun isInBlacklistedApp(): Boolean {
         if (blacklistedApps.isEmpty()) {
+            isCurrentlyInBlacklistedApp = false
             return false
         }
         
         try {
             val currentPackage = getCurrentForegroundApp()
-            if (currentPackage != null && blacklistedApps.contains(currentPackage)) {
+            
+            // Update cached state only if we got a valid result
+            if (currentPackage != null) {
+                lastForegroundApp = currentPackage
+                isCurrentlyInBlacklistedApp = blacklistedApps.contains(currentPackage)
+            }
+            // If getCurrentForegroundApp() returned null, keep using cached state
+            
+            if (isCurrentlyInBlacklistedApp) {
                 // App is blacklisted - check if we should hide even with active notifications
                 if (hideWithActiveNotifs) {
-                    // Hide regardless of notifications
-                    return true
+                    // Hide even with notifications in queue, but not if actively showing one
+                    return currentNotification == null
                 } else {
-                    // Only hide if no notifications
+                    // Only hide if no notifications in queue at all
                     return notificationQueue.isEmpty()
                 }
             }
@@ -888,8 +927,8 @@ class DynamicIslandService : Service() {
             }
             
             val currentTime = System.currentTimeMillis()
-            // Query events from last 1 second
-            val usageEvents = usageStatsManager.queryEvents(currentTime - 1000, currentTime)
+            // Query events from last 10 seconds to ensure we catch the foreground app
+            val usageEvents = usageStatsManager.queryEvents(currentTime - 10000, currentTime)
             
             var lastEventPackage: String? = null
             val event = android.app.usage.UsageEvents.Event()
