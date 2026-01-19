@@ -15,6 +15,7 @@ import android.widget.Toast
 
 import androidx.appcompat.app.AppCompatActivity
 import android.view.View
+import android.util.Log
 
 class CallActivity : AppCompatActivity() {
 
@@ -75,9 +76,41 @@ class CallActivity : AppCompatActivity() {
             answerCall()
         }
 
+        // Start vibration
+        startVibration()
+
         // Bind to BluetoothService to send commands
         val intent = Intent(this, BluetoothService::class.java)
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+    }
+
+    private fun startVibration() {
+        val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+        if (!prefs.getBoolean("vibrate_enabled", true)) return
+
+        try {
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            if (vibrator?.hasVibrator() == true) {
+                val pattern = longArrayOf(0, 1000, 1000)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(android.os.VibrationEffect.createWaveform(pattern, 0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(pattern, 0)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("CallActivity", "Error starting vibration: ${e.message}")
+        }
+    }
+
+    private fun stopVibration() {
+        try {
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            vibrator?.cancel()
+        } catch (e: Exception) {
+            Log.e("CallActivity", "Error stopping vibration: ${e.message}")
+        }
     }
 
     private fun rejectCall() {
@@ -114,6 +147,7 @@ class CallActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        stopVibration()
         if (isBound) {
             unbindService(serviceConnection)
             isBound = false

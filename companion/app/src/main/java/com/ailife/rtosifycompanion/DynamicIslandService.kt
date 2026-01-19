@@ -300,13 +300,7 @@ class DynamicIslandService : Service() {
             }
             
             // Check if should hide
-            val shouldHide = when (currentState) {
-                "expanded", "active_notification", "call", "alarm" -> false
-                "active_transient" -> false  // Show for 5s
-                "notification_icons", "media" -> hideWithActiveNotifs
-                "idle", "charging", "disconnected" -> true
-                else -> false
-            }
+            val shouldHide = shouldHideForBlacklist(currentState)
             
             Log.d(TAG, "checkBlacklistVisibility: state=$currentState, shouldHide=$shouldHide, isVisible=$isOverlayVisible")
             
@@ -426,6 +420,7 @@ class DynamicIslandService : Service() {
             
             // Clear call state immediately
             currentCall = null
+            stopVibration()
             updateState()
         }
         
@@ -439,6 +434,7 @@ class DynamicIslandService : Service() {
             
             // Clear alarm state immediately
             currentAlarm = null
+            stopVibration()
             updateState()
         }
         
@@ -586,16 +582,7 @@ class DynamicIslandService : Service() {
             // Check if wake screen is enabled
             val wakeEnabled = prefs.getBoolean("wake_screen_enabled", false)
             if (wakeEnabled) {
-                val powerManager = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
-                if (powerManager != null) {
-                    val wakeLock = powerManager.newWakeLock(
-                        android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK or 
-                        android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                        "DynamicIsland:DisconnectWake"
-                    )
-                    wakeLock.acquire(3000) // 3 seconds
-                    wakeLock.release()
-                }
+                wakeScreen(3000)
             }
             
             // Check if vibrate is enabled
@@ -615,6 +602,52 @@ class DynamicIslandService : Service() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error waking screen or vibrating: ${e.message}")
+        }
+    }
+
+    private fun wakeScreen(durationMs: Long) {
+        try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            if (powerManager != null) {
+                val wakeLock = powerManager.newWakeLock(
+                    android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+                    android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                    "DynamicIsland:WakeLock"
+                )
+                wakeLock.acquire(durationMs)
+                // It will auto-release after durationMs
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to wake screen: ${e.message}")
+        }
+    }
+
+    private fun startPriorityVibration() {
+        val vibrateEnabled = prefs.getBoolean("vibrate_enabled", true)
+        if (!vibrateEnabled) return
+
+        try {
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            if (vibrator?.hasVibrator() == true) {
+                val pattern = longArrayOf(0, 1000, 1000) // Vibrate 1s, Gap 1s
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(android.os.VibrationEffect.createWaveform(pattern, 0)) // 0 means repeat
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(pattern, 0)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start priority vibration: ${e.message}")
+        }
+    }
+
+    private fun stopVibration() {
+        try {
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            vibrator?.cancel()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to stop vibration: ${e.message}")
         }
     }
 
@@ -704,37 +737,7 @@ class DynamicIslandService : Service() {
                 }
                 
                 AUTO_HIDE_IN_BLACKLIST -> {
-                    if (!isCurrentlyInBlacklistedApp) {
-                        false
-                    } else {
-                        // Check based on current state
-                        val result = when (currentState) {
-                            // Never hide these
-                            "expanded", "active_notification", "call", "alarm" -> false
-                            
-                            // Show active transient for 5s, then hide when expired
-                            "active_transient" -> {
-                                Log.d(TAG, "Active transient in blacklist, showing for 5s")
-                                false  // Show it, will auto-hide when expires
-                            }
-                            
-                            // Hide based on toggle
-                            "notification_icons", "media" -> {
-                                Log.d(TAG, "State=$currentState, hideWithActiveNotifs=$hideWithActiveNotifs")
-                                hideWithActiveNotifs
-                            }
-                            
-                            // Always hide idle states
-                            "idle", "charging", "disconnected" -> {
-                                Log.d(TAG, "Idle state $currentState in blacklist, hiding")
-                                true
-                            }
-                            
-                            else -> false
-                        }
-                        Log.d(TAG, "Blacklist hide decision: $result")
-                        result
-                    }
+                    shouldHideForBlacklist(currentState)
                 }
                 
                 else -> false
@@ -820,8 +823,9 @@ class DynamicIslandService : Service() {
             return false
         }
         
-        // Don't hide if actively showing something important
-        if (isExpanded || currentNotification != null || currentCall != null || currentAlarm != null) {
+        // Don't hide if actively showing something important or transient animations
+        if (isExpanded || currentNotification != null || currentCall != null || 
+            currentAlarm != null || currentState == "active_transient") {
             return false
         }
         
@@ -843,12 +847,12 @@ class DynamicIslandService : Service() {
         notificationQueue.removeAll { it.key == notif.key } // Remove duplicates
         notificationQueue.add(0, notif) // Add to front
 
-        // If not currently showing a notification, show this one
-        if (currentNotification == null) {
+        // If not currently expanded, show this one as a peek
+        if (!isExpanded) {
             displayNotification(notif)
         } else {
-            // Already showing a notification, just update the queue icons
-            overlayView.updateNotificationQueue(notificationQueue)
+            // Already expanded to list, just update the list content
+            overlayView.expandToList(notificationQueue)
         }
 
         // Force visibility update to unhide if necessary
@@ -882,6 +886,9 @@ class DynamicIslandService : Service() {
             id = notif.key.removePrefix("alarm_"),
             label = notif.title
         )
+        
+        // Priority alert: Wake screen
+        wakeScreen(5000)
         
         // Schedule auto-clear after 30 seconds
         handler.postDelayed({
@@ -929,6 +936,7 @@ class DynamicIslandService : Service() {
         if (notificationQueue.isEmpty()) return
 
         isExpanded = true
+        currentNotification = null // Clear current notification peek as we are in list mode
         collapseRunnable?.let { handler.removeCallbacks(it) }
 
         overlayView.expandToList(notificationQueue)
@@ -970,16 +978,10 @@ class DynamicIslandService : Service() {
     private fun collapseList() {
         Log.d(TAG, "collapseList: isExpanded=$isExpanded -> false")
         isExpanded = false
+        currentNotification = null // Clear any active notification state
 
-        // Always collapse to icons or update state
-        // Hiding is handled by checkBlacklistVisibility
-        if (notificationQueue.isNotEmpty()) {
-            Log.d(TAG, "Collapsing to icons (${notificationQueue.size} notifications)")
-            overlayView.collapseToIcons(notificationQueue)
-        } else {
-            Log.d(TAG, "No notifications, calling updateState")
-            updateState()
-        }
+        // Always call updateState to ensure proper state and potential hiding in blacklist
+        updateState()
     }
 
     private fun handleNotificationClick(notif: NotificationData) {
@@ -1166,6 +1168,10 @@ class DynamicIslandService : Service() {
             isRinging = true
         )
         
+        // Priority alert: Wake screen and repeat vibration
+        wakeScreen(5000)
+        startPriorityVibration()
+        
         updateState()
     }
     
@@ -1181,11 +1187,13 @@ class DynamicIslandService : Service() {
             "ENDED", "IDLE" -> {
                 // Call ended
                 currentCall = null
+                stopVibration()
                 updateState()
             }
             "ACTIVE" -> {
                 // Call answered - clear Dynamic Island immediately
                 currentCall = null
+                stopVibration()
                 updateState()
             }
         }
