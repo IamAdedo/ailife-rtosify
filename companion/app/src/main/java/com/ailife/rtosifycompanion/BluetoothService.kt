@@ -6481,8 +6481,10 @@ class BluetoothService : Service() {
 
         val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
         val style = prefs.getString("notification_style", "android")
+        val showCallsInDI = prefs.getBoolean("di_show_phone_calls", true)
         
-        if (style != "dynamic_island") {
+        // Launch full-screen activity if NOT using dynamic island OR if phone calls are disabled in DI
+        if (style != "dynamic_island" || !showCallsInDI) {
             val intent =
                     Intent(this, CallActivity::class.java).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -6491,14 +6493,14 @@ class BluetoothService : Service() {
                         putExtra("callerId", callerId)
                     }
             startActivity(intent)
+        } else {
+            // Route to Dynamic Island
+            sendBroadcast(Intent("com.ailife.rtosifycompanion.INCOMING_CALL").apply {
+                putExtra("number", number)
+                putExtra("callerId", callerId)
+                setPackage(packageName)
+            })
         }
-
-        // Also broadcast to Dynamic Island
-        sendBroadcast(Intent("com.ailife.rtosifycompanion.INCOMING_CALL").apply {
-            putExtra("number", number)
-            putExtra("callerId", callerId)
-            setPackage(packageName)
-        })
     }
 
     private fun handleCallStateChanged(message: ProtocolMessage) {

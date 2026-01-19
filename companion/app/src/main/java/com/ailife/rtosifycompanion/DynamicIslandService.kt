@@ -47,7 +47,7 @@ class DynamicIslandService : Service() {
     private var lastIsCharging = false
     private var batteryPercent = 0
     private var lastBatteryPercent = -1
-    private var isShowingTransientState = false
+    private var hasShownFullAnimation = false  // Track if we showed 100% animation
     private var currentTransport = ""
     private var isOverlayVisible = true
     private var currentVisibilityAnimator: ObjectAnimator? = null
@@ -65,13 +65,41 @@ class DynamicIslandService : Service() {
     private var showDisconnect = true
     private var showMedia = true
     
-    // Phone call state
+    // State data classes
     data class PhoneCallData(
         val number: String,
         val contactName: String?,
         val isRinging: Boolean
     )
+    
+    data class AlarmData(
+        val id: String,
+        val label: String
+    )
+    
+    data class MediaData(
+        val title: String,
+        val artist: String?,
+        val isPlaying: Boolean,
+        val albumArtBase64: String?
+    )
+    
+    enum class TransientType {
+        CONNECTION_CHANGE,
+        CHARGING_ANIMATION,
+        NONE
+    }
+    
+    data class TransientState(
+        val type: TransientType,
+        val expiresAt: Long
+    )
+    
+    // Specific state variables
     private var currentCall: PhoneCallData? = null
+    private var currentAlarm: AlarmData? = null
+    private var currentMedia: MediaData? = null
+    private var activeState: TransientState? = null  // Renamed from transientState for clarity
 
     private val receiver =
             object : BroadcastReceiver() {
@@ -223,7 +251,15 @@ class DynamicIslandService : Service() {
         
         foregroundCheckRunnable = object : Runnable {
             override fun run() {
-                updateState()
+                // Only update if blacklist state changed
+                val wasInBlacklist = isCurrentlyInBlacklistedApp
+                isInBlacklistedApp()  // Updates isCurrentlyInBlacklistedApp
+                
+                if (wasInBlacklist != isCurrentlyInBlacklistedApp) {
+                    Log.d(TAG, "Blacklist state changed: $wasInBlacklist -> $isCurrentlyInBlacklistedApp")
+                    updateState()
+                }
+                
                 handler.postDelayed(this, 500) // Check every 500ms
             }
         }
@@ -341,12 +377,9 @@ class DynamicIslandService : Service() {
             intent.putExtra("action", action)
             sendBroadcast(intent)
             
-            // Clear Dynamic Island after a brief delay to ensure action is sent
-            handler.postDelayed({
-                currentCall = null
-                isShowingTransientState = false
-                updateState()
-            }, 100)
+            // Clear call state immediately
+            currentCall = null
+            updateState()
         }
         
         overlayView.onAlarmAction = { action ->
@@ -357,12 +390,9 @@ class DynamicIslandService : Service() {
             intent.putExtra("action", action)
             sendBroadcast(intent)
             
-            // Clear Dynamic Island after a brief delay
-            handler.postDelayed({
-                isShowingTransientState = false
-                transientStateRunnable?.let { handler.removeCallbacks(it) }
-                updateState()
-            }, 100)
+            // Clear alarm state immediately
+            currentAlarm = null
+            updateState()
         }
         
         overlayView.onMediaAction = { action ->
@@ -406,7 +436,7 @@ class DynamicIslandService : Service() {
     private fun handleBatteryChanged(intent: Intent) {
         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-        batteryPercent =
+        val newBatteryPercent =
                 if (level >= 0 && scale > 0) {
                     (level * 100 / scale.toFloat()).toInt()
                 } else {
@@ -414,88 +444,91 @@ class DynamicIslandService : Service() {
                 }
 
         val status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)
-        isCharging =
+        val newIsCharging =
                 status == BatteryManager.BATTERY_STATUS_CHARGING ||
                         status == BatteryManager.BATTERY_STATUS_FULL
 
-        if (isCharging != lastIsCharging || batteryPercent != lastBatteryPercent) {
-            val wasJustConnected = isCharging && !lastIsCharging
-            lastIsCharging = isCharging
-            lastBatteryPercent = batteryPercent
+        // Check if plug state changed or reached 100% (only once)
+        val plugStateChanged = newIsCharging != lastIsCharging
+        val reachedFull = newBatteryPercent == 100 && lastBatteryPercent != 100 && !hasShownFullAnimation
+        
+        batteryPercent = newBatteryPercent
+        isCharging = newIsCharging
+        
+        // Reset full animation flag when battery drops below 100%
+        if (newBatteryPercent < 100) {
+            hasShownFullAnimation = false
+        }
 
-            if (isCharging) {
-                showTransientChargingState(isCharging, wasJustConnected)
+        if (plugStateChanged || reachedFull) {
+            val wasJustConnected = newIsCharging && !lastIsCharging
+            lastIsCharging = newIsCharging
+            lastBatteryPercent = newBatteryPercent
+            
+            if (reachedFull) {
+                hasShownFullAnimation = true
+            }
+
+            if (newIsCharging || reachedFull) {
+                // Show animation when plugged in or reached 100%
+                showTransientChargingState(newIsCharging, wasJustConnected || reachedFull)
             } else {
+                // Unplugged
                 updateState()
             }
+        } else if (batteryPercent != lastBatteryPercent) {
+            // Just percentage changed, update cached value and refresh display (no animation)
+            lastBatteryPercent = batteryPercent
+            updateState()
         }
     }
 
     private fun showTransientChargingState(charging: Boolean, animate: Boolean = false) {
         lastIsCharging = charging
-        isShowingTransientState = true
-        transientStateRunnable?.let { handler.removeCallbacks(it) }
-
-        // Update visibility and state first
-        updateState()
-
+        
         if (charging) {
-            overlayView.showChargingState(batteryPercent, animate)
+            // Set active state with timeout
+            val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
+            activeState = TransientState(
+                type = if (animate) TransientType.CHARGING_ANIMATION else TransientType.NONE,
+                expiresAt = System.currentTimeMillis() + timeout
+            )
+            
+            // Schedule state update when active state expires
+            handler.postDelayed({
+                if (activeState?.type == TransientType.CHARGING_ANIMATION || 
+                    activeState?.type == TransientType.NONE) {
+                    activeState = null
+                    updateState()
+                }
+            }, timeout)
         }
-
-        // Only auto-hide if the setting is enabled
-        val hideWhenIdle = prefs.getBoolean("dynamic_island_hide_idle", false)
-        // Always schedule auto-hide reset to avoid getting stuck in transient state
-        val timeout = if (hideWhenIdle) {
-            prefs.getInt("dynamic_island_timeout", 5) * 1000L
-        } else {
-            3000L // Default short timeout even if not hiding, to return to normal persistent logic
-        }
-
-        transientStateRunnable = Runnable {
-            isShowingTransientState = false
-            updateState()
-        }
-        handler.postDelayed(transientStateRunnable!!, timeout)
-        // If hideWhenIdle is false, transient state stays visible until next state change
+        
+        updateState()
     }
 
     private fun showTransientConnectionState(connected: Boolean, transportType: String = "") {
-        isShowingTransientState = true
-        transientStateRunnable?.let { handler.removeCallbacks(it) }
-
         // Wake screen and vibrate on disconnect if enabled
         if (!connected && showDisconnect) {
             wakeScreenAndVibrate()
         }
-
-        // Update visibility and state first
-        updateState()
-
-        if (connected) {
-            overlayView.showConnectedState(transportType)
-        } else {
-            if (showDisconnect) {
-                // Force show overlay for disconnect
-                showOverlayAnimated()
-                overlayView.showDisconnectedState()
+        
+        // Set active state with timeout
+        val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
+        activeState = TransientState(
+            type = TransientType.CONNECTION_CHANGE,
+            expiresAt = System.currentTimeMillis() + timeout
+        )
+        
+        // Schedule state update when active state expires
+        handler.postDelayed({
+            if (activeState?.type == TransientType.CONNECTION_CHANGE) {
+                activeState = null
+                updateState()
             }
-            // If showDisconnect is false, could post standard notification here
-        }
-
-        // Only auto-hide if the setting is enabled
-        val hideWhenIdle = prefs.getBoolean("dynamic_island_hide_idle", false)
-        val timeout = if (hideWhenIdle) {
-            prefs.getInt("dynamic_island_timeout", 5) * 1000L
-        } else {
-            3000L
-        }
-
-        transientStateRunnable = Runnable {
-            isShowingTransientState = false
-            updateState()
-        }
-        handler.postDelayed(transientStateRunnable!!, timeout)
+        }, timeout)
+        
+        updateState()
     }
     
     /**
@@ -584,60 +617,166 @@ class DynamicIslandService : Service() {
 
     private fun updateState() {
         handler.post {
-            if (isShowingTransientState) {
-                showOverlayAnimated()
-                // Don't override the transient UI with persistent state logic
-                return@post
+            // Update blacklist state if needed
+            if (autoHideMode == AUTO_HIDE_IN_BLACKLIST && blacklistedApps.isNotEmpty()) {
+                isInBlacklistedApp()  // Updates isCurrentlyInBlacklistedApp
             }
-
-            // Auto-hide mode logic
-            val hasNotifications = notificationQueue.isNotEmpty()
             
+            // Determine current state based on priority
+            val currentState = when {
+                // User interaction (highest priority)
+                isExpanded -> "expanded"
+                
+                // Active notification (5 second display)
+                currentNotification != null -> "active_notification"
+                
+                // Continuous states (can't be interrupted)
+                currentCall != null -> "call"
+                currentAlarm != null -> "alarm"
+                
+                // Active transient state (5 second display)
+                activeState != null && System.currentTimeMillis() < activeState!!.expiresAt -> "active_transient"
+                
+                // Idle states (persistent, priority order: media > notifications > charging > connection)
+                currentMedia != null -> "media"
+                notificationQueue.isNotEmpty() -> "notification_icons"
+                isCharging -> "charging"
+                !isConnected -> "disconnected"
+                else -> "idle"
+            }
+            
+            Log.d(TAG, "updateState: state=$currentState, autoHide=$autoHideMode, blacklisted=$isCurrentlyInBlacklistedApp")
+            
+            // Check if we should hide
             val shouldHide = when (autoHideMode) {
-                AUTO_HIDE_ALWAYS_SHOW -> false // Never hide, always visible
-                AUTO_HIDE_NEVER_SHOW -> !hasNotifications // Hide when no notifications
-                AUTO_HIDE_IN_BLACKLIST -> isInBlacklistedApp() // Hide if current app is blacklisted
+                AUTO_HIDE_ALWAYS_SHOW -> false
+                
+                AUTO_HIDE_NEVER_SHOW -> {
+                    // Hide only in true idle (no media, no notifications)
+                    currentState == "idle" || currentState == "charging" || currentState == "disconnected"
+                }
+                
+                AUTO_HIDE_IN_BLACKLIST -> {
+                    if (!isCurrentlyInBlacklistedApp) {
+                        false
+                    } else {
+                        // Don't hide continuous or active states
+                        if (currentCall != null || currentAlarm != null || 
+                            currentNotification != null || isExpanded || activeState != null) {
+                            false
+                        } else if (hideWithActiveNotifs) {
+                            // Can hide media and notification icons
+                            true
+                        } else {
+                            // Only hide true idle states
+                            currentState == "idle" || currentState == "charging" || currentState == "disconnected"
+                        }
+                    }
+                }
+                
                 else -> false
             }
-
+            
+            Log.d(TAG, "shouldHide=$shouldHide")
+            
             if (shouldHide) {
                 overlayView.showIdleState(currentTransport)
                 hideOverlayAnimated()
-            } else {
-                showOverlayAnimated()
-
-                // Normal state logic
-                when {
-                    currentNotification != null -> {
-                        // Already showing a notification (expanded or recent)
-                    }
-                    notificationQueue.isNotEmpty() -> {
-                        overlayView.collapseToIcons(notificationQueue)
-                    }
-                    isCharging -> {
-                        overlayView.showChargingState(batteryPercent)
-                    }
-                    !isConnected -> {
-                        overlayView.showDisconnectedState()
-                    }
-                    else -> {
-                        overlayView.showIdleState(currentTransport)
+                return@post
+            }
+            
+            showOverlayAnimated()
+            
+            // Display the appropriate state
+            when (currentState) {
+                "expanded", "active_notification" -> {
+                    // Already showing, don't change
+                    return@post
+                }
+                
+                "call" -> {
+                    overlayView.showPhoneCall(
+                        currentCall!!.number,
+                        currentCall!!.contactName,
+                        currentCall!!.isRinging
+                    )
+                }
+                
+                "alarm" -> {
+                    overlayView.showAlarm(currentAlarm!!.label, getString(R.string.di_alarm_triggered))
+                }
+                
+                "active_transient" -> {
+                    when (activeState!!.type) {
+                        TransientType.CONNECTION_CHANGE -> {
+                            if (isConnected) {
+                                overlayView.showConnectedState(currentTransport)
+                            } else {
+                                overlayView.showDisconnectedState()
+                            }
+                        }
+                        TransientType.CHARGING_ANIMATION -> {
+                            overlayView.showChargingState(batteryPercent, animate = true)
+                        }
+                        TransientType.NONE -> {}
                     }
                 }
+                
+                // Idle states (priority order)
+                "media" -> {
+                    Log.d(TAG, "Showing media: ${currentMedia!!.title}")
+                    overlayView.showMediaState(
+                        currentMedia!!.title,
+                        currentMedia!!.artist,
+                        currentMedia!!.isPlaying,
+                        currentMedia!!.albumArtBase64
+                    )
+                }
+                
+                "notification_icons" -> {
+                    overlayView.collapseToIcons(notificationQueue)
+                }
+                
+                "charging" -> {
+                    overlayView.showChargingState(batteryPercent)
+                }
+                
+                "disconnected" -> {
+                    overlayView.showDisconnectedState()
+                }
+                
+                "idle" -> {
+                    overlayView.showIdleState(currentTransport)
+                }
             }
+        }
+    }
+    
+    private fun shouldHideForBlacklist(currentState: String): Boolean {
+        if (!isCurrentlyInBlacklistedApp) {
+            return false
+        }
+        
+        // Don't hide if actively showing something important
+        if (isExpanded || currentNotification != null || currentCall != null || currentAlarm != null) {
+            return false
+        }
+        
+        // Check hideWithActiveNotifs toggle
+        return if (hideWithActiveNotifs) {
+            // Hide notification icons and media when in blacklisted app
+            currentState == "notification_icons" || currentState == "media" || 
+            currentState == "idle" || currentState == "charging" || currentState == "disconnected"
+        } else {
+            // Only hide if in idle/charging/disconnected state (no notifications)
+            currentState == "idle" || currentState == "charging" || currentState == "disconnected"
         }
     }
 
     private fun showNotification(notif: NotificationData) {
         Log.d(TAG, "Showing notification in Dynamic Island: ${notif.title}")
 
-        // Check if notification package is blacklisted
-        if (blacklistedApps.isNotEmpty() && blacklistedApps.contains(notif.packageName)) {
-            Log.d(TAG, "Notification from blacklisted app ${notif.packageName}, skipping Dynamic Island display")
-            return
-        }
-
-        // Add to queue
+        // Add to queue (don't filter blacklisted apps - they should still show notifications)
         notificationQueue.removeAll { it.key == notif.key } // Remove duplicates
         notificationQueue.add(0, notif) // Add to front
 
@@ -674,31 +813,33 @@ class DynamicIslandService : Service() {
 
     private fun handleAlarmNotification(notif: NotificationData) {
         Log.d(TAG, "Handling alarm notification in Dynamic Island")
-        isShowingTransientState = true
-        showOverlayAnimated()
-        overlayView.showAlarm(notif.title, notif.text)
         
-        // Alarms typically don't auto-hide like normal notifications
-        // but we'll use a longer timeout or wait for dismissal
-        transientStateRunnable?.let { handler.removeCallbacks(it) }
-        transientStateRunnable = Runnable {
-            isShowingTransientState = false
-            updateState()
-        }
-        handler.postDelayed(transientStateRunnable!!, 30000) // 30 seconds for alarm
+        // Set alarm state
+        currentAlarm = AlarmData(
+            id = notif.key.removePrefix("alarm_"),
+            label = notif.title
+        )
+        
+        // Schedule auto-clear after 30 seconds
+        handler.postDelayed({
+            if (currentAlarm?.id == notif.key.removePrefix("alarm_")) {
+                currentAlarm = null
+                updateState()
+            }
+        }, 30000)
+        
+        updateState()
     }
     
     private fun handleAlarmCleared() {
         Log.d(TAG, "Alarm cleared, removing from Dynamic Island")
-        isShowingTransientState = false
-        transientStateRunnable?.let { handler.removeCallbacks(it) }
+        currentAlarm = null
         updateState()
     }
 
     private fun displayNotification(notif: NotificationData) {
         currentNotification = notif
         isExpanded = false
-        isShowingTransientState = false
 
         // Cancel any pending collapse
         collapseRunnable?.let { handler.removeCallbacks(it) }
@@ -717,11 +858,8 @@ class DynamicIslandService : Service() {
 
         currentNotification = null
 
-        if (notificationQueue.isNotEmpty()) {
-            overlayView.collapseToIcons(notificationQueue)
-        } else {
-            updateState()
-        }
+        // Always call updateState to check if we should hide in blacklisted app
+        updateState()
     }
 
     private fun expandToList() {
@@ -740,28 +878,44 @@ class DynamicIslandService : Service() {
         }
         
         val isPlaying = intent.getBooleanExtra("isPlaying", false)
-        val title = intent.getStringExtra("title") ?: "Unknown"
+        val title = intent.getStringExtra("title")
         val artist = intent.getStringExtra("artist")
         val albumArtBase64 = intent.getStringExtra("albumArtBase64")
         
-        if (title.isNotEmpty() && title != "Unknown") {
-            isShowingTransientState = true
-            showOverlayAnimated()
-            overlayView.showMediaState(title, artist, isPlaying, albumArtBase64)
-            
-            // Keep showing until media stops
-            transientStateRunnable?.let { handler.removeCallbacks(it) }
+        Log.d(TAG, "Media update: title='$title', isPlaying=$isPlaying")
+        
+        // Clear media if title is null, empty, or "Unknown"
+        if (title.isNullOrEmpty() || title == "Unknown") {
+            Log.d(TAG, "Clearing media state")
+            currentMedia = null
         } else {
-            // Media stopped or session cleared
-            overlayView.showMediaState(null, null, false, null)
-            updateState() // Return to persistent state logic
+            // Set media state
+            Log.d(TAG, "Setting media state: $title")
+            currentMedia = MediaData(
+                title = title,
+                artist = artist,
+                isPlaying = isPlaying,
+                albumArtBase64 = albumArtBase64
+            )
         }
+        
+        updateState()
     }
     
 
 
     private fun collapseList() {
         isExpanded = false
+
+        // Check if we should hide immediately when in blacklisted app
+        if (autoHideMode == AUTO_HIDE_IN_BLACKLIST && isCurrentlyInBlacklistedApp) {
+            // If hideWithActiveNotifs is ON, hide immediately
+            // If OFF, only hide if no notifications
+            if (hideWithActiveNotifs || notificationQueue.isEmpty()) {
+                hideOverlayAnimated()
+                return
+            }
+        }
 
         if (notificationQueue.isNotEmpty()) {
             overlayView.collapseToIcons(notificationQueue)
@@ -896,10 +1050,10 @@ class DynamicIslandService : Service() {
             if (isCurrentlyInBlacklistedApp) {
                 // App is blacklisted - check if we should hide even with active notifications
                 if (hideWithActiveNotifs) {
-                    // Hide even with notifications in queue, but not if actively showing one
+                    // ON: Hide even with notifications in queue, but NOT when actively showing one
                     return currentNotification == null
                 } else {
-                    // Only hide if no notifications in queue at all
+                    // OFF: Only hide if no notifications in queue at all
                     return notificationQueue.isEmpty()
                 }
             }
@@ -951,11 +1105,7 @@ class DynamicIslandService : Service() {
      * Handle incoming call broadcast
      */
     private fun handleIncomingCallBroadcast(intent: Intent) {
-        if (!showPhoneCalls) {
-            Log.d(TAG, "Phone calls disabled in Dynamic Island, using standard UI")
-            // BluetoothService will handle launching CallActivity
-            return
-        }
+        if (!showPhoneCalls) return
         
         val number = intent.getStringExtra("number") ?: "Unknown"
         val contactName = intent.getStringExtra("callerId")
@@ -968,10 +1118,7 @@ class DynamicIslandService : Service() {
             isRinging = true
         )
         
-        // Show call in Dynamic Island
-        isShowingTransientState = true
-        showOverlayAnimated()
-        overlayView.showPhoneCall(number, contactName, true)
+        updateState()
     }
     
     /**
@@ -986,13 +1133,11 @@ class DynamicIslandService : Service() {
             "ENDED", "IDLE" -> {
                 // Call ended
                 currentCall = null
-                isShowingTransientState = false
                 updateState()
             }
             "ACTIVE" -> {
                 // Call answered - clear Dynamic Island immediately
                 currentCall = null
-                isShowingTransientState = false
                 updateState()
             }
         }

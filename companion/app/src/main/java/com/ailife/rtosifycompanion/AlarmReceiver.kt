@@ -38,6 +38,11 @@ class AlarmReceiver : BroadcastReceiver() {
                 }
             }
             ringtone = null
+            
+            // Stop vibration
+            vibrator?.cancel()
+            vibrator = null
+            Log.d(TAG, "Vibration stopped")
         }
         
         fun dismissAlarm(context: Context, alarmId: String) {
@@ -112,11 +117,12 @@ class AlarmReceiver : BroadcastReceiver() {
         // Vibrate
         vibrateDevice(context)
         
-        // Launch full-screen activity only if notification style is NOT dynamic_island
         val prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
         val style = prefs.getString("notification_style", "android")
+        val showAlarmsInDI = prefs.getBoolean("di_show_alarms", true)
         
-        if (style != "dynamic_island") {
+        // Launch full-screen activity if NOT using dynamic island OR if alarms are disabled in DI
+        if (style != "dynamic_island" || !showAlarmsInDI) {
             val activityIntent = Intent(context, AlarmRingingActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra(AlarmRingingActivity.EXTRA_ALARM_ID, alarmId)
@@ -129,7 +135,8 @@ class AlarmReceiver : BroadcastReceiver() {
             // Also show notification as backup
             showAlarmNotification(context, alarmId, label)
         } else {
-            Log.d(TAG, "Dynamic Island style enabled, routing directly")
+            // Route to Dynamic Island
+            Log.d(TAG, "Routing alarm to Dynamic Island")
             val directIntent = Intent("com.ailife.rtosifycompanion.ALARM_TRIGGERED")
             directIntent.setPackage(context.packageName)
             directIntent.putExtra("alarm_id", alarmId)
