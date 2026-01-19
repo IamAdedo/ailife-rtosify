@@ -828,5 +828,10 @@
     <string name="toast_internet_config">Internet: %s</string>
     <string name="status_connecting">Connecting...</string>
 
+    <!-- Privacy Policy -->
+    <string name="privacy_policy_title">Privacy Policy</string>
+    <string name="privacy_policy_content">To provide network communication features, this app collects MAC addresses from both devices for identification purposes.\n\nAll user data is end-to-end encrypted, and the encryption keys are stored only on your devices and never shared with our servers.</string>
+    <string name="privacy_policy_agree">Agree</string>
+    <string name="privacy_policy_decline">Decline</string>
 </resources>
 

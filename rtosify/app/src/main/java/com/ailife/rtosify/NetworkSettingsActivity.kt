@@ -149,6 +149,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
         setupListeners()
         updateWifiStatus()
         updatePairingButton()
+        checkPrivacyAgreement()
     }
 
     private fun initViews() {
@@ -536,5 +537,22 @@ class NetworkSettingsActivity : AppCompatActivity() {
     private fun stopWatchStatusPolling() {
         watchStatusPollingJob?.cancel()
         watchStatusPollingJob = null
+    }
+
+    private fun checkPrivacyAgreement() {
+        val prefs = devicePrefManager.getGlobalPrefs()
+        if (!prefs.getBoolean("privacy_policy_agreed", false)) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.privacy_policy_title)
+                .setMessage(R.string.privacy_policy_content)
+                .setCancelable(false)
+                .setPositiveButton(R.string.privacy_policy_agree) { _, _ ->
+                    prefs.edit().putBoolean("privacy_policy_agreed", true).apply()
+                }
+                .setNegativeButton(R.string.privacy_policy_decline) { _, _ ->
+                    finish()
+                }
+                .show()
+        }
     }
 }
