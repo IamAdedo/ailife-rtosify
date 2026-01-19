@@ -59,6 +59,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     private var mediaStartPosition: Long = 0
     private var mediaDuration: Long = 0
     private var isMediaPlaying: Boolean = false
+    private var lastAlbumArtBase64: String? = null
+    private var cachedAlbumBitmap: Bitmap? = null
 
     private enum class State {
         IDLE,
@@ -1459,11 +1461,20 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         animatorSet.interpolator = DecelerateInterpolator()
         animatorSet.addListener(
                 object : android.animation.Animator.AnimatorListener {
+                    private var hasEnded = false
                     override fun onAnimationEnd(animation: android.animation.Animator) {
-                        onEnd()
+                        if (!hasEnded) {
+                            hasEnded = true
+                            onEnd()
+                        }
                     }
                     override fun onAnimationStart(animation: android.animation.Animator) {}
-                    override fun onAnimationCancel(animation: android.animation.Animator) {}
+                    override fun onAnimationCancel(animation: android.animation.Animator) {
+                        if (!hasEnded) {
+                            hasEnded = true
+                            onEnd()
+                        }
+                    }
                     override fun onAnimationRepeat(animation: android.animation.Animator) {}
                 }
         )
@@ -1515,9 +1526,17 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     }
 
     private fun decodeBase64ToBitmap(base64: String): Bitmap? {
+        if (base64 == lastAlbumArtBase64 && cachedAlbumBitmap != null) {
+            return cachedAlbumBitmap
+        }
         return try {
             val bytes = Base64.decode(base64, Base64.NO_WRAP)
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            if (bitmap != null) {
+                lastAlbumArtBase64 = base64
+                cachedAlbumBitmap = bitmap
+            }
+            bitmap
         } catch (e: Exception) {
             Log.e(TAG, "Failed to decode bitmap: ${e.message}")
             null
@@ -1956,44 +1975,46 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             
             val currentMediaLayout = wrapper.findViewWithTag<FrameLayout>("media_expanded_layout") ?: return@animateToCollapsed
             currentMediaLayout.removeAllViews()
+            currentMediaLayout.background = null
 
             val mainLayout = LinearLayout(context).apply {
                 tag = "media_main_layout"
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
                 gravity = Gravity.CENTER_HORIZONTAL
+                // Dark overlay background (only if we have art, otherwise parent has solid bg)
+                if (albumArtBase64 != null) {
+                    setBackgroundColor(Color.parseColor("#CC000000")) // 80% dark overlay
+                }
             }
-            
-            // Background cover art with 100% opacity
+
+            // Album art as background layer (behind content)
             if (albumArtBase64 != null) {
                 val albumBitmap = decodeBase64ToBitmap(albumArtBase64)
                 if (albumBitmap != null) {
-                    val backgroundView = ImageView(context).apply {
+                    val bgView = object : ImageView(context) {
+                        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                            // Report 0 height only if the parent is not forcing a height (measurement phase)
+                            val heightMode = MeasureSpec.getMode(heightMeasureSpec)
+                            if (heightMode == MeasureSpec.EXACTLY) {
+                                super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+                            } else {
+                                setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), 0)
+                            }
+                        }
+                    }.apply {
                         tag = "media_background"
                         layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
                         scaleType = ImageView.ScaleType.CENTER_CROP
                         setImageBitmap(albumBitmap)
-                        alpha = 1.0f // 100% opacity
                     }
-                    currentMediaLayout.addView(backgroundView)
-                    
-                    // Dark overlay for text readability
-                    val overlay = View(context).apply {
-                        layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-                        setBackgroundColor(Color.parseColor("#CC000000")) // 80% dark overlay
-                    }
-                    currentMediaLayout.addView(overlay)
+                    currentMediaLayout.addView(bgView)
                 }
             } else {
                 // Solid dark background if no art
-                val darkBg = View(context).apply {
-                    layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-                    setBackgroundColor(Color.parseColor("#1C1C1E"))
-                }
-                currentMediaLayout.addView(darkBg)
+                currentMediaLayout.setBackgroundColor(Color.parseColor("#1C1C1E"))
             }
-            
-            // Header: Title and Artist
+
             val headerLayout = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
@@ -2114,7 +2135,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             val volDownBtn = createControlButton("−", 28f) { 
                 onMediaAction?.invoke("vol_down") 
             }.apply {
-                layoutParams = LinearLayout.LayoutParams(dpToPx(70), dpToPx(50))
+                layoutParams = LinearLayout.LayoutParams(0, dpToPx(50), 1f)
+                maxWidth = dpToPx(70)
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#4D2C2C2E")) // Semi-transparent
                     cornerRadius = dpToPx(8).toFloat()
@@ -2136,7 +2158,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             val volUpBtn = createControlButton("+", 28f) { 
                 onMediaAction?.invoke("vol_up") 
             }.apply {
-                layoutParams = LinearLayout.LayoutParams(dpToPx(70), dpToPx(50))
+                layoutParams = LinearLayout.LayoutParams(0, dpToPx(50), 1f)
+                maxWidth = dpToPx(70)
                 background = GradientDrawable().apply {
                     setColor(Color.parseColor("#4D2C2C2E")) // Semi-transparent
                     cornerRadius = dpToPx(8).toFloat()

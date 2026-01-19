@@ -37,6 +37,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var cardManageApps: View
     private lateinit var cardManageRules: View
     private lateinit var btnOpenSettings: Button
+    private lateinit var btnManageDynamicIsland: View
 
     private lateinit var spinnerNotificationStyle: Spinner
     private lateinit var devicePrefManager: DevicePrefManager
@@ -91,6 +92,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         cardManageApps = findViewById(R.id.cardManageApps)
         btnOpenSettings = findViewById(R.id.btnOpenSettings)
         spinnerNotificationStyle = findViewById(R.id.spinnerNotificationStyle)
+        btnManageDynamicIsland = findViewById(R.id.btnManageDynamicIsland)
     }
 
     private fun setupCardClickListeners() {
@@ -105,6 +107,10 @@ class NotificationSettingsActivity : AppCompatActivity() {
         
         // Navigate to Dynamic Island settings
         cardDynamicIsland.setOnClickListener {
+            startActivity(Intent(this, DynamicIslandSettingsActivity::class.java))
+        }
+
+        btnManageDynamicIsland.setOnClickListener {
             startActivity(Intent(this, DynamicIslandSettingsActivity::class.java))
         }
     }
