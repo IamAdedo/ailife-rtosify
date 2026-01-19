@@ -816,7 +816,7 @@ class DynamicIslandService : Service() {
                 // Idle states (priority order)
                 "media" -> {
                     Log.d(TAG, "Showing media: ${currentMedia!!.title}")
-                    if (isExpanded && currentState == "media_expanded") {
+                    if (isExpanded) {
                         // Keep expanded media controls
                         overlayView.expandWithMedia(
                             currentMedia!!.title,

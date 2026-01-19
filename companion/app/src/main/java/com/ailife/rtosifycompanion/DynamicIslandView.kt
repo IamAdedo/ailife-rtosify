@@ -541,7 +541,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
         // Update progress ring
         val oldProgress = progressContainer?.findViewWithTag<View>("progress_ring")
-        if (oldProgress != null && progressContainer != null) {
+        if (oldProgress != null) {
             progressContainer.removeView(oldProgress)
             val newProgress = createPillProgress(batteryPercent)
             newProgress.tag = "progress_ring"
@@ -1401,7 +1401,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     }
 
     private fun animateToCollapsed(onEnd: () -> Unit) {
-        contentContainer.visibility = VISIBLE
+        // Only show content container if NOT in expanded media state (which uses close UI)
+        if (currentState != State.MEDIA_EXPANDED) {
+            contentContainer.visibility = VISIBLE
+        }
         val targetWidth = dpToPx(pillWidthCollapsed)
         val targetHeight = dpToPx(pillHeightCollapsed)
         animateSize(
@@ -1823,13 +1826,18 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             return
         }
         
-        // CRITICAL: Don't show collapsed media if we're in expanded state
-        if (currentState == State.MEDIA_EXPANDED) {
-            return
-        }
-        
+        // Show collapsed media state
         currentState = State.MEDIA_PLAYING
+        
+        // Stop any progress animation from expanded view
+        stopMediaProgressAnimation()
+        
         expandedContainer.visibility = GONE
+        
+        // Also hide the media expanded layout if it was showing
+        val wrapper = expandedContainer.findViewWithTag<FrameLayout>("scroll_wrapper")
+        wrapper?.findViewWithTag<FrameLayout>("media_expanded_layout")?.visibility = GONE
+        
         contentContainer.visibility = VISIBLE
         closeContainer.visibility = GONE
         iconContainer.visibility = GONE
@@ -1938,7 +1946,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         
         mediaLayout.visibility = VISIBLE
         
-        // IMPORTANT: Hide pill content to show only close UI
+        // CRITICAL: Forcefully hide pill content - do this BEFORE animation
         contentContainer.visibility = GONE
         iconContainer.visibility = GONE
         
