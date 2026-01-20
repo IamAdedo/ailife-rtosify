@@ -348,7 +348,7 @@ class MyNotificationListener : NotificationListenerService() {
         
         if (isSilent) {
              // Check per-app setting first
-            val appSilent = activePrefs.getBoolean("app_silent_${sbn.packageName}", false)
+            val appSilent = activePrefs.getBoolean("app_silent_${sbn.packageName}", true)
             if (!appSilent) {
                  Log.d("Listener", "Skipping silent notification (app_silent disabled for ${sbn.packageName})")
                  return

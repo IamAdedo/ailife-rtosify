@@ -32,7 +32,6 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var switchNotifyDisconnect: SwitchMaterial
     
     private lateinit var cardManageApps: View
-    private lateinit var cardManageRules: View
     private lateinit var cardDynamicIsland: View
     private lateinit var layoutPermissionWarning: View
     private lateinit var btnGrantPermission: View
@@ -69,7 +68,6 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchNotifyDisconnect = findViewById(R.id.switchNotifyDisconnect)
         
         cardManageApps = findViewById(R.id.cardManageApps)
-        cardManageRules = findViewById(R.id.cardManageRules)
         cardDynamicIsland = findViewById(R.id.cardDynamicIsland)
         layoutPermissionWarning = findViewById(R.id.layoutPermissionWarning)
         btnGrantPermission = findViewById(R.id.btnOpenSettings)
@@ -117,8 +115,6 @@ class NotificationSettingsActivity : AppCompatActivity() {
         
         cardManageApps.isEnabled = isEnabled
         cardManageApps.alpha = if (isEnabled) 1.0f else 0.5f
-        cardManageRules.isEnabled = isEnabled
-        cardManageRules.alpha = if (isEnabled) 1.0f else 0.5f
         
         cardDynamicIsland.isEnabled = isEnabled
         cardDynamicIsland.alpha = if (isEnabled) 1.0f else 0.5f
@@ -180,9 +176,6 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private fun setupCardClickListeners() {
         cardManageApps.setOnClickListener {
             startActivity(android.content.Intent(this, NotificationAppListActivity::class.java))
-        }
-        cardManageRules.setOnClickListener {
-            startActivity(android.content.Intent(this, NotificationRulesActivity::class.java))
         }
     }
 

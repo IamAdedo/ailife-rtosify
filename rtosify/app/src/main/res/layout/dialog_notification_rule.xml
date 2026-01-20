@@ -7,45 +7,7 @@
     android:orientation="vertical"
     android:padding="16dp">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/rule_package_name"
-        android:textSize="14sp"
-        android:textStyle="bold"
-        android:textColor="?android:attr/textColorPrimary"/>
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="8dp">
-
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:hint="@string/rule_package_name"
-            app:boxBackgroundMode="outline"
-            app:helperText="e.g., com.whatsapp">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/editPackageName"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:inputType="text"
-                android:maxLines="1"/>
-        </com.google.android.material.textfield.TextInputLayout>
-
-        <Button
-            android:id="@+id/btnSelectApp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/rule_select_app"
-            android:layout_marginStart="8dp"
-            android:layout_marginTop="4dp"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
-    </LinearLayout>
 
     <TextView
         android:layout_width="wrap_content"

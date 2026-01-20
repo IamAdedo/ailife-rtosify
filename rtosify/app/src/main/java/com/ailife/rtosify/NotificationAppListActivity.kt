@@ -56,12 +56,22 @@ class NotificationAppListActivity : AppCompatActivity() {
         loadInstalledApps()
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (::appAdapter.isInitialized) {
+            appAdapter.reloadAllowedPackages()
+            appAdapter.notifyDataSetChanged()
+        }
+    }
+
     private fun initViews() {
         recyclerView = findViewById(R.id.recyclerViewApps)
         editTextSearch = findViewById(R.id.editTextSearch)
         switchShowSystemApps = findViewById(R.id.switchShowSystemApps)
         layoutLoadingApps = findViewById(R.id.layoutLoadingApps)
     }
+
+    private var searchJob: Job? = null
 
     private fun setupSearch() {
         editTextSearch.addTextChangedListener(
@@ -79,7 +89,11 @@ class NotificationAppListActivity : AppCompatActivity() {
                             count: Int
                     ) {}
                     override fun afterTextChanged(s: android.text.Editable?) {
-                        filterApps(s?.toString() ?: "")
+                        searchJob?.cancel()
+                        searchJob = lifecycleScope.launch {
+                            kotlinx.coroutines.delay(300) // Debounce
+                            filterApps(s?.toString() ?: "")
+                        }
                     }
                 }
         )

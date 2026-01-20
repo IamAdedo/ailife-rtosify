@@ -122,7 +122,7 @@ class AppNotificationSettingsActivity : AppCompatActivity() {
 
         // 3. Silent
         val silentKey = "app_silent_$pkgName"
-        switchSilent.isChecked = activePrefs.getBoolean(silentKey, false)
+        switchSilent.isChecked = activePrefs.getBoolean(silentKey, true)
         switchSilent.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean(silentKey, isChecked).apply()
         }
@@ -288,17 +288,10 @@ class AppNotificationSettingsActivity : AppCompatActivity() {
     private fun showAddEditRuleDialog(existingRule: NotificationRule?) {
         val dialogView = android.view.LayoutInflater.from(this).inflate(R.layout.dialog_notification_rule, null)
 
-        val editPackageName = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.editPackageName)
-        val btnSelectApp = dialogView.findViewById<android.widget.Button>(R.id.btnSelectApp)
         val editTitlePattern = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.editTitlePattern)
         val editContentPattern = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.editContentPattern)
         val btnWhitelist = dialogView.findViewById<android.widget.Button>(R.id.btnWhitelist)
         val btnBlacklist = dialogView.findViewById<android.widget.Button>(R.id.btnBlacklist)
-
-        // Lock package name
-        editPackageName.setText(pkgName)
-        editPackageName.isEnabled = false
-        btnSelectApp.visibility = View.GONE
         
         var selectedMode = existingRule?.mode ?: "whitelist"
         existingRule?.let {

@@ -160,13 +160,8 @@
             android:parentActivityName=".NotificationAppListActivity"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.Smartwatch" />
-
         <!-- Regras de Notificação -->
-        <activity
-            android:name=".NotificationRulesActivity"
-            android:exported="false"
-            android:parentActivityName=".NotificationSettingsActivity"
-            android:theme="@style/Theme.Smartwatch" />
+
         
         <!-- Dynamic Island Settings -->
         <activity
