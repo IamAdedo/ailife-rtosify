@@ -429,7 +429,8 @@ class MyNotificationListener : NotificationListenerService() {
         // Check per-app setting (matching AppNotificationSettingsActivity line 131)
         val isNavApp = activePrefs.getBoolean("app_is_nav_${sbn.packageName}", false)
         
-        Log.d("Listener", "Checking navigation package: ${sbn.packageName}, isNavApp=$isNavApp")
+        Log.d("Listener", "📱 NOTIFICATION from ${sbn.packageName}: title='$title', text='$text'")
+        Log.d("Listener", "🧭 Navigation check for ${sbn.packageName}: isNavApp=$isNavApp")
         
         if (isNavApp) {
             val imageType = activePrefs.getInt("nav_image_type", 1) // 0: None, 1: Large Icon, 2: Big Picture
@@ -469,8 +470,29 @@ class MyNotificationListener : NotificationListenerService() {
                 navTitle = title
             }
             if (textType == 1 || textType == 2) {
+                // Try to get content from various notification fields
                 navContent = text
+                
+                // If text is empty, try other fields that might contain additional info
+                if (navContent.isEmpty()) {
+                    // Try bigText (for BigTextStyle notifications)
+                    navContent = extras.getCharSequence("android.bigText")?.toString() ?: ""
+                }
+                if (navContent.isEmpty()) {
+                    // Try subText (secondary line of text)
+                    navContent = extras.getCharSequence("android.subText")?.toString() ?: ""
+                }
+                if (navContent.isEmpty()) {
+                    // Try summaryText
+                    navContent = extras.getCharSequence("android.summaryText")?.toString() ?: ""
+                }
+                if (navContent.isEmpty()) {
+                    // Try infoText
+                    navContent = extras.getCharSequence("android.infoText")?.toString() ?: ""
+                }
             }
+            
+            Log.d("Listener", "Navigation text extraction: textType=$textType, navTitle='$navTitle', navContent='$navContent'")
             
             // Send special navigation intent
             // We use a different action to trigger the overlay on the watch
@@ -480,6 +502,7 @@ class MyNotificationListener : NotificationListenerService() {
             intent.putExtra("content", navContent)
             intent.putExtra("keepScreenOn", keepScreenOn)
             intent.putExtra("packageName", sbn.packageName)
+            intent.setPackage(packageName) // Make the broadcast explicit
             sendBroadcast(intent)
             
             Log.d("Listener", "Sent Navigation Overlay info for ${sbn.packageName}")

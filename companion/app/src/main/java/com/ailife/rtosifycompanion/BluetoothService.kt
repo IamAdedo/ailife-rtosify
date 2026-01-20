@@ -1345,6 +1345,7 @@ class BluetoothService : Service() {
             MessageType.SHARE_SYNC -> handleShareReceived(message)
             MessageType.UPDATE_INTERNET_SETTINGS -> handleUpdateInternetSettings(message)
             MessageType.MEDIA_STATE_UPDATE -> handleMediaStateUpdate(message)
+            MessageType.NAVIGATION_INFO -> handleNavigationInfo(message)
             else -> Log.w(TAG, "Unknown message type: ${message.type}")
         }
     }
@@ -1401,6 +1402,23 @@ class BluetoothService : Service() {
             Log.d(TAG, "Media state broadcast: ${data.title} - ${data.artist}, playing=${data.isPlaying}")
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing media state update: ${e.message}", e)
+        }
+    }
+
+    private fun handleNavigationInfo(message: ProtocolMessage) {
+        try {
+            val navInfo = ProtocolHelper.gson.fromJson(message.data, NavigationInfoData::class.java)
+            val intent = Intent(this, NavigationOverlayActivity::class.java).apply {
+                putExtra("EXTRA_IMAGE", navInfo.image)
+                putExtra("EXTRA_TITLE", navInfo.title)
+                putExtra("EXTRA_CONTENT", navInfo.content)
+                putExtra("EXTRA_KEEP_SCREEN_ON", navInfo.keepScreenOn)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            startActivity(intent)
+            Log.d(TAG, "Started Navigation Overlay for ${navInfo.title}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling Navigation Info: ${e.message}")
         }
     }
 
