@@ -24,16 +24,20 @@ data class AppNotificationItem(
     val isSystemApp: Boolean = false
 )
 
-class AppNotificationAdapter(private val prefs: SharedPreferences) : RecyclerView.Adapter<AppNotificationAdapter.ViewHolder>() {
+class AppNotificationAdapter(private val prefs: SharedPreferences) : androidx.recyclerview.widget.ListAdapter<AppNotificationItem, AppNotificationAdapter.ViewHolder>(DiffCallback()) {
 
-    private var items = listOf<AppNotificationItem>()
     private val allowedPackages = mutableSetOf<String>()
-
-    private val labelCache = LruCache<String, String>(200)
-    private val iconCache = LruCache<String, Drawable>(100)
+    // Reducing cache size to prevent memory pressure which might cause GC pauses (ANR-like symptoms)
+    private val iconCache = LruCache<String, Drawable>(50)
 
     init {
         reloadAllowedPackages()
+    }
+    
+    // We override submitList to handle our custom logic if needed, but standard usage is fine.
+    // However, we need to Expose a setData method for compatibility with existing activity code
+    fun setData(newItems: List<AppNotificationItem>) {
+        submitList(newItems)
     }
 
     fun reloadAllowedPackages() {
@@ -42,11 +46,17 @@ class AppNotificationAdapter(private val prefs: SharedPreferences) : RecyclerVie
         if (savedSet != null) {
             allowedPackages.addAll(savedSet)
         }
+        notifyItemRangeChanged(0, itemCount, "PAYLOAD_SWITCH_UPDATE")
     }
 
-    fun setData(newItems: List<AppNotificationItem>) {
-        items = newItems
-        notifyDataSetChanged()
+    class DiffCallback : androidx.recyclerview.widget.DiffUtil.ItemCallback<AppNotificationItem>() {
+        override fun areItemsTheSame(oldItem: AppNotificationItem, newItem: AppNotificationItem): Boolean {
+            return oldItem.packageName == newItem.packageName
+        }
+
+        override fun areContentsTheSame(oldItem: AppNotificationItem, newItem: AppNotificationItem): Boolean {
+            return oldItem == newItem
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -55,10 +65,17 @@ class AppNotificationAdapter(private val prefs: SharedPreferences) : RecyclerVie
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(items[position])
+        holder.bind(getItem(position))
     }
-
-    override fun getItemCount() = items.size
+    
+    // Efficient partial update support
+    override fun onBindViewHolder(holder: ViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.isNotEmpty()) {
+            holder.updateSwitchState(getItem(position))
+        } else {
+            super.onBindViewHolder(holder, position, payloads)
+        }
+    }
 
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val layoutAppInfo: View = itemView.findViewById(R.id.layoutAppInfo)
@@ -69,11 +86,9 @@ class AppNotificationAdapter(private val prefs: SharedPreferences) : RecyclerVie
 
         private var loadJob: Job? = null
 
-        fun bind(item: AppNotificationItem) {
-            tvAppPackage.text = item.packageName
+        fun updateSwitchState(item: AppNotificationItem) {
             switchApp.setOnCheckedChangeListener(null)
             switchApp.isChecked = allowedPackages.contains(item.packageName)
-
             switchApp.setOnCheckedChangeListener { _, isChecked ->
                 if (isChecked) {
                     allowedPackages.add(item.packageName)
@@ -82,30 +97,27 @@ class AppNotificationAdapter(private val prefs: SharedPreferences) : RecyclerVie
                 }
                 prefs.edit().putStringSet("allowed_notif_packages", allowedPackages.toSet()).apply()
             }
+        }
+
+        fun bind(item: AppNotificationItem) {
+            tvName.text = item.appName
+            tvAppPackage.text = item.packageName
+            
+            updateSwitchState(item)
             
             // Handle Clicks on Left Area
             layoutAppInfo.setOnClickListener {
                 val context = itemView.context
                 val intent = android.content.Intent(context, AppNotificationSettingsActivity::class.java).apply {
                     putExtra("EXTRA_PACKAGE_NAME", item.packageName)
-                    putExtra("EXTRA_APP_NAME", tvName.text.toString())
+                    putExtra("EXTRA_APP_NAME", item.appName)
                 }
                 context.startActivity(intent)
             }
 
+            // Icon Loading Logic
             loadJob?.cancel()
-
-            if (item.appName.isNotEmpty()) {
-                tvName.text = item.appName
-            } else {
-                val cachedLabel = labelCache.get(item.packageName)
-                if (cachedLabel != null) {
-                    tvName.text = cachedLabel
-                } else {
-                    tvName.text = item.packageName
-                }
-            }
-
+            
             val cachedIcon = iconCache.get(item.packageName)
             if (cachedIcon != null) {
                 imgIcon.setImageDrawable(cachedIcon)
@@ -115,18 +127,21 @@ class AppNotificationAdapter(private val prefs: SharedPreferences) : RecyclerVie
             imgIcon.setImageResource(android.R.drawable.sym_def_app_icon)
 
             loadJob = (itemView.context as? AppCompatActivity)?.lifecycleScope?.launch(Dispatchers.IO) {
-                val pm = itemView.context.packageManager
+                // Optimization: calling getApplicationIcon(packageName) directly instead of getApplicationInfo first
                 try {
-                    val appInfo = pm.getApplicationInfo(item.packageName, 0)
-                    val icon = pm.getApplicationIcon(appInfo)
-
-                    iconCache.put(item.packageName, icon)
-
-                    withContext(Dispatchers.Main) {
-                        imgIcon.setImageDrawable(icon)
+                    val pm = itemView.context.packageManager
+                    val icon = pm.getApplicationIcon(item.packageName)
+                    
+                    if (icon != null) {
+                        iconCache.put(item.packageName, icon)
+                        withContext(Dispatchers.Main) {
+                            if (adapterPosition != RecyclerView.NO_POSITION && getItem(adapterPosition).packageName == item.packageName) {
+                                imgIcon.setImageDrawable(icon)
+                            }
+                        }
                     }
                 } catch (e: Exception) {
-                    // Icon loading failed, keep default icon
+                    // keep default
                 }
             }
         }

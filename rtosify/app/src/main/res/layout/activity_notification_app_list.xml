@@ -32,73 +32,71 @@
         </com.google.android.material.appbar.CollapsingToolbarLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
-    <androidx.core.widget.NestedScrollView
-        android:id="@+id/nestedScrollView"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fillViewport="true"
+        android:orientation="vertical"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
+        <!-- Search Bar -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/searchInputLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            app:boxBackgroundMode="outline"
+            app:boxCornerRadiusTopStart="12dp"
+            app:boxCornerRadiusTopEnd="12dp"
+            app:boxCornerRadiusBottomStart="12dp"
+            app:boxCornerRadiusBottomEnd="12dp"
+            app:startIconDrawable="@android:drawable/ic_menu_search"
+            app:endIconMode="clear_text">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/editTextSearch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/app_search_hint"
+                android:inputType="text"
+                android:maxLines="1"/>
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Show System Apps Toggle -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:paddingBottom="24dp">
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="24dp"
+            android:paddingVertical="8dp">
 
-            <!-- Search Bar -->
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/searchInputLayout"
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
-                app:boxBackgroundMode="outline"
-                app:boxCornerRadiusTopStart="12dp"
-                app:boxCornerRadiusTopEnd="12dp"
-                app:boxCornerRadiusBottomStart="12dp"
-                app:boxCornerRadiusBottomEnd="12dp"
-                app:startIconDrawable="@android:drawable/ic_menu_search"
-                app:endIconMode="clear_text">
+                android:layout_weight="1"
+                android:text="@string/app_show_system"
+                android:textSize="14sp"
+                android:textColor="?android:attr/textColorPrimary"/>
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/editTextSearch"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="@string/app_search_hint"
-                    android:inputType="text"
-                    android:maxLines="1"/>
-            </com.google.android.material.textfield.TextInputLayout>
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/switchShowSystemApps"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"/>
+        </LinearLayout>
 
-            <!-- Show System Apps Toggle -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingHorizontal="24dp"
-                android:paddingVertical="8dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/app_show_system"
-                    android:textSize="14sp"
-                    android:textColor="?android:attr/textColorPrimary"/>
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/switchShowSystemApps"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-            </LinearLayout>
+        <!-- Content Area (List + Loading) -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
 
             <!-- Loading Group -->
             <LinearLayout
                 android:id="@+id/layoutLoadingApps"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
+                android:layout_height="match_parent"
                 android:orientation="vertical"
                 android:gravity="center"
                 android:padding="32dp"
@@ -122,10 +120,10 @@
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerViewApps"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:paddingBottom="26dp"
-                android:nestedScrollingEnabled="false"/>
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingBottom="26dp"/>
+        </FrameLayout>
+    </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

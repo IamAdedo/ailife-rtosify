@@ -13,6 +13,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.switchmaterial.SwitchMaterial
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -37,8 +39,7 @@ class NotificationAppListActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_notification_app_list)
         val appBarLayout = findViewById<View>(R.id.appBarLayout)
-        val scrollView = findViewById<View>(R.id.nestedScrollView)
-        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, scrollView)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, findViewById(R.id.recyclerViewApps))
 
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
@@ -159,53 +160,67 @@ class NotificationAppListActivity : AppCompatActivity() {
         isLoadingVisible = true
 
         loadingJob?.cancel()
-        loadingJob =
-                lifecycleScope.launch(Dispatchers.IO) {
-                    val pm = packageManager
-                    val packageNamesFound = mutableSetOf<String>()
+        loadingJob = lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val pm = packageManager
+                val packageNamesFound = mutableSetOf<String>()
+                
+                // 1. Get all installed apps
+                val installedApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
 
-                    val installedApps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+                // 2. Map to AppNotificationItem, loading LABELS here (IO thread)
+                // This is the heavy operation the user wants to wait for upfront
+                val appsList = installedApps.mapNotNull { appInfo ->
+                    // Check cancellation periodically
+                    if (!isActive) return@mapNotNull null
+                    
+                    val pkgName = appInfo.packageName
+                    if (pkgName == packageName) return@mapNotNull null
 
-                    val appsList =
-                            installedApps
-                                    .mapNotNull { appInfo ->
-                                        val pkgName = appInfo.packageName
-                                        if (pkgName == packageName) return@mapNotNull null
+                    val isSystemApp = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
 
-                                        val isSystemApp =
-                                                (appInfo.flags and
-                                                        android.content.pm.ApplicationInfo
-                                                                .FLAG_SYSTEM) != 0
-
-                                        val appName =
-                                                try {
-                                                    pm.getApplicationLabel(appInfo).toString()
-                                                } catch (e: Exception) {
-                                                    pkgName
-                                                }
-
-                                        packageNamesFound.add(pkgName)
-                                        AppNotificationItem(appName, pkgName, null, isSystemApp)
-                                    }
-                                    .distinctBy { it.packageName }
-                                    .sortedBy { it.appName.lowercase() }
-
-                    if (!activePrefs.contains("allowed_notif_packages")) {
-                        activePrefs
-                                .edit()
-                                .putStringSet("allowed_notif_packages", packageNamesFound)
-                                .apply()
-                        withContext(Dispatchers.Main) { appAdapter.reloadAllowedPackages() }
+                    // Load label here so it's ready for search
+                    val appName = try {
+                         appInfo.loadLabel(pm).toString()
+                    } catch (e: Exception) {
+                         pkgName
                     }
 
-                    withContext(Dispatchers.Main) {
+                    packageNamesFound.add(pkgName)
+                    AppNotificationItem(appName, pkgName, null, isSystemApp)
+                }
+
+                // 3. Sort
+                val sortedList = appsList.sortedBy { it.appName.lowercase() }
+
+                // 4. Initial pref setup if needed
+                if (!activePrefs.contains("allowed_notif_packages")) {
+                    activePrefs.edit().putStringSet("allowed_notif_packages", packageNamesFound).apply()
+                    withContext(Dispatchers.Main) { 
+                        if (::appAdapter.isInitialized) {
+                            appAdapter.reloadAllowedPackages()
+                        }
+                    }
+                }
+
+                // 5. Update UI
+                withContext(Dispatchers.Main) {
+                    if (!isActive) return@withContext
+                    allAppsList = sortedList
+                    filterApps(editTextSearch.text?.toString() ?: "")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                withContext(Dispatchers.Main) {
+                    if (isActive) {
                         isLoadingVisible = false
                         layoutLoadingApps.visibility = View.GONE
                         recyclerView.visibility = View.VISIBLE
-                        allAppsList = appsList
-                        filterApps(editTextSearch.text?.toString() ?: "")
                     }
                 }
+            }
+        }
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
