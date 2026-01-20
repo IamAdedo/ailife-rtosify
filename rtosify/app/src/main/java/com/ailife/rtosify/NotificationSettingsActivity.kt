@@ -28,6 +28,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var switchEnable: SwitchMaterial
     private lateinit var switchWakeScreen: SwitchMaterial
     private lateinit var switchVibrate: SwitchMaterial
+    private lateinit var switchVibrateSilent: SwitchMaterial
     private lateinit var switchSkipScreenOn: SwitchMaterial
     private lateinit var switchNotifyDisconnect: SwitchMaterial
     
@@ -64,6 +65,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchEnable = findViewById(R.id.switchEnableMirroring)
         switchWakeScreen = findViewById(R.id.switchWakeScreen)
         switchVibrate = findViewById(R.id.switchVibrate)
+        switchVibrateSilent = findViewById(R.id.switchVibrateSilent)
         switchSkipScreenOn = findViewById(R.id.switchSkipScreenOn)
         switchNotifyDisconnect = findViewById(R.id.switchNotifyDisconnect)
         
@@ -110,6 +112,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         // General settings
         switchWakeScreen.isEnabled = isEnabled
         switchVibrate.isEnabled = isEnabled
+        switchVibrateSilent.isEnabled = isEnabled
         switchSkipScreenOn.isEnabled = isEnabled
         switchNotifyDisconnect.isEnabled = isEnabled
         
@@ -140,12 +143,26 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchWakeScreen.isChecked = activePrefs.getBoolean("wake_screen_enabled", false)
         switchWakeScreen.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean("wake_screen_enabled", isChecked).apply()
+            sendSettingsUpdate()
         }
 
         switchVibrate.isChecked = activePrefs.getBoolean("vibrate_enabled", false)
         switchVibrate.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean("vibrate_enabled", isChecked).apply()
+            sendSettingsUpdate()
         }
+
+        switchVibrateSilent.isChecked = activePrefs.getBoolean("vibrate_silent_enabled", false)
+        switchVibrateSilent.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("vibrate_silent_enabled", isChecked).apply()
+            sendSettingsUpdate()
+        }
+    }
+
+    private fun sendSettingsUpdate() {
+        val intent = android.content.Intent("com.ailife.rtosify.ACTION_UPDATE_SETTINGS")
+        intent.setPackage(packageName)
+        sendBroadcast(intent)
     }
 
     private fun setupDynamicIslandSettings() {
