@@ -186,7 +186,12 @@ class BluetoothTransport(
 
     override fun receive(): Flow<ProtocolMessage> = messageChannel.receiveAsFlow()
 
-    override fun isConnected(): Boolean = connected && socket.isConnected
+    override fun isConnected(): Boolean {
+        if (!connected || !socket.isConnected) return false
+        // Proactive check: if we haven't received anything in KEEPALIVE_TIMEOUT, consider it dead
+        val elapsed = System.currentTimeMillis() - lastReceiveTime
+        return elapsed <= KEEPALIVE_TIMEOUT
+    }
 
     override fun getTransportType(): String = "Bluetooth"
 
