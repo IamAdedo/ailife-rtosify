@@ -154,6 +154,13 @@
             android:parentActivityName=".NotificationSettingsActivity"
             android:theme="@style/Theme.Smartwatch" />
 
+        <activity
+            android:name=".AppNotificationSettingsActivity"
+            android:label="@string/notif_settings_title"
+            android:parentActivityName=".NotificationAppListActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.Smartwatch" />
+
         <!-- Regras de Notificação -->
         <activity
             android:name=".NotificationRulesActivity"
@@ -164,8 +171,6 @@
         <!-- Dynamic Island Settings -->
         <activity
             android:name=".DynamicIslandSettingsActivity"
-            android:exported="false"
-            android:parentActivityName=".NotificationSettingsActivity"
             android:theme="@style/Theme.Smartwatch" />
         
         <!-- Dynamic Island App Blacklist -->

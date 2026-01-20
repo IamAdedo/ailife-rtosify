@@ -665,6 +665,15 @@
     <string name="health_monitoring_title">Health Monitoring</string>
 
     <!-- Notification Rules -->
+    <string name="notif_app_priority">Minimum Priority</string>
+    <string name="notif_app_priority_desc">Only forward notifications with this priority or higher</string>
+    <string name="notif_app_is_nav">Navigation App</string>
+    <string name="notif_app_is_nav_desc">Treat as navigation (affects HUD/Mirroring)</string>
+    <string name="priority_any">Any (Default)</string>
+    <string name="priority_low">Low +</string>
+    <string name="priority_default">Default +</string>
+    <string name="priority_high">High</string>
+    
     <string name="rule_package_name">Package Name</string>
     <string name="rule_select_app">Select</string>
     <string name="rule_mode">Mode</string>

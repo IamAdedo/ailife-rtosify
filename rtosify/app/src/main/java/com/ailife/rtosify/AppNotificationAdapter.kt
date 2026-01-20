@@ -61,6 +61,7 @@ class AppNotificationAdapter(private val prefs: SharedPreferences) : RecyclerVie
     override fun getItemCount() = items.size
 
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val layoutAppInfo: View = itemView.findViewById(R.id.layoutAppInfo)
         private val imgIcon: ImageView = itemView.findViewById(R.id.imgAppIcon)
         private val tvName: TextView = itemView.findViewById(R.id.tvAppName)
         private val tvAppPackage: TextView = itemView.findViewById(R.id.tvAppPackage)
@@ -80,6 +81,16 @@ class AppNotificationAdapter(private val prefs: SharedPreferences) : RecyclerVie
                     allowedPackages.remove(item.packageName)
                 }
                 prefs.edit().putStringSet("allowed_notif_packages", allowedPackages.toSet()).apply()
+            }
+            
+            // Handle Clicks on Left Area
+            layoutAppInfo.setOnClickListener {
+                val context = itemView.context
+                val intent = android.content.Intent(context, AppNotificationSettingsActivity::class.java).apply {
+                    putExtra("EXTRA_PACKAGE_NAME", item.packageName)
+                    putExtra("EXTRA_APP_NAME", tvName.text.toString())
+                }
+                context.startActivity(intent)
             }
 
             loadJob?.cancel()

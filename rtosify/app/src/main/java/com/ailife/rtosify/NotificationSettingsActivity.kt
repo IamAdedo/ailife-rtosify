@@ -21,325 +21,168 @@ import com.google.android.material.switchmaterial.SwitchMaterial
 
 class NotificationSettingsActivity : AppCompatActivity() {
 
-    private lateinit var switchEnable: SwitchMaterial
-    private lateinit var switchSkipScreenOn: SwitchMaterial
-    private lateinit var switchNotifyDisconnect: SwitchMaterial
-    private lateinit var switchForwardOngoing: SwitchMaterial
-    private lateinit var switchForwardSilent: SwitchMaterial
-    private lateinit var switchWakeScreen: SwitchMaterial
-    private lateinit var switchVibrate: SwitchMaterial
-    private lateinit var switchVibrateSilent: SwitchMaterial
-    private lateinit var cardMasterSwitch: View
-    private lateinit var cardGeneralSettings: View
-    private lateinit var cardNotificationBehavior: View
-    private lateinit var cardDynamicIsland: View
-    private lateinit var layoutPermissionWarning: LinearLayout
-    private lateinit var cardManageApps: View
-    private lateinit var cardManageRules: View
-    private lateinit var btnOpenSettings: Button
-    private lateinit var btnManageDynamicIsland: View
-
-    private lateinit var spinnerNotificationStyle: Spinner
     private lateinit var devicePrefManager: DevicePrefManager
-    private lateinit var globalPrefs: SharedPreferences
     private val activePrefs: SharedPreferences
         get() = devicePrefManager.getActiveDevicePrefs()
+
+    private lateinit var switchEnable: SwitchMaterial
+    private lateinit var switchWakeScreen: SwitchMaterial
+    private lateinit var switchVibrate: SwitchMaterial
+    private lateinit var switchSkipScreenOn: SwitchMaterial
+    private lateinit var switchNotifyDisconnect: SwitchMaterial
+    
+    private lateinit var cardManageApps: View
+    private lateinit var cardManageRules: View
+    private lateinit var cardDynamicIsland: View
+    private lateinit var layoutPermissionWarning: View
+    private lateinit var btnGrantPermission: View
+    private lateinit var btnManageDynamicIsland: View
+
+    private lateinit var spinnerNotifStyle: Spinner
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_notification_settings)
-        val appBarLayout = findViewById<View>(R.id.appBarLayout)
-        val scrollView = findViewById<View>(R.id.nestedScrollView)
-        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, scrollView)
-
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = ""
+        setupToolbar()
 
         devicePrefManager = DevicePrefManager(this)
-        globalPrefs = devicePrefManager.getGlobalPrefs()
-
+        
         initViews()
         setupMasterSwitch()
-        setupSkipScreenOnSwitch()
-        setupNotifyDisconnectSwitch()
-        setupForwardOngoingSwitch()
-        setupForwardSilentSwitch()
-        setupWakeScreenSwitch()
-        setupVibrateSwitch()
-        setupVibrateSilentSwitch()
-        setupNotificationStyleSpinner()
+        setupGeneralSettings()
+        setupBehaviorSwitches()
+        setupDynamicIslandSettings()
         setupCardClickListeners()
-    }
-
-    private fun initViews() {
-        switchEnable = findViewById(R.id.switchEnableMirroring)
-        switchSkipScreenOn = findViewById(R.id.switchSkipScreenOn)
-        switchNotifyDisconnect = findViewById(R.id.switchNotifyDisconnect)
-        switchForwardOngoing = findViewById(R.id.switchForwardOngoing)
-        switchForwardSilent = findViewById(R.id.switchForwardSilent)
-        switchWakeScreen = findViewById(R.id.switchWakeScreen)
-        switchVibrate = findViewById(R.id.switchVibrate)
-        switchVibrateSilent = findViewById(R.id.switchVibrateSilent)
-
-        cardMasterSwitch = findViewById(R.id.cardMasterSwitch)
-        cardGeneralSettings = findViewById(R.id.cardGeneralSettings)
-        cardNotificationBehavior = findViewById(R.id.cardNotificationBehavior)
-        cardDynamicIsland = findViewById(R.id.cardDynamicIsland)
-        layoutPermissionWarning = findViewById(R.id.layoutPermissionWarning)
-        cardManageRules = findViewById(R.id.cardManageRules)
-        cardManageApps = findViewById(R.id.cardManageApps)
-        btnOpenSettings = findViewById(R.id.btnOpenSettings)
-        spinnerNotificationStyle = findViewById(R.id.spinnerNotificationStyle)
-        btnManageDynamicIsland = findViewById(R.id.btnManageDynamicIsland)
-    }
-
-    private fun setupCardClickListeners() {
-        // Navigate to individual system feature settings
-        cardManageApps.setOnClickListener {
-            startActivity(Intent(this, NotificationAppListActivity::class.java))
-        }
-        cardManageRules.setOnClickListener {
-                val intent = Intent(this, NotificationRulesActivity::class.java)
-                startActivity(intent)
-            }
-        
-        // Navigate to Dynamic Island settings
-        cardDynamicIsland.setOnClickListener {
-            startActivity(Intent(this, DynamicIslandSettingsActivity::class.java))
-        }
-
-        btnManageDynamicIsland.setOnClickListener {
-            startActivity(Intent(this, DynamicIslandSettingsActivity::class.java))
-        }
-    }
-
-    private fun setupSkipScreenOnSwitch() {
-        val isSkipEnabled = activePrefs.getBoolean("skip_screen_on_enabled", false)
-        switchSkipScreenOn.isChecked = isSkipEnabled
-        switchSkipScreenOn.setOnCheckedChangeListener { _, isChecked ->
-            activePrefs.edit().putBoolean("skip_screen_on_enabled", isChecked).apply()
-            syncSettings()
-        }
-    }
-
-    private fun setupNotifyDisconnectSwitch() {
-        val isEnabled = activePrefs.getBoolean("notify_on_disconnect", false)
-        switchNotifyDisconnect.isChecked = isEnabled
-        switchNotifyDisconnect.setOnCheckedChangeListener { _, isChecked ->
-            activePrefs.edit().putBoolean("notify_on_disconnect", isChecked).apply()
-            syncSettings()
-        }
-    }
-
-    private fun setupForwardOngoingSwitch() {
-        val isEnabled = activePrefs.getBoolean("forward_ongoing_enabled", false)
-        switchForwardOngoing.isChecked = isEnabled
-        switchForwardOngoing.setOnCheckedChangeListener { _, isChecked ->
-            activePrefs.edit().putBoolean("forward_ongoing_enabled", isChecked).apply()
-            syncSettings()
-        }
-    }
-
-    private fun setupForwardSilentSwitch() {
-        val isEnabled = activePrefs.getBoolean("forward_silent_enabled", false)
-        switchForwardSilent.isChecked = isEnabled
-        switchForwardSilent.setOnCheckedChangeListener { _, isChecked ->
-            activePrefs.edit().putBoolean("forward_silent_enabled", isChecked).apply()
-            syncSettings()
-        }
-    }
-
-    private fun setupWakeScreenSwitch() {
-        val isEnabled = activePrefs.getBoolean("wake_screen_enabled", false)
-        switchWakeScreen.isChecked = isEnabled
-        switchWakeScreen.setOnCheckedChangeListener { _, isChecked ->
-            activePrefs.edit().putBoolean("wake_screen_enabled", isChecked).apply()
-            syncSettings()
-        }
-    }
-
-    private fun setupVibrateSwitch() {
-        val isEnabled = activePrefs.getBoolean("vibrate_enabled", false)
-        switchVibrate.isChecked = isEnabled
-        switchVibrateSilent.isEnabled = isEnabled
-        switchVibrate.setOnCheckedChangeListener { _, isChecked ->
-            activePrefs.edit().putBoolean("vibrate_enabled", isChecked).apply()
-            switchVibrateSilent.isEnabled = isChecked
-            if (!isChecked) {
-                switchVibrateSilent.isChecked = false
-                activePrefs.edit().putBoolean("vibrate_silent_enabled", false).apply()
-            }
-            syncSettings()
-        }
-    }
-
-    private fun setupVibrateSilentSwitch() {
-        val isEnabled = activePrefs.getBoolean("vibrate_silent_enabled", false)
-        switchVibrateSilent.isChecked = isEnabled
-        switchVibrateSilent.setOnCheckedChangeListener { _, isChecked ->
-            activePrefs.edit().putBoolean("vibrate_silent_enabled", isChecked).apply()
-            syncSettings()
-        }
-    }
-
-    private fun setupNotificationStyleSpinner() {
-        val styles = arrayOf("Standard Android", "Dynamic Island")
-        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, styles)
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinnerNotificationStyle.adapter = adapter
-        
-        val currentStyle = activePrefs.getString("notification_style", "android")
-        val selection = if (currentStyle == "dynamic_island") 1 else 0
-        spinnerNotificationStyle.setSelection(selection)
-        
-        spinnerNotificationStyle.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val newStyle = if (position == 1) "dynamic_island" else "android"
-                val oldStyle = activePrefs.getString("notification_style", "android")
-                if (newStyle != oldStyle) {
-                    activePrefs.edit().putString("notification_style", newStyle).apply()
-                    syncSettings()
-                }
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-    }
-
-
-    private fun syncSettings() {
-        // Sync with service if connected
-        val intent = Intent("com.ailife.rtosify.ACTION_UPDATE_SETTINGS")
-        intent.setPackage(packageName)
-        sendBroadcast(intent)
     }
 
     override fun onResume() {
         super.onResume()
+        checkPermission()
         updateUiState()
     }
 
-    private fun setupMasterSwitch() {
-        if (!activePrefs.contains("notification_mirroring_enabled")) {
-            activePrefs.edit().putBoolean("notification_mirroring_enabled", false).apply()
+    private fun initViews() {
+        switchEnable = findViewById(R.id.switchEnableMirroring)
+        switchWakeScreen = findViewById(R.id.switchWakeScreen)
+        switchVibrate = findViewById(R.id.switchVibrate)
+        switchSkipScreenOn = findViewById(R.id.switchSkipScreenOn)
+        switchNotifyDisconnect = findViewById(R.id.switchNotifyDisconnect)
+        
+        cardManageApps = findViewById(R.id.cardManageApps)
+        cardManageRules = findViewById(R.id.cardManageRules)
+        cardDynamicIsland = findViewById(R.id.cardDynamicIsland)
+        layoutPermissionWarning = findViewById(R.id.layoutPermissionWarning)
+        btnGrantPermission = findViewById(R.id.btnOpenSettings)
+        btnManageDynamicIsland = findViewById(R.id.btnManageDynamicIsland)
+
+        spinnerNotifStyle = findViewById(R.id.spinnerNotificationStyle)
+    }
+
+    private fun setupToolbar() {
+        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = getString(R.string.notif_settings_title)
+    }
+
+    private fun checkPermission() {
+        val enabledListeners = android.provider.Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
+        val isEnabled = enabledListeners != null && enabledListeners.contains(packageName)
+        
+        if (isEnabled) {
+            layoutPermissionWarning.visibility = View.GONE
+        } else {
+            layoutPermissionWarning.visibility = View.VISIBLE
+            btnGrantPermission.setOnClickListener {
+                startActivity(android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            }
         }
+    }
 
-        val isEnabled = activePrefs.getBoolean("notification_mirroring_enabled", false)
-        switchEnable.isChecked = isEnabled
-
+    private fun setupMasterSwitch() {
+        switchEnable.isChecked = activePrefs.getBoolean("notification_mirroring_enabled", false)
         switchEnable.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean("notification_mirroring_enabled", isChecked).apply()
             updateUiState()
-            syncSettings()
         }
     }
 
     private fun updateUiState() {
-        val hasPermission = isNotificationServiceEnabled()
+        val isEnabled = switchEnable.isChecked
+        // General settings
+        switchWakeScreen.isEnabled = isEnabled
+        switchVibrate.isEnabled = isEnabled
+        switchSkipScreenOn.isEnabled = isEnabled
+        switchNotifyDisconnect.isEnabled = isEnabled
+        
+        cardManageApps.isEnabled = isEnabled
+        cardManageApps.alpha = if (isEnabled) 1.0f else 0.5f
+        cardManageRules.isEnabled = isEnabled
+        cardManageRules.alpha = if (isEnabled) 1.0f else 0.5f
+        
+        cardDynamicIsland.isEnabled = isEnabled
+        cardDynamicIsland.alpha = if (isEnabled) 1.0f else 0.5f
+        
+        spinnerNotifStyle.isEnabled = isEnabled
+    }
+    
+    private fun setupGeneralSettings() {
+        // Skip Screen On
+        switchSkipScreenOn.isChecked = activePrefs.getBoolean("notif_skip_screen_on", false)
+        switchSkipScreenOn.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("notif_skip_screen_on", isChecked).apply()
+        }
+        
+        // Notify Disconnect
+        switchNotifyDisconnect.isChecked = activePrefs.getBoolean("notify_on_disconnect", false)
+        switchNotifyDisconnect.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("notify_on_disconnect", isChecked).apply()
+        }
+    }
 
-        if (hasPermission && globalPrefs.getBoolean("waiting_for_permission", false)) {
-            globalPrefs.edit().remove("waiting_for_permission").apply()
-            activePrefs.edit().putBoolean("notification_mirroring_enabled", true).apply()
-            switchEnable.isChecked = true
+    private fun setupBehaviorSwitches() {
+        switchWakeScreen.isChecked = activePrefs.getBoolean("wake_screen_enabled", false)
+        switchWakeScreen.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("wake_screen_enabled", isChecked).apply()
         }
 
-        val isSwitchOn = activePrefs.getBoolean("notification_mirroring_enabled", false)
-
-        if (switchEnable.isChecked != isSwitchOn) {
-            switchEnable.isChecked = isSwitchOn
+        switchVibrate.isChecked = activePrefs.getBoolean("vibrate_enabled", false)
+        switchVibrate.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("vibrate_enabled", isChecked).apply()
         }
+    }
 
-        if (!hasPermission) {
-            switchEnable.isEnabled = false
-            switchEnable.isChecked = false
-            layoutPermissionWarning.visibility = View.VISIBLE
-            setCardsVisibility(View.GONE)
+    private fun setupDynamicIslandSettings() {
+        // Style Spinner
+        val adapterStyle = ArrayAdapter(this, android.R.layout.simple_spinner_item, 
+            arrayOf(getString(R.string.notif_style_android), getString(R.string.notif_style_dynamic_island)))
+        adapterStyle.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerNotifStyle.adapter = adapterStyle
+        
+        val savedStyle = activePrefs.getString("notification_style", "android")
+        spinnerNotifStyle.setSelection(if (savedStyle == "dynamic_island") 1 else 0)
 
-            btnOpenSettings.setOnClickListener {
-                globalPrefs.edit().putBoolean("waiting_for_permission", true).apply()
-                openNotificationAccessSettings()
+        spinnerNotifStyle.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val style = if (position == 1) "dynamic_island" else "android"
+                activePrefs.edit().putString("notification_style", style).apply()
             }
-        } else {
-            switchEnable.isEnabled = true
-            layoutPermissionWarning.visibility = View.GONE
-            setCardsVisibility(View.VISIBLE)
-
-            val cards =
-                    listOf(
-                            cardGeneralSettings,
-                            cardNotificationBehavior,
-                            cardDynamicIsland,
-                            cardManageApps,
-                            cardManageRules
-                    )
-            val childSwitches =
-                    listOf(
-                            switchSkipScreenOn,
-                            switchNotifyDisconnect,
-                            switchForwardOngoing,
-                            switchForwardSilent,
-                            switchWakeScreen,
-                            switchVibrate
-                    )
-
-            if (isSwitchOn) {
-                cards.forEach {
-                    it.alpha = 1.0f
-                    it.isEnabled = true
-                }
-                childSwitches.forEach { it.isEnabled = true }
-
-                // Vibrate Silent still depends on Vibrate
-                val isVibrateOn = activePrefs.getBoolean("vibrate_enabled", false)
-                switchVibrateSilent.isEnabled = isVibrateOn
-
-                // Dynamic Island settings are now in DynamicIslandSettingsActivity
-            } else {
-                cards.forEach {
-                    it.alpha = 0.4f
-                    it.isEnabled = false
-                }
-                childSwitches.forEach { it.isEnabled = false }
-                switchVibrateSilent.isEnabled = false
-
-            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+        
+        btnManageDynamicIsland.setOnClickListener {
+             startActivity(android.content.Intent(this, DynamicIslandSettingsActivity::class.java))
         }
     }
+    
 
-    private fun setViewGroupEnabled(view: View, enabled: Boolean) {
-        view.isEnabled = enabled
-        if (view is android.view.ViewGroup) {
-            for (i in 0 until view.childCount) {
-                setViewGroupEnabled(view.getChildAt(i), enabled)
-            }
+
+    private fun setupCardClickListeners() {
+        cardManageApps.setOnClickListener {
+            startActivity(android.content.Intent(this, NotificationAppListActivity::class.java))
         }
-    }
-
-    private fun setCardsVisibility(visibility: Int) {
-        val cards =
-                listOf(
-                        cardGeneralSettings,
-                        cardNotificationBehavior,
-                        cardDynamicIsland,
-                        cardManageApps,
-                        cardManageRules
-                )
-        cards.forEach { it.visibility = visibility }
-    }
-
-    private fun isNotificationServiceEnabled(): Boolean {
-        val cn = ComponentName(this, MyNotificationListener::class.java)
-        val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
-        return flat != null && flat.contains(cn.flattenToString())
-    }
-
-    private fun openNotificationAccessSettings() {
-        try {
-            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-        } catch (e: Exception) {
-            Toast.makeText(this, getString(R.string.toast_error_open_settings), Toast.LENGTH_SHORT)
-                    .show()
+        cardManageRules.setOnClickListener {
+            startActivity(android.content.Intent(this, NotificationRulesActivity::class.java))
         }
     }
 

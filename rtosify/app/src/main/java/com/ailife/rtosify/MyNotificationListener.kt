@@ -327,23 +327,92 @@ class MyNotificationListener : NotificationListenerService() {
         val notification = sbn.notification
 
         // Check if ongoing notifications should be forwarded
-        val forwardOngoing = activePrefs.getBoolean("forward_ongoing_enabled", false)
-        if (sbn.isOngoing && !forwardOngoing) {
-            Log.d("Listener", "Skipping ongoing notification (forward_ongoing disabled)")
-            return
+        val isOngoing = sbn.isOngoing
+        if (isOngoing) {
+            // Check per-app setting first
+            val appOngoing = activePrefs.getBoolean("app_ongoing_${sbn.packageName}", false)
+            if (!appOngoing) {
+                // Determine global default (removed from settings UI but keep fallback or assume false)
+                // Since we moved to per-app, default should probably be false unless explicitly enabled for app
+                Log.d("Listener", "Skipping ongoing notification (app_ongoing disabled for ${sbn.packageName})")
+                return
+            }
         }
 
         // Check if silent notifications should be forwarded
-        val forwardSilent = activePrefs.getBoolean("forward_silent_enabled", false)
-        if (!forwardSilent) {
-            val isSilent =
-                    (notification.flags and android.app.Notification.FLAG_ONLY_ALERT_ONCE) != 0 ||
-                            (notification.defaults == 0 &&
-                                    notification.sound == null &&
-                                    notification.vibrate == null)
-            if (isSilent) {
-                Log.d("Listener", "Skipping silent notification (forward_silent disabled)")
-                return
+        val isSilent =
+                (notification.flags and android.app.Notification.FLAG_ONLY_ALERT_ONCE) != 0 ||
+                        (notification.defaults == 0 &&
+                                notification.sound == null &&
+                                notification.vibrate == null)
+        
+        if (isSilent) {
+             // Check per-app setting first
+            val appSilent = activePrefs.getBoolean("app_silent_${sbn.packageName}", false)
+            if (!appSilent) {
+                 Log.d("Listener", "Skipping silent notification (app_silent disabled for ${sbn.packageName})")
+                 return
+            }
+        }
+
+        // Check application specific priority requirement
+        // 0 = Any, 1 = Low+, 2 = Default+, 3 = High
+        val minPriority = activePrefs.getInt("app_min_priority_${sbn.packageName}", 0)
+        if (minPriority > 0) {
+            // Priority Mapping:
+            // IMPORTANCE_MIN (1) ~ Low
+            // IMPORTANCE_LOW (2) ~ Low
+            // IMPORTANCE_DEFAULT (3) ~ Default
+            // IMPORTANCE_HIGH (4) ~ High
+            // IMPORTANCE_MAX (5) ~ High
+            
+            val importance = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                 // SBN importance is only available in specific contexts or might need extraction from channel
+                 // But sbn.notification.priority is deprecated.
+                 // Actually sbn.notification.channelId gives us the channel, and we can check that.
+                 // However, obtaining the channel for every notification might be heavy.
+                 // Let's rely on standard extraction or deprecated priority as fallback if importance not easily available on SBN directly (it usually isn't without querying AM).
+                 // Wait, RankingMap is passed to onNotificationPosted/Removed usually? No, it's separated.
+                 // getCurrentRanking() is available.
+                 
+                 var finalImportance = -1
+                 try {
+                     val ranking = Ranking()
+                     if (currentRanking.getRanking(sbn.key, ranking)) {
+                         finalImportance = ranking.importance
+                     }
+                 } catch (e: Exception) {
+                     Log.e("Listener", "Error getting ranking importance: ${e.message}")
+                 }
+                 finalImportance
+            } else {
+                 // Fallback for older APIs (unlikely for this app structure but safe to have)
+                 // Construct rough equivalent from priority
+                 when (notification.priority) {
+                     android.app.Notification.PRIORITY_MIN -> 1
+                     android.app.Notification.PRIORITY_LOW -> 2
+                     android.app.Notification.PRIORITY_DEFAULT -> 3
+                     android.app.Notification.PRIORITY_HIGH -> 4
+                     android.app.Notification.PRIORITY_MAX -> 5
+                     else -> 3
+                 }
+            }
+            
+            // Filter logic
+            // minPriority 1 (Low+) -> needs importance >= 2 (Low)
+            // minPriority 2 (Default+) -> needs importance >= 3 (Default)
+            // minPriority 3 (High) -> needs importance >= 4 (High)
+            
+            val requiredImportance = when (minPriority) {
+                1 -> 2 // Low
+                2 -> 3 // Default
+                3 -> 4 // High
+                else -> 0
+            }
+            
+            if (importance < requiredImportance && importance != -1) { // -1 means we couldn't determine, so let it pass or block? Let pass to be safe.
+                 Log.d("Listener", "Skipping notification: Priority $importance < Required $requiredImportance for ${sbn.packageName}")
+                 return
             }
         }
 
