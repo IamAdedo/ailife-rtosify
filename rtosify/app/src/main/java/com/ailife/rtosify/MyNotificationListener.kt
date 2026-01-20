@@ -423,6 +423,72 @@ class MyNotificationListener : NotificationListenerService() {
         val text = extras.getCharSequence("android.text")?.toString() ?: ""
 
         if (title.isEmpty() && text.isEmpty()) return
+        
+        // --- NAVIGATION OVERLAY LOGIC ---
+        // Check if this is a navigation app (Maps, Waze, etc.)
+        // Check per-app setting (matching AppNotificationSettingsActivity line 131)
+        val isNavApp = activePrefs.getBoolean("app_is_nav_${sbn.packageName}", false)
+        
+        Log.d("Listener", "Checking navigation package: ${sbn.packageName}, isNavApp=$isNavApp")
+        
+        if (isNavApp) {
+            val imageType = activePrefs.getInt("nav_image_type", 1) // 0: None, 1: Large Icon, 2: Big Picture
+            val textType = activePrefs.getInt("nav_text_type", 2) // 0: Title, 1: Content, 2: Both
+            val keepScreenOn = activePrefs.getBoolean("nav_keep_screen_on", true)
+
+            // Extract image based on setting
+            var navImage: String? = null
+            if (imageType == 1) { // Large Icon
+                 // Try getting large icon
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    val icon = notification.getLargeIcon()
+                    if (icon != null) {
+                         navImage = iconToBase64(icon)
+                    }
+                }
+                if (navImage == null) {
+                    val obj = extras.get("android.largeIcon")
+                    navImage = objToBase64(obj)
+                }
+            } else if (imageType == 2) { // Big Picture
+                navImage = extractBigPicture(notification)
+                // Fallback to large icon if big picture missing
+                if (navImage == null) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        val icon = notification.getLargeIcon()
+                        if (icon != null) navImage = iconToBase64(icon)
+                    }
+                }
+            }
+
+            // Extract text based on setting
+            var navTitle = ""
+            var navContent = ""
+            
+            if (textType == 0 || textType == 2) {
+                navTitle = title
+            }
+            if (textType == 1 || textType == 2) {
+                navContent = text
+            }
+            
+            // Send special navigation intent
+            // We use a different action to trigger the overlay on the watch
+            val intent = Intent(BluetoothService.ACTION_SEND_NAVIGATION_INFO)
+            intent.putExtra("image", navImage)
+            intent.putExtra("title", navTitle)
+            intent.putExtra("content", navContent)
+            intent.putExtra("keepScreenOn", keepScreenOn)
+            intent.putExtra("packageName", sbn.packageName)
+            sendBroadcast(intent)
+            
+            Log.d("Listener", "Sent Navigation Overlay info for ${sbn.packageName}")
+            // Consider if we want to return here or ALSO show regular notification.
+            // Usually if overlay is active, regular notification might be redundant or annoying.
+            // Let's return to prevent duplicate buzzing, but maybe user wants history.
+            // For now, let's treat it as a special mode that supersedes regular notification.
+            return
+        }
 
         // Apply notification rules
         val shouldForward = shouldForwardNotification(sbn.packageName, title, text)

@@ -445,7 +445,9 @@ class BluetoothService : Service() {
         const val ACTION_APPS_RECEIVED = "com.ailife.rtosify.APPS_RECEIVED"
         const val ACTION_CMD_DISMISS_ON_PHONE = "com.ailife.rtosify.CMD_DISMISS_PHONE"
         const val ACTION_CMD_EXECUTE_ACTION = "com.ailife.rtosify.CMD_EXECUTE_ACTION"
+
         const val ACTION_CMD_SEND_REPLY = "com.ailife.rtosify.CMD_SEND_REPLY"
+        const val ACTION_SEND_NAVIGATION_INFO = "com.ailife.rtosify.ACTION_SEND_NAVIGATION_INFO"
 
         const val EXTRA_NOTIF_JSON = "extra_notif_json"
         const val EXTRA_NOTIF_KEY = "extra_notif_key"
@@ -519,6 +521,22 @@ class BluetoothService : Service() {
                             if (key != null) {
                                 sendMessage(ProtocolHelper.createNotificationRemoved(key))
                             }
+                        }
+                        ACTION_SEND_NAVIGATION_INFO -> {
+                            val image = intent.getStringExtra("image")
+                            val title = intent.getStringExtra("title") ?: ""
+                            val content = intent.getStringExtra("content") ?: ""
+                            val keepScreenOn = intent.getBooleanExtra("keepScreenOn", true)
+                            val packageName = intent.getStringExtra("packageName") ?: ""
+                            
+                            val navInfo = NavigationInfoData(
+                                image = image,
+                                title = title,
+                                content = content,
+                                keepScreenOn = keepScreenOn,
+                                packageName = packageName
+                            )
+                            sendMessage(ProtocolHelper.createNavigationInfo(navInfo))
                         }
                         ACTION_UPDATE_SETTINGS -> {
                             Log.d(TAG, "Received ACTION_UPDATE_SETTINGS broadcast")
@@ -661,6 +679,7 @@ class BluetoothService : Service() {
                 IntentFilter().apply {
                     addAction(ACTION_SEND_NOTIF_TO_WATCH)
                     addAction(ACTION_SEND_REMOVE_TO_WATCH)
+                    addAction(ACTION_SEND_NAVIGATION_INFO)
                     addAction(ACTION_UPDATE_SETTINGS)
                     addAction(StatusWidget.ACTION_TOGGLE_DND)
                     addAction(StatusWidget.ACTION_TOGGLE_MIRROR)

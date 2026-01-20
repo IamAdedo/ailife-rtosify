@@ -842,5 +842,22 @@
     <string name="privacy_policy_content">To provide network communication features, this app collects MAC addresses from both devices for identification purposes.\n\nAll user data is end-to-end encrypted, and the encryption keys are stored only on your devices and never shared with our servers.</string>
     <string name="privacy_policy_agree">Agree</string>
     <string name="privacy_policy_decline">Decline</string>
+    <!-- Navigation Overlay Settings -->
+    <string name="nav_settings_title">Navigation Settings</string>
+    <string name="nav_image_type">Image Type</string>
+    <string name="nav_image_none">None</string>
+    <string name="nav_image_large_icon">Large Icon</string>
+    <string name="nav_image_big_picture">Big Picture</string>
+    
+    <string name="nav_text_type">Text Type</string>
+    <string name="nav_text_title">Title</string>
+    <string name="nav_text_content">Content</string>
+    <string name="nav_text_both">Both</string>
+    
+    <string name="nav_keep_screen_on">Keep Screen On</string>
+    <string name="nav_keep_screen_on_desc">Keep the screen awake while navigation is active</string>
+    <string name="btn_manage_navigation">Manage Navigation</string>
+    <string name="notif_navigation_title">Navigation Overlay</string>
+    <string name="notif_navigation_desc">Display full-screen navigation info over other apps</string>
 </resources>
 

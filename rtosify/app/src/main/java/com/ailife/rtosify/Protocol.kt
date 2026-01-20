@@ -151,7 +151,16 @@ object MessageType {
 
     const val UPDATE_INTERNET_SETTINGS = "update_internet_settings"
     const val SYNC_MAC = "sync_mac"
+    const val NAVIGATION_INFO = "navigation_info"
 }
+
+data class NavigationInfoData(
+    val image: String?, // Base64
+    val title: String,
+    val content: String,
+    val keepScreenOn: Boolean,
+    val packageName: String
+)
 
 data class PhoneBatteryData(val level: Int, val isCharging: Boolean)
 
@@ -803,6 +812,11 @@ object ProtocolHelper {
             data.addProperty("imageBase64", imageBase64)
         }
         return ProtocolMessage(type = MessageType.RESPONSE_PREVIEW, data = data)
+    }
+
+    fun createNavigationInfo(navInfo: NavigationInfoData): ProtocolMessage {
+        val data = gson.toJsonTree(navInfo).asJsonObject
+        return ProtocolMessage(type = MessageType.NAVIGATION_INFO, data = data)
     }
 
     // Helper to extract data from message

@@ -174,6 +174,10 @@ class NotificationSettingsActivity : AppCompatActivity() {
 
 
     private fun setupCardClickListeners() {
+        findViewById<View>(R.id.cardManageNavigation).setOnClickListener {
+            startActivity(android.content.Intent(this, NavigationSettingsActivity::class.java))
+        }
+
         cardManageApps.setOnClickListener {
             startActivity(android.content.Intent(this, NotificationAppListActivity::class.java))
         }

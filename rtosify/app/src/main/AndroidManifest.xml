@@ -142,6 +142,11 @@
 
         <!-- Configurações de Notificação -->
         <activity
+            android:name=".NavigationSettingsActivity"
+            android:label="@string/nav_settings_title"
+            android:parentActivityName=".NotificationSettingsActivity"
+            android:theme="@style/Theme.Smartwatch" />
+        <activity
             android:name=".NotificationSettingsActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity"

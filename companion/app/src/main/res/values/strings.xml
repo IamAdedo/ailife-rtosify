@@ -108,6 +108,7 @@
     <string name="notif_settings_title">Notifications</string>
     <string name="notif_mirroring_title">Mirroring</string>
     <string name="notif_mirroring_desc">Send notifications to the watch</string>
+    <string name="title_activity_mirror_settings">Mirror Settings</string>
     <string name="notif_permission_required">Read permission required</string>
     <string name="notif_permission_desc">The app needs to read system notifications to send them to the watch. Tap below to resolve.</string>
     <string name="notif_grant_access">Grant Access</string>

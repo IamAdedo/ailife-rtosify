@@ -129,7 +129,9 @@ class AppNotificationSettingsActivity : AppCompatActivity() {
         
         // 4. Navigation
         val navKey = "app_is_nav_$pkgName"
-        switchNavigation.isChecked = activePrefs.getBoolean(navKey, false)
+        val defaultNavPackages = setOf("com.google.android.apps.maps", "com.waze", "com.sygic.aura", "com.here.app.maps", "com.google.android.apps.mapslite")
+        val isDefaultNav = defaultNavPackages.contains(pkgName)
+        switchNavigation.isChecked = activePrefs.getBoolean(navKey, isDefaultNav)
         switchNavigation.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean(navKey, isChecked).apply()
         }

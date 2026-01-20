@@ -248,9 +248,15 @@
 
         <activity
             android:name=".MirrorSettingsActivity"
-            android:exported="false"
-            android:parentActivityName=".MainActivity"
+            android:exported="true"
+            android:label="@string/title_activity_mirror_settings"
             android:theme="@style/Theme.Smartwatch" />
+
+        <activity
+            android:name=".NavigationOverlayActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Smartwatch"
+            android:launchMode="singleTop"/>
 
         <activity
             android:name=".NotificationLogActivity"
