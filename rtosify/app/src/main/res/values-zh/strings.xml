@@ -121,6 +121,7 @@
     <string name="pairing_error_discovery">在本地网络上找不到设备</string>
     <string name="pairing_error_wifi">无法建立 WiFi 连接</string>
     <string name="pairing_error_test">加密验证失败</string>
+    <string name="pairing_error_lost">连接已断开</string>
 
     <!-- Watch Automations -->
     <string name="watch_automations_title">手表自动化</string>
@@ -820,5 +821,84 @@
     <string name="toast_lan_config">局域网: %s</string>
     <string name="toast_internet_config">互联网: %s</string>
     <string name="status_connecting">连接中...</string>
+    <string name="initializing">正在初始化...</string>
+    <string name="no_apps_found">未找到应用</string>
 
+    <!-- Privacy Policy -->
+    <string name="privacy_policy_title">隐私政策</string>
+    <string name="privacy_policy_content">为了提供网络通信功能，本应用会收集两台设备的 MAC 地址用于身份识别。\n\n所有用户数据均经过端到端加密，加密密钥仅存储在您的设备上，绝不会与我们的服务器共享。</string>
+    <string name="privacy_policy_agree">同意</string>
+    <string name="privacy_policy_decline">拒绝</string>
+    
+    <!-- Navigation Overlay Settings -->
+    <string name="nav_settings_title">导航设置</string>
+    <string name="nav_image_type">图片类型</string>
+    <string name="nav_image_none">无</string>
+    <string name="nav_image_large_icon">大图标</string>
+    <string name="nav_image_big_picture">大图</string>
+    
+    <string name="nav_text_type">文本类型</string>
+    <string name="nav_text_title">标题</string>
+    <string name="nav_text_content">内容</string>
+    <string name="nav_text_both">两者</string>
+    
+    <string name="nav_keep_screen_on">保持屏幕开启</string>
+    <string name="nav_keep_screen_on_desc">导航活动时保持屏幕唤醒</string>
+    <string name="btn_manage_navigation">管理导航</string>
+    <string name="notif_navigation_title">导航浮窗</string>
+    <string name="notif_navigation_desc">在其他应用上显示全屏导航信息</string>
+    <string name="sharing_sync_preparing">正在准备发送...</string>
+    
+    <!-- Widget Configuration -->
+    <string name="widget_config_title">小组件配置</string>
+    <string name="widget_update_interval">更新间隔 (分钟)</string>
+    <string name="widget_update_interval_desc">小组件数据刷新频率 (最小 15 分钟)</string>
+    <string name="widget_save_config">保存配置</string>
+    
+    <!-- Miscellaneous -->
+    <string name="transfer_status">传输状态</string>
+    <string name="view_file">查看文件</string>
+    <string name="manage_settings">管理设置</string>
+    <string name="find_device_finding_you">手表正在寻找你</string>
+    <string name="find_device_alarm_playing">此手机正在播放响亮的闹钟声</string>
+    <string name="terminal_shizuku_access">Shizuku (Shell 访问)</string>
+    <string name="terminal_limited_perms">⚠ 权限受限</string>
+    <string name="wifi_pairing_ready">已准备好配对</string>
+    
+    <string name="toast_photo_capture_failed">拍照失败</string>
+    <string name="toast_text_shared">文本已分享到手表</string>
+    <string name="toast_nothing_to_share">没有可分享的内容</string>
+    <string name="toast_no_file_to_share">没有可分享的文件</string>
+    <string name="toast_transfer_complete">传输完成</string>
+    <string name="toast_error_prefix">错误：%s</string>
+    <string name="toast_min_interval_error">最小间隔为 15 分钟</string>
+    <string name="toast_config_saved">配置已保存</string>
+    <string name="btn_send_to_watch">发送到手表</string>
+
+    <string name="blacklisted_apps_title">黑名单应用</string>
+    
+    <!-- Dynamic Island Settings -->
+    <string name="di_settings_title">灵动岛设置</string>
+    <string name="di_auto_hide_always_show">始终显示</string>
+    <string name="di_auto_hide_always_hide">始终隐藏</string>
+    <string name="di_auto_hide_blacklisted">在黑名单应用中隐藏</string>
+    <string name="di_general_title">常规</string>
+    <string name="di_general_desc">选择通知的显示方式</string>
+    <string name="di_features_title">功能开关</string>
+    <string name="di_features_desc">禁用时，功能将使用标准的安卓通知</string>
+    <string name="di_show_calls_title">显示电话来电</string>
+    <string name="di_show_calls_desc">在灵动岛中显示来电</string>
+    <string name="di_show_alarms_title">显示闹钟</string>
+    <string name="di_show_alarms_desc">在灵动岛中显示闹钟通知</string>
+    <string name="di_show_disconnect_title">显示断开连接通知</string>
+    <string name="di_show_disconnect_desc">在灵动岛中显示断开连接事件</string>
+    <string name="di_show_media_title">显示媒体控制</string>
+    <string name="di_show_media_desc">在灵动岛中显示媒体播放控制</string>
+    <string name="di_auto_hide_title">自动隐藏行为</string>
+    <string name="di_mode_label">模式</string>
+    <string name="di_hide_with_notifs_title">即使有活动通知也隐藏</string>
+    <string name="di_hide_with_notifs_desc">在黑名单应用中即使有通知也隐藏灵动岛</string>
+    <string name="di_manage_blacklist">管理黑名单应用</string>
+    <string name="di_timeout_unit_seconds">%d 秒</string>
+    <string name="di_timeout_seconds">秒</string>
 </resources>

@@ -221,7 +221,7 @@ class CameraActivity : AppCompatActivity() {
                         recordStartTime = System.currentTimeMillis()
                         timerHandler.post(timerRunnable)
                         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                        Toast.makeText(this, "Recording started", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, getString(R.string.camera_record_started), Toast.LENGTH_SHORT).show()
                         
                         if (isBound && bluetoothService != null) {
                             bluetoothService?.sendMessage(ProtocolHelper.createCameraRecordingStatus(true))
@@ -281,7 +281,7 @@ class CameraActivity : AppCompatActivity() {
             object : ImageCapture.OnImageSavedCallback {
                 override fun onError(exc: ImageCaptureException) {
                     Log.e(TAG, "Photo capture failed: ${exc.message}", exc)
-                    Toast.makeText(baseContext, "Photo capture failed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(baseContext, getString(R.string.toast_photo_capture_failed), Toast.LENGTH_SHORT).show()
                 }
 
                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {

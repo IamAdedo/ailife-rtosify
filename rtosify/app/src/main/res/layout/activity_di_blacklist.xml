@@ -17,7 +17,7 @@
             android:layout_width="match_parent"
             android:layout_height="120dp"
             app:layout_scrollFlags="scroll|exitUntilCollapsed"
-            app:title="Blacklisted Apps"
+            app:title="@string/blacklisted_apps_title"
             app:collapsedTitleTextAppearance="@style/TextAppearance.AppCompat.Title"
             app:expandedTitleTextAppearance="@style/TextAppearance.AppCompat.Display1"
             app:expandedTitleMarginStart="20dp"
@@ -58,7 +58,7 @@
                 android:id="@+id/editTextSearch"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Search apps"
+                android:hint="@string/app_search_hint"
                 android:inputType="text"
                 android:maxLines="1"/>
         </com.google.android.material.textfield.TextInputLayout>
@@ -76,7 +76,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Show System Apps"
+                android:text="@string/app_show_system"
                 android:textSize="14sp"
                 android:textColor="?android:attr/textColorPrimary"/>
 

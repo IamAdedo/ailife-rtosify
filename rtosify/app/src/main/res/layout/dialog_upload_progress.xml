@@ -9,7 +9,7 @@
         android:id="@+id/tvUploadTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Transfer Status"
+        android:text="@string/transfer_status"
         android:textSize="18sp"
         android:textStyle="bold"
         android:layout_marginBottom="8dp" />
@@ -26,7 +26,7 @@
         android:id="@+id/tvUploadDescription"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Transferring file..."
+        android:text="@string/upload_transferring"
         android:textSize="16sp"
         android:layout_marginBottom="16dp" />
 
@@ -58,14 +58,14 @@
             android:id="@+id/btnViewFile"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="View File"
+            android:text="@string/view_file"
             android:visibility="gone" />
 
         <Button
             android:id="@+id/btnUploadOk"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="OK"
+            android:text="@android:string/ok"
             android:visibility="gone" />
     </LinearLayout>
 

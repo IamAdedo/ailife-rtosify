@@ -171,7 +171,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="32dp"
         android:gravity="center"
-        android:text="Ready to pair"
+        android:text="@string/wifi_pairing_ready"
         android:textColor="@color/white"
         android:textSize="14sp" />
 

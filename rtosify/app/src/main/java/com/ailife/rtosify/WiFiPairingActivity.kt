@@ -70,7 +70,7 @@ class WiFiPairingActivity : AppCompatActivity() {
                 override fun onDeviceDisconnected() {
                     if (!isFinishing) {
                         runOnUiThread {
-                            showError("Connection lost")
+                            showError(getString(R.string.pairing_error_lost))
                         }
                     }
                 }
@@ -280,7 +280,7 @@ class WiFiPairingActivity : AppCompatActivity() {
 
             } catch (e: Exception) {
                 Log.e(TAG, "Pairing flow error", e)
-                showError("Unexpected error: ${e.message}")
+                showError(getString(R.string.toast_error_prefix, e.message ?: ""))
             } finally {
                 bluetoothService?.stopMdnsDiscovery()
             }
@@ -362,7 +362,7 @@ class WiFiPairingActivity : AppCompatActivity() {
 
     private fun resetPairingUI() {
         runOnUiThread {
-            tvStatus.text = "Initializing..."
+            tvStatus.text = getString(R.string.initializing)
             tvStatus.setTextColor(android.graphics.Color.WHITE)
             progressBar.visibility = View.VISIBLE
             btnRetry.visibility = View.GONE

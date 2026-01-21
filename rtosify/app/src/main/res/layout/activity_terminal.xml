@@ -57,7 +57,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
-                android:text="Shizuku (Shell Access)"
+                android:text="@string/terminal_perm_shizuku"
                 android:textColor="@android:color/holo_green_light"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -77,7 +77,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:fontFamily="monospace"
-                android:text="⚠ Limited permissions"
+                android:text="@string/terminal_limited_perms"
                 android:textColor="@android:color/holo_orange_light"
                 android:textSize="11sp"
                 android:visibility="gone" />

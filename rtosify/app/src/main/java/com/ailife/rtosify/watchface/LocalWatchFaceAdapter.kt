@@ -27,7 +27,7 @@ class LocalWatchFaceAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val file = list[position]
         holder.tvFileName.text = file.name
-        holder.btnSend.text = "Send to Watch"
+        holder.btnSend.text = holder.itemView.context.getString(R.string.btn_send_to_watch)
         holder.btnSend.setOnClickListener { onSendToWatch(file) }
     }
 

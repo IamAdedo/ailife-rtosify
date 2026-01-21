@@ -3388,7 +3388,7 @@ class BluetoothService : Service() {
         sendBroadcast(intent)
 
         withContext(Dispatchers.Main) {
-            Toast.makeText(this@BluetoothService, "Watch face set: $facePath", Toast.LENGTH_SHORT)
+            Toast.makeText(this@BluetoothService, getString(R.string.toast_watch_face_set, facePath), Toast.LENGTH_SHORT)
                     .show()
         }
     }
@@ -3896,7 +3896,7 @@ class BluetoothService : Service() {
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error launching install intent: ${e.message}", e)
             mainHandler.post {
-                Toast.makeText(this, "Failed to start install: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, getString(R.string.toast_install_failed, e.message), Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -3979,7 +3979,7 @@ class BluetoothService : Service() {
     private fun handleShutdownCommand() {
         Log.i(TAG, "🔴 Shutdown command received")
         mainHandler.post {
-            Toast.makeText(this, "Shutdown command received", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_shutdown_received), Toast.LENGTH_SHORT).show()
         }
 
         serviceScope.launch(Dispatchers.IO) {
@@ -4002,7 +4002,7 @@ class BluetoothService : Service() {
     private fun handleRebootCommand() {
         Log.i(TAG, "🔄 Reboot command received")
         mainHandler.post {
-            Toast.makeText(this, "Reboot command received", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_reboot_received), Toast.LENGTH_SHORT).show()
         }
 
         serviceScope.launch(Dispatchers.IO) {
@@ -4025,7 +4025,7 @@ class BluetoothService : Service() {
     private fun handleLockDeviceCommand() {
         Log.i(TAG, "🔒 Lock command received")
         mainHandler.post {
-            Toast.makeText(this, "Lock command received", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_lock_received), Toast.LENGTH_SHORT).show()
         }
         try {
             val intent =
@@ -4049,7 +4049,7 @@ class BluetoothService : Service() {
         val enabled = ProtocolHelper.extractBooleanField(message, "enabled")
         Log.i(TAG, "🔍 Find Device command: enabled=$enabled")
         mainHandler.post {
-            Toast.makeText(this, "Find Device: $enabled", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_find_device, enabled.toString()), Toast.LENGTH_SHORT).show()
         }
         if (enabled) {
             startFindDeviceAlarm()
@@ -4333,7 +4333,7 @@ class BluetoothService : Service() {
                 if (userService?.uninstallApp(pkg) == true) {
                     Log.i(TAG, "✅ Silent uninstall via Shizuku succeeded: $pkg")
                     mainHandler.post {
-                        Toast.makeText(this, "Uninstalled: $pkg", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, getString(R.string.toast_uninstalled, pkg), Toast.LENGTH_SHORT).show()
                     }
                     return
                 }
@@ -4348,7 +4348,7 @@ class BluetoothService : Service() {
             if (result.isSuccess) {
                 Log.i(TAG, "✅ Silent uninstall via Root succeeded: $pkg")
                 mainHandler.post {
-                    Toast.makeText(this, "Uninstalled: $pkg", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_uninstalled, pkg), Toast.LENGTH_SHORT).show()
                 }
                 return
             }
@@ -4358,7 +4358,7 @@ class BluetoothService : Service() {
         wakeScreen("AppUninstall")
 
         // Fallback to manual intent
-        mainHandler.post { Toast.makeText(this, "Uninstalling: $pkg", Toast.LENGTH_SHORT).show() }
+        mainHandler.post { Toast.makeText(this, getString(R.string.toast_uninstalling, pkg), Toast.LENGTH_SHORT).show() }
 
         try {
             // Standard intent to uninstall
@@ -4372,7 +4372,7 @@ class BluetoothService : Service() {
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error starting uninstall intent: ${e.message}", e)
             mainHandler.post {
-                Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, getString(R.string.toast_error_prefix, e.message), Toast.LENGTH_LONG).show()
             }
         }
     }

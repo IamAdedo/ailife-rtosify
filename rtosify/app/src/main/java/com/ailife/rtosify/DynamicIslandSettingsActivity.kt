@@ -62,7 +62,7 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "Dynamic Island Settings"
+        supportActionBar?.title = getString(R.string.di_settings_title)
 
         devicePrefManager = DevicePrefManager(this)
 
@@ -148,7 +148,11 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
 
     private fun setupAutoHideSettings() {
         // Auto-hide mode spinner
-        val autoHideModes = arrayOf("Always Show", "Always Hide", "Hide in Blacklisted Apps")
+        val autoHideModes = arrayOf(
+            getString(R.string.di_auto_hide_always_show),
+            getString(R.string.di_auto_hide_always_hide),
+            getString(R.string.di_auto_hide_blacklisted)
+        )
         val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, autoHideModes)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerAutoHideMode.adapter = adapter
@@ -187,11 +191,11 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
         // Timeout SeekBar
         val timeout = activePrefs.getInt("dynamic_island_timeout", 5)
         seekBarTimeout.progress = timeout - 2 // Range 2-10
-        tvTimeoutValue.text = "$timeout seconds"
+        tvTimeoutValue.text = getString(R.string.notif_unit_seconds, timeout)
         seekBarTimeout.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 val value = progress + 2
-                tvTimeoutValue.text = "$value seconds"
+                tvTimeoutValue.text = getString(R.string.notif_unit_seconds, value)
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -206,10 +210,10 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
         // Y position SeekBar
         val y = activePrefs.getInt("dynamic_island_y", 8)
         seekBarY.progress = y
-        tvYValue.text = "$y dp"
+        tvYValue.text = getString(R.string.notif_unit_dp, y)
         seekBarY.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tvYValue.text = "$progress dp"
+                tvYValue.text = getString(R.string.notif_unit_dp, progress)
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -224,11 +228,11 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
         // Width SeekBar
         val width = activePrefs.getInt("dynamic_island_width", 150)
         seekBarWidth.progress = width - 50 // Range 50-300
-        tvWidthValue.text = "$width dp"
+        tvWidthValue.text = getString(R.string.notif_unit_dp, width)
         seekBarWidth.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 val value = progress + 50
-                tvWidthValue.text = "$value dp"
+                tvWidthValue.text = getString(R.string.notif_unit_dp, value)
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -243,11 +247,11 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
         // Height SeekBar
         val height = activePrefs.getInt("dynamic_island_height", 40)
         seekBarHeight.progress = height - 20 // Range 20-100
-        tvHeightValue.text = "$height dp"
+        tvHeightValue.text = getString(R.string.notif_unit_dp, height)
         seekBarHeight.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 val value = progress + 20
-                tvHeightValue.text = "$value dp"
+                tvHeightValue.text = getString(R.string.notif_unit_dp, value)
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}

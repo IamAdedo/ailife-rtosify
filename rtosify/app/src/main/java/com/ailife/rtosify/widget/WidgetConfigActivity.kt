@@ -56,7 +56,7 @@ class WidgetConfigActivity : AppCompatActivity() {
         val interval = intervalStr.toIntOrNull()
 
         if (interval == null || interval < 15) {
-            Toast.makeText(this, "Minimum interval is 15 minutes", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_min_interval_error), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -64,7 +64,7 @@ class WidgetConfigActivity : AppCompatActivity() {
         val prefs = DevicePrefManager(this).getGlobalPrefs()
         prefs.edit().putInt("widget_update_interval_mins", interval).apply() // Consistent key
 
-        Toast.makeText(this, "Configuration Saved", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.toast_config_saved), Toast.LENGTH_SHORT).show()
 
         // If launched as a config activity, return success
         if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {

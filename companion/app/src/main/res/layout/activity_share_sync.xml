@@ -11,7 +11,7 @@
         android:id="@+id/tvShareTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Sharing Sync"
+        android:text="@string/automation_sharing_sync_title"
         android:textSize="18sp"
         android:textStyle="bold"
         android:layout_marginBottom="16dp" />
@@ -27,7 +27,7 @@
         android:id="@+id/tvShareStatus"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Preparing to send..."
+        android:text="@string/sharing_sync_preparing"
         android:textSize="14sp"
         android:layout_marginBottom="12dp"
         android:gravity="center" />

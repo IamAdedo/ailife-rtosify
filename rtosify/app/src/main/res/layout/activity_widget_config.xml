@@ -9,7 +9,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Widget Configuration"
+        android:text="@string/widget_config_title"
         android:textColor="#FFFFFF"
         android:textSize="24sp"
         android:textStyle="bold"
@@ -18,7 +18,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Update Interval (Minutes)"
+        android:text="@string/widget_update_interval"
         android:textColor="#FFFFFF"
         android:textSize="16sp"
         android:layout_marginBottom="8dp"/>
@@ -26,7 +26,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="How often the widget data refreshes (Minimum 15 min)"
+        android:text="@string/widget_update_interval_desc"
         android:textColor="#AAAAAA"
         android:textSize="12sp"
         android:layout_marginBottom="16dp"/>
@@ -48,7 +48,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:backgroundTint="#2196F3"
-        android:text="Save Configuration"
+        android:text="@string/widget_save_config"
         android:textColor="#FFFFFF"/>
 
 </LinearLayout>

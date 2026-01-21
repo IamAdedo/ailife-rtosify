@@ -17,7 +17,7 @@
             android:layout_width="match_parent"
             android:layout_height="120dp"
             app:layout_scrollFlags="scroll|exitUntilCollapsed"
-            app:title="Dynamic Island"
+            app:title="@string/notif_dynamic_island"
             app:collapsedTitleTextAppearance="@style/TextAppearance.AppCompat.Title"
             app:expandedTitleTextAppearance="@style/TextAppearance.AppCompat.Display1"
             app:expandedTitleMarginStart="20dp"
@@ -67,7 +67,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="General"
+                        android:text="@string/di_general_title"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="?android:attr/textColorPrimary"
@@ -76,7 +76,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Choose how notifications are displayed"
+                        android:text="@string/di_general_desc"
                         android:textSize="13sp"
                         android:textColor="?android:attr/textColorSecondary"
                         android:layout_marginBottom="16dp"/>
@@ -85,7 +85,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Feature Toggles"
+                        android:text="@string/di_features_title"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="?android:attr/textColorPrimary"
@@ -94,7 +94,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="When disabled, features use standard Android notifications"
+                        android:text="@string/di_features_desc"
                         android:textSize="13sp"
                         android:textColor="?android:attr/textColorSecondary"
                         android:layout_marginBottom="16dp"/>
@@ -116,7 +116,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Show Phone Calls"
+                                android:text="@string/di_show_calls_title"
                                 android:textSize="15sp"
                                 android:textStyle="bold"
                                 android:textColor="?android:attr/textColorPrimary"/>
@@ -124,7 +124,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Display incoming calls in Dynamic Island"
+                                android:text="@string/di_show_calls_desc"
                                 android:textSize="13sp"
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
@@ -152,7 +152,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Show Alarms"
+                                android:text="@string/di_show_alarms_title"
                                 android:textSize="15sp"
                                 android:textStyle="bold"
                                 android:textColor="?android:attr/textColorPrimary"/>
@@ -160,7 +160,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Display alarm notifications in Dynamic Island"
+                                android:text="@string/di_show_alarms_desc"
                                 android:textSize="13sp"
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
@@ -188,7 +188,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Show Disconnect Notification"
+                                android:text="@string/di_show_disconnect_title"
                                 android:textSize="15sp"
                                 android:textStyle="bold"
                                 android:textColor="?android:attr/textColorPrimary"/>
@@ -196,7 +196,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Display disconnect event in Dynamic Island"
+                                android:text="@string/di_show_disconnect_desc"
                                 android:textSize="13sp"
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
@@ -223,7 +223,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Show Media Controls"
+                                android:text="@string/di_show_media_title"
                                 android:textSize="15sp"
                                 android:textStyle="bold"
                                 android:textColor="?android:attr/textColorPrimary"/>
@@ -231,7 +231,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Display media playback controls in Dynamic Island"
+                                android:text="@string/di_show_media_desc"
                                 android:textSize="13sp"
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
@@ -265,7 +265,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Auto-Hide Behavior"
+                        android:text="@string/di_auto_hide_title"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="?android:attr/textColorPrimary"
@@ -281,7 +281,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Mode"
+                            android:text="@string/di_mode_label"
                             android:textSize="15sp"
                             android:textStyle="bold"
                             android:textColor="?android:attr/textColorPrimary"
@@ -315,7 +315,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Hide Even With Active Notifications"
+                                android:text="@string/di_hide_with_notifs_title"
                                 android:textSize="15sp"
                                 android:textStyle="bold"
                                 android:textColor="?android:attr/textColorPrimary"/>
@@ -323,7 +323,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Hide Dynamic Island in blacklisted apps even if there are notifications"
+                                android:text="@string/di_hide_with_notifs_desc"
                                 android:textSize="13sp"
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
@@ -359,7 +359,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="Manage Blacklisted Apps"
+                                android:text="@string/di_manage_blacklist"
                                 android:textSize="15sp"
                                 android:textStyle="bold"
                                 android:textColor="@android:color/white"/>
@@ -396,7 +396,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Display Settings"
+                        android:text="@string/notif_behavior"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="?android:attr/textColorPrimary"
@@ -419,7 +419,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="Auto-collapse Timeout"
+                                android:text="@string/notif_auto_collapse"
                                 android:textSize="15sp"
                                 android:textStyle="bold"
                                 android:textColor="?android:attr/textColorPrimary"/>
@@ -458,7 +458,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="Vertical Position"
+                                android:text="@string/di_vertical_pos"
                                 android:textSize="15sp"
                                 android:textStyle="bold"
                                 android:textColor="?android:attr/textColorPrimary"/>
@@ -497,7 +497,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="Width"
+                                android:text="@string/di_width"
                                 android:textSize="15sp"
                                 android:textStyle="bold"
                                 android:textColor="?android:attr/textColorPrimary"/>
@@ -535,7 +535,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="Height"
+                                android:text="@string/di_height"
                                 android:textSize="15sp"
                                 android:textStyle="bold"
                                 android:textColor="?android:attr/textColorPrimary"/>
@@ -580,7 +580,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Text Settings"
+                        android:text="@string/di_text_size"
                         android:textSize="18sp"
                         android:textStyle="bold"
                         android:textColor="?android:attr/textColorPrimary"
@@ -603,7 +603,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
-                                android:text="Text Size Multiplier"
+                                android:text="@string/di_text_size"
                                 android:textSize="15sp"
                                 android:textStyle="bold"
                                 android:textColor="?android:attr/textColorPrimary"/>
@@ -641,7 +641,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Limit Message Length"
+                                android:text="@string/di_message_length_limit"
                                 android:textSize="15sp"
                                 android:textStyle="bold"
                                 android:textColor="?android:attr/textColorPrimary"/>
@@ -649,7 +649,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Truncate long messages to fit"
+                                android:text="@string/di_message_length_limit_desc"
                                 android:textSize="13sp"
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>

@@ -76,20 +76,20 @@ class ShareToWatchActivity : AppCompatActivity(), BluetoothService.ServiceCallba
                 if (text != null) {
                     val shareData = ShareData(title, text, null, type)
                     bluetoothService?.sendShareSync(shareData)
-                    Toast.makeText(this, "Text shared to watch", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_text_shared), Toast.LENGTH_SHORT).show()
                     finish()
                 } else {
-                    Toast.makeText(this, "Nothing to share", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_nothing_to_share), Toast.LENGTH_SHORT).show()
                     finish()
                 }
             } else {
                 // Handle file sharing
                 val uri = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
                 if (uri != null) {
-                    tvShareStatus.text = "Sending file to watch..."
+                    tvShareStatus.text = getString(R.string.file_sending_to_watch, "") // Placeholder or just use the resource if it fits
                     bluetoothService?.sendUriFile(uri)
                 } else {
-                    Toast.makeText(this, "No file to share", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_no_file_to_share), Toast.LENGTH_SHORT).show()
                     finish()
                 }
             }
@@ -103,7 +103,7 @@ class ShareToWatchActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             progressBarShare.progress = progress
             tvSharePercentage.text = "$progress%"
             if (progress >= 100) {
-                Toast.makeText(this, "Transfer complete", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.toast_transfer_complete), Toast.LENGTH_SHORT).show()
                 finish()
             }
         }
@@ -111,7 +111,7 @@ class ShareToWatchActivity : AppCompatActivity(), BluetoothService.ServiceCallba
 
     override fun onError(message: String) {
         runOnUiThread {
-            Toast.makeText(this, "Error: $message", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.toast_error_prefix, message), Toast.LENGTH_LONG).show()
             finish()
         }
     }
