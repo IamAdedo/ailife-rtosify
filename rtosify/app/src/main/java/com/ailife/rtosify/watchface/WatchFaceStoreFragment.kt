@@ -46,7 +46,11 @@ class WatchFaceStoreFragment : Fragment() {
                     val pastVisibleItems = layoutManager.findFirstVisibleItemPosition()
 
                     if (visibleItemCount + pastVisibleItems >= totalItemCount - 2) {
-                        loadStore(lastThreadId + 1)
+                        if (lastThreadId > 0) {
+                            loadStore(lastThreadId - 1)
+                        } else {
+                            isEndReached = true
+                        }
                     }
                 }
             }
@@ -56,6 +60,7 @@ class WatchFaceStoreFragment : Fragment() {
             lastThreadId = -1
             isEndReached = false
             consecutiveFailures = 0
+            adapter.setList(emptyList()) // Clear list on refresh
             loadStore(-1)
         }
 
@@ -83,20 +88,23 @@ class WatchFaceStoreFragment : Fragment() {
                         isEndReached = true
                         android.util.Log.d("WatchFaceStore", "End reached after 3 failures")
                     }
-                    // Try next thread automatically if we haven't reached the end
-                    if (!isEndReached) {
-                        loadStore(threadId + 1)
+                    // Try previous thread automatically if we haven't reached the end
+                    if (!isEndReached && threadId > 0) {
+                        loadStore(threadId - 1)
                     }
                 } else {
                     consecutiveFailures = 0 // Reset failures on success
                     android.util.Log.d("WatchFaceStore", "Adding ${result.faces.size} faces from thread ${result.threadId}")
                     
+                    // Reverse faces to show last face as first
+                    val orderedFaces = result.faces.reversed()
+                    
                     if (threadId == -1) {
                         android.util.Log.d("WatchFaceStore", "Initial load, calling setList")
-                        adapter.setList(result.faces)
+                        adapter.setList(orderedFaces)
                     } else {
                         android.util.Log.d("WatchFaceStore", "Incremental load, calling appendList")
-                        adapter.appendList(result.faces)
+                        adapter.appendList(orderedFaces)
                     }
                     lastThreadId = result.threadId
                 }
