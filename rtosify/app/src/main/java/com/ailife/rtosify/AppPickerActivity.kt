@@ -129,13 +129,24 @@ class AppPickerActivity : AppCompatActivity() {
         progressBar.visibility = View.VISIBLE
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                android.util.Log.d("AppPicker", "Extracting: ${app.label} from ${app.sourceDir}")
                 val sourceFile = File(app.sourceDir)
+                if (!sourceFile.exists()) {
+                    throw Exception("Source file does not exist")
+                }
+                
                 val tempFile = File(cacheDir, "${app.packageName}.apk")
+                if (tempFile.exists()) tempFile.delete()
                 
                 FileInputStream(sourceFile).use { input ->
                     FileOutputStream(tempFile).use { output ->
-                        input.copyTo(output)
+                        val copied = input.copyTo(output)
+                        android.util.Log.d("AppPicker", "Extracted $copied bytes to ${tempFile.absolutePath}")
                     }
+                }
+
+                if (!tempFile.exists() || tempFile.length() == 0L) {
+                    throw Exception("Extraction resulted in empty file")
                 }
 
                 withContext(Dispatchers.Main) {
@@ -147,9 +158,10 @@ class AppPickerActivity : AppCompatActivity() {
                     finish()
                 }
             } catch (e: Exception) {
+                android.util.Log.e("AppPicker", "Extraction failed: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = View.GONE
-                    Toast.makeText(this@AppPickerActivity, getString(R.string.apppicker_extract_error), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@AppPickerActivity, "${getString(R.string.apppicker_extract_error)}: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }

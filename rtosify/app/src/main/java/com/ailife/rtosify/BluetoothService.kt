@@ -2489,16 +2489,32 @@ class BluetoothService : Service() {
     fun sendUriFile(uri: Uri, type: String = "SHARE") {
         serviceScope.launch(Dispatchers.IO) {
             try {
+                val fileName = getFileNameFromUri(uri) ?: "shared_file"
+                val tempFile = File(cacheDir, "transfer_$fileName")
+                
+                android.util.Log.d(TAG, "sendUriFile: uri=$uri, type=$type, tempFile=${tempFile.absolutePath}")
+
+                // If it's already a file URI and it's not the same as our target, we can copy it.
+                // If it IS the same as our target (unlikely with "transfer_" prefix), skip copy.
+                // But better: if it's a file URI, we might be able to send it directly if accessible.
+                
                 contentResolver.openInputStream(uri)?.use { inputStream ->
-                    val fileName = getFileNameFromUri(uri) ?: "shared_file"
-                    val tempFile = File(cacheDir, fileName)
-                    tempFile.outputStream().use { outputStream -> inputStream.copyTo(outputStream) }
+                    tempFile.outputStream().use { outputStream -> 
+                        val copied = inputStream.copyTo(outputStream)
+                        android.util.Log.d(TAG, "sendUriFile: staged $copied bytes to ${tempFile.absolutePath}")
+                    }
+                }
+                
+                if (tempFile.exists() && tempFile.length() > 0) {
                     sendFile(tempFile, type)
+                    // Note: sendFile might need to delete this temp file after completion if it's internal
+                } else {
+                    throw Exception("Failed to stage file or file is empty")
                 }
             } catch (e: Exception) {
-                Log.e("BluetoothService", "Error sending URI file: ${e.message}")
+                android.util.Log.e(TAG, "Error sending URI file: ${e.message}", e)
                 withContext(Dispatchers.Main) {
-                    callback?.onError(getString(R.string.toast_upload_failed))
+                    callback?.onError("${getString(R.string.toast_upload_failed)}: ${e.message}")
                 }
             }
         }
@@ -2614,8 +2630,14 @@ class BluetoothService : Service() {
                         callback?.onError(getString(R.string.applist_error_processing))
                     }
                 }
+                
+                // Cleanup staged file if it was created by sendUriFile
+                if (file.name.startsWith("transfer_") && file.parentFile == cacheDir) {
+                    android.util.Log.d(TAG, "Deleting staged file: ${file.absolutePath}")
+                    file.delete()
+                }
             } catch (e: Exception) {
-                android.util.Log.e(TAG, "Error sending file: ${e.message}")
+                android.util.Log.e(TAG, "Error sending file: ${e.message}", e)
                 sendMessage(
                         ProtocolHelper.createFileTransferEnd(
                                 success = false,
@@ -2625,6 +2647,11 @@ class BluetoothService : Service() {
                 withContext(Dispatchers.Main) {
                     callback?.onUploadProgress(-1)
                     callback?.onError(getString(R.string.toast_upload_failed) + ": ${e.message}")
+                }
+                
+                // Cleanup staged file even on error
+                if (file.name.startsWith("transfer_") && file.parentFile == cacheDir) {
+                    file.delete()
                 }
             } finally {
                 isTransferring = false
