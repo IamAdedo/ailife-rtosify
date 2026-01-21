@@ -60,11 +60,13 @@ class WifiIntranetTransport(
     private suspend fun connectAsServer(): Boolean {
         val port = fixedPort ?: 0
         Log.d(TAG, "Starting server on port $port...")
-        serverSocket = ServerSocket().apply {
+        val ss = ServerSocket()
+        serverSocket = ss // Assign BEFORE bind to ensure disconnect() can close it if bind fails
+        ss.apply {
             reuseAddress = true
             bind(java.net.InetSocketAddress(port))
         }
-        val localPort = serverSocket!!.localPort
+        val localPort = ss.localPort
         Log.d(TAG, "Server listening on port $localPort")
 
         // Register mDNS service with our own MAC
@@ -245,27 +247,29 @@ class WifiIntranetTransport(
      * Disconnect and clean up resources.
      */
     override suspend fun disconnect() {
-        connected = false
-        receiveJob?.cancel()
-        keepaliveJob?.cancel()
-        
-        try {
-            mdnsDiscovery.stop()
-            messageChannel.close()
-            inputStream?.close()
-            outputStream?.close()
-            socket?.close()
-            serverSocket?.close()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error during disconnect", e)
+        withContext(NonCancellable) {
+            connected = false
+            receiveJob?.cancel()
+            keepaliveJob?.cancel()
+            
+            try {
+                mdnsDiscovery.stop()
+                messageChannel.close()
+                inputStream?.close()
+                outputStream?.close()
+                socket?.close()
+                serverSocket?.close()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during disconnect", e)
+            }
+            
+            inputStream = null
+            outputStream = null
+            socket = null
+            serverSocket = null
+            
+            Log.d(TAG, "Disconnected")
         }
-        
-        inputStream = null
-        outputStream = null
-        socket = null
-        serverSocket = null
-        
-        Log.d(TAG, "Disconnected")
     }
 
     override suspend fun send(message: ProtocolMessage): Boolean = withContext(Dispatchers.IO) {

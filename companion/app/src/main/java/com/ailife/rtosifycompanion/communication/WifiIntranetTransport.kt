@@ -61,11 +61,13 @@ class WifiIntranetTransport(
         val port = fixedPort ?: 0
         Log.d(TAG, "Starting server on port $port...")
         // Use fixed port if provided, otherwise dynamic. Enable reuseAddress to avoid bind issues on restart.
-        serverSocket = ServerSocket().apply {
+        val ss = ServerSocket()
+        serverSocket = ss // Assign BEFORE bind to ensure disconnect() can close it if bind fails
+        ss.apply {
             reuseAddress = true
             bind(java.net.InetSocketAddress(port))
         }
-        val localPort = serverSocket!!.localPort
+        val localPort = ss.localPort
         Log.d(TAG, "Server listening on port $localPort")
 
         // Register mDNS service with our own MAC
@@ -244,27 +246,29 @@ class WifiIntranetTransport(
      * Disconnect and clean up resources.
      */
     override suspend fun disconnect() {
-        connected = false
-        receiveJob?.cancel()
-        keepaliveJob?.cancel()
-        
-        try {
-            mdnsDiscovery.stop()
-            messageChannel.close()
-            inputStream?.close()
-            outputStream?.close()
-            socket?.close()
-            serverSocket?.close()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error during disconnect resource cleanup", e)
+        withContext(NonCancellable) {
+            connected = false
+            receiveJob?.cancel()
+            keepaliveJob?.cancel()
+            
+            try {
+                mdnsDiscovery.stop()
+                messageChannel.close()
+                inputStream?.close()
+                outputStream?.close()
+                socket?.close()
+                serverSocket?.close()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during disconnect resource cleanup", e)
+            }
+            
+            inputStream = null
+            outputStream = null
+            socket = null
+            serverSocket = null
+            
+            Log.w(TAG, "WiFi transport disconnected completely")
         }
-        
-        inputStream = null
-        outputStream = null
-        socket = null
-        serverSocket = null
-        
-        Log.w(TAG, "WiFi transport disconnected completely")
     }
 
     override suspend fun send(message: ProtocolMessage): Boolean = withContext(Dispatchers.IO) {

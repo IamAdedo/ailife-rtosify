@@ -108,6 +108,7 @@ class TransportManager(
     private var wifiServerWatchdog: Job? = null
     private var btServerWatchdog: Job? = null
     private var internetMonitorWatchdog: Job? = null
+    @Volatile private var attemptingWifiTransport: WifiIntranetTransport? = null
     
     @Volatile private var isConnectingWifi = false
     @Volatile private var isConnectingInternet = false
@@ -299,7 +300,7 @@ class TransportManager(
                     isServer = true,
                     fixedPort = 8881 // Use fixed port for server
                 )
-                
+                attemptingWifiTransport = transport
                 try {
                     // Pre-emptively set active device for encryption
                     val hasKey = encryptionManager.hasKey(remoteMac)
@@ -327,6 +328,7 @@ class TransportManager(
                 } catch (e: Exception) {
                     Log.e(TAG, "WiFi connection error", e)
                 } finally {
+                    attemptingWifiTransport = null
                     transport.disconnect()
                 }
             }
@@ -565,6 +567,8 @@ class TransportManager(
     fun stopWifiServer() {
         wifiServerJob?.cancel()
         scope.launch {
+            attemptingWifiTransport?.disconnect()
+            attemptingWifiTransport = null
             wifiTransport?.disconnect()
             wifiTransport = null
             updateConnectionState()
@@ -688,9 +692,11 @@ class TransportManager(
             withContext(NonCancellable) {
                 bluetoothTransport?.disconnect()
                 wifiTransport?.disconnect()
+                attemptingWifiTransport?.disconnect()
                 internetTransport?.disconnect()
                 bluetoothTransport = null
                 wifiTransport = null
+                attemptingWifiTransport = null
                 internetTransport = null
                 updateConnectionState()
             }
