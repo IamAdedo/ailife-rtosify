@@ -4,15 +4,22 @@ This is the **phone/smartphone** application for the RTOSify notification system
 
 ## Description
 
-RTOSify is the main phone app that captures notifications from your Android phone and sends them to a companion smartwatch device via Bluetooth.
+RTOSify is the main phone app that captures notifications, media, and navigation instructions from your Android phone and sends them to a companion smartwatch device via Bluetooth, WiFi, or Internet.
 
 ## Features
 
 - **Notification Listener**: Monitors notifications on your phone
-- **Bluetooth Client**: Connects to the smartwatch (companion app) via Bluetooth
+- **Multi-Transport Connectivity**: Seamlessly switches between Bluetooth, different Subnets (LAN), and Internet via signaling server
+- **Watchface Store**: Browse, scrape, and install watchfaces directly to the watch
+- **Navigation Mirroring**: Detects Google Maps/Waze instructions and sends them to the watch overlay
+- **Media Controller**: Syncs playback status, volume, and metadata for all media apps
+- **Privacy Policy**: Integrated privacy agreement handling for data collection
+- **Find Device**: Locate your watch by playing a sound
+- **Health Dashboard**: View health data (Heart Rate, SpO2, Steps) synced from the watch
+- **Camera Remote**: Viewfinder for controlling the phone camera from the watch
 - **Notification Filtering**: Select which apps' notifications to mirror
 - **Automatic Sync**: Automatically sends new notifications to the watch
-- **APK Transfer**: Can send APK files to the watch for installation
+- **APK Transfer**: Can send APK files to the watch for installation (requires Shizuku on watch for silent install)
 
 ## Requirements
 
@@ -43,11 +50,14 @@ RTOSify is the main phone app that captures notifications from your Android phon
 
 ## How It Works
 
-1. The app uses `NotificationListenerService` to capture notifications from other apps
-2. When a notification is posted, it's serialized to JSON
-3. The notification is sent via Bluetooth to the connected smartwatch
+1. The app uses `NotificationListenerService` to capture notifications
+2. It acts as a client connecting to the watch via the best available transport (Bluetooth > WiFi > Internet)
+3. Notifications, media updates, and navigation instructions are serialized to JSON
+4. The data is sent securely to the connected smartwatch
 4. The watch displays the notification
 5. When dismissed on the watch, the phone receives a command to dismiss it locally
+6. Watchface scraper downloads new faces and transfers them as zip files
+7. Privacy Policy agreement is required on first launch
 
 ## Build Instructions
 

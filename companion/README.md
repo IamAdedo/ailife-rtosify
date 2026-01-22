@@ -8,11 +8,18 @@ RTOSify Companion is the watch app that receives and displays notifications from
 
 ## Features
 
-- **Bluetooth Server**: Accepts Bluetooth connections from the phone app
+- **Multi-Transport Server**: Accepts connections via Bluetooth, WiFi, or Internet (Signaling Server)
+- **Dynamic Island**: Persistent overlay for media controls, timers, and notifications
+- **Navigation Overlay**: Full-screen turn-by-turn directions overlay (Google Maps/Waze)
+- **Notification Log**: Persistent history of received notifications with search
+- **Screen Mirroring**: Mirror phone screen or cast watch screen
+- **Find Device**: Trigger loud alarm on phone to locate it
+- **Media Control**: Full storage-less media controller for phone playback
+- **Camera Remote**: View phone camera feed and take photos
 - **Notification Display**: Shows notifications received from the phone
 - **Interactive Notifications**: Dismiss notifications directly from the watch
-- **Status Sync**: Sends watch battery, WiFi, and DND status to the phone
-- **APK Installation**: Can receive and install APK files sent from the phone
+- **Status Sync**: Sends watch battery, WiFi, Health data, and DND status to the phone
+- **APK Installation**: Can receive and install APKs (requires Shizuku/Root)
 
 ## Requirements
 
@@ -44,11 +51,12 @@ RTOSify Companion is the watch app that receives and displays notifications from
 
 ## How It Works
 
-1. The app starts a Bluetooth server and waits for connections
-2. When the phone app connects, it begins receiving notifications
-3. Notifications are displayed as Android notifications on the watch
-4. The watch periodically sends status updates (battery, WiFi, DND) to the phone
-5. When you dismiss a notification on the watch, it sends a command to dismiss it on the phone too
+1. The app starts a server (Bluetooth RFCOMM and/or WebSocket)
+2. When the phone app connects, it syncs state (Privacy Policy, Settings)
+3. "Dynamic Island" service runs in background to handle overlays
+4. Notification Listener ensures navigation apps trigger the Overlay view
+5. Persistent logs are saved to storage for review in the Log Activity
+6. The watch periodically sends status updates (battery, WiFi, DND, Health) to the phone
 
 ## Build Instructions
 
@@ -74,7 +82,9 @@ The app requires the following permissions:
 
 ## Watch-Specific Features
 
+- **Dynamic Island**: Apple-style overlay for active status and quick actions
+- **Navigation Overlay**: Detects navigation instructions and shows large, readable turn indicators
 - **Battery Status**: Reports watch battery level and charging state to phone
 - **WiFi Status**: Reports connected WiFi network to phone
 - **DND Control**: Can toggle Do Not Disturb mode via phone commands
-- **Root Features**: If rooted, can install APKs sent from the phone
+- **Root/Shizuku Features**: Required for APK installation, File management, and other privileged actions

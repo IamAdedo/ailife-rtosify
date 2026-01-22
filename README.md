@@ -3,6 +3,7 @@
 A Bluetooth-based notification mirroring system split into two separate Android apps:
 - **Phone App**: Sends notifications from your phone to your smartwatch
 - **Watch App**: Receives and displays notifications on your smartwatch
+- **Signaling Server**: NodeJS server for Internet-based communication between devices
 
 ## Project Structure
 
@@ -17,6 +18,10 @@ The main smartphone application that captures and sends notifications to the wat
 The smartwatch application that receives and displays notifications from the phone.
 - Package: `com.ailife.rtosifycompanion`
 - [Read more →](companion/README.md)
+
+### 🌐 [signaling-server/](signaling-server/) - WebRTC Signaling Server
+Node.js server enabling the devices to communicate over the Internet when local Bluetooth/WiFi is unavailable.
+- [Read more →](signaling-server/README.md)
 
 ## Quick Start
 
@@ -35,24 +40,28 @@ The smartwatch application that receives and displays notifications from the pho
 
 ## Documentation
 
-- [📖 Complete Project Split Documentation](PROJECT_SPLIT_SUMMARY.md)
 - [📱 Phone App README](rtosify/README.md)
 - [⌚ Watch App README](companion/README.md)
+- [🌐 Signaling Server README](signaling-server/README.md)
 
 ## Features
 
-- Real-time notification synchronization via Bluetooth
+- Real-time notification synchronization via Bluetooth, WiFi (LAN), and Internet
 - Selective app notification mirroring
 - Two-way notification dismissal
 - Battery and WiFi status sync
 - APK file transfer and installation
+- Watchface Store and Scraper
+- Navigation Turn-by-Turn Overlay
+- Dynamic Island UI on Watch
+- Find Device (Locate Phone/Watch)
 - Auto-start on boot
 
 ## Requirements
 
 - Phone: Android 8.0 (API 26) or higher
 - Watch: Android 8.0 (API 26) or higher
-- Bluetooth connectivity on both devices
+- Bluetooth, WiFi, or Internet connectivity
 
 ## License
 
