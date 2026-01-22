@@ -518,6 +518,32 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
         mapView.onPause()
     }
 
+    override fun onProviderEnabled(provider: String) {
+        Log.d("FindDeviceActivity", "Location provider enabled: $provider")
+        if (provider == LocationManager.GPS_PROVIDER) {
+            // Location was enabled, try to start tracking
+            startLocationTracking()
+        }
+    }
+
+    override fun onProviderDisabled(provider: String) {
+        Log.d("FindDeviceActivity", "Location provider disabled: $provider")
+        if (provider == LocationManager.GPS_PROVIDER) {
+            // Show message that location is disabled
+            tvDistance.text = getString(R.string.find_dist_waiting)
+            android.widget.Toast.makeText(
+                this,
+                R.string.error_location_disabled,
+                android.widget.Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
+        // This method is deprecated but still required for older API levels
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacks(periodicLocationTask)

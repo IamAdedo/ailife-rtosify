@@ -507,4 +507,5 @@
     <string name="upload_to_watch">Transferring file to watch…</string>
     <string name="upload_to_phone">Transferring file to phone…</string>
     <string name="initializing">Initializing...</string>
+    <string name="error_location_disabled">Location services are disabled. Please enable location to use Find Device.</string>
 </resources>

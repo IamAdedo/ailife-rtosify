@@ -908,5 +908,7 @@
     <string name="di_manage_blacklist">Manage Blacklisted Apps</string>
     <string name="di_timeout_unit_seconds">%d seconds</string>
     <string name="di_timeout_seconds">seconds</string>
+    <string name="error_location_disabled">Location services are disabled. Please enable location to use Find Device.</string>
 </resources>
+
 
