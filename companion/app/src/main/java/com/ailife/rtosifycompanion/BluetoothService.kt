@@ -2946,16 +2946,37 @@ class BluetoothService : Service() {
             // Ensure parent directory exists (if possible)
             targetFile.parentFile?.mkdirs()
 
-            receivingFile = targetFile
-            receivingFileStream = java.io.RandomAccessFile(targetFile, "rw")
+            try {
+                receivingFile = targetFile
+                receivingFileStream = java.io.RandomAccessFile(targetFile, "rw")
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "Failed to open primary target ${targetFile.absolutePath}, trying fallback: ${e.message}")
+                val cacheDirToUse = externalCacheDir ?: cacheDir
+                val fallbackFile = File(cacheDirToUse, fileData.name)
+                receivingFile = fallbackFile
+                receivingFileStream = java.io.RandomAccessFile(fallbackFile, "rw")
+                android.util.Log.d(TAG, "Fallback to cache success: ${fallbackFile.absolutePath}")
+            }
+
             receivingFileStream?.setLength(fileData.size)
             expectedFileSize = fileData.size
             receivedFileSize = 0
             expectedChecksum = fileData.checksum
             receivingFileType = fileData.type
             receivedChunks.clear()
+
+            // Report 0 progress to UI
+            withContext(Dispatchers.Main) { callback?.onDownloadProgress(0) }
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error starting file transfer: ${e.message}")
+            sendMessage(
+                    ProtocolHelper.createFileTransferEnd(
+                            success = false,
+                            error = e.message ?: "Failed to open file"
+                    )
+            )
+            cleanupFileTransfer()
+            withContext(Dispatchers.Main) { callback?.onDownloadProgress(-1) }
         }
     }
 
@@ -2963,15 +2984,25 @@ class BluetoothService : Service() {
         try {
             val chunkData = ProtocolHelper.extractData<FileChunkData>(message)
 
+            val raf = receivingFileStream
+            if (raf == null) {
+                android.util.Log.e(TAG, "Received chunk ${chunkData.chunkNumber} but no file stream open")
+                return
+            }
+
             // Decode chunk
             val chunkBytes = android.util.Base64.decode(chunkData.data, android.util.Base64.DEFAULT)
 
             // Write to file at the correct offset (handles out-of-order chunks)
-            receivingFileStream?.let { raf ->
-                raf.seek(chunkData.offset)
-                raf.write(chunkBytes)
-            }
+            raf.seek(chunkData.offset)
+            raf.write(chunkBytes)
             receivedFileSize += chunkBytes.size
+
+            // Report progress
+            if (expectedFileSize > 0) {
+                val progress = (receivedFileSize * 100 / expectedFileSize).toInt()
+                withContext(Dispatchers.Main) { callback?.onDownloadProgress(progress) }
+            }
 
             android.util.Log.d(
                     TAG,
@@ -3000,6 +3031,7 @@ class BluetoothService : Service() {
                 val error = ProtocolHelper.extractStringField(message, "error")
                 android.util.Log.e(TAG, "File transfer failed: $error")
                 cleanupFileTransfer()
+                withContext(Dispatchers.Main) { callback?.onDownloadProgress(-1) }
                 return
             }
 
@@ -3030,11 +3062,15 @@ class BluetoothService : Service() {
                             ProtocolHelper.createFileTransferEnd(
                                     success = false,
                                     error = "Checksum mismatch"
-                            )
+                             )
                     )
+                    withContext(Dispatchers.Main) { callback?.onDownloadProgress(-1) }
                     return
                 }
             }
+
+            // Report completion
+            withContext(Dispatchers.Main) { callback?.onDownloadProgress(100) }
 
             // Send success acknowledgment to phone
             sendMessage(ProtocolHelper.createFileTransferEnd(success = true))
@@ -4461,6 +4497,8 @@ class BluetoothService : Service() {
 
                 val chunkSize = 32 * 1024
                 val totalChunks = (fileBytes.size + chunkSize - 1) / chunkSize
+                var lastReportedProgress = -1
+                var lastReportTime = 0L
                 var offset = 0
                 var chunkNumber = 0
 
@@ -4477,15 +4515,26 @@ class BluetoothService : Service() {
                                     chunkNumber = chunkNumber,
                                     totalChunks = totalChunks
                             )
-                    sendMessage(ProtocolHelper.createFileChunk(chunkData))
+                    // sendMessage(ProtocolHelper.createFileChunk(chunkData))
+                    val chunkMsg = ProtocolHelper.createFileChunk(chunkData)
+                    if (!transportManager.send(chunkMsg)) {
+                        throw IOException("Failed to send chunk $chunkNumber")
+                    }
 
                     // Report progress
-                    val progress = ((chunkNumber + 1) * 95 / totalChunks)
-                    withContext(Dispatchers.Main) { callback?.onUploadProgress(progress) }
+                    val progress = ((chunkNumber + 1) * 95 / totalChunks.coerceAtLeast(1))
+                    val currentTime = System.currentTimeMillis()
+                    
+                    // Throttle updates: Only update if changed AND (enough time passed OR it's the very first update)
+                    if (progress > lastReportedProgress && (currentTime - lastReportTime >= 100 || lastReportedProgress == -1)) {
+                        lastReportedProgress = progress
+                        lastReportTime = currentTime
+                        withContext(Dispatchers.Main) { callback?.onUploadProgress(progress) }
+                    }
 
                     offset = end
                     chunkNumber++
-                    delay(10)
+                    //delay(10)
                 }
 
                 fileAckDeferred = kotlinx.coroutines.CompletableDeferred()

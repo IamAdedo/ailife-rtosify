@@ -2000,7 +2000,7 @@ class BluetoothService : Service() {
 
             // Prepare to receive file
             // If it's a regular file (not APK), save to Downloads
-            receivingFile =
+            val targetFile =
                     if (fileData.type == "REGULAR" || fileData.type == "SHARE") {
                         val downloadsDir =
                                 android.os.Environment.getExternalStoragePublicDirectory(
@@ -2012,16 +2012,35 @@ class BluetoothService : Service() {
                         File(cacheDir, fileData.name)
                     }
 
-            // Use RandomAccessFile for random write access (out-of-order chunks)
-            receivingFileStream = java.io.RandomAccessFile(receivingFile!!, "rw")
+            try {
+                receivingFile = targetFile
+                receivingFileStream = java.io.RandomAccessFile(receivingFile!!, "rw")
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "Failed to open primary target ${targetFile.absolutePath}, trying fallback: ${e.message}")
+                val fallbackFile = File(cacheDir, fileData.name)
+                receivingFile = fallbackFile
+                receivingFileStream = java.io.RandomAccessFile(fallbackFile, "rw")
+                android.util.Log.d(TAG, "Fallback to cache success: ${fallbackFile.absolutePath}")
+            }
+
             receivingFileStream?.setLength(fileData.size) // Pre-allocate file size
             expectedFileSize = fileData.size
             receivedFileSize = 0
             expectedChecksum = fileData.checksum
             receivingFileType = fileData.type
             receivedChunks.clear()
+            
+            withContext(Dispatchers.Main) { callback?.onDownloadProgress(0) }
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Error starting file transfer: ${e.message}")
+            sendMessage(
+                    ProtocolHelper.createFileTransferEnd(
+                            success = false,
+                            error = e.message ?: "Failed to open file"
+                    )
+            )
+            cleanupFileTransfer()
+            withContext(Dispatchers.Main) { callback?.onDownloadProgress(-1) }
         }
     }
 
@@ -2029,14 +2048,18 @@ class BluetoothService : Service() {
         try {
             val chunkData = ProtocolHelper.extractData<FileChunkData>(message)
 
+            val raf = receivingFileStream
+            if (raf == null) {
+                android.util.Log.e(TAG, "Received chunk ${chunkData.chunkNumber} but no file stream open")
+                return
+            }
+
             // Decode chunk
             val chunkBytes = android.util.Base64.decode(chunkData.data, android.util.Base64.DEFAULT)
 
             // Write to file at the correct offset (handles out-of-order chunks)
-            receivingFileStream?.let { raf ->
-                raf.seek(chunkData.offset)
-                raf.write(chunkBytes)
-            }
+            raf.seek(chunkData.offset)
+            raf.write(chunkBytes)
             receivedFileSize += chunkBytes.size
 
             android.util.Log.d(
@@ -2074,6 +2097,7 @@ class BluetoothService : Service() {
                 val error = ProtocolHelper.extractStringField(message, "error")
                 android.util.Log.e(TAG, "File transfer failed: $error")
                 cleanupFileTransfer()
+                withContext(Dispatchers.Main) { callback?.onDownloadProgress(-1) }
                 return
             }
 
@@ -2106,9 +2130,13 @@ class BluetoothService : Service() {
                                     error = "Checksum mismatch"
                             )
                     )
+                    withContext(Dispatchers.Main) { callback?.onDownloadProgress(-1) }
                     return
                 }
             }
+
+            // Report completion
+            withContext(Dispatchers.Main) { callback?.onDownloadProgress(100, file) }
 
             // Send success acknowledgment to sender
             sendMessage(ProtocolHelper.createFileTransferEnd(success = true))
@@ -2605,7 +2633,7 @@ class BluetoothService : Service() {
 
                         offset += bytesRead
                         chunkNumber++
-                        delay(10)
+                        //delay(10)
                     }
                 }
 

@@ -792,7 +792,15 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     override fun onUploadProgress(progress: Int) {
         runOnUiThread { if (uploadDialog?.isShowing == true) updateUploadProgress(progress) }
     }
-    override fun onDownloadProgress(progress: Int) {}
+    override fun onDownloadProgress(progress: Int) {
+        runOnUiThread {
+            if (uploadDialog == null || !uploadDialog!!.isShowing) {
+                showUploadDialog()
+                uploadTitleText?.text = getString(R.string.upload_to_phone)
+            }
+            updateUploadProgress(progress)
+        }
+    }
     override fun onFileListReceived(path: String, filesJson: String) {}
 
 
