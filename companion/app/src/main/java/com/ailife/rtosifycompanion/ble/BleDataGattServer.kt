@@ -346,7 +346,8 @@ class BleDataGattServer(
 
         try {
             // Calculate max payload size (MTU - 3 bytes ATT header overhead)
-            val maxPayload = (currentMtu - 3).coerceAtLeast(20) // Min 20 bytes even if MTU negotiation fails
+            // Also clamp to 512 bytes (typical maximum attribute value length)
+            val maxPayload = (currentMtu - 3).coerceAtLeast(20).coerceAtMost(512)
             
             if (data.size <= maxPayload) {
                 // Data fits in single packet - send directly
@@ -387,6 +388,7 @@ class BleDataGattServer(
         } catch (e: Exception) {
             Log.e(TAG, "Error sending notification: ${e.message}", e)
             isSendingNotification = false
+            disconnectAndReset()
         }
     }
 
@@ -435,5 +437,20 @@ class BleDataGattServer(
             return hasConnect && hasAdvertise
         }
         return true
+    }
+
+    private fun disconnectAndReset() {
+        val device = connectedDevice
+        if (device != null) {
+            try {
+                bluetoothGattServer?.cancelConnection(device)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error cancelling connection", e)
+            }
+            connectedDevice = null
+            onClientDisconnected(device)
+        }
+        txQueue.clear()
+        isSendingNotification = false
     }
 }

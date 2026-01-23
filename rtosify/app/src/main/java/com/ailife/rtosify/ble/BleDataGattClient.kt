@@ -258,26 +258,36 @@ class BleDataGattClient(
 
         try {
             // Calculate max payload size (MTU - 3 bytes ATT header overhead)
-            val maxPayload = (currentMtu - 3).coerceAtLeast(20) // Min 20 bytes even if MTU negotiation fails
+            // Also clamp to 512 bytes (typical maximum attribute value length)
+            val maxPayload = (currentMtu - 3).coerceAtLeast(20).coerceAtMost(512)
             
             if (data.size <= maxPayload) {
                 // Data fits in single packet - write directly
                 isWriting = true
+                val success: Boolean
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    bluetoothGatt?.writeCharacteristic(
+                    val code = bluetoothGatt?.writeCharacteristic(
                         rx,
                         data,
-                        BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-                    )
+                        BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+                    ) ?: BluetoothGatt.GATT_FAILURE
+                    success = (code == BluetoothGatt.GATT_SUCCESS)
                 } else {
                     @Suppress("DEPRECATION")
                     rx.value = data
                     @Suppress("DEPRECATION")
-                    rx.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                    rx.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
                     @Suppress("DEPRECATION")
-                    bluetoothGatt?.writeCharacteristic(rx)
+                    success = bluetoothGatt?.writeCharacteristic(rx) ?: false
                 }
-                Log.d(TAG, "Writing ${data.size} bytes")
+                
+                if (success) {
+                    Log.d(TAG, "Write initiated: ${data.size} bytes")
+                } else {
+                    Log.e(TAG, "Write initiation failed")
+                    isWriting = false
+                    disconnect()
+                }
             } else {
                 // Data exceeds MTU - chunk it properly
                 Log.d(TAG, "Chunking ${data.size} bytes with MTU $currentMtu (max payload: $maxPayload)")
@@ -301,6 +311,7 @@ class BleDataGattClient(
         } catch (e: Exception) {
             Log.e(TAG, "Error writing characteristic: ${e.message}", e)
             isWriting = false
+            disconnect()
         }
     }
 
@@ -308,6 +319,16 @@ class BleDataGattClient(
      * Disconnect from GATT server.
      */
     fun disconnect() {
+        // Always update state first to stop upstream callers
+        if (isConnected) {
+            isConnected = false
+            onConnectionStateChanged(false)
+        }
+        
+        txCharacteristic = null
+        rxCharacteristic = null
+        writeQueue.clear()
+
         if (!checkPermission()) {
             return
         }
@@ -316,10 +337,6 @@ class BleDataGattClient(
             bluetoothGatt?.disconnect()
             bluetoothGatt?.close()
             bluetoothGatt = null
-            isConnected = false
-            txCharacteristic = null
-            rxCharacteristic = null
-            writeQueue.clear()
             Log.i(TAG, "Disconnected from GATT server")
         } catch (e: Exception) {
             Log.e(TAG, "Error disconnecting from GATT: ${e.message}")

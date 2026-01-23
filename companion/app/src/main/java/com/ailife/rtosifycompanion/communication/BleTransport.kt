@@ -141,25 +141,40 @@ class BleTransport(
         }
         
         try {
-            // Accumulate chunks until we have a complete message
+            // Accumulate chunks
             receivedChunks.write(data)
             
-            // Check if we have a complete message (ends with delimiter)
+            // Process buffer
             val currentData = receivedChunks.toByteArray()
-            if (currentData.isNotEmpty() && currentData.last() == MESSAGE_DELIMITER) {
-                // Remove delimiter and parse
-                val messageData = currentData.copyOfRange(0, currentData.size - 1)
-                val json = String(messageData, Charsets.UTF_8)
-                
-                Log.d(TAG, "Received complete message: ${messageData.size} bytes")
-                
-                val message = ProtocolMessage.fromJson(json)
-                CoroutineScope(Dispatchers.IO).launch {
-                    messageChannel.send(message)
+            var startIndex = 0
+            
+            for (i in currentData.indices) {
+                if (currentData[i] == MESSAGE_DELIMITER) {
+                    // Found a complete message
+                    if (i > startIndex) {
+                        val messageData = currentData.copyOfRange(startIndex, i)
+                        val json = String(messageData, Charsets.UTF_8)
+                        
+                        Log.d(TAG, "Received complete message: ${messageData.size} bytes")
+                        
+                        try {
+                            val message = ProtocolMessage.fromJson(json)
+                            CoroutineScope(Dispatchers.IO).launch {
+                                messageChannel.send(message)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to parse message JSON", e)
+                        }
+                    }
+                    startIndex = i + 1
                 }
-                
-                // Clear buffer for next message
-                receivedChunks.reset()
+            }
+            
+            // Reset buffer and keep remaining incomplete data
+            receivedChunks.reset()
+            if (startIndex < currentData.size) {
+                val remaining = currentData.copyOfRange(startIndex, currentData.size)
+                receivedChunks.write(remaining)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error processing received data", e)

@@ -214,19 +214,18 @@ class TransportManager(
                 bleTransport = transport
                 updateConnectionState()
                 
-                // Launch message receiver
-                scope.launch {
-                    try {
-                        transport.receive().collect { msg ->
-                            _incomingMessages.send(msg)
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "BLE receive error", e)
-                    } finally {
-                        Log.d(TAG, "BLE disconnected")
-                        bleTransport = null
-                        updateConnectionState()
+                // Run receive loop in current coroutine (blocking the reconnect loop)
+                try {
+                    transport.receive().collect { msg ->
+                        _incomingMessages.send(msg)
                     }
+                } catch (e: Exception) {
+                    Log.e(TAG, "BLE receive error", e)
+                } finally {
+                    Log.d(TAG, "BLE disconnected")
+                    bleTransport = null
+                    updateConnectionState()
+                    transport.disconnect()
                 }
                 return true
             } else {

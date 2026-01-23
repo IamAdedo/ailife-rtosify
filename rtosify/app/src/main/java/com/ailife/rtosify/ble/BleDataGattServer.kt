@@ -195,6 +195,7 @@ class BleDataGattServer(
                 processTxQueue()
             } else {
                 Log.e(TAG, "Notification send failed with status: $status")
+                disconnectAndReset()
             }
         }
     }
@@ -346,7 +347,8 @@ class BleDataGattServer(
 
         try {
             // Calculate max payload size (MTU - 3 bytes ATT header overhead)
-            val maxPayload = (currentMtu - 3).coerceAtLeast(20) // Min 20 bytes even if MTU negotiation fails
+            // Also clamp to 512 bytes (typical maximum attribute value length)
+            val maxPayload = (currentMtu - 3).coerceAtLeast(20).coerceAtMost(512)
             
             if (data.size <= maxPayload) {
                 // Data fits in single packet - send directly
@@ -361,6 +363,8 @@ class BleDataGattServer(
                 if (!success) {
                     isSendingNotification = false
                     Log.e(TAG, "Failed to send notification")
+                    // If we can't notify, connection is likely bad
+                    disconnectAndReset()
                 } else {
                     Log.d(TAG, "Sent ${data.size} bytes")
                 }
@@ -387,6 +391,7 @@ class BleDataGattServer(
         } catch (e: Exception) {
             Log.e(TAG, "Error sending notification: ${e.message}", e)
             isSendingNotification = false
+            disconnectAndReset()
         }
     }
 
@@ -419,6 +424,21 @@ class BleDataGattServer(
     }
 
     fun isConnected(): Boolean = connectedDevice != null
+
+    private fun disconnectAndReset() {
+        val device = connectedDevice
+        if (device != null) {
+            try {
+                bluetoothGattServer?.cancelConnection(device)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error cancelling connection", e)
+            }
+            connectedDevice = null
+            onClientDisconnected(device)
+        }
+        txQueue.clear()
+        isSendingNotification = false
+    }
 
     private fun checkPermission(): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
