@@ -41,7 +41,7 @@ class BleDataGattServer(
 
     companion object {
         private const val TAG = "BleDataGattServer"
-        private const val MAX_MTU = 512
+        private const val MAX_MTU = 517
         private const val MAX_RETRIES = 20
     }
 
@@ -72,7 +72,9 @@ class BleDataGattServer(
         }
 
         // Calculate max payload size (MTU - 3 bytes ATT header overhead)
-        val maxPayload = (currentMtu - 3).coerceAtLeast(20).coerceAtMost(512)
+        // Calculate max payload size (MTU - 3 bytes ATT header overhead)
+        // Clamp to 500 to be safe and avoid boundary fragmentation issues even if MTU is 512
+        val maxPayload = (currentMtu - 3).coerceAtLeast(20).coerceAtMost(500)
 
         if (data.size <= maxPayload) {
             if (priority) {

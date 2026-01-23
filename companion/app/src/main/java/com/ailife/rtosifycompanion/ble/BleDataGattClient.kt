@@ -30,7 +30,7 @@ class BleDataGattClient(
 
     companion object {
         private const val TAG = "BleDataGattClient"
-        private const val MAX_MTU = 512
+        private const val MAX_MTU = 517
         private const val CONNECT_TIMEOUT_MS = 10000L
         private const val MAX_RETRIES = 20
     }
