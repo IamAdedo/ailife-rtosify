@@ -38,9 +38,110 @@ class BleDataGattClient(
     private var txCharacteristic: BluetoothGattCharacteristic? = null
     private var rxCharacteristic: BluetoothGattCharacteristic? = null
     
-    // Queue for outgoing data
+    // Queues for outgoing data
     private val writeQueue = ConcurrentLinkedQueue<ByteArray>()
+    private val highPriorityQueue = ConcurrentLinkedQueue<ByteArray>()
     private var isWriting = false
+    private var serviceDiscoveryRetryCount = 0
+
+    // ... (rest of class) ...
+
+    /**
+     * Send data to server via RX characteristic write.
+     */
+    private val retryHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    fun sendData(data: ByteArray, priority: Boolean = false): Boolean {
+        if (!isConnected || rxCharacteristic == null) {
+            Log.w(TAG, "Not connected, cannot send data")
+            return false
+        }
+
+        // Calculate max payload size (MTU - 3 bytes ATT header overhead)
+        val maxPayload = (currentMtu - 3).coerceAtLeast(20).coerceAtMost(512)
+
+        if (data.size <= maxPayload) {
+            if (priority) {
+                highPriorityQueue.offer(data)
+            } else {
+                writeQueue.offer(data)
+            }
+        } else {
+             var offset = 0
+             while (offset < data.size) {
+                 val end = minOf(offset + maxPayload, data.size)
+                 val chunk = data.copyOfRange(offset, end)
+                 if (priority) {
+                     highPriorityQueue.offer(chunk)
+                 } else {
+                     writeQueue.offer(chunk)
+                 }
+                 offset = end
+             }
+        }
+        
+        processWriteQueue()
+        return true
+    }
+
+    private fun processWriteQueue() {
+        if (isWriting || !isConnected) {
+            return
+        }
+
+        // Check high priority first
+        var data = highPriorityQueue.peek()
+        var isHighPriority = true
+        
+        if (data == null) {
+            data = writeQueue.peek()
+            isHighPriority = false
+        }
+        
+        if (data == null) return
+
+        val rx = rxCharacteristic ?: return
+
+        if (!checkPermission()) {
+            Log.e(TAG, "Missing permission to write characteristic")
+            return
+        }
+
+        try {
+            val success: Boolean
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val code = bluetoothGatt?.writeCharacteristic(
+                    rx,
+                    data,
+                    BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                ) ?: BluetoothGatt.GATT_FAILURE
+                success = (code == BluetoothGatt.GATT_SUCCESS)
+            } else {
+                @Suppress("DEPRECATION")
+                rx.value = data
+                @Suppress("DEPRECATION")
+                rx.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                @Suppress("DEPRECATION")
+                success = bluetoothGatt?.writeCharacteristic(rx) ?: false
+            }
+            
+            if (success) {
+                if (isHighPriority) {
+                    highPriorityQueue.poll()
+                } else {
+                    writeQueue.poll()
+                }
+                isWriting = true
+                Log.d(TAG, "Write initiated (${if(isHighPriority) "High" else "Normal"}): ${data.size} bytes")
+            } else {
+                 Log.w(TAG, "Write initiation failed (${if(isHighPriority) "High" else "Normal"}) - scheduling retry")
+                 retryHandler.postDelayed({ processWriteQueue() }, 50)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error writing characteristic: ${e.message}", e)
+            disconnect()
+        }
+    }
 
     private val gattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
@@ -48,6 +149,7 @@ class BleDataGattClient(
                 BluetoothProfile.STATE_CONNECTED -> {
                     Log.i(TAG, "Connected to GATT server: ${gatt.device.address}")
                     isConnected = true
+                    serviceDiscoveryRetryCount = 0
                     
                     // Request MTU increase for better throughput
                     if (checkPermission()) {
@@ -96,8 +198,18 @@ class BleDataGattClient(
                         disconnect()
                     }
                 } else {
-                    Log.e(TAG, "Data transport service not found")
-                    disconnect()
+                    if (serviceDiscoveryRetryCount < 3) {
+                        serviceDiscoveryRetryCount++
+                        Log.w(TAG, "Data transport service not found, retrying discovery ($serviceDiscoveryRetryCount/3)...")
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ 
+                            if (isConnected && bluetoothGatt != null) {
+                                gatt.discoverServices() 
+                            }
+                        }, 500)
+                    } else {
+                        Log.e(TAG, "Data transport service not found after retries")
+                        disconnect()
+                    }
                 }
             } else {
                 Log.e(TAG, "Service discovery failed with status: $status")
@@ -229,91 +341,7 @@ class BleDataGattClient(
         }
     }
 
-    /**
-     * Send data to server via RX characteristic write.
-     */
-    fun sendData(data: ByteArray): Boolean {
-        if (!isConnected || rxCharacteristic == null) {
-            Log.w(TAG, "Not connected, cannot send data")
-            return false
-        }
 
-        // Add to queue
-        writeQueue.offer(data)
-        processWriteQueue()
-        return true
-    }
-
-    private fun processWriteQueue() {
-        if (isWriting || !isConnected) {
-            return
-        }
-
-        val data = writeQueue.poll() ?: return
-        val rx = rxCharacteristic ?: return
-
-        if (!checkPermission()) {
-            Log.e(TAG, "Missing permission to write characteristic")
-            return
-        }
-
-        try {
-            // Calculate max payload size (MTU - 3 bytes ATT header overhead)
-            val maxPayload = (currentMtu - 3).coerceAtLeast(20).coerceAtMost(512)
-            
-            if (data.size <= maxPayload) {
-                // Data fits in single packet - write directly
-                isWriting = true
-                val success: Boolean
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    val code = bluetoothGatt?.writeCharacteristic(
-                        rx,
-                        data,
-                        BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-                    ) ?: BluetoothGatt.GATT_FAILURE
-                    success = (code == BluetoothGatt.GATT_SUCCESS)
-                } else {
-                    @Suppress("DEPRECATION")
-                    rx.value = data
-                    @Suppress("DEPRECATION")
-                    rx.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
-                    @Suppress("DEPRECATION")
-                    success = bluetoothGatt?.writeCharacteristic(rx) ?: false
-                }
-                
-                if (success) {
-                    Log.d(TAG, "Write initiated: ${data.size} bytes")
-                } else {
-                    Log.e(TAG, "Write initiation failed")
-                    isWriting = false
-                    disconnect()
-                }
-            } else {
-                // Data exceeds MTU - chunk it properly
-                Log.d(TAG, "Chunking ${data.size} bytes with MTU $currentMtu (max payload: $maxPayload)")
-                
-                var offset = 0
-                var chunkCount = 0
-                
-                while (offset < data.size) {
-                    val end = minOf(offset + maxPayload, data.size)
-                    val chunk = data.copyOfRange(offset, end)
-                    writeQueue.offer(chunk)
-                    offset = end
-                    chunkCount++
-                }
-                
-                Log.d(TAG, "Split into $chunkCount chunks")
-                
-                // Process first chunk now (which is at the tail, but better than stalling)
-                processWriteQueue()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error writing characteristic: ${e.message}", e)
-            isWriting = false
-            disconnect()
-        }
-    }
 
     /**
      * Disconnect from GATT server.

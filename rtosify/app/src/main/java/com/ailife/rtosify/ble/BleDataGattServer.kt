@@ -50,7 +50,106 @@ class BleDataGattServer(
     
     // Queue for outgoing data
     private val txQueue = ConcurrentLinkedQueue<ByteArray>()
+    private val highPriorityTxQueue = ConcurrentLinkedQueue<ByteArray>()
     private var isSendingNotification = false
+
+    // ...
+
+    /**
+     * Send data to connected client via TX characteristic notifications.
+     */
+    private val retryHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    fun sendData(data: ByteArray, priority: Boolean = false): Boolean {
+        if (connectedDevice == null) {
+            Log.w(TAG, "No client connected, cannot send data")
+            return false
+        }
+
+        // Calculate max payload size (MTU - 3 bytes ATT header overhead)
+        val maxPayload = (currentMtu - 3).coerceAtLeast(20).coerceAtMost(512)
+
+        if (data.size <= maxPayload) {
+            if (priority) {
+                highPriorityTxQueue.offer(data)
+            } else {
+                txQueue.offer(data)
+            }
+        } else {
+             var offset = 0
+             while (offset < data.size) {
+                 val end = minOf(offset + maxPayload, data.size)
+                 val chunk = data.copyOfRange(offset, end)
+                 if (priority) {
+                     highPriorityTxQueue.offer(chunk)
+                 } else {
+                     txQueue.offer(chunk)
+                 }
+                 offset = end
+             }
+        }
+        
+        processTxQueue()
+        return true
+    }
+
+    private fun processTxQueue() {
+        if (isSendingNotification || connectedDevice == null) {
+            return
+        }
+
+        // Priority Check
+        var data = highPriorityTxQueue.peek()
+        var isHighPriority = true
+        
+        if (data == null) {
+            data = txQueue.peek()
+            isHighPriority = false
+        }
+
+        if (data == null) return
+
+        if (!checkPermission()) {
+            Log.e(TAG, "Missing permission to send notification")
+            return
+        }
+
+        val service = bluetoothGattServer?.getService(BleRssiUuids.DATA_TRANSPORT_SERVICE_UUID)
+        val characteristic = service?.getCharacteristic(BleRssiUuids.DATA_TX_CHARACTERISTIC_UUID)
+
+        if (characteristic == null) {
+            Log.e(TAG, "TX characteristic not found")
+            return
+        }
+
+        try {
+            characteristic.value = data
+            isSendingNotification = true
+            val success = bluetoothGattServer?.notifyCharacteristicChanged(
+                connectedDevice,
+                characteristic,
+                false
+            ) ?: false
+            
+            if (!success) {
+                isSendingNotification = false
+                Log.w(TAG, "Failed to send notification - scheduling retry")
+                retryHandler.postDelayed({ processTxQueue() }, 50)
+            } else {
+                if (isHighPriority) {
+                    highPriorityTxQueue.poll()
+                } else {
+                    txQueue.poll()
+                }
+                Log.d(TAG, "Sent (${if(isHighPriority) "High" else "Normal"}): ${data.size} bytes")
+                // Wait for callback to trigger next send
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending notification: ${e.message}", e)
+            isSendingNotification = false
+            disconnectAndReset()
+        }
+    }
 
     private val gattServerCallback = object : BluetoothGattServerCallback() {
         override fun onConnectionStateChange(
@@ -310,90 +409,9 @@ class BleDataGattServer(
         }
     }
 
-    /**
-     * Send data to connected client via TX characteristic notifications.
-     */
-    fun sendData(data: ByteArray): Boolean {
-        if (connectedDevice == null) {
-            Log.w(TAG, "No client connected, cannot send data")
-            return false
-        }
 
-        // Add to queue
-        txQueue.offer(data)
-        processTxQueue()
-        return true
-    }
 
-    private fun processTxQueue() {
-        if (isSendingNotification || connectedDevice == null) {
-            return
-        }
 
-        val data = txQueue.poll() ?: return
-
-        if (!checkPermission()) {
-            Log.e(TAG, "Missing permission to send notification")
-            return
-        }
-
-        val service = bluetoothGattServer?.getService(BleRssiUuids.DATA_TRANSPORT_SERVICE_UUID)
-        val characteristic = service?.getCharacteristic(BleRssiUuids.DATA_TX_CHARACTERISTIC_UUID)
-
-        if (characteristic == null) {
-            Log.e(TAG, "TX characteristic not found")
-            return
-        }
-
-        try {
-            // Calculate max payload size (MTU - 3 bytes ATT header overhead)
-            // Also clamp to 512 bytes (typical maximum attribute value length)
-            val maxPayload = (currentMtu - 3).coerceAtLeast(20).coerceAtMost(512)
-            
-            if (data.size <= maxPayload) {
-                // Data fits in single packet - send directly
-                characteristic.value = data
-                isSendingNotification = true
-                val success = bluetoothGattServer?.notifyCharacteristicChanged(
-                    connectedDevice,
-                    characteristic,
-                    false
-                ) ?: false
-                
-                if (!success) {
-                    isSendingNotification = false
-                    Log.e(TAG, "Failed to send notification")
-                    // If we can't notify, connection is likely bad
-                    disconnectAndReset()
-                } else {
-                    Log.d(TAG, "Sent ${data.size} bytes")
-                }
-            } else {
-                // Data exceeds MTU - chunk it properly
-                Log.d(TAG, "Chunking ${data.size} bytes with MTU $currentMtu (max payload: $maxPayload)")
-                
-                var offset = 0
-                var chunkCount = 0
-                
-                while (offset < data.size) {
-                    val end = minOf(offset + maxPayload, data.size)
-                    val chunk = data.copyOfRange(offset, end)
-                    txQueue.offer(chunk)
-                    offset = end
-                    chunkCount++
-                }
-                
-                Log.d(TAG, "Split into $chunkCount chunks")
-                
-                // Process first chunk now
-                processTxQueue()
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error sending notification: ${e.message}", e)
-            isSendingNotification = false
-            disconnectAndReset()
-        }
-    }
 
     /**
      * Stop GATT server and advertising.

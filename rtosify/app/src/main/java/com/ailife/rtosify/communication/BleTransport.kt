@@ -207,9 +207,9 @@ class BleTransport(
                     // Send keepalive marker
                     val keepaliveData = byteArrayOf(MESSAGE_DELIMITER)
                     val sent = if (isServer) {
-                        gattServer?.sendData(keepaliveData) ?: false
+                        gattServer?.sendData(keepaliveData, priority = true) ?: false
                     } else {
-                        gattClient?.sendData(keepaliveData) ?: false
+                        gattClient?.sendData(keepaliveData, priority = true) ?: false
                     }
                     
                     if (!sent) {

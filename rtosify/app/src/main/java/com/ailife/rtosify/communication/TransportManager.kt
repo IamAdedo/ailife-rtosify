@@ -171,11 +171,15 @@ class TransportManager(
                 if (transportMode == "ble") {
                     // Use BLE transport
                     Log.d(TAG, "Using BLE transport mode")
+                    val start = System.currentTimeMillis()
+                    Log.v(TAG, "Attempting BLE connection...")
                     if (!connectBle(device)) {
+                        Log.v(TAG, "BLE connection attempt completed (failed) in ${System.currentTimeMillis() - start}ms")
                         consecutiveFailures++
                         delay(if(consecutiveFailures > 5) 3000 else 1000)
                         continue
                     }
+                    Log.v(TAG, "BLE session ended in ${System.currentTimeMillis() - start}ms")
                     consecutiveFailures = 0
                 } else {
                     // Use Bluetooth Classic RFCOMM
@@ -203,6 +207,7 @@ class TransportManager(
 
     private suspend fun connectBle(device: BluetoothDevice): Boolean {
         try {
+            Log.v(TAG, "Creating BleTransport...")
             val transport = BleTransport(
                 context = context,
                 bluetoothAdapter = BluetoothAdapter.getDefaultAdapter(),
@@ -210,7 +215,9 @@ class TransportManager(
                 targetDevice = device
             )
 
+            Log.v(TAG, "Calling transport.connect()...")
             if (transport.connect()) {
+                Log.v(TAG, "transport.connect() succeeded")
                 bleTransport = transport
                 updateConnectionState()
                 
