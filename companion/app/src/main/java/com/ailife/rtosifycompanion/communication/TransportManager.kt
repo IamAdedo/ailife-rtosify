@@ -114,6 +114,7 @@ class TransportManager(
     private var wifiServerMonitorJob: Job? = null
     private var wifiServerWatchdog: Job? = null
     private var btServerWatchdog: Job? = null
+    private var bleServerWatchdog: Job? = null
     private var internetMonitorWatchdog: Job? = null
     @Volatile private var attemptingWifiTransport: WifiIntranetTransport? = null
     
@@ -444,6 +445,7 @@ class TransportManager(
     
     /**
      * Bluetooth Server Watchdog - monitors and auto-restarts Bluetooth server if it stops
+     * Enforces Exclusive Mode: Stops BT server if BLE is already connected.
      */
     fun startBluetoothServerWatchdog(bluetoothAdapter: BluetoothAdapter?) {
         if (btServerWatchdog?.isActive == true) return
@@ -453,12 +455,23 @@ class TransportManager(
             Log.d(TAG, "Starting Bluetooth server watchdog")
             while (isActive) {
                 try {
-                    val serverRunning = bluetoothServerJob?.isActive == true
-                    val btEnabled = bluetoothAdapter?.isEnabled == true
+                    val bleConnected = bleTransport?.isConnected() == true
                     
-                    if (btEnabled && !serverRunning) {
-                        Log.w(TAG, "BT server watchdog: server stopped but BT enabled - restarting")
-                        startBluetoothServer(bluetoothAdapter)
+                    if (bleConnected) {
+                        // Exclusive Mode: If BLE is connected, ensure BT server is STOPPED
+                        if (bluetoothServerJob?.isActive == true) {
+                            Log.i(TAG, "BT server watchdog: BLE connected, stopping BT server (Exclusive Mode)")
+                            stopBluetoothServer()
+                        }
+                    } else {
+                        // Normal Mode: Keep BT server running
+                        val serverRunning = bluetoothServerJob?.isActive == true
+                        val btEnabled = bluetoothAdapter?.isEnabled == true
+                        
+                        if (btEnabled && !serverRunning) {
+                            Log.w(TAG, "BT server watchdog: server stopped but BT enabled - restarting")
+                            startBluetoothServer(bluetoothAdapter)
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "BT server watchdog error (non-fatal): ${e.message}", e)
@@ -472,21 +485,33 @@ class TransportManager(
 
     /**
      * BLE Server Watchdog - monitors and auto-restarts BLE server if it stops
+     * Enforces Exclusive Mode: Stops BLE server if BT Classic is already connected.
      */
     fun startBleServerWatchdog(bluetoothAdapter: BluetoothAdapter?) {
-        if (btServerWatchdog?.isActive == true) return  // Reuse same watchdog field
-        btServerWatchdog?.cancel()
+        if (bleServerWatchdog?.isActive == true) return
+        bleServerWatchdog?.cancel()
         
-        btServerWatchdog = scope.launch(Dispatchers.IO) {
+        bleServerWatchdog = scope.launch(Dispatchers.IO) {
             Log.d(TAG, "Starting BLE server watchdog")
             while (isActive) {
                 try {
-                    val serverRunning = bleServerJob?.isActive == true
-                    val btEnabled = bluetoothAdapter?.isEnabled == true
+                    val btConnected = bluetoothTransport?.isConnected() == true
                     
-                    if (btEnabled && !serverRunning) {
-                        Log.w(TAG, "BLE server watchdog: server stopped but BT enabled - restarting")
-                        startBleServer(bluetoothAdapter)
+                    if (btConnected) {
+                         // Exclusive Mode: If BT is connected, ensure BLE server is STOPPED
+                         if (bleServerJob?.isActive == true) {
+                             Log.i(TAG, "BLE server watchdog: BT connected, stopping BLE server (Exclusive Mode)")
+                             stopBleServer()
+                         }
+                    } else {
+                        // Normal Mode: Keep BLE server running
+                        val serverRunning = bleServerJob?.isActive == true
+                        val btEnabled = bluetoothAdapter?.isEnabled == true
+                        
+                        if (btEnabled && !serverRunning) {
+                            Log.w(TAG, "BLE server watchdog: server stopped but BT enabled - restarting")
+                            startBleServer(bluetoothAdapter)
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "BLE server watchdog error (non-fatal): ${e.message}", e)
@@ -659,6 +684,37 @@ class TransportManager(
         }
     }
 
+    private fun stopBluetoothServer() {
+        bluetoothServerJob?.cancel()
+        // Do NOT disconnect the transport here if it is already connected?
+        // Wait, if we stop the server, we just stop LISTENING. Existing connections might persist?
+        // But for Exclusive Mode, we only stop the server if the OTHER transport is active.
+        // If we are connecting via BLE, we stop BT server. This assumes we are NOT connected via BT.
+        // If we are connected via BT, we keep BT server (implied by "btConnected" check in watchdog).
+        
+        // However, if we are in waiting state, we might want to close the socket.
+    }
+    
+    private fun stopBleServer() {
+        bleServerJob?.cancel()
+        scope.launch {
+            // If the server object has a stop method to stop advertising
+             // BleTransport doesn't expose stop() directly but disconnecting it helps
+             // But BleTransport in SERVER mode:
+             // We need to access the transport instance if created?
+             // Actually startBleServer creates a local 'transport' variable but assigns it to 'bleTransport' ONLY if connected.
+             // If it's just listening/advertising, 'bleTransport' might be null.
+             // But we need to stop the *Advertising*.
+             // The BleTransport class has a stop() method if we can access it.
+             // Since BleTransport instance is lost if not assigned to bleTransport, 
+             // we rely on the cancelling of bleServerJob.
+             // But wait, BleTransport logic is inside the job...
+             // In startBleServer: "val transport = BleTransport(...) ... finally { transport.disconnect() }"
+             // So cancelling the job triggers the finally block which calls disconnect(), which calls gattServer.stop().
+             // This functions correctly.
+        }
+    }
+
     /**
      * Sends a message using the best available transport.
      */
@@ -783,7 +839,9 @@ class TransportManager(
         wifiServerJob?.cancel()
         internetMonitorJob?.cancel()
         wifiServerWatchdog?.cancel()
+        wifiServerWatchdog?.cancel()
         btServerWatchdog?.cancel()
+        bleServerWatchdog?.cancel()
         internetMonitorWatchdog?.cancel()
         scope.launch {
             withContext(NonCancellable) {

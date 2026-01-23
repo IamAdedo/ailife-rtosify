@@ -2924,10 +2924,11 @@ class BluetoothService : Service() {
     }
     private fun buildConnectionStatusText(type: String, deviceName: String): String {
         val hasBluetooth = type.contains("Bluetooth") || type.contains("BT")
+        val hasBle = type.contains("BLE")
         val hasLan = type.contains("WiFi") || type.contains("LAN")
         val hasInternet = type.contains("Internet")
 
-        if (!hasBluetooth && !hasLan && !hasInternet) return getString(R.string.status_connected)
+        if (!hasBluetooth && !hasBle && !hasLan && !hasInternet) return getString(R.string.status_connected)
 
         val sb = StringBuilder()
         sb.append(getString(R.string.status_connected))
@@ -2935,6 +2936,7 @@ class BluetoothService : Service() {
 
         val transports = mutableListOf<String>()
         if (hasBluetooth) transports.add("BT")
+        if (hasBle) transports.add("BLE")
         if (hasLan) transports.add("LAN")
         if (hasInternet) transports.add("Internet")
 

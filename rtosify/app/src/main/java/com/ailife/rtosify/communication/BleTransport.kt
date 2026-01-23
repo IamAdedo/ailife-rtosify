@@ -114,6 +114,10 @@ class BleTransport(
                     connectedDevice = null
                     stopKeepalive()
                     Log.i(TAG, "BLE client: Disconnected from server")
+                    // Ensure channel is closed and state is reset so retry loop in TransportManager can restart
+                    CoroutineScope(Dispatchers.IO).launch {
+                        disconnect()
+                    }
                 }
             },
             onTransportActive = { lastReceiveTime = System.currentTimeMillis() }
