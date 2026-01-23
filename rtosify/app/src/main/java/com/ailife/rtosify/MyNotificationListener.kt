@@ -444,20 +444,20 @@ class MyNotificationListener : NotificationListenerService() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     val icon = notification.getLargeIcon()
                     if (icon != null) {
-                         navImage = iconToBase64(icon)
+                         navImage = iconToBase64(icon, 128)
                     }
                 }
                 if (navImage == null) {
                     val obj = extras.get("android.largeIcon")
-                    navImage = objToBase64(obj)
+                    navImage = objToBase64(obj, 128)
                 }
             } else if (imageType == 2) { // Big Picture
-                navImage = extractBigPicture(notification)
+                navImage = extractBigPicture(notification, 360)
                 // Fallback to large icon if big picture missing
                 if (navImage == null) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                         val icon = notification.getLargeIcon()
-                        if (icon != null) navImage = iconToBase64(icon)
+                        if (icon != null) navImage = iconToBase64(icon, 128)
                     }
                 }
             }
@@ -528,7 +528,7 @@ class MyNotificationListener : NotificationListenerService() {
             Log.d("Listener", "Notification extras keys: ${extras.keySet().joinToString()}")
 
             // 1. Extract large icon (original large icon if present)
-            var largeIconBase64 = extractLargeIcon(notification)
+            var largeIconBase64 = extractLargeIcon(notification, 128)
             val hasOriginalLargeIcon = largeIconBase64 != null
             Log.d(
                     "Listener",
@@ -536,7 +536,7 @@ class MyNotificationListener : NotificationListenerService() {
             )
 
             // 2. Extract group icon (API 30+)
-            val groupIconBase64 = extractGroupIcon(notification)
+            val groupIconBase64 = extractGroupIcon(notification, 128)
             Log.d(
                     "Listener",
                     "Group icon extracted: ${if (groupIconBase64 != null) "YES (${groupIconBase64.length} chars)" else "NO"}"
@@ -604,7 +604,7 @@ class MyNotificationListener : NotificationListenerService() {
             Log.d("Listener", "Extracted ${finalMessages.size} messages (including ${remoteInputHistory?.size ?: 0} from history)")
 
             // 4. Extract app icon (base fallback)
-            val appIconBase64 = extractAppIcon(sbn.packageName)
+            val appIconBase64 = extractAppIcon(sbn.packageName, 64)
             Log.d(
                     "Listener",
                     "App icon extracted: ${if (appIconBase64 != null) "YES (${appIconBase64.length} chars)" else "NO"}"
@@ -624,14 +624,14 @@ class MyNotificationListener : NotificationListenerService() {
             }
 
             // Extract small icon from notification (original status bar icon)
-            var smallIconBase64 = extractSmallIcon(notification)
+            var smallIconBase64 = extractSmallIcon(notification, 64)
             if (smallIconBase64 == null && appIconBase64 != null) {
                 smallIconBase64 = appIconBase64
                 Log.d("Listener", "Using app icon as small icon fallback")
             }
 
             // Extract big picture (for BigPictureStyle notifications)
-            val bigPictureBase64 = extractBigPicture(notification)
+            val bigPictureBase64 = extractBigPicture(notification, 360)
             Log.d(
                     "Listener",
                     "Big picture extracted: ${if (bigPictureBase64 != null) "YES (${bigPictureBase64.length} chars)" else "NO"}"
@@ -708,14 +708,14 @@ class MyNotificationListener : NotificationListenerService() {
 
     // --- HELPER FUNCTIONS ---
 
-    private fun extractLargeIcon(notification: android.app.Notification): String? {
+    private fun extractLargeIcon(notification: android.app.Notification, maxDim: Int = 128): String? {
         try {
             // Try getting large icon from notification (API 23+)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val icon = notification.getLargeIcon()
                 if (icon != null) {
                     Log.d("Listener", "Found large icon via getLargeIcon()")
-                    val base64 = iconToBase64(icon)
+                    val base64 = iconToBase64(icon, maxDim)
                     if (base64 != null) return base64
                 }
             }
@@ -727,7 +727,7 @@ class MyNotificationListener : NotificationListenerService() {
                 val obj = extras.get(key)
                 if (obj != null) {
                     Log.d("Listener", "Extra '$key' found, type: ${obj.javaClass.simpleName}")
-                    val base64 = objToBase64(obj)
+                    val base64 = objToBase64(obj, maxDim)
                     if (base64 != null) {
                         Log.d("Listener", "Successfully extracted icon from '$key'")
                         return base64
@@ -740,7 +740,7 @@ class MyNotificationListener : NotificationListenerService() {
         return null
     }
 
-    private fun extractGroupIcon(notification: android.app.Notification): String? {
+    private fun extractGroupIcon(notification: android.app.Notification, maxDim: Int = 128): String? {
         try {
             val extras = notification.extras
 
@@ -751,7 +751,7 @@ class MyNotificationListener : NotificationListenerService() {
                     val drawable = icon.loadDrawable(this)
                     if (drawable != null) {
                         Log.d("Listener", "Found group icon as conversationIcon")
-                        return bitmapToBase64(drawableToBitmap(drawable))
+                        return bitmapToBase64(drawableToBitmap(drawable), maxDim)
                     }
                 }
             }
@@ -763,7 +763,7 @@ class MyNotificationListener : NotificationListenerService() {
                     val drawable = icon.loadDrawable(this)
                     if (drawable != null) {
                         Log.d("Listener", "Found group icon as largeIcon.big")
-                        return bitmapToBase64(drawableToBitmap(drawable))
+                        return bitmapToBase64(drawableToBitmap(drawable), maxDim)
                     }
                 }
             }
@@ -775,7 +775,7 @@ class MyNotificationListener : NotificationListenerService() {
                     val drawable = messagingUser.icon!!.loadDrawable(this)
                     if (drawable != null) {
                         Log.d("Listener", "Found group icon from messagingStyleUser")
-                        return bitmapToBase64(drawableToBitmap(drawable))
+                        return bitmapToBase64(drawableToBitmap(drawable), maxDim)
                     }
                 }
             }
@@ -785,13 +785,13 @@ class MyNotificationListener : NotificationListenerService() {
         return null
     }
 
-    private fun objToBase64(obj: Any?): String? {
+    private fun objToBase64(obj: Any?, maxDim: Int = 128): String? {
         if (obj == null) return null
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && obj is android.graphics.drawable.Icon) {
-                return iconToBase64(obj)
+                return iconToBase64(obj, maxDim)
             } else if (obj is Bitmap) {
-                return bitmapToBase64(obj)
+                return bitmapToBase64(obj, maxDim)
             }
         } catch (e: Exception) {
             Log.e("Listener", "Error converting ${obj.javaClass.simpleName} to base64: ${e.message}")
@@ -799,12 +799,12 @@ class MyNotificationListener : NotificationListenerService() {
         return null
     }
 
-    private fun iconToBase64(icon: android.graphics.drawable.Icon): String? {
+    private fun iconToBase64(icon: android.graphics.drawable.Icon, maxDim: Int = 128): String? {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val drawable = icon.loadDrawable(this)
                 if (drawable != null) {
-                    return bitmapToBase64(drawableToBitmap(drawable))
+                    return bitmapToBase64(drawableToBitmap(drawable), maxDim)
                 }
             }
         } catch (e: Exception) {
@@ -813,7 +813,7 @@ class MyNotificationListener : NotificationListenerService() {
         return null
     }
 
-    private fun extractBigPicture(notification: android.app.Notification): String? {
+    private fun extractBigPicture(notification: android.app.Notification, maxDim: Int = 360): String? {
         try {
             val extras = notification.extras
 
@@ -821,7 +821,7 @@ class MyNotificationListener : NotificationListenerService() {
             val bigPictureBitmap = extras.getParcelable<Bitmap>("android.picture")
             if (bigPictureBitmap != null) {
                 Log.d("Listener", "Found big picture as Bitmap")
-                return bitmapToBase64(bigPictureBitmap)
+                return bitmapToBase64(bigPictureBitmap, maxDim)
             }
 
             // Try as Icon (if android.pictureIcon exists)
@@ -832,7 +832,7 @@ class MyNotificationListener : NotificationListenerService() {
                     val drawable = pictureIcon.loadDrawable(this)
                     if (drawable != null) {
                         Log.d("Listener", "Found big picture as Icon")
-                        return bitmapToBase64(drawableToBitmap(drawable))
+                        return bitmapToBase64(drawableToBitmap(drawable), maxDim)
                     }
                 }
             }
@@ -861,7 +861,7 @@ class MyNotificationListener : NotificationListenerService() {
                         if (person?.icon != null) {
                             val drawable = person.icon!!.loadDrawable(this)
                             if (drawable != null) {
-                                iconBase64 = bitmapToBase64(drawableToBitmap(drawable))
+                                iconBase64 = bitmapToBase64(drawableToBitmap(drawable), 128)
                             }
                         }
 
@@ -898,7 +898,7 @@ class MyNotificationListener : NotificationListenerService() {
                         if (person != null) {
                             var iconBase64: String? = null
                             if (person.icon != null) {
-                                iconBase64 = iconToBase64(person.icon!!)
+                                iconBase64 = iconToBase64(person.icon!!, 128)
                             }
                             return Pair(iconBase64, person.name?.toString())
                         }
@@ -921,7 +921,7 @@ class MyNotificationListener : NotificationListenerService() {
                 if (selfUser is android.app.Person) {
                     var iconBase64: String? = null
                     if (selfUser.icon != null) {
-                        iconBase64 = iconToBase64(selfUser.icon!!)
+                        iconBase64 = iconToBase64(selfUser.icon!!, 128)
                     }
                     return Pair(iconBase64, selfUser.name?.toString())
                 }
@@ -938,7 +938,7 @@ class MyNotificationListener : NotificationListenerService() {
         return Pair(null, null)
     }
 
-    private fun extractSmallIcon(notification: android.app.Notification): String? {
+    private fun extractSmallIcon(notification: android.app.Notification, maxDim: Int = 64): String? {
         try {
             // Try to get the small icon from notification (API 23+)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -948,7 +948,7 @@ class MyNotificationListener : NotificationListenerService() {
                     if (drawable != null) {
                         Log.d("Listener", "Extracted original small icon from notification")
                         val bitmap = drawableToBitmap(drawable)
-                        return bitmapToBase64(bitmap)
+                        return bitmapToBase64(bitmap, maxDim)
                     }
                 }
             }
@@ -958,12 +958,12 @@ class MyNotificationListener : NotificationListenerService() {
         return null
     }
 
-    private fun extractAppIcon(packageName: String): String? {
+    private fun extractAppIcon(packageName: String, maxDim: Int = 64): String? {
         try {
             val pm = packageManager
             val appIcon = pm.getApplicationIcon(packageName)
             val bitmap = drawableToBitmap(appIcon)
-            return bitmapToBase64(bitmap)
+            return bitmapToBase64(bitmap, maxDim)
         } catch (e: Exception) {
             Log.e("Listener", "Error extracting app icon: ${e.message}")
         }
@@ -1082,12 +1082,12 @@ class MyNotificationListener : NotificationListenerService() {
         return bitmap
     }
 
-    private fun bitmapToBase64(bitmap: Bitmap): String {
+    private fun bitmapToBase64(bitmap: Bitmap, maxDimension: Int = 512): String {
         val outputStream = ByteArrayOutputStream()
         // Resize if too large to avoid protocol size issues
         val resizedBitmap =
-                if (bitmap.width > 512 || bitmap.height > 512) {
-                    val scale = 512f / maxOf(bitmap.width, bitmap.height)
+                if (bitmap.width > maxDimension || bitmap.height > maxDimension) {
+                    val scale = maxDimension.toFloat() / maxOf(bitmap.width, bitmap.height)
                     val newWidth = (bitmap.width * scale).toInt()
                     val newHeight = (bitmap.height * scale).toInt()
                     Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
@@ -1095,15 +1095,22 @@ class MyNotificationListener : NotificationListenerService() {
                     bitmap
                 }
 
-        // Use PNG to preserve transparency (critical for notification icons)
-        resizedBitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+        // Use WebP for better compression (API 30+ supports WEBP_LOSSY explicitly, but WEBP covers it on older)
+        // For icons, we want to preserve transparency, so we need a format supporting alpha.
+        val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+             Bitmap.CompressFormat.WEBP_LOSSY 
+        } else { 
+             @Suppress("DEPRECATION") Bitmap.CompressFormat.WEBP 
+        }
+        
+        resizedBitmap.compress(format, 80, outputStream)
         val byteArray = outputStream.toByteArray()
 
         if (resizedBitmap != bitmap) {
             resizedBitmap.recycle()
         }
 
-        Log.d("Listener", "Compressed icon to ${byteArray.size} bytes")
+        Log.d("Listener", "Compressed icon to ${byteArray.size} bytes (Format: $format, MaxDim: $maxDimension)")
         return Base64.encodeToString(byteArray, Base64.NO_WRAP)
     }
 }
