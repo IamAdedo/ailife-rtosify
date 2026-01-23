@@ -34,7 +34,8 @@ class BleDataGattClient(
         private const val TAG = "BleDataGattClient"
         private const val MAX_MTU = 517
         private const val CONNECT_TIMEOUT_MS = 10000L
-        private const val MAX_RETRIES = 20
+        private const val MAX_RETRIES = 100
+        private const val STUCK_WRITE_TIMEOUT_MS = 5000L
     }
 
     private var bluetoothGatt: BluetoothGatt? = null
@@ -50,6 +51,8 @@ class BleDataGattClient(
     private val lock = Any()
     private var serviceDiscoveryRetryCount = 0
     private var retryCount = 0
+    private var lastWriteTime = 0L
+    private var isRetryScheduled = false
 
     // ... (rest of class) ...
 
@@ -93,8 +96,17 @@ class BleDataGattClient(
 
     private fun processWriteQueue() {
         synchronized(lock) {
-            if (isWriting || !isConnected) {
-                return
+            if (!isConnected || isRetryScheduled) return
+
+            if (isWriting) {
+                // Check for stuck write
+                val elapsed = System.currentTimeMillis() - lastWriteTime
+                if (elapsed > STUCK_WRITE_TIMEOUT_MS) {
+                    Log.w(TAG, "Write seems stuck ($elapsed ms), force-resetting isWriting and continuing")
+                    isWriting = false
+                } else {
+                    return
+                }
             }
 
             // Check high priority first
@@ -116,19 +128,20 @@ class BleDataGattClient(
             }
 
             try {
+                // Switch to NO_RESPONSE for better throughput
+                rx.writeType = BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+                
                 val success: Boolean
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     val code = bluetoothGatt?.writeCharacteristic(
                         rx,
                         data,
-                        BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+                        BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
                     ) ?: BluetoothGatt.GATT_FAILURE
                     success = (code == BluetoothGatt.GATT_SUCCESS)
                 } else {
                     @Suppress("DEPRECATION")
                     rx.value = data
-                    @Suppress("DEPRECATION")
-                    rx.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                     @Suppress("DEPRECATION")
                     success = bluetoothGatt?.writeCharacteristic(rx) ?: false
                 }
@@ -141,6 +154,7 @@ class BleDataGattClient(
                         writeQueue.poll()
                     }
                     isWriting = true
+                    lastWriteTime = System.currentTimeMillis()
                     retryCount = 0
                     val priorityStr = if (isHighPriority) "High" else "Normal"
                     Log.d(TAG, "Write initiated ($priorityStr): ${data.size} bytes")
@@ -150,12 +164,27 @@ class BleDataGattClient(
                     retryCount++
                     val priorityStr = if (isHighPriority) "High" else "Normal"
                     
+                    // Persistent Retry: Do not disconnect. Just delay more and log.
                     if (retryCount <= MAX_RETRIES) {
-                        Log.w(TAG, "Write initiation failed ($priorityStr) - retry $retryCount/$MAX_RETRIES")
-                        retryHandler.postDelayed({ processWriteQueue() }, 300)
+                        if (!isRetryScheduled) {
+                            isRetryScheduled = true
+                            Log.w(TAG, "Write initiation failed ($priorityStr) - retry $retryCount/$MAX_RETRIES")
+                            retryHandler.postDelayed({ 
+                                synchronized(lock) { isRetryScheduled = false }
+                                processWriteQueue() 
+                            }, 50)
+                        }
                     } else {
-                        Log.e(TAG, "Max retries reached for write initiation - disconnecting")
-                        disconnect()
+                        // Beyond MAX_RETRIES, we still don't disconnect, but we slow down significantly 
+                        // to let the link clear up.
+                        if (!isRetryScheduled) {
+                            isRetryScheduled = true
+                            Log.e(TAG, "Congestion critical ($priorityStr) - persistent retry active")
+                            retryHandler.postDelayed({ 
+                                synchronized(lock) { isRetryScheduled = false }
+                                processWriteQueue() 
+                            }, 500)
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -177,7 +206,8 @@ class BleDataGattClient(
                     if (checkPermission()) {
                         retryHandler.postDelayed({
                             if (isConnected && bluetoothGatt != null) {
-                                Log.d(TAG, "Requesting MTU increase to $MAX_MTU")
+                                Log.d(TAG, "Requesting Connection Priority HIGH and MTU increase to $MAX_MTU")
+                                bluetoothGatt?.requestConnectionPriority(android.bluetooth.BluetoothGatt.CONNECTION_PRIORITY_HIGH)
                                 bluetoothGatt?.requestMtu(MAX_MTU)
                             }
                         }, 300)

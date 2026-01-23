@@ -42,7 +42,8 @@ class BleDataGattServer(
     companion object {
         private const val TAG = "BleDataGattServer"
         private const val MAX_MTU = 517
-        private const val MAX_RETRIES = 20
+        private const val MAX_RETRIES = 100
+        private const val STUCK_WRITE_TIMEOUT_MS = 5000L
     }
 
     private var bluetoothGattServer: BluetoothGattServer? = null
@@ -57,6 +58,8 @@ class BleDataGattServer(
     private var isSendingNotification = false
     private val lock = Any()
     private var retryCount = 0
+    private var lastNotifyTime = 0L
+    private var isRetryScheduled = false
 
     // ...
 
@@ -102,8 +105,17 @@ class BleDataGattServer(
 
     private fun processTxQueue() {
         synchronized(lock) {
-            if (isSendingNotification || connectedDevice == null) {
-                return
+            if (connectedDevice == null || isRetryScheduled) return
+
+            if (isSendingNotification) {
+                // Check for stuck notification
+                val elapsed = System.currentTimeMillis() - lastNotifyTime
+                if (elapsed > STUCK_WRITE_TIMEOUT_MS) {
+                    Log.w(TAG, "Notification seems stuck ($elapsed ms), force-resetting isSendingNotification and continuing")
+                    isSendingNotification = false
+                } else {
+                    return
+                }
             }
 
             // Priority Check
@@ -140,6 +152,7 @@ class BleDataGattServer(
                 ) ?: false
                 
                 if (success) {
+                    lastNotifyTime = System.currentTimeMillis()
                     if (isHighPriority) {
                         highPriorityTxQueue.poll()
                     } else {
@@ -153,12 +166,24 @@ class BleDataGattServer(
                 } else {
                     retryCount++
                     if (retryCount <= MAX_RETRIES) {
-                        Log.w(TAG, "Failed to send notification - retry $retryCount/$MAX_RETRIES")
-                        retryHandler.postDelayed({ processTxQueue() }, 300)
+                        if (!isRetryScheduled) {
+                            isRetryScheduled = true
+                            Log.w(TAG, "Failed to send notification - retry $retryCount/$MAX_RETRIES")
+                            retryHandler.postDelayed({ 
+                                synchronized(lock) { isRetryScheduled = false }
+                                processTxQueue() 
+                            }, 50)
+                        }
                     } else {
-                        Log.e(TAG, "Max retries reached for notification - disconnecting")
-                        isSendingNotification = false
-                        disconnectAndReset()
+                        // Persistent Retry: Keep trying at longer intervals instead of disconnecting
+                        if (!isRetryScheduled) {
+                            isRetryScheduled = true
+                            Log.e(TAG, "Congestion critical - persistent retry active")
+                            retryHandler.postDelayed({ 
+                                synchronized(lock) { isRetryScheduled = false }
+                                processTxQueue() 
+                            }, 500)
+                        }
                     }
                 }
             } catch (e: Exception) {
