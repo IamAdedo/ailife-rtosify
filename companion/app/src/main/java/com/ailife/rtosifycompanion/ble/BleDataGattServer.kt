@@ -34,13 +34,15 @@ class BleDataGattServer(
     private val context: Context,
     private val onDataReceived: (ByteArray) -> Unit,
     private val onClientConnected: (BluetoothDevice) -> Unit,
-    private val onClientDisconnected: (BluetoothDevice) -> Unit
+
+    private val onClientDisconnected: (BluetoothDevice) -> Unit,
+    private val onTransportActive: () -> Unit
 ) {
 
     companion object {
         private const val TAG = "BleDataGattServer"
         private const val MAX_MTU = 512
-        private const val MAX_RETRIES = 5
+        private const val MAX_RETRIES = 20
     }
 
     private var bluetoothGattServer: BluetoothGattServer? = null
@@ -64,10 +66,6 @@ class BleDataGattServer(
     private val retryHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     fun sendData(data: ByteArray, priority: Boolean = false): Boolean {
-        if (data.size > 100) {
-             Log.d(TAG, "sendData called with ${data.size} bytes. Stack: ${Log.getStackTraceString(Throwable())}")
-        }
-
         if (connectedDevice == null) {
             Log.w(TAG, "No client connected, cannot send data")
             return false
@@ -149,15 +147,12 @@ class BleDataGattServer(
                     val priorityStr = if (isHighPriority) "High" else "Normal"
                     Log.d(TAG, "Sent ($priorityStr): ${data.size} bytes")
                     
-                    // Debug logging for large packets
-                    if (data.size == 512) {
-                         Log.d(TAG, "Sent 512 byte packet via notifyCharacteristicChanged. Stack: ${Log.getStackTraceString(Throwable())}")
-                    }
+
                 } else {
                     retryCount++
                     if (retryCount <= MAX_RETRIES) {
                         Log.w(TAG, "Failed to send notification - retry $retryCount/$MAX_RETRIES")
-                        retryHandler.postDelayed({ processTxQueue() }, 200)
+                        retryHandler.postDelayed({ processTxQueue() }, 300)
                     } else {
                         Log.e(TAG, "Max retries reached for notification - disconnecting")
                         isSendingNotification = false
@@ -314,6 +309,7 @@ class BleDataGattServer(
             }
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 // Continue sending if more data in queue
+                onTransportActive()
                 processTxQueue()
             } else {
                 Log.e(TAG, "Notification send failed with status: $status")

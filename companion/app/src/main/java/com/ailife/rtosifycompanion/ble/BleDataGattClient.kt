@@ -23,14 +23,16 @@ import java.util.concurrent.ConcurrentLinkedQueue
 class BleDataGattClient(
     private val context: Context,
     private val onDataReceived: (ByteArray) -> Unit,
-    private val onConnectionStateChanged: (Boolean) -> Unit
+
+    private val onConnectionStateChanged: (Boolean) -> Unit,
+    private val onTransportActive: () -> Unit
 ) {
 
     companion object {
         private const val TAG = "BleDataGattClient"
         private const val MAX_MTU = 512
         private const val CONNECT_TIMEOUT_MS = 10000L
-        private const val MAX_RETRIES = 5
+        private const val MAX_RETRIES = 20
     }
 
     private var bluetoothGatt: BluetoothGatt? = null
@@ -55,10 +57,6 @@ class BleDataGattClient(
     private val retryHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     fun sendData(data: ByteArray, priority: Boolean = false): Boolean {
-        if (data.size > 100) {
-             Log.d(TAG, "sendData called with ${data.size} bytes. Stack: ${Log.getStackTraceString(Throwable())}")
-        }
-
         if (!isConnected || rxCharacteristic == null) {
             Log.w(TAG, "Not connected, cannot send data")
             return false
@@ -145,17 +143,14 @@ class BleDataGattClient(
                     val priorityStr = if (isHighPriority) "High" else "Normal"
                     Log.d(TAG, "Write initiated ($priorityStr): ${data.size} bytes")
 
-                    // Debug logging for large packets
-                    if (data.size == 512) {
-                         Log.d(TAG, "Sending 512 byte packet via writeCharacteristic. Stack: ${Log.getStackTraceString(Throwable())}")
-                    }
+
                 } else {
                     retryCount++
                     val priorityStr = if (isHighPriority) "High" else "Normal"
                     
                     if (retryCount <= MAX_RETRIES) {
                         Log.w(TAG, "Write initiation failed ($priorityStr) - retry $retryCount/$MAX_RETRIES")
-                        retryHandler.postDelayed({ processWriteQueue() }, 200)
+                        retryHandler.postDelayed({ processWriteQueue() }, 300)
                     } else {
                         Log.e(TAG, "Max retries reached for write initiation - disconnecting")
                         disconnect()
@@ -275,7 +270,8 @@ class BleDataGattClient(
                 isWriting = false
             }
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                Log.d(TAG, "Write successful: ${characteristic.value?.size ?: 0} bytes")
+                Log.d(TAG, "Write successful")
+                onTransportActive()
                 // Process next write in queue
                 processWriteQueue()
             } else {
