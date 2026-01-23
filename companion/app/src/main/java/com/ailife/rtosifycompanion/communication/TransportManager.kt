@@ -43,23 +43,26 @@ class TransportManager(
     }
 
     /**
-     * Returns the current connection status string (e.g., "Connected via BT+LAN")
+     * Returns the current connection status string (e.g., "Connected via BLE+LAN")
      */
     fun getConnectionStatusString(): String {
         val bt = bluetoothTransport
+        val ble = bleTransport
         val wifi = wifiTransport
         val internet = internetTransport
 
         val btConnected = bt != null && bt.isConnected()
+        val bleConnected = ble != null && ble.isConnected()
         val wifiConnected = wifi != null && wifi.isConnected()
         val internetConnected = internet != null && internet.isConnected()
 
-        if (!btConnected && !wifiConnected && !internetConnected) {
+        if (!btConnected && !bleConnected && !wifiConnected && !internetConnected) {
             return context.getString(com.ailife.rtosifycompanion.R.string.status_disconnected)
         }
 
         val types = mutableListOf<String>()
         if (btConnected) types.add(context.getString(com.ailife.rtosifycompanion.R.string.transport_bt))
+        if (bleConnected) types.add(context.getString(com.ailife.rtosifycompanion.R.string.transport_ble))
         if (wifiConnected) types.add(context.getString(com.ailife.rtosifycompanion.R.string.transport_lan))
         if (internetConnected) types.add(context.getString(com.ailife.rtosifycompanion.R.string.transport_internet))
 
@@ -67,16 +70,19 @@ class TransportManager(
     }
 
     fun isBtConnected(): Boolean = bluetoothTransport?.isConnected() == true
+    fun isBleConnected(): Boolean = bleTransport?.isConnected() == true
     fun isLanConnected(): Boolean = wifiTransport?.isConnected() == true
     fun isInternetConnected(): Boolean = internetTransport?.isConnected() == true
-    fun isAnyTransportConnected(): Boolean = isBtConnected() || isLanConnected() || isInternetConnected()
+    fun isAnyTransportConnected(): Boolean = isBtConnected() || isBleConnected() || isLanConnected() || isInternetConnected()
 
     private var bluetoothTransport: BluetoothTransport? = null
+    private var bleTransport: BleTransport? = null
     private var wifiTransport: WifiIntranetTransport? = null
     private var internetTransport: WebRtcTransport? = null
 
     // Jobs for server processes
     private var bluetoothServerJob: Job? = null
+    private var bleServerJob: Job? = null
     private var wifiServerJob: Job? = null
     private var internetMonitorJob: Job? = null
     
@@ -87,6 +93,7 @@ class TransportManager(
     data class TransportStatus(
         val isConnected: Boolean = false,
         val isBtConnected: Boolean = false,
+        val isBleConnected: Boolean = false,
         val isLanConnected: Boolean = false,
         val isInternetConnected: Boolean = false,
         val deviceName: String? = null,
@@ -277,6 +284,55 @@ class TransportManager(
     }
 
     /**
+     * Starts the BLE server to accept incoming BLE connections.
+     */
+    fun startBleServer(bluetoothAdapter: BluetoothAdapter?) {
+        if (bleServerJob?.isActive == true) return
+        bleServerJob?.cancel()
+
+        bleServerJob = scope.launch(Dispatchers.IO) {
+            Log.d(TAG, "Starting BLE server...")
+            
+            if (bluetoothAdapter?.isEnabled != true) {
+                Log.w(TAG, "Bluetooth disabled, cannot start BLE server")
+                return@launch
+            }
+
+            val transport = BleTransport(
+                context = context,
+                bluetoothAdapter = bluetoothAdapter,
+                isServer = true,
+                targetDevice = null
+            )
+
+            try {
+                if (transport.connect()) {
+                    bleTransport = transport
+                    updateConnectionState()
+                    
+                    try {
+                        transport.receive().collect { msg ->
+                            _incomingMessages.send(msg)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "BLE receive error: ${e.message}")
+                    } finally {
+                        Log.w(TAG, "Cleaning up BleTransport - connection ended.")
+                        bleTransport = null
+                        updateConnectionState()
+                    }
+                } else {
+                    Log.e(TAG, "Failed to start BLE server")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "BLE server error", e)
+            } finally {
+                transport.disconnect()
+            }
+        }
+    }
+
+    /**
      * Starts the WiFi server logic.
      */
     fun startWifiServer(deviceName: String, localMac: String, remoteMac: String) {
@@ -406,6 +462,34 @@ class TransportManager(
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "BT server watchdog error (non-fatal): ${e.message}", e)
+                    // Continue running despite errors
+                }
+                
+                delay(5000) // Check every 5 seconds
+            }
+        }
+    }
+
+    /**
+     * BLE Server Watchdog - monitors and auto-restarts BLE server if it stops
+     */
+    fun startBleServerWatchdog(bluetoothAdapter: BluetoothAdapter?) {
+        if (btServerWatchdog?.isActive == true) return  // Reuse same watchdog field
+        btServerWatchdog?.cancel()
+        
+        btServerWatchdog = scope.launch(Dispatchers.IO) {
+            Log.d(TAG, "Starting BLE server watchdog")
+            while (isActive) {
+                try {
+                    val serverRunning = bleServerJob?.isActive == true
+                    val btEnabled = bluetoothAdapter?.isEnabled == true
+                    
+                    if (btEnabled && !serverRunning) {
+                        Log.w(TAG, "BLE server watchdog: server stopped but BT enabled - restarting")
+                        startBleServer(bluetoothAdapter)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "BLE server watchdog error (non-fatal): ${e.message}", e)
                     // Continue running despite errors
                 }
                 
@@ -586,8 +670,14 @@ class TransportManager(
             }
         }
         
-        // Priority 2: Bluetooth
+        // Priority 2: Bluetooth (Classic or BLE, whichever is active)
         bluetoothTransport?.let {
+            if (it.isConnected()) {
+                if (it.send(message)) return true
+            }
+        }
+        
+        bleTransport?.let {
             if (it.isConnected()) {
                 if (it.send(message)) return true
             }
@@ -607,23 +697,26 @@ class TransportManager(
     private fun updateConnectionState() {
         val wifi = wifiTransport
         val bt = bluetoothTransport
+        val ble = bleTransport
         val internet = internetTransport
 
         // Build connection type string showing all active transports
         val btConnected = bt != null && bt.isConnected()
+        val bleConnected = ble != null && ble.isConnected()
         val wifiConnected = wifi != null && wifi.isConnected()
         val internetConnected = internet != null && internet.isConnected()
 
         val types = mutableListOf<String>()
         if (btConnected) types.add("BT")
+        if (bleConnected) types.add("BLE")
         if (wifiConnected) types.add("LAN")
         if (internetConnected) types.add("Internet")
         val typeString = types.joinToString("+")
 
-        val deviceName = bt?.getRemoteDeviceName() ?: wifi?.getRemoteDeviceName() ?: internet?.getRemoteDeviceName()
-        val deviceMac = bt?.getRemoteAddress() ?: wifi?.getRemoteAddress() ?: internet?.getRemoteAddress()
+        val deviceName = bt?.getRemoteDeviceName() ?: ble?.getRemoteDeviceName() ?: wifi?.getRemoteDeviceName() ?: internet?.getRemoteDeviceName()
+        val deviceMac = bt?.getRemoteAddress() ?: ble?.getRemoteAddress() ?: wifi?.getRemoteAddress() ?: internet?.getRemoteAddress()
 
-        val isAnyConnected = btConnected || wifiConnected || internetConnected
+        val isAnyConnected = btConnected || bleConnected || wifiConnected || internetConnected
 
         val newState = if (isAnyConnected) {
             ConnectionState.Connected(typeString, deviceName, deviceMac)
@@ -640,6 +733,7 @@ class TransportManager(
         _status.value = TransportStatus(
             isConnected = isAnyConnected,
             isBtConnected = btConnected,
+            isBleConnected = bleConnected,
             isLanConnected = wifiConnected,
             isInternetConnected = internetConnected,
             deviceName = deviceName,
@@ -654,6 +748,8 @@ class TransportManager(
         scope.launch {
             bluetoothTransport?.disconnect()
             bluetoothTransport = null
+            bleTransport?.disconnect()
+            bleTransport = null
             wifiTransport?.disconnect()
             wifiTransport = null
             internetTransport?.disconnect()
@@ -683,6 +779,7 @@ class TransportManager(
 
     fun stopAll() {
         bluetoothServerJob?.cancel()
+        bleServerJob?.cancel()
         wifiServerJob?.cancel()
         internetMonitorJob?.cancel()
         wifiServerWatchdog?.cancel()
@@ -691,10 +788,12 @@ class TransportManager(
         scope.launch {
             withContext(NonCancellable) {
                 bluetoothTransport?.disconnect()
+                bleTransport?.disconnect()
                 wifiTransport?.disconnect()
                 attemptingWifiTransport?.disconnect()
                 internetTransport?.disconnect()
                 bluetoothTransport = null
+                bleTransport = null
                 wifiTransport = null
                 attemptingWifiTransport = null
                 internetTransport = null

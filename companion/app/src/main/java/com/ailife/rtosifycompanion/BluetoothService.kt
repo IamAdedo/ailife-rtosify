@@ -1137,16 +1137,21 @@ class BluetoothService : Service() {
                 transportManager.startWifiServerWatchdog(this, deviceName, watchMac, remoteMac)
                 
                 val internetUrl = prefs.getString("internet_signaling_url", "ws://192.168.1.10:8080") ?: "ws://192.168.1.10:8080"
-                val internetRule = prefs.getInt("internet_activation_rule", 0)
+            val internetRule = prefs.getInt("internet_activation_rule", 0)
                 transportManager.updateInternetSettings(internetRule, internetUrl)
                 transportManager.startInternetMonitorWatchdog(deviceName, watchMac, remoteMac)
             }
         }
 
-        // Bluetooth Server
+        // Start BOTH Bluetooth Classic and BLE servers
+        // The phone will decide which one to connect to based on its configuration
         transportManager.startBluetoothServer(adapter)
-        // Start Bluetooth server watchdog
         transportManager.startBluetoothServerWatchdog(adapter)
+        
+        transportManager.startBleServer(adapter)
+        transportManager.startBleServerWatchdog(adapter)
+        
+        Log.i(TAG, "Started both Bluetooth Classic (RFCOMM) and BLE servers - phone will choose transport")
     }
 
     private fun handleDeviceConnected(deviceName: String, mac: String?, transportType: String = "") {

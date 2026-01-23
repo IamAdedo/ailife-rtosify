@@ -480,6 +480,7 @@
     <string name="action_ring_stop">Stop Ringing</string>
 
     <string name="transport_bt">BT</string>
+    <string name="transport_ble">BLE</string>
     <string name="transport_lan">LAN</string>
     <string name="transport_internet">Internet</string>
     <string name="status_connected_via">Connected via %s</string>

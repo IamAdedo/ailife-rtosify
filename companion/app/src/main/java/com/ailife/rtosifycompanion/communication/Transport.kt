@@ -58,7 +58,9 @@ interface CommunicationTransport {
  * Transport types
  */
 enum class TransportType {
-    BLUETOOTH,
+    BLUETOOTH_CLASSIC,  // RFCOMM-based Bluetooth (Android only)
+    BLUETOOTH_LE,       // BLE GATT-based Bluetooth (Android + iOS compatible)
     WIFI_INTRANET,
     INTERNET  // Reserved for future use
 }
+

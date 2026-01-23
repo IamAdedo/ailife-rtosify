@@ -37,6 +37,11 @@ class NetworkSettingsActivity : AppCompatActivity() {
     private lateinit var tvLanStatus: TextView
     private lateinit var tvInternetStatus: TextView
 
+    // Bluetooth Transport Mode
+    private lateinit var radioGroupBtTransport: RadioGroup
+    private lateinit var radioBtClassic: RadioButton
+    private lateinit var radioBtBle: RadioButton
+
     // LAN Rules
     private lateinit var radioGroupLan: RadioGroup
     private lateinit var radioLanDisabled: RadioButton
@@ -164,6 +169,11 @@ class NetworkSettingsActivity : AppCompatActivity() {
         tvLanStatus = findViewById(R.id.tvLanStatus)
         tvInternetStatus = findViewById(R.id.tvInternetStatus)
 
+        // Bluetooth Transport Radio Group
+        radioGroupBtTransport = findViewById(R.id.radioGroupBtTransport)
+        radioBtClassic = findViewById(R.id.radioBtClassic)
+        radioBtBle = findViewById(R.id.radioBtBle)
+
         // LAN Radio Group
         radioGroupLan = findViewById(R.id.radioGroupLan)
         radioLanDisabled = findViewById(R.id.radioLanDisabled)
@@ -201,6 +211,13 @@ class NetworkSettingsActivity : AppCompatActivity() {
 
     private fun loadSettings() {
         val devicePrefs = devicePrefManager.getActiveDevicePrefs()
+
+        // Load Bluetooth transport mode (default: classic)
+        val btTransportMode = devicePrefs.getString("bluetooth_transport_mode", "classic")
+        when (btTransportMode) {
+            "ble" -> radioBtBle.isChecked = true
+            else -> radioBtClassic.isChecked = true
+        }
 
         // Load LAN rule (default: disabled)
         val lanRule = devicePrefs.getInt("wifi_activation_rule", 0)
@@ -251,6 +268,11 @@ class NetworkSettingsActivity : AppCompatActivity() {
         // Test button
         btnTestInternet.setOnClickListener {
             startActivity(Intent(this, InternetTestActivity::class.java))
+        }
+
+        // Bluetooth Transport RadioGroup
+        radioGroupBtTransport.setOnCheckedChangeListener { _, _ ->
+            saveBtTransportMode()
         }
 
         // LAN RadioGroup
@@ -323,6 +345,28 @@ class NetworkSettingsActivity : AppCompatActivity() {
                 onChanged(s.toString().trim())
             }
         }
+    }
+
+    private fun saveBtTransportMode() {
+        val mode = when (radioGroupBtTransport.checkedRadioButtonId) {
+            R.id.radioBtBle -> "ble"
+            else -> "classic"
+        }
+
+        devicePrefManager.getActiveDevicePrefs().edit()
+            .putString("bluetooth_transport_mode", mode).apply()
+
+        val modeName = if (mode == "ble") {
+            getString(R.string.bt_transport_ble)
+        } else {
+            getString(R.string.bt_transport_classic)
+        }
+        
+        Toast.makeText(
+            this,
+            "Bluetooth mode: $modeName\nReconnect to apply changes",
+            Toast.LENGTH_LONG
+        ).show()
     }
 
     private fun saveLanRule() {

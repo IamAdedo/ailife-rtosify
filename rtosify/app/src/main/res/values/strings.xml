@@ -841,8 +841,17 @@
     <!-- Privacy Policy -->
     <string name="privacy_policy_title">Privacy Policy</string>
     <string name="privacy_policy_content">To provide network communication features, this app collects MAC addresses from both devices for identification purposes.\n\nAll user data is end-to-end encrypted, and the encryption keys are stored only on your devices and never shared with our servers.</string>
-    <string name="privacy_policy_agree">Agree</string>
+    <string name="privacy_policy_agree">I Agree</string>
     <string name="privacy_policy_decline">Decline</string>
+    
+    <!-- Bluetooth Transport Mode -->
+    <string name="bluetooth_transport_title">Bluetooth Transport Mode</string>
+    <string name="bluetooth_transport_desc">Choose how your phone connects to the watch via Bluetooth</string>
+    <string name="bt_transport_classic">Bluetooth Classic (RFCOMM)</string>
+    <string name="bt_transport_classic_desc">Traditional Bluetooth. Faster data transfer, works on all Android devices.</string>
+    <string name="bt_transport_ble">Bluetooth Low Energy (BLE)</string>
+    <string name="bt_transport_ble_desc">Lower power consumption. Compatible with iOS devices (future support).</string>
+    
     <!-- Navigation Overlay Settings -->
     <string name="nav_settings_title">Navigation Settings</string>
     <string name="nav_image_type">Image Type</string>

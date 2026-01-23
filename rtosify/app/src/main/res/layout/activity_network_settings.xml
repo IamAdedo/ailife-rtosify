@@ -189,6 +189,84 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Bluetooth Transport Mode Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardBackgroundColor="#1E1E1E"
+            app:cardCornerRadius="16dp"
+            app:strokeWidth="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-bold"
+                    android:text="@string/bluetooth_transport_title"
+                    android:textColor="@android:color/white"
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="12dp"
+                    android:text="@string/bluetooth_transport_desc"
+                    android:textColor="#888888"
+                    android:textSize="14sp" />
+
+                <RadioGroup
+                    android:id="@+id/radioGroupBtTransport"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <RadioButton
+                        android:id="@+id/radioBtClassic"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingVertical="8dp"
+                        android:text="@string/bt_transport_classic"
+                        android:textColor="@android:color/white"
+                        android:textSize="15sp"
+                        android:buttonTint="#888888" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="32dp"
+                        android:layout_marginBottom="8dp"
+                        android:text="@string/bt_transport_classic_desc"
+                        android:textColor="#666666"
+                        android:textSize="12sp" />
+
+                    <RadioButton
+                        android:id="@+id/radioBtBle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:paddingVertical="8dp"
+                        android:text="@string/bt_transport_ble"
+                        android:textColor="@android:color/white"
+                        android:textSize="15sp"
+                        android:buttonTint="#888888" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="32dp"
+                        android:text="@string/bt_transport_ble_desc"
+                        android:textColor="#666666"
+                        android:textSize="12sp" />
+                </RadioGroup>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- LAN Activation Rules Card -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
