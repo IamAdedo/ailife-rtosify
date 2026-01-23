@@ -40,6 +40,7 @@ class BleDataGattServer(
     companion object {
         private const val TAG = "BleDataGattServer"
         private const val MAX_MTU = 512
+        private const val MAX_RETRIES = 5
     }
 
     private var bluetoothGattServer: BluetoothGattServer? = null
@@ -52,6 +53,8 @@ class BleDataGattServer(
     private val txQueue = ConcurrentLinkedQueue<ByteArray>()
     private val highPriorityTxQueue = ConcurrentLinkedQueue<ByteArray>()
     private var isSendingNotification = false
+    private val lock = Any()
+    private var retryCount = 0
 
     // ...
 
@@ -61,6 +64,10 @@ class BleDataGattServer(
     private val retryHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
     fun sendData(data: ByteArray, priority: Boolean = false): Boolean {
+        if (data.size > 100) {
+             Log.d(TAG, "sendData called with ${data.size} bytes. Stack: ${Log.getStackTraceString(Throwable())}")
+        }
+        
         if (connectedDevice == null) {
             Log.w(TAG, "No client connected, cannot send data")
             return false
@@ -94,60 +101,74 @@ class BleDataGattServer(
     }
 
     private fun processTxQueue() {
-        if (isSendingNotification || connectedDevice == null) {
-            return
-        }
-
-        // Priority Check
-        var data = highPriorityTxQueue.peek()
-        var isHighPriority = true
-        
-        if (data == null) {
-            data = txQueue.peek()
-            isHighPriority = false
-        }
-
-        if (data == null) return
-
-        if (!checkPermission()) {
-            Log.e(TAG, "Missing permission to send notification")
-            return
-        }
-
-        val service = bluetoothGattServer?.getService(BleRssiUuids.DATA_TRANSPORT_SERVICE_UUID)
-        val characteristic = service?.getCharacteristic(BleRssiUuids.DATA_TX_CHARACTERISTIC_UUID)
-
-        if (characteristic == null) {
-            Log.e(TAG, "TX characteristic not found")
-            return
-        }
-
-        try {
-            characteristic.value = data
-            isSendingNotification = true
-            val success = bluetoothGattServer?.notifyCharacteristicChanged(
-                connectedDevice,
-                characteristic,
-                false
-            ) ?: false
-            
-            if (!success) {
-                isSendingNotification = false
-                Log.w(TAG, "Failed to send notification - scheduling retry")
-                retryHandler.postDelayed({ processTxQueue() }, 50)
-            } else {
-                if (isHighPriority) {
-                    highPriorityTxQueue.poll()
-                } else {
-                    txQueue.poll()
-                }
-                Log.d(TAG, "Sent (${if(isHighPriority) "High" else "Normal"}): ${data.size} bytes")
-                // Wait for callback to trigger next send
+        synchronized(lock) {
+            if (isSendingNotification || connectedDevice == null) {
+                return
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error sending notification: ${e.message}", e)
-            isSendingNotification = false
-            disconnectAndReset()
+
+            // Priority Check
+            var data = highPriorityTxQueue.peek()
+            var isHighPriority = true
+            
+            if (data == null) {
+                data = txQueue.peek()
+                isHighPriority = false
+            }
+
+            if (data == null) return
+
+            if (!checkPermission()) {
+                Log.e(TAG, "Missing permission to send notification")
+                return
+            }
+
+            val service = bluetoothGattServer?.getService(BleRssiUuids.DATA_TRANSPORT_SERVICE_UUID)
+            val characteristic = service?.getCharacteristic(BleRssiUuids.DATA_TX_CHARACTERISTIC_UUID)
+
+            if (characteristic == null) {
+                Log.e(TAG, "TX characteristic not found")
+                return
+            }
+
+            try {
+                characteristic.value = data
+                isSendingNotification = true
+                val success = bluetoothGattServer?.notifyCharacteristicChanged(
+                    connectedDevice,
+                    characteristic,
+                    false
+                ) ?: false
+                
+                if (success) {
+                    if (isHighPriority) {
+                        highPriorityTxQueue.poll()
+                    } else {
+                        txQueue.poll()
+                    }
+                    retryCount = 0
+                    val priorityStr = if (isHighPriority) "High" else "Normal"
+                    Log.d(TAG, "Sent ($priorityStr): ${data.size} bytes")
+                    
+                    // Debug logging for large packets
+                    if (data.size == 512) {
+                         Log.d(TAG, "Sent 512 byte packet via notifyCharacteristicChanged. Stack: ${Log.getStackTraceString(Throwable())}")
+                    }
+                } else {
+                    retryCount++
+                    if (retryCount <= MAX_RETRIES) {
+                        Log.w(TAG, "Failed to send notification - retry $retryCount/$MAX_RETRIES")
+                        retryHandler.postDelayed({ processTxQueue() }, 200)
+                    } else {
+                        Log.e(TAG, "Max retries reached for notification - disconnecting")
+                        isSendingNotification = false
+                        disconnectAndReset()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending notification: ${e.message}", e)
+                isSendingNotification = false
+                disconnectAndReset()
+            }
         }
     }
 
@@ -288,7 +309,9 @@ class BleDataGattServer(
         }
 
         override fun onNotificationSent(device: BluetoothDevice?, status: Int) {
-            isSendingNotification = false
+            synchronized(lock) {
+                isSendingNotification = false
+            }
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 // Continue sending if more data in queue
                 processTxQueue()
