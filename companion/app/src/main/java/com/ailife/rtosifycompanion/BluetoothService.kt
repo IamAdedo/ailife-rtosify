@@ -5328,11 +5328,12 @@ class BluetoothService : Service() {
         }
     }
 
-    // Format transport type for display (e.g., "Bluetooth+WiFi+Internet" -> "BT+WiFi+Net")
+    // Format transport type for display (e.g., "BT+BLE+LAN+Internet" -> "BT+BLE+WiFi+Net")
     private fun formatTransportType(type: String): String {
         val parts = mutableListOf<String>()
-        if (type.contains("Bluetooth")) parts.add("BT")
-        if (type.contains("WiFi")) parts.add("WiFi")
+        if (type.contains("BT") || type.contains("Bluetooth")) parts.add("BT")
+        if (type.contains("BLE")) parts.add("BLE")
+        if (type.contains("LAN") || type.contains("WiFi")) parts.add("WiFi")
         if (type.contains("Internet")) parts.add("Net")
         return if (parts.isNotEmpty()) parts.joinToString("+") else type
     }

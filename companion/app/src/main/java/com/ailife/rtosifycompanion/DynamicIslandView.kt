@@ -415,7 +415,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             }
             
             // Show all active connection types
-            val hasBluetooth = transportType.contains("BT") || transportType.contains("Bluetooth")
+            val hasBluetooth = transportType.contains("BT") || transportType.contains("BLE") || transportType.contains("Bluetooth")
             val hasLan = transportType.contains("LAN") || transportType.contains("WiFi")
             val hasInternet = transportType.contains("Internet")
 

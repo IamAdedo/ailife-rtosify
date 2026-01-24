@@ -3090,8 +3090,9 @@ class BluetoothService : Service() {
     // Format transport type for notification display
     private fun formatTransportTypeForNotification(type: String): String {
         val parts = mutableListOf<String>()
-        if (type.contains("Bluetooth")) parts.add("BT")
-        if (type.contains("WiFi")) parts.add("WiFi")
+        if (type.contains("BT") || type.contains("Bluetooth")) parts.add("BT")
+        if (type.contains("BLE")) parts.add("BLE")
+        if (type.contains("LAN") || type.contains("WiFi")) parts.add("WiFi")
         if (type.contains("Internet")) parts.add("Net")
         return if (parts.isNotEmpty()) parts.joinToString("+") else type
     }

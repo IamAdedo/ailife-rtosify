@@ -840,13 +840,15 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     override fun onDestroy() {
         super.onDestroy()
         try {
-             unregisterReceiver(liteModeReceiver)
+            unregisterReceiver(liteModeReceiver)
         } catch (e: Exception) {
-             // Ignore if not registered
+            // Ignore if not registered
         }
+        dismissUploadDialog()
         if (isBound) {
-             unbindService(connection)
-             isBound = false
+            bluetoothService?.callback = null
+            unbindService(connection)
+            isBound = false
         }
     }
 
@@ -887,16 +889,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         }
         
         runOnUiThread { updateWatchStatusCard(batteryLevel, isCharging, finalDisplay, dndEnabled) }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        dismissUploadDialog()
-        if (isBound) {
-            bluetoothService?.callback = null
-            unbindService(connection)
-            isBound = false
-        }
     }
 
     private fun syncDynamicIslandService() {
