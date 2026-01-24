@@ -42,9 +42,15 @@ class BleDataGattClient(
     private var rxCharacteristic: BluetoothGattCharacteristic? = null
     
     // Queues for outgoing data
-    private val writeQueue = ConcurrentLinkedQueue<ByteArray>()
-    private val highPriorityQueue = ConcurrentLinkedQueue<ByteArray>()
+    data class QueuedPacket(
+        val data: ByteArray,
+        val completion: kotlinx.coroutines.CompletableDeferred<Boolean>?
+    )
+
+    private val writeQueue = ConcurrentLinkedQueue<QueuedPacket>()
+    private val highPriorityQueue = ConcurrentLinkedQueue<QueuedPacket>()
     private var isWriting = false
+    private var currentPacketCompletion: kotlinx.coroutines.CompletableDeferred<Boolean>? = null
     private val lock = Any()
     private var serviceDiscoveryRetryCount = 0
     private var retryCount = 0
@@ -56,7 +62,7 @@ class BleDataGattClient(
      */
     private val retryHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
-    fun sendData(data: ByteArray, priority: Boolean = false): Boolean {
+    suspend fun sendData(data: ByteArray, priority: Boolean = false): Boolean {
         if (!isConnected || rxCharacteristic == null) {
             Log.w(TAG, "Not connected, cannot send data")
             return false
@@ -65,28 +71,45 @@ class BleDataGattClient(
         // Calculate max payload size (MTU - 3 bytes ATT header overhead)
         val maxPayload = (currentMtu - 3).coerceAtLeast(20).coerceAtMost(512)
 
+        val deferreds = mutableListOf<kotlinx.coroutines.CompletableDeferred<Boolean>>()
+
         if (data.size <= maxPayload) {
+            val deferred = kotlinx.coroutines.CompletableDeferred<Boolean>()
+            deferreds.add(deferred)
+            val packet = QueuedPacket(data, deferred)
             if (priority) {
-                highPriorityQueue.offer(data)
+                highPriorityQueue.offer(packet)
             } else {
-                writeQueue.offer(data)
+                writeQueue.offer(packet)
             }
         } else {
              var offset = 0
              while (offset < data.size) {
                  val end = minOf(offset + maxPayload, data.size)
                  val chunk = data.copyOfRange(offset, end)
+                 val deferred = kotlinx.coroutines.CompletableDeferred<Boolean>()
+                 deferreds.add(deferred)
+                 val packet = QueuedPacket(chunk, deferred)
+                 
                  if (priority) {
-                     highPriorityQueue.offer(chunk)
+                     highPriorityQueue.offer(packet)
                  } else {
-                     writeQueue.offer(chunk)
+                     writeQueue.offer(packet)
                  }
                  offset = end
              }
         }
         
         processWriteQueue()
-        return true
+
+        // Wait for all chunks to be written
+        // If any chunk fails, we return false (but others might still be sent)
+        return try {
+            deferreds.all { it.await() }
+        } catch(e: Exception) {
+            Log.e(TAG, "Error waiting for write completion", e)
+            false
+        }
     }
 
     private fun processWriteQueue() {
@@ -96,15 +119,16 @@ class BleDataGattClient(
             }
 
             // Check high priority first
-            var data = highPriorityQueue.peek()
+            var packet = highPriorityQueue.peek()
             var isHighPriority = true
             
-            if (data == null) {
-                data = writeQueue.peek()
+            if (packet == null) {
+                packet = writeQueue.peek()
                 isHighPriority = false
             }
             
-            if (data == null) return
+            if (packet == null) return
+            val data = packet.data
 
             val rx = rxCharacteristic ?: return
 
@@ -133,11 +157,13 @@ class BleDataGattClient(
                 
                 if (success) {
                     // Remove from appropriate queue
-                    if (isHighPriority) {
+                    val polledPacket = if (isHighPriority) {
                         highPriorityQueue.poll()
                     } else {
                         writeQueue.poll()
                     }
+                    currentPacketCompletion = polledPacket?.completion
+
                     isWriting = true
                     retryCount = 0
                     val priorityStr = if (isHighPriority) "High" else "Normal"
@@ -158,6 +184,8 @@ class BleDataGattClient(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error writing characteristic: ${e.message}", e)
+                currentPacketCompletion?.complete(false)
+                currentPacketCompletion = null
                 disconnect()
             }
         }
@@ -272,10 +300,52 @@ class BleDataGattClient(
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 Log.d(TAG, "Write successful")
                 onTransportActive()
+                
+                // Complete the deferred for the current packet
+                // We need to peek/poll again to get the packet associated with this write
+                // Since this is single-threaded (synchronized), we assume head of queue is what was written
+                // BUT we need to know WHICH queue. 
+                // However, onCharacteristicWrite doesn't tell us which queue we pulled from.
+                // We rely on order. But wait, processWriteQueue peeks. onCharacteristicWrite should POLL.
+                // Ah, processWriteQueue calls poll() BEFORE returning success.
+                // So the packet is already removed from queue?
+                // Wait, in previous logic: if success, queue.poll().
+                // So now we need to reference the packet we just polled?
+                // No, we can't easily access the polled packet here.
+                // We need to store the 'currentPacket' being written?
+                
+                // Actually, cleaner logic:
+                // processWriteQueue initiates write.
+                // If writeCharacteristic returns true, we consider it "initiated".
+                // But the deferred should complete ONLY when onCharacteristicWrite is called.
+                
+                // CRITICAL FIX: processWriteQueue was removing from queue on *initiation* success.
+                // We need to keep it in queue until callback? 
+                // OR we store "pendingPacket" reference.
+                
+                // Let's refine:
+                // 1. processWriteQueue PEEKS.
+                // 2. writes.
+                // 3. If write returns true, we leave it in queue? No, then we'd retry writing same packet.
+                //    We must remove it from "to be written" queue.
+                //    But we need to track it as "awaiting callback".
+                
+                // Simplified approach for minimal changes:
+                // In processWriteQueue, when we poll(), we attach the completion to a 'pendingCompletion' var?
+                // But we could have multiple? No, BLE GATT write is sequential (one at a time).
+                // So we can have:
+                // private var currentPacketCompletion: CompletableDeferred<Boolean>? = null
+                
+                // Re-visiting processWriteQueue replacement below to handle this.
+                currentPacketCompletion?.complete(true)
+                currentPacketCompletion = null
+                
                 // Process next write in queue
                 processWriteQueue()
             } else {
                 Log.e(TAG, "Write failed with status: $status")
+                currentPacketCompletion?.complete(false)
+                currentPacketCompletion = null
                 disconnect()
             }
         }
@@ -390,6 +460,8 @@ class BleDataGattClient(
         txCharacteristic = null
         rxCharacteristic = null
         writeQueue.clear()
+        currentPacketCompletion?.complete(false)
+        currentPacketCompletion = null
 
         if (!checkPermission()) {
             return

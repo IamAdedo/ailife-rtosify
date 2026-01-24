@@ -2600,7 +2600,11 @@ class BluetoothService : Service() {
                                 type = type,
                                 path = remotePath
                         )
-                sendMessage(ProtocolHelper.createFileTransferStart(fileData))
+                if (!transportManager.send(ProtocolHelper.createFileTransferStart(fileData))) {
+                     Log.w(TAG, "Failed to send file start")
+                     return@launch
+                }
+                // sendMessage(ProtocolHelper.createFileTransferStart(fileData))
                 delay(100)
 
                 val chunkSize = 32 * 1024
@@ -2626,7 +2630,11 @@ class BluetoothService : Service() {
                                         chunkNumber = chunkNumber,
                                         totalChunks = totalChunks.toInt()
                                 )
-                        sendMessage(ProtocolHelper.createFileChunk(chunkData))
+                        val chunkMsg = ProtocolHelper.createFileChunk(chunkData)
+                        if (!transportManager.send(chunkMsg)) {
+                             throw java.io.IOException("Failed to send chunk $chunkNumber")
+                        }
+                        // sendMessage(ProtocolHelper.createFileChunk(chunkData))
 
                         val progress = ((chunkNumber + 1) * 95 / totalChunks.coerceAtLeast(1))
                         withContext(Dispatchers.Main) { callback?.onUploadProgress(progress.toInt()) }
@@ -2639,7 +2647,10 @@ class BluetoothService : Service() {
 
                 fileAckDeferred = kotlinx.coroutines.CompletableDeferred()
                 waitingForFileAck = true
-                transportManager.send(ProtocolHelper.createFileTransferEnd(success = true))
+                if (!transportManager.send(ProtocolHelper.createFileTransferEnd(success = true))) {
+                     Log.w(TAG, "Failed to send transfer end")
+                }
+                // transportManager.send(ProtocolHelper.createFileTransferEnd(success = true))
 
                 val ackReceived =
                         try {

@@ -52,9 +52,15 @@ class BleDataGattServer(
     private var currentMtu = 23 // Default BLE MTU
     
     // Queue for outgoing data
-    private val txQueue = ConcurrentLinkedQueue<ByteArray>()
-    private val highPriorityTxQueue = ConcurrentLinkedQueue<ByteArray>()
+    data class QueuedPacket(
+        val data: ByteArray,
+        val completion: kotlinx.coroutines.CompletableDeferred<Boolean>?
+    )
+
+    private val txQueue = ConcurrentLinkedQueue<QueuedPacket>()
+    private val highPriorityTxQueue = ConcurrentLinkedQueue<QueuedPacket>()
     private var isSendingNotification = false
+    private var currentPacketCompletion: kotlinx.coroutines.CompletableDeferred<Boolean>? = null
     private val lock = Any()
     private var retryCount = 0
 
@@ -65,39 +71,52 @@ class BleDataGattServer(
      */
     private val retryHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
-    fun sendData(data: ByteArray, priority: Boolean = false): Boolean {
+    suspend fun sendData(data: ByteArray, priority: Boolean = false): Boolean {
         if (connectedDevice == null) {
             Log.w(TAG, "No client connected, cannot send data")
             return false
         }
 
         // Calculate max payload size (MTU - 3 bytes ATT header overhead)
-        // Calculate max payload size (MTU - 3 bytes ATT header overhead)
         // Clamp to 500 to be safe and avoid boundary fragmentation issues even if MTU is 512
         val maxPayload = (currentMtu - 3).coerceAtLeast(20).coerceAtMost(500)
 
+        val deferreds = mutableListOf<kotlinx.coroutines.CompletableDeferred<Boolean>>()
+
         if (data.size <= maxPayload) {
+            val deferred = kotlinx.coroutines.CompletableDeferred<Boolean>()
+            deferreds.add(deferred)
+            val packet = QueuedPacket(data, deferred)
             if (priority) {
-                highPriorityTxQueue.offer(data)
+                highPriorityTxQueue.offer(packet)
             } else {
-                txQueue.offer(data)
+                txQueue.offer(packet)
             }
         } else {
              var offset = 0
              while (offset < data.size) {
                  val end = minOf(offset + maxPayload, data.size)
                  val chunk = data.copyOfRange(offset, end)
+                 val deferred = kotlinx.coroutines.CompletableDeferred<Boolean>()
+                 deferreds.add(deferred)
+                 val packet = QueuedPacket(chunk, deferred)
                  if (priority) {
-                     highPriorityTxQueue.offer(chunk)
+                     highPriorityTxQueue.offer(packet)
                  } else {
-                     txQueue.offer(chunk)
+                     txQueue.offer(packet)
                  }
                  offset = end
              }
         }
         
         processTxQueue()
-        return true
+
+        return try {
+            deferreds.all { it.await() }
+        } catch(e: Exception) {
+             Log.e(TAG, "Error waiting for notification completion", e)
+             false
+        }
     }
 
     private fun processTxQueue() {
@@ -107,15 +126,16 @@ class BleDataGattServer(
             }
 
             // Priority Check
-            var data = highPriorityTxQueue.peek()
+            var packet = highPriorityTxQueue.peek()
             var isHighPriority = true
             
-            if (data == null) {
-                data = txQueue.peek()
+            if (packet == null) {
+                packet = txQueue.peek()
                 isHighPriority = false
             }
 
-            if (data == null) return
+            if (packet == null) return
+            val data = packet.data
 
             if (!checkPermission()) {
                 Log.e(TAG, "Missing permission to send notification")
@@ -140,11 +160,13 @@ class BleDataGattServer(
                 ) ?: false
                 
                 if (success) {
-                    if (isHighPriority) {
+                    val polledPacket = if (isHighPriority) {
                         highPriorityTxQueue.poll()
                     } else {
                         txQueue.poll()
                     }
+                    currentPacketCompletion = polledPacket?.completion
+
                     retryCount = 0
                     val priorityStr = if (isHighPriority) "High" else "Normal"
                     Log.d(TAG, "Sent ($priorityStr): ${data.size} bytes")
@@ -164,6 +186,8 @@ class BleDataGattServer(
             } catch (e: Exception) {
                 Log.e(TAG, "Error sending notification: ${e.message}", e)
                 isSendingNotification = false
+                currentPacketCompletion?.complete(false)
+                currentPacketCompletion = null
                 disconnectAndReset()
             }
         }
@@ -312,6 +336,8 @@ class BleDataGattServer(
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 // Continue sending if more data in queue
                 onTransportActive()
+                currentPacketCompletion?.complete(true)
+                currentPacketCompletion = null
                 processTxQueue()
             } else {
                 Log.e(TAG, "Notification send failed with status: $status")
@@ -460,6 +486,11 @@ class BleDataGattServer(
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping BLE server: ${e.message}")
         }
+        
+        txQueue.clear()
+        isSendingNotification = false
+        currentPacketCompletion?.complete(false)
+        currentPacketCompletion = null
     }
 
     fun isConnected(): Boolean = connectedDevice != null
@@ -477,6 +508,8 @@ class BleDataGattServer(
         }
         txQueue.clear()
         isSendingNotification = false
+        currentPacketCompletion?.complete(false)
+        currentPacketCompletion = null
     }
 
     private fun checkPermission(): Boolean {

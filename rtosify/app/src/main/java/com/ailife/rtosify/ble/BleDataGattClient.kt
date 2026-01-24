@@ -45,9 +45,15 @@ class BleDataGattClient(
     private var rxCharacteristic: BluetoothGattCharacteristic? = null
     
     // Queues for outgoing data
-    private val writeQueue = ConcurrentLinkedQueue<ByteArray>()
-    private val highPriorityQueue = ConcurrentLinkedQueue<ByteArray>()
+    data class QueuedPacket(
+        val data: ByteArray,
+        val completion: kotlinx.coroutines.CompletableDeferred<Boolean>?
+    )
+
+    private val writeQueue = ConcurrentLinkedQueue<QueuedPacket>()
+    private val highPriorityQueue = ConcurrentLinkedQueue<QueuedPacket>()
     private var isWriting = false
+    private var currentPacketCompletion: kotlinx.coroutines.CompletableDeferred<Boolean>? = null
     private val lock = Any()
     private var serviceDiscoveryRetryCount = 0
     private var retryCount = 0
@@ -61,7 +67,7 @@ class BleDataGattClient(
      */
     private val retryHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
-    fun sendData(data: ByteArray, priority: Boolean = false): Boolean {
+    suspend fun sendData(data: ByteArray, priority: Boolean = false): Boolean {
         if (!isConnected || rxCharacteristic == null) {
             Log.w(TAG, "Not connected, cannot send data")
             return false
@@ -70,28 +76,42 @@ class BleDataGattClient(
         // Calculate max payload size (MTU - 3 bytes ATT header overhead)
         val maxPayload = (currentMtu - 3).coerceAtLeast(20).coerceAtMost(512)
 
+        val deferreds = mutableListOf<kotlinx.coroutines.CompletableDeferred<Boolean>>()
+
         if (data.size <= maxPayload) {
+            val deferred = kotlinx.coroutines.CompletableDeferred<Boolean>()
+            deferreds.add(deferred)
+            val packet = QueuedPacket(data, deferred)
             if (priority) {
-                highPriorityQueue.offer(data)
+                highPriorityQueue.offer(packet)
             } else {
-                writeQueue.offer(data)
+                writeQueue.offer(packet)
             }
         } else {
              var offset = 0
              while (offset < data.size) {
                  val end = minOf(offset + maxPayload, data.size)
                  val chunk = data.copyOfRange(offset, end)
+                 val deferred = kotlinx.coroutines.CompletableDeferred<Boolean>()
+                 deferreds.add(deferred)
+                 val packet = QueuedPacket(chunk, deferred)
                  if (priority) {
-                     highPriorityQueue.offer(chunk)
+                     highPriorityQueue.offer(packet)
                  } else {
-                     writeQueue.offer(chunk)
+                     writeQueue.offer(packet)
                  }
                  offset = end
              }
         }
         
         processWriteQueue()
-        return true
+
+        return try {
+            deferreds.all { it.await() }
+        } catch(e: Exception) {
+            Log.e(TAG, "Error waiting for write completion", e)
+            false
+        }
     }
 
     private fun processWriteQueue() {
@@ -110,15 +130,16 @@ class BleDataGattClient(
             }
 
             // Check high priority first
-            var data = highPriorityQueue.peek()
+            var packet = highPriorityQueue.peek()
             var isHighPriority = true
             
-            if (data == null) {
-                data = writeQueue.peek()
+            if (packet == null) {
+                packet = writeQueue.peek()
                 isHighPriority = false
             }
             
-            if (data == null) return
+            if (packet == null) return
+            val data = packet.data
 
             val rx = rxCharacteristic ?: return
 
@@ -148,11 +169,13 @@ class BleDataGattClient(
                 
                 if (success) {
                     // Remove from appropriate queue
-                    if (isHighPriority) {
+                    val polledPacket = if (isHighPriority) {
                         highPriorityQueue.poll()
                     } else {
                         writeQueue.poll()
                     }
+                    currentPacketCompletion = polledPacket?.completion
+
                     isWriting = true
                     lastWriteTime = System.currentTimeMillis()
                     retryCount = 0
@@ -189,6 +212,8 @@ class BleDataGattClient(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error writing characteristic: ${e.message}", e)
+                currentPacketCompletion?.complete(false)
+                currentPacketCompletion = null
                 disconnect()
             }
         }
@@ -304,9 +329,13 @@ class BleDataGattClient(
                 Log.d(TAG, "Write successful")
                 onTransportActive()
                 // Process next write in queue
+                currentPacketCompletion?.complete(true)
+                currentPacketCompletion = null
                 processWriteQueue()
             } else {
                 Log.e(TAG, "Write failed with status: $status")
+                currentPacketCompletion?.complete(false)
+                currentPacketCompletion = null
             }
         }
 
@@ -435,6 +464,12 @@ class BleDataGattClient(
         } catch (e: Exception) {
             Log.e(TAG, "Error disconnecting from GATT: ${e.message}")
         }
+        
+        txCharacteristic = null
+        rxCharacteristic = null
+        writeQueue.clear()
+        currentPacketCompletion?.complete(false)
+        currentPacketCompletion = null
     }
 
     fun isConnected(): Boolean = isConnected && bluetoothGatt != null

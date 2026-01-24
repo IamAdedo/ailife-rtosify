@@ -4492,7 +4492,11 @@ class BluetoothService : Service() {
                                 type = type,
                                 path = remotePath
                         )
-                sendMessage(ProtocolHelper.createFileTransferStart(fileData))
+                if (!transportManager.send(ProtocolHelper.createFileTransferStart(fileData))) {
+                     Log.w(TAG, "Failed to send file start")
+                     return@launch
+                }
+                // sendMessage(ProtocolHelper.createFileTransferStart(fileData))
                 delay(100)
 
                 val chunkSize = 32 * 1024
@@ -4539,7 +4543,10 @@ class BluetoothService : Service() {
 
                 fileAckDeferred = kotlinx.coroutines.CompletableDeferred()
                 waitingForFileAck = true
-                sendMessageSync(ProtocolHelper.createFileTransferEnd(success = true))
+                if (!transportManager.send(ProtocolHelper.createFileTransferEnd(success = true))) {
+                     Log.w(TAG, "Failed to send transfer end")
+                }
+                // sendMessageSync(ProtocolHelper.createFileTransferEnd(success = true))
 
                 val ackReceived =
                         try {
