@@ -1204,7 +1204,7 @@ class BluetoothService : Service() {
              }
 
              // Trigger automation on connection
-             onConnectionEstablished()
+             onConnectionEstablished(transportType)
              
              // MAC Discovery: Tell the phone its real MAC address
              if (mac != null) {
@@ -1223,6 +1223,9 @@ class BluetoothService : Service() {
         val wasConnected = isConnected || lastConnectedState
         lastConnectedState = false
         
+        // Capture transport type before resetting
+        val lastTransport = currentTransportType
+
         // Explicitly reset transport state so that reconnections of the same type are processed as "new"
         currentDeviceName = null
         currentTransportType = ""
@@ -1265,7 +1268,7 @@ class BluetoothService : Service() {
                 Log.d(TAG, "Disconnection notification is disabled, skipping")
             }
             
-            onConnectionLost()
+            onConnectionLost(lastTransport)
         }
         
         serviceScope.launch(Dispatchers.Main) { callback?.onDeviceDisconnected() }
@@ -2024,7 +2027,7 @@ class BluetoothService : Service() {
     }
 
     // Connection state automation - called on connection
-    private fun onConnectionEstablished() {
+    private fun onConnectionEstablished(transport: String) {
         serviceScope.launch(Dispatchers.IO) {
             delay(1000) // Debounce
 
@@ -2035,12 +2038,20 @@ class BluetoothService : Service() {
 
             // Auto WiFi: Disable WiFi when BT connects
             if (prefs.getBoolean("auto_wifi_enabled", false)) {
-                disableWifiAutomation()
+                if (transport.contains("BT")) {
+                    disableWifiAutomation()
+                } else {
+                    Log.d(TAG, "Auto WiFi: Skipping disable (Transport is $transport, not BT)")
+                }
             }
 
             // Auto Data: Disable mobile data when BT connects
             if (prefs.getBoolean("auto_data_enabled", false)) {
-                disableMobileDataAutomation()
+                if (transport.contains("BT")) {
+                    disableMobileDataAutomation()
+                } else {
+                    Log.d(TAG, "Auto Data: Skipping disable (Transport is $transport, not BT)")
+                }
             }
 
             // Auto BT Tether: Enable Bluetooth PAN when connected
@@ -2053,7 +2064,7 @@ class BluetoothService : Service() {
         }
     }
 
-    private fun onConnectionLost() {
+    private fun onConnectionLost(transport: String) {
         Log.d(
                 TAG,
                 "onConnectionLost: Cleaning up. Mirroring running: ${MirroringService.isRunning}"
@@ -2070,12 +2081,20 @@ class BluetoothService : Service() {
 
             // Auto WiFi: Enable WiFi when BT disconnects
             if (prefs.getBoolean("auto_wifi_enabled", false)) {
-                enableWifiAutomation()
+                if (transport.contains("BT")) {
+                    enableWifiAutomation()
+                } else {
+                    Log.d(TAG, "Auto WiFi: Skipping enable (Disconnected transport was $transport, not BT)")
+                }
             }
 
             // Auto Data: Enable mobile data when BT disconnects
             if (prefs.getBoolean("auto_data_enabled", false)) {
-                enableMobileDataAutomation()
+                if (transport.contains("BT")) {
+                    enableMobileDataAutomation()
+                } else {
+                    Log.d(TAG, "Auto Data: Skipping enable (Disconnected transport was $transport, not BT)")
+                }
             }
 
             // Auto BT Tether: Bluetooth PAN automatically disables when BT disconnects
