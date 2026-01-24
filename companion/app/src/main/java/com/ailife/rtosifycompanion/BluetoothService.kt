@@ -811,8 +811,15 @@ class BluetoothService : Service() {
         // Register direct frame callback for Mirroring
         MirroringService.frameCallback = { data, isKeyFrame ->
             if (isConnected) {
-                // Send directly to avoid main thread/broadcast bottleneck
-                sendMessage(ProtocolHelper.createMirrorData(data, isKeyFrame))
+                // Use runBlocking to enforce backpressure.
+                // This blocks the encoding thread until the frame is sent or dropped.
+                try {
+                    kotlinx.coroutines.runBlocking {
+                        transportManager.send(ProtocolHelper.createMirrorData(data, isKeyFrame))
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error sending mirror frame", e)
+                }
             }
         }
     }

@@ -766,9 +766,16 @@ class BluetoothService : Service() {
         // Register direct frame callback
         MirroringService.frameCallback = { data, isKeyFrame ->
             if (isConnected) {
-                // Send directly to avoid main thread/broadcast bottleneck
-                // sendMessage launches a coroutine, which is fine
-                sendMessage(ProtocolHelper.createMirrorData(data, isKeyFrame))
+                // Use runBlocking to enforce backpressure.
+                // This blocks the encoding thread until the frame is sent or dropped.
+                // Since this runs on a background thread (drainAndSend), it is safe.
+                try {
+                    kotlinx.coroutines.runBlocking {
+                        transportManager.send(ProtocolHelper.createMirrorData(data, isKeyFrame))
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error sending mirror frame", e)
+                }
             }
         }
     }
@@ -1958,7 +1965,16 @@ class BluetoothService : Service() {
     }
 
     fun sendCameraFrame(base64: String) {
-        sendMessage(ProtocolHelper.createCameraFrame(base64))
+        // Use runBlocking to enforce backpressure.
+        // This blocks the camera analysis thread (cameraExecutor) until the frame is sent.
+        // CameraX Strategy KEEP_ONLY_LATEST ensures we drop frames while blocked.
+        try {
+            kotlinx.coroutines.runBlocking {
+                transportManager.send(ProtocolHelper.createCameraFrame(base64))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending camera frame", e)
+        }
     }
 
     private fun startFindPhoneAlarm() {
