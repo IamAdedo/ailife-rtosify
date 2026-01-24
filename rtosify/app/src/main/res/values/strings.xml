@@ -797,6 +797,7 @@
     <string name="wifi">WiFi</string>
     <string name="find_watch_title">Finding Watch</string>
     <string name="label_signal_default">Signal: --</string>
+    <string name="network_label_ble">BLE</string>
     <string name="status_calculating">Distance: Calculating...</string>
     <string name="status_last_updated_waiting">Last updated: Waiting...</string>
     <string name="device_phone_you">Phone (You)</string>

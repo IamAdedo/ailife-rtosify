@@ -31,9 +31,11 @@ class NetworkSettingsActivity : AppCompatActivity() {
     // Status views
     private lateinit var tvActiveConnection: TextView
     private lateinit var indicatorBt: View
+    private lateinit var indicatorBle: View
     private lateinit var indicatorLan: View
     private lateinit var indicatorInternet: View
     private lateinit var tvBtStatus: TextView
+    private lateinit var tvBleStatus: TextView
     private lateinit var tvLanStatus: TextView
     private lateinit var tvInternetStatus: TextView
 
@@ -163,9 +165,11 @@ class NetworkSettingsActivity : AppCompatActivity() {
         // Status views
         tvActiveConnection = findViewById(R.id.tvActiveConnection)
         indicatorBt = findViewById(R.id.indicatorBt)
+        indicatorBle = findViewById(R.id.indicatorBle)
         indicatorLan = findViewById(R.id.indicatorLan)
         indicatorInternet = findViewById(R.id.indicatorInternet)
         tvBtStatus = findViewById(R.id.tvBtStatus)
+        tvBleStatus = findViewById(R.id.tvBleStatus)
         tvLanStatus = findViewById(R.id.tvLanStatus)
         tvInternetStatus = findViewById(R.id.tvInternetStatus)
 
@@ -436,6 +440,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
         val status = transportStatus ?: bluetoothService?.transportManager?.status?.value
         
         val btConnected = status?.isBtConnected ?: (bluetoothService?.isConnected == true)
+        val bleConnected = status?.isBleConnected == true
         val lanConnected = status?.isLanConnected ?: (bluetoothService?.isWifiConnected() == true)
         val internetConnected = status?.isInternetConnected ?: (bluetoothService?.isInternetConnected() == true)
 
@@ -466,6 +471,12 @@ class NetworkSettingsActivity : AppCompatActivity() {
             if (btConnected) R.drawable.status_indicator_on else R.drawable.status_indicator_disconnected
         )
         tvBtStatus.text = if (btConnected) getString(R.string.status_connected) else getString(R.string.status_disconnected)
+
+        // Update BLE indicator
+        indicatorBle.setBackgroundResource(
+            if (bleConnected) R.drawable.status_indicator_on else R.drawable.status_indicator_disconnected
+        )
+        tvBleStatus.text = if (bleConnected) getString(R.string.status_connected) else getString(R.string.status_disconnected)
 
         // Update LAN indicator
         indicatorLan.setBackgroundResource(
