@@ -60,6 +60,16 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var imgPhoneBattery: ImageView
 
     private lateinit var tvLocalBtNameWatch: TextView
+    private var isLiteModeEnabled = false
+
+    private val liteModeReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
+            if (intent.action == BluetoothService.ACTION_LITE_MODE_UPDATE) {
+                isLiteModeEnabled = intent.getBooleanExtra("enabled", false)
+                updateLiteModeUI()
+            }
+        }
+    }
 
 
     private lateinit var prefs: SharedPreferences
@@ -140,7 +150,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         bindToService()
 
+        bindToService()
+
         setupServiceToggle()
+        
+        val filter = android.content.IntentFilter(BluetoothService.ACTION_LITE_MODE_UPDATE)
+        ContextCompat.registerReceiver(this, liteModeReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
 
         if (intent?.getBooleanExtra("request_mirror", false) == true) {
             startWatchMirroring()
@@ -205,7 +220,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         progressBarMain = findViewById(R.id.progressBarMain)
         recyclerViewMenu = findViewById(R.id.recyclerViewMenu)
 
-        // Views Status Watch
+        recyclerViewMenu = findViewById(R.id.recyclerViewMenu)
+        recyclerViewMenu.layoutManager = LinearLayoutManager(this)
+        recyclerViewMenu.isNestedScrollingEnabled = false
 
 
 
@@ -454,6 +471,20 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     private fun refreshMenu() {
         val options = mutableListOf<MenuOption>()
+
+        if (isLiteModeEnabled) {
+             // LITE MODE: Only show Reset All
+             options.add(
+                MenuOption(
+                        getString(R.string.menu_reset_all),
+                        getString(R.string.menu_reset_all_desc),
+                        android.R.drawable.ic_menu_delete,
+                        { resetApp() }
+                )
+             )
+             menuAdapter?.updateOptions(options)
+             return
+        }
 
         // Watch Menu Options
         options.add(
@@ -801,6 +832,36 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             updateUploadProgress(progress)
         }
     }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+             unregisterReceiver(liteModeReceiver)
+        } catch (e: Exception) {
+             // Ignore if not registered
+        }
+        if (isBound) {
+             unbindService(connection)
+             isBound = false
+        }
+    }
+
+    private fun updateLiteModeUI() {
+        // Toggle phone battery
+        if (isLiteModeEnabled) {
+            tvPhoneBattery.visibility = View.GONE
+            imgPhoneBattery.visibility = View.GONE
+        } else {
+             // If connected, it will be shown by onPhoneBatteryUpdated, but we force visible if we have data
+             if (bluetoothService?.isConnected == true && tvPhoneBattery.text.isNotEmpty()) {
+                 tvPhoneBattery.visibility = View.VISIBLE
+                 imgPhoneBattery.visibility = View.VISIBLE
+             }
+        }
+        
+        refreshMenu()
+    }
+    
     override fun onFileListReceived(path: String, filesJson: String) {}
 
 

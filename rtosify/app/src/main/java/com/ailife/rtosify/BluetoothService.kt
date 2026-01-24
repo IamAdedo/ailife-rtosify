@@ -1040,6 +1040,8 @@ class BluetoothService : Service() {
             MessageType.WIFI_TEST_ACK -> handleWifiTestAck(message)
             MessageType.WIFI_TEST_ENCRYPT -> handleWifiTestReceived(message)
             MessageType.SYNC_MAC -> handleSyncMac(message)
+            MessageType.NOTIFICATION_LITE -> Log.d(TAG, "Ignored NOTIFICATION_LITE on RTOSify")
+            MessageType.SET_LITE_MODE -> Log.d(TAG, "Ignored SET_LITE_MODE on RTOSify")
             else -> Log.d(TAG, "Unknown message type: ${message.type}")
         }
     }

@@ -151,6 +151,10 @@ object MessageType {
     const val UPDATE_INTERNET_SETTINGS = "update_internet_settings"
     const val SYNC_MAC = "sync_mac"
     const val NAVIGATION_INFO = "navigation_info"
+    
+    // Lite Mode Protocol
+    const val NOTIFICATION_LITE = "notification_lite"
+    const val SET_LITE_MODE = "set_lite_mode"
 }
 
 data class NavigationInfoData(
@@ -159,6 +163,12 @@ data class NavigationInfoData(
     val content: String,
     val keepScreenOn: Boolean,
     val packageName: String
+)
+
+data class NotificationLiteData(
+    val id: String,
+    val title: String,
+    val content: String
 )
 
 data class PhoneBatteryData(val level: Int, val isCharging: Boolean)
@@ -796,6 +806,20 @@ object ProtocolHelper {
     fun createResponseHealthSettings(settings: HealthSettingsUpdate): ProtocolMessage {
         val data = gson.toJsonTree(settings).asJsonObject
         return ProtocolMessage(type = MessageType.RESPONSE_HEALTH_SETTINGS, data = data)
+    }
+
+    fun createNotificationLite(id: String, title: String, content: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("id", id)
+        data.addProperty("title", title)
+        data.addProperty("content", content)
+        return ProtocolMessage(type = MessageType.NOTIFICATION_LITE, data = data)
+    }
+
+    fun createSetLiteMode(enabled: Boolean): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("enabled", enabled)
+        return ProtocolMessage(type = MessageType.SET_LITE_MODE, data = data)
     }
 
     fun createMakeCall(phoneNumber: String): ProtocolMessage {

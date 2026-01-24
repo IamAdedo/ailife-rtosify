@@ -323,6 +323,7 @@ class BluetoothService : Service() {
         const val MIRRORED_CHANNEL_ID = "mirrored_notifications"
 
         const val ACTION_STOP_SERVICE = "ACTION_STOP_SERVICE"
+        const val ACTION_LITE_MODE_UPDATE = "com.ailife.rtosifycompanion.ACTION_LITE_MODE_UPDATE"
 
         private const val TAG = "BluetoothService"
         private const val DEBUG_NOTIFICATIONS = false // Ative para debug
@@ -1361,6 +1362,8 @@ class BluetoothService : Service() {
             MessageType.UPDATE_INTERNET_SETTINGS -> handleUpdateInternetSettings(message)
             MessageType.MEDIA_STATE_UPDATE -> handleMediaStateUpdate(message)
             MessageType.NAVIGATION_INFO -> handleNavigationInfo(message)
+            MessageType.NOTIFICATION_LITE -> handleNotificationLite(message)
+            MessageType.SET_LITE_MODE -> handleSetLiteMode(message)
             else -> Log.w(TAG, "Unknown message type: ${message.type}")
         }
     }
@@ -1434,6 +1437,54 @@ class BluetoothService : Service() {
             Log.d(TAG, "Started Navigation Overlay for ${navInfo.title}")
         } catch (e: Exception) {
             Log.e(TAG, "Error handling Navigation Info: ${e.message}")
+        }
+    }
+
+    private fun handleNotificationLite(message: ProtocolMessage) {
+        try {
+            val data = ProtocolHelper.extractData<NotificationLiteData>(message)
+            
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val channelId = "lite_notifications"
+            
+            // Ensure channel exists
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (notificationManager.getNotificationChannel(channelId) == null) {
+                    val channel = NotificationChannel(channelId, "Lite Notifications", NotificationManager.IMPORTANCE_DEFAULT)
+                    notificationManager.createNotificationChannel(channel)
+                }
+            }
+
+            val notification = NotificationCompat.Builder(this, channelId)
+                .setContentTitle(data.title)
+                .setContentText(data.content)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true)
+                .build()
+
+            // Use hash of ID or ID itself if integer for notification ID
+            val notificationId = data.id.hashCode()
+            notificationManager.notify(notificationId, notification)
+            Log.d(TAG, "Shown Lite Notification: ${data.title}")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling Lite Notification: ${e.message}")
+        }
+    }
+
+    private fun handleSetLiteMode(message: ProtocolMessage) {
+        try {
+            val enabled = ProtocolHelper.extractBooleanField(message, "enabled")
+            Log.d(TAG, "Received Set Lite Mode: $enabled")
+            
+            val intent = Intent(ACTION_LITE_MODE_UPDATE).apply {
+                putExtra("enabled", enabled)
+                setPackage(packageName)
+            }
+            sendBroadcast(intent)
+        } catch (e: Exception) {
+             Log.e(TAG, "Error handling Set Lite Mode: ${e.message}")
         }
     }
 
