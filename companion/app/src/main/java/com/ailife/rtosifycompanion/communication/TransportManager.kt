@@ -706,7 +706,7 @@ class TransportManager(
         // However, if we are in waiting state, we might want to close the socket.
     }
     
-    private fun stopBleServer() {
+    fun stopBleServer() {
         bleServerJob?.cancel()
         scope.launch {
             // If the server object has a stop method to stop advertising

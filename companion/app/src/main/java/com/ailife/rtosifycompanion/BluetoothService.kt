@@ -324,6 +324,7 @@ class BluetoothService : Service() {
 
         const val ACTION_STOP_SERVICE = "ACTION_STOP_SERVICE"
         const val ACTION_LITE_MODE_UPDATE = "com.ailife.rtosifycompanion.ACTION_LITE_MODE_UPDATE"
+        const val ACTION_RESTART_BLE_ADVERTISING = "com.ailife.rtosifycompanion.ACTION_RESTART_BLE_ADVERTISING"
 
         private const val TAG = "BluetoothService"
         private const val DEBUG_NOTIFICATIONS = false // Ative para debug
@@ -1040,6 +1041,16 @@ class BluetoothService : Service() {
         if (intent?.action == ACTION_STOP_SERVICE) {
             stopServiceCompletely()
             return START_NOT_STICKY
+        }
+
+        if (intent?.action == ACTION_RESTART_BLE_ADVERTISING) {
+            Log.i(TAG, "Restarting BLE advertising as requested")
+            serviceScope.launch {
+                transportManager.stopBleServer()
+                delay(500)
+                val adapter = (getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager).adapter
+                transportManager.startBleServerWatchdog(adapter)
+            }
         }
 
         if (intent?.action == ACTION_DND_UPDATED) {

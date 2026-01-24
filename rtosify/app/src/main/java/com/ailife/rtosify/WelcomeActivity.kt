@@ -65,9 +65,10 @@ class WelcomeActivity : AppCompatActivity() {
                             startPairingWithDevice(qrData)
                         }
                     } else if (qrData.contains("-")) {
-                        // New format: CODE-ANDROIDID
-                        val parts = qrData.split("-", limit = 2)
-                        if (parts.size == 2) {
+                        // New format: CODE-ANDROIDID or CODE-ANDROIDID-NAME
+                        // We only care about the first two parts for now
+                        val parts = qrData.split("-")
+                        if (parts.size >= 2) {
                             val pairingCode = parts[0]
                             val androidId = parts[1]
                             android.util.Log.d(

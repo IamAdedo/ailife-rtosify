@@ -169,9 +169,19 @@ class WelcomeActivity : AppCompatActivity() {
                 android.util.Log.e("Welcome", "Cannot make device discoverable", e)
             }
 
-            // Create QR data with pairing code and Android ID
-            // Format: CODE-ANDROIDID
-            val qrData = "$pairingCode-$androidId"
+            // Create QR data with pairing code and Android ID and Name
+            // Format: CODE-ANDROIDID-NAME
+            val qrData = "$pairingCode-$androidId-$newName"
+
+            // Ensure BLE advertising is updated with the new name
+            val serviceIntent = Intent(this@WelcomeActivity, BluetoothService::class.java).apply {
+                action = BluetoothService.ACTION_RESTART_BLE_ADVERTISING
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
 
             android.util.Log.d("Welcome", "Pairing Code: $pairingCode")
             android.util.Log.d("Welcome", "Android ID: $androidId")
