@@ -375,8 +375,7 @@ class BleDataGattServer(
         }
 
         if (!bluetoothAdapter.isMultipleAdvertisementSupported) {
-            Log.e(TAG, "BLE advertising not supported on this device")
-            return false
+            Log.w(TAG, "Device does not support multiple advertisements. Attempting to proceed with single advertisement if possible...")
         }
 
         try {

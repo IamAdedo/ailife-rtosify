@@ -509,6 +509,12 @@ class TransportManager(
                         val btEnabled = bluetoothAdapter?.isEnabled == true
                         
                         if (btEnabled && !serverRunning) {
+                            // Check if BLE peripheral mode is supported to avoid log loops
+                            if (bluetoothAdapter.bluetoothLeAdvertiser == null) {
+                                Log.w(TAG, "BLE Peripheral mode (Advertising) not supported on this hardware. BLE Server will not be started.")
+                                delay(30000) // Much longer delay if hardware doesn't support it
+                                continue
+                            }
                             Log.w(TAG, "BLE server watchdog: server stopped but BT enabled - restarting")
                             startBleServer(bluetoothAdapter)
                         }
