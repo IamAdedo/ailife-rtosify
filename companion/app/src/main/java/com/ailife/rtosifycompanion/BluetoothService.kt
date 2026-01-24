@@ -1478,6 +1478,8 @@ class BluetoothService : Service() {
             val enabled = ProtocolHelper.extractBooleanField(message, "enabled")
             Log.d(TAG, "Received Set Lite Mode: $enabled")
             
+            prefs.edit().putBoolean("lite_mode_enabled", enabled).apply()
+            
             val intent = Intent(ACTION_LITE_MODE_UPDATE).apply {
                 putExtra("enabled", enabled)
                 setPackage(packageName)

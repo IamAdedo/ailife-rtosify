@@ -140,6 +140,10 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         setContentView(R.layout.activity_main)
         initViews()
+        
+        isLiteModeEnabled = prefs.getBoolean("lite_mode_enabled", false)
+        updateLiteModeUI()
+        
         EdgeToEdgeUtils.applyEdgeToEdge(this, findViewById(R.id.mainContentScrollView))
 
 
