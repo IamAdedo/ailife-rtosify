@@ -23,7 +23,8 @@ class BleTransport(
     private val context: Context,
     private val bluetoothAdapter: BluetoothAdapter,
     private val isServer: Boolean,
-    private val targetDevice: BluetoothDevice? = null
+    private val targetDevice: BluetoothDevice? = null,
+    private val targetDeviceName: String? = null
 ) : CommunicationTransport {
 
     companion object {
@@ -90,12 +91,12 @@ class BleTransport(
     }
 
     private suspend fun connectAsClient(): Boolean {
-        if (targetDevice == null) {
-            Log.e(TAG, "Cannot connect as client: no target device specified")
+        if (targetDevice == null && targetDeviceName == null) {
+            Log.e(TAG, "Cannot connect as client: no target device or name specified")
             return false
         }
         
-        Log.d(TAG, "Connecting to BLE server: ${targetDevice.address}")
+        Log.d(TAG, "Connecting to BLE server. Target: ${targetDevice?.address}, Name: $targetDeviceName")
         
         var connectionEstablished = false
         
@@ -105,6 +106,9 @@ class BleTransport(
             onConnectionStateChanged = { isConnected ->
                 connected = isConnected
                 if (isConnected) {
+                    // Update connectedDevice to the one we actually connected to (might differ from targetDevice if scanned)
+                    // But standard callback doesn't give us the device object unless we exposed it better
+                    // However, gattClient tracks it internally.
                     connectedDevice = targetDevice
                     lastReceiveTime = System.currentTimeMillis()
                     startKeepalive()
@@ -123,7 +127,12 @@ class BleTransport(
             onTransportActive = { lastReceiveTime = System.currentTimeMillis() }
         )
         
-        val connectInitiated = gattClient?.connect(targetDevice) ?: false
+        val connectInitiated = if (targetDeviceName != null) {
+            gattClient?.connectByName(targetDeviceName, com.ailife.rtosify.ble.BleRssiUuids.DATA_TRANSPORT_SERVICE_UUID) ?: false
+        } else {
+            gattClient?.connect(targetDevice!!) ?: false
+        }
+
         if (!connectInitiated) {
             return false
         }

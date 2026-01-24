@@ -208,11 +208,16 @@ class TransportManager(
     private suspend fun connectBle(device: BluetoothDevice): Boolean {
         try {
             Log.v(TAG, "Creating BleTransport...")
+            
+            // Try to find the stored name for this device as the MAC might be unreliable/rotating
+            val deviceName = devicePrefManager.getPairedDevices().find { it.mac == device.address }?.name
+            
             val transport = BleTransport(
                 context = context,
                 bluetoothAdapter = BluetoothAdapter.getDefaultAdapter(),
                 isServer = false,
-                targetDevice = device
+                targetDevice = device,
+                targetDeviceName = deviceName
             )
 
             Log.v(TAG, "Calling transport.connect()...")

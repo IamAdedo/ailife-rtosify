@@ -480,9 +480,90 @@ class BleDataGattClient(
                 context,
                 Manifest.permission.BLUETOOTH_CONNECT
             ) == PackageManager.PERMISSION_GRANTED
+            
+            val hasScan = ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.BLUETOOTH_SCAN
+            ) == PackageManager.PERMISSION_GRANTED
 
-            return hasConnect
+            return hasConnect && hasScan
         }
         return true
+    }
+    
+    /**
+     * Scan for a device with the given name and service UUID, then connect.
+     * This is useful when the MAC address is unreliable (e.g. RPA/privacy).
+     */
+    suspend fun connectByName(name: String, serviceUuid: java.util.UUID): Boolean {
+        if (!checkPermission()) {
+            Log.e(TAG, "Missing permissions for scanning")
+            return false
+        }
+        
+        Log.i(TAG, "Scanning for device: $name with service $serviceUuid")
+        
+        val adapter = android.bluetooth.BluetoothAdapter.getDefaultAdapter()
+        val scanner = adapter?.bluetoothLeScanner
+        if (scanner == null) {
+            Log.e(TAG, "BLE Scanner not available")
+            return false
+        }
+        
+        val foundDevice = kotlinx.coroutines.CompletableDeferred<BluetoothDevice?>()
+        
+        val scanCallback = object : android.bluetooth.le.ScanCallback() {
+            override fun onScanResult(callbackType: Int, result: android.bluetooth.le.ScanResult) {
+                if (result.device != null) {
+                    val deviceName = result.device.name ?: result.scanRecord?.deviceName
+                    if (deviceName == name) {
+                        Log.i(TAG, "Found target device: $name (${result.device.address})")
+                        if (!foundDevice.isCompleted) {
+                            foundDevice.complete(result.device)
+                        }
+                    }
+                }
+            }
+            
+            override fun onScanFailed(errorCode: Int) {
+                Log.e(TAG, "Scan failed with error: $errorCode")
+                if (!foundDevice.isCompleted) {
+                    foundDevice.complete(null)
+                }
+            }
+        }
+        
+        try {
+            val filters = listOf(
+                android.bluetooth.le.ScanFilter.Builder()
+                    .setServiceUuid(android.os.ParcelUuid(serviceUuid))
+                    .build()
+            )
+            val settings = android.bluetooth.le.ScanSettings.Builder()
+                .setScanMode(android.bluetooth.le.ScanSettings.SCAN_MODE_LOW_LATENCY)
+                .build()
+                
+            scanner.startScan(filters, settings, scanCallback)
+            
+            // Wait for result with timeout
+            val device = kotlinx.coroutines.withTimeoutOrNull(10000) {
+                foundDevice.await()
+            }
+            
+            scanner.stopScan(scanCallback)
+            
+            if (device != null) {
+                return connect(device)
+            } else {
+                Log.w(TAG, "Device $name not found during scan")
+                return false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during scan/connectByName", e)
+             try {
+                scanner.stopScan(scanCallback)
+            } catch(e: Exception) {}
+            return false
+        }
     }
 }
