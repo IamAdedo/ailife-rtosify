@@ -23,7 +23,8 @@ class BleTransport(
     private val context: Context,
     private val bluetoothAdapter: BluetoothAdapter,
     private val isServer: Boolean,
-    private val targetDevice: BluetoothDevice? = null
+    private val targetDevice: BluetoothDevice? = null,
+    private val onStateChanged: ((Boolean) -> Unit)? = null
 ) : CommunicationTransport {
 
     companion object {
@@ -70,6 +71,7 @@ class BleTransport(
                 lastReceiveTime = System.currentTimeMillis()
                 startKeepalive()
                 Log.i(TAG, "BLE server: Client connected ${device.address}")
+                onStateChanged?.invoke(true)
             },
             onClientDisconnected = { device ->
                 if (connectedDevice?.address == device.address) {
@@ -77,9 +79,12 @@ class BleTransport(
                     connectedDevice = null
                     stopKeepalive()
                     Log.i(TAG, "BLE server: Client disconnected ${device.address}")
+                    onStateChanged?.invoke(false)
                 }
             },
-            onTransportActive = { lastReceiveTime = System.currentTimeMillis() }
+            onTransportActive = { 
+                // Strict Watchdog: Do NOT update lastReceiveTime on writes.
+            }
         )
         
         val started = gattServer?.start(bluetoothAdapter) ?: false
@@ -104,6 +109,7 @@ class BleTransport(
             onDataReceived = { data -> handleReceivedData(data) },
             onConnectionStateChanged = { isConnected ->
                 connected = isConnected
+                onStateChanged?.invoke(isConnected)
                 if (isConnected) {
                     connectedDevice = targetDevice
                     lastReceiveTime = System.currentTimeMillis()
@@ -116,7 +122,10 @@ class BleTransport(
                     Log.i(TAG, "BLE client: Disconnected from server")
                 }
             },
-            onTransportActive = { lastReceiveTime = System.currentTimeMillis() }
+            onTransportActive = { 
+                // Strict Watchdog: Do NOT update lastReceiveTime on writes. 
+                // We only stay connected if we RECEIVE data (keepalives or payload).
+            }
         )
         
         val connectInitiated = gattClient?.connect(targetDevice) ?: false

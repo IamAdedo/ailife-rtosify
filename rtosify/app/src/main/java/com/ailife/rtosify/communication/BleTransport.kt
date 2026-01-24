@@ -80,7 +80,9 @@ class BleTransport(
                     Log.i(TAG, "BLE server: Client disconnected ${device.address}")
                 }
             },
-            onTransportActive = { lastReceiveTime = System.currentTimeMillis() }
+            onTransportActive = { 
+                // Strict Watchdog: Do NOT update lastReceiveTime on writes.
+            }
         )
         
         val started = gattServer?.start(bluetoothAdapter) ?: false
@@ -124,7 +126,10 @@ class BleTransport(
                     }
                 }
             },
-            onTransportActive = { lastReceiveTime = System.currentTimeMillis() }
+            onTransportActive = { 
+                // Strict Watchdog: Do NOT update lastReceiveTime on writes. 
+                // We only stay connected if we RECEIVE data (keepalives or payload).
+            }
         )
         
         val connectInitiated = if (targetDeviceName != null) {

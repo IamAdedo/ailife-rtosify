@@ -303,7 +303,12 @@ class TransportManager(
                 context = context,
                 bluetoothAdapter = bluetoothAdapter,
                 isServer = true,
-                targetDevice = null
+                targetDevice = null,
+                onStateChanged = { connected ->
+                    Log.d(TAG, "BleTransport state changed: connected=$connected")
+                    updateConnectionState()
+                    triggerWatchdogsReevaluation()
+                }
             )
 
             try {
