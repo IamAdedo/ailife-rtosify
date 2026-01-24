@@ -241,7 +241,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
         }
 
         // Load internet server settings
-        etSignalingUrl.setText(devicePrefs.getString("internet_signaling_url", "ws://192.168.1.10:8080"))
+        etSignalingUrl.setText(devicePrefs.getString("internet_signaling_url", "http://signaling.rtosify.ai-life.xyz:8080"))
         etStunUrl.setText(devicePrefs.getString("internet_stun_url", "stun:stun.cloudflare.com:3478"))
         etTurnUrl.setText(devicePrefs.getString("internet_turn_url", ""))
         etTurnUsername.setText(devicePrefs.getString("internet_turn_username", ""))

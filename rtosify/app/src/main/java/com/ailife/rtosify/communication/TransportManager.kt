@@ -420,7 +420,7 @@ class TransportManager(
         if (isConnectingInternet) return false
         
         val devicePrefs = devicePrefManager.getDevicePrefs(mac)
-        val signalingUrl = devicePrefs.getString("internet_signaling_url", "ws://192.168.1.10:8080") ?: "ws://192.168.1.10:8080"
+        val signalingUrl = devicePrefs.getString("internet_signaling_url", "http://signaling.rtosify.ai-life.xyz:8080") ?: "http://signaling.rtosify.ai-life.xyz:8080"
         val stunUrl = devicePrefs.getString("internet_stun_url", "stun:stun.cloudflare.com:3478")
         val turnUrl = devicePrefs.getString("internet_turn_url", "")
         val turnUsername = devicePrefs.getString("internet_turn_username", "")

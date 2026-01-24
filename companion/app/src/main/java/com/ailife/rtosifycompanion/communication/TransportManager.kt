@@ -122,7 +122,7 @@ class TransportManager(
     @Volatile private var isConnectingInternet = false
     @Volatile private var currentWifiRule: Int = 0 // Default disabled
     @Volatile private var currentInternetRule: Int = 0 // Default disabled
-    @Volatile private var signalingUrl: String = "ws://192.168.1.10:8080"
+    @Volatile private var signalingUrl: String = "http://signaling.rtosify.ai-life.xyz:8080"
     @Volatile private var stunUrl: String = "stun:stun.cloudflare.com:3478"
     @Volatile private var turnUrl: String = ""
     @Volatile private var turnUsername: String = ""

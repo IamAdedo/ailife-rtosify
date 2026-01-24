@@ -1155,7 +1155,7 @@ class BluetoothService : Service() {
             if (remoteMac.isNotEmpty()) {
                 transportManager.startWifiServerWatchdog(this, deviceName, watchMac, remoteMac)
                 
-                val internetUrl = prefs.getString("internet_signaling_url", "ws://192.168.1.10:8080") ?: "ws://192.168.1.10:8080"
+                val internetUrl = prefs.getString("internet_signaling_url", "http://signaling.rtosify.ai-life.xyz:8080") ?: "http://signaling.rtosify.ai-life.xyz:8080"
             val internetRule = prefs.getInt("internet_activation_rule", 0)
                 transportManager.updateInternetSettings(internetRule, internetUrl)
                 transportManager.startInternetMonitorWatchdog(deviceName, watchMac, remoteMac)
