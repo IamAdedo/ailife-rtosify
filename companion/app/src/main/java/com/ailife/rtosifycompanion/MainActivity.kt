@@ -605,7 +605,10 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 if (!isConnected && status.contains(getString(R.string.status_connecting))) View.VISIBLE else View.INVISIBLE
 
         // Use TransportManager's connection status string for accurate display
-        val connectionStatus = bluetoothService?.getConnectionStatusString() ?: status
+        var connectionStatus = bluetoothService?.getConnectionStatusString() ?: status
+        if (connectionStatus.isBlank()) {
+            connectionStatus = getString(R.string.status_disconnected)
+        }
 
         if (isConnected || connectionStatus.startsWith("Connected")) {
             tvWatchStatusBig.text = connectionStatus

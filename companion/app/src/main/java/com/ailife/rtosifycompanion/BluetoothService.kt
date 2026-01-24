@@ -260,7 +260,7 @@ class BluetoothService : Service() {
 
     var callback: ServiceCallback? = null
 
-    @Volatile var currentStatus: String = "" // Will be initialized in onCreate
+    @Volatile var currentStatus: String = "Disconnected"
     @Volatile var currentDeviceName: String? = null
     @Volatile var currentTransportType: String = ""
     val isConnected: Boolean get() = if (::transportManager.isInitialized) transportManager.isAnyTransportConnected() else false
@@ -648,6 +648,7 @@ class BluetoothService : Service() {
         prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE)
         val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         // bluetoothAdapter assignment removed (property removed)
+        currentStatus = getString(R.string.status_disconnected)
         createNotificationChannel()
         
         // Initialize WiFi transport infrastructure

@@ -171,7 +171,11 @@ class BleTransport(
                         try {
                             val message = ProtocolMessage.fromJson(json)
                             CoroutineScope(Dispatchers.IO).launch {
-                                messageChannel.send(message)
+                                try {
+                                    messageChannel.send(message)
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Failed to send message to channel (likely closed): ${e.message}")
+                                }
                             }
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to parse message JSON", e)

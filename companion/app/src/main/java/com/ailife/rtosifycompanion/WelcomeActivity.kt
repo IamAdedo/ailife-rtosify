@@ -6,8 +6,10 @@ import android.app.NotificationManager
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.ServiceConnection
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -70,6 +72,19 @@ class WelcomeActivity : AppCompatActivity() {
         }
     }
 
+    private val connectionStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == BluetoothService.ACTION_CONNECTION_STATE_CHANGED) {
+                val isConnected = intent.getBooleanExtra("connected", false)
+                val transport = intent.getStringExtra("transport")
+                if (isConnected && transport?.contains("BLE") == true) {
+                    android.util.Log.d("Welcome", "BLE Connection detected via broadcast! Continuing setup...")
+                    finishSetup("WATCH")
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_welcome)
@@ -78,11 +93,20 @@ class WelcomeActivity : AppCompatActivity() {
 
         // Register pairing receiver
         val filter = IntentFilter(BluetoothDevice.ACTION_BOND_STATE_CHANGED)
+        
+        // Register connection state receiver
+        val connectionFilter = IntentFilter(BluetoothService.ACTION_CONNECTION_STATE_CHANGED)
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.registerReceiver(this, pairingReceiver, filter, ContextCompat.RECEIVER_EXPORTED)
+            ContextCompat.registerReceiver(this, connectionStateReceiver, connectionFilter, ContextCompat.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(pairingReceiver, filter)
+            registerReceiver(connectionStateReceiver, connectionFilter)
         }
+        
+        // Request current connection state in case we missed the broadcast
+        sendBroadcast(Intent(BluetoothService.ACTION_REQUEST_CONNECTION_STATE).setPackage(packageName))
 
         if (resources.configuration.isScreenRound) {
             showRoundScreenWarning()
@@ -109,6 +133,9 @@ class WelcomeActivity : AppCompatActivity() {
         super.onDestroy()
         try {
             unregisterReceiver(pairingReceiver)
+        } catch (_: Exception) {}
+        try {
+            unregisterReceiver(connectionStateReceiver)
         } catch (_: Exception) {}
     }
 
@@ -274,6 +301,7 @@ class WelcomeActivity : AppCompatActivity() {
             startAutomaticSetup()
         }
     }
+
 
     // Battery optimization check removed from here, will be in PermissionActivity
 }
