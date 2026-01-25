@@ -30,6 +30,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var switchVibrate: SwitchMaterial
     private lateinit var switchVibrateSilent: SwitchMaterial
     private lateinit var switchSkipScreenOn: SwitchMaterial
+    private lateinit var switchPhoneCalls: SwitchMaterial
     private lateinit var switchNotifyDisconnect: SwitchMaterial
     
     private lateinit var cardManageApps: View
@@ -67,6 +68,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchVibrate = findViewById(R.id.switchVibrate)
         switchVibrateSilent = findViewById(R.id.switchVibrateSilent)
         switchSkipScreenOn = findViewById(R.id.switchSkipScreenOn)
+        switchPhoneCalls = findViewById(R.id.switchPhoneCalls)
         switchNotifyDisconnect = findViewById(R.id.switchNotifyDisconnect)
         
         cardManageApps = findViewById(R.id.cardManageApps)
@@ -114,6 +116,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchVibrate.isEnabled = isEnabled
         switchVibrateSilent.isEnabled = isEnabled
         switchSkipScreenOn.isEnabled = isEnabled
+        switchPhoneCalls.isEnabled = isEnabled
         switchNotifyDisconnect.isEnabled = isEnabled
         
         cardManageApps.isEnabled = isEnabled
@@ -136,6 +139,12 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchNotifyDisconnect.isChecked = activePrefs.getBoolean("notify_on_disconnect", false)
         switchNotifyDisconnect.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean("notify_on_disconnect", isChecked).apply()
+        }
+
+        // Phone Calls
+        switchPhoneCalls.isChecked = activePrefs.getBoolean("phone_call_forwarding_enabled", true)
+        switchPhoneCalls.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("phone_call_forwarding_enabled", isChecked).apply()
         }
     }
 

@@ -397,7 +397,7 @@ class BluetoothService : Service() {
 
                         when (state) {
                             TelephonyManager.EXTRA_STATE_RINGING -> {
-                                if (number != null) {
+                                if (number != null && activePrefs.getBoolean("phone_call_forwarding_enabled", true)) {
                                     val callerName = getContactName(number)
                                     sendMessage(
                                             ProtocolHelper.createIncomingCall(number, callerName)
