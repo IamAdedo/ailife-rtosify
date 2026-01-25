@@ -159,6 +159,9 @@ class BluetoothService : Service() {
     // Widget Data Cache
     private var lastPhoneBattery = -1
 
+    // ANCS Client for iOS notifications
+    private var ancsClient: AncsClient? = null
+    private var isIosConnected = false
 
     private val mainHandler = Handler(Looper.getMainLooper())
     
@@ -325,6 +328,7 @@ class BluetoothService : Service() {
         const val ACTION_STOP_SERVICE = "ACTION_STOP_SERVICE"
         const val ACTION_LITE_MODE_UPDATE = "com.ailife.rtosifycompanion.ACTION_LITE_MODE_UPDATE"
         const val ACTION_RESTART_BLE_ADVERTISING = "com.ailife.rtosifycompanion.ACTION_RESTART_BLE_ADVERTISING"
+        const val ACTION_IOS_CONNECTED = "com.ailife.rtosifycompanion.ACTION_IOS_CONNECTED"
 
         private const val TAG = "BluetoothService"
         private const val DEBUG_NOTIFICATIONS = false // Ative para debug
@@ -1376,6 +1380,7 @@ class BluetoothService : Service() {
             MessageType.NAVIGATION_INFO -> handleNavigationInfo(message)
             MessageType.NOTIFICATION_LITE -> handleNotificationLite(message)
             MessageType.SET_LITE_MODE -> handleSetLiteMode(message)
+            MessageType.IOS_CONNECTED -> handleIosConnected(message)
             else -> Log.w(TAG, "Unknown message type: ${message.type}")
         }
     }
@@ -1489,9 +1494,9 @@ class BluetoothService : Service() {
         try {
             val enabled = ProtocolHelper.extractBooleanField(message, "enabled")
             Log.d(TAG, "Received Set Lite Mode: $enabled")
-            
+
             prefs.edit().putBoolean("lite_mode_enabled", enabled).apply()
-            
+
             val intent = Intent(ACTION_LITE_MODE_UPDATE).apply {
                 putExtra("enabled", enabled)
                 setPackage(packageName)
@@ -1500,6 +1505,123 @@ class BluetoothService : Service() {
         } catch (e: Exception) {
              Log.e(TAG, "Error handling Set Lite Mode: ${e.message}")
         }
+    }
+
+    /**
+     * Handle iOS connected message - start ANCS listener to receive iOS notifications
+     */
+    private fun handleIosConnected(message: ProtocolMessage) {
+        try {
+            val platform = ProtocolHelper.extractStringField(message, "platform")
+            Log.i(TAG, "iOS device connected (platform: $platform)")
+
+            isIosConnected = true
+            prefs.edit().putBoolean("ios_connected", true).apply()
+
+            // Get the connected iOS device from transport manager
+            val connectedDevice = transportManager.getConnectedBluetoothDevice()
+            if (connectedDevice != null) {
+                startAncsClient(connectedDevice)
+            } else {
+                Log.w(TAG, "No Bluetooth device found for ANCS connection")
+            }
+
+            // Broadcast iOS connected state
+            val intent = Intent(ACTION_IOS_CONNECTED).apply {
+                putExtra("connected", true)
+                setPackage(packageName)
+            }
+            sendBroadcast(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling iOS Connected: ${e.message}")
+        }
+    }
+
+    /**
+     * Start ANCS client to receive notifications from iOS
+     */
+    private fun startAncsClient(device: BluetoothDevice) {
+        // Stop existing client if any
+        ancsClient?.disconnect()
+
+        ancsClient = AncsClient(this, object : AncsClient.AncsCallback {
+            override fun onAncsConnected() {
+                Log.i(TAG, "ANCS connected - ready to receive iOS notifications")
+                mainHandler.post {
+                    Toast.makeText(this@BluetoothService, "iOS Notifications enabled", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onAncsDisconnected() {
+                Log.i(TAG, "ANCS disconnected")
+                isIosConnected = false
+                prefs.edit().putBoolean("ios_connected", false).apply()
+            }
+
+            override fun onNotificationReceived(notification: AncsClient.AncsNotification) {
+                Log.d(TAG, "ANCS Notification: ${notification.title} - ${notification.message}")
+                showAncsNotification(notification)
+            }
+
+            override fun onNotificationRemoved(notificationUID: Int) {
+                Log.d(TAG, "ANCS Notification removed: $notificationUID")
+                dismissAncsNotification(notificationUID)
+            }
+
+            override fun onError(message: String) {
+                Log.e(TAG, "ANCS Error: $message")
+            }
+        })
+
+        ancsClient?.connect(device)
+    }
+
+    /**
+     * Stop ANCS client
+     */
+    private fun stopAncsClient() {
+        ancsClient?.disconnect()
+        ancsClient = null
+        isIosConnected = false
+        prefs.edit().putBoolean("ios_connected", false).apply()
+    }
+
+    /**
+     * Show notification received from iOS via ANCS (same format as notification_lite)
+     */
+    private fun showAncsNotification(notification: AncsClient.AncsNotification) {
+        val title = notification.title ?: notification.appIdentifier ?: "iOS"
+        val content = notification.message ?: ""
+
+        // Use the same channel as lite notifications
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "lite_notifications"
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (notificationManager.getNotificationChannel(channelId) == null) {
+                val channel = NotificationChannel(channelId, "Lite Notifications", NotificationManager.IMPORTANCE_DEFAULT)
+                notificationManager.createNotificationChannel(channel)
+            }
+        }
+
+        val notif = NotificationCompat.Builder(this, channelId)
+            .setContentTitle(title)
+            .setContentText(content)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .build()
+
+        notificationManager.notify(notification.uid, notif)
+        Log.d(TAG, "Shown ANCS Notification: $title")
+    }
+
+    /**
+     * Dismiss ANCS notification
+     */
+    private fun dismissAncsNotification(notificationUID: Int) {
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(notificationUID)
     }
 
     private fun startBluetoothEnforcement() {

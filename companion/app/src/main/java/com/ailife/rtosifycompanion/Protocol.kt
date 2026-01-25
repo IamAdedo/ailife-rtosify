@@ -155,6 +155,9 @@ object MessageType {
     // Lite Mode Protocol
     const val NOTIFICATION_LITE = "notification_lite"
     const val SET_LITE_MODE = "set_lite_mode"
+
+    // iOS Connection
+    const val IOS_CONNECTED = "ios_connected"
 }
 
 data class NavigationInfoData(

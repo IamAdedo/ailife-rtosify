@@ -834,6 +834,13 @@ class TransportManager(
         }
     }
 
+    /**
+     * Get the connected Bluetooth device (for ANCS connection)
+     */
+    fun getConnectedBluetoothDevice(): android.bluetooth.BluetoothDevice? {
+        return bleTransport?.getConnectedDevice()
+    }
+
     fun enableWifiPairingMode() {
         wifiPairingMode = true
         Log.d(TAG, "WiFi pairing mode enabled - server will stay running")

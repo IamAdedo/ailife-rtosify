@@ -313,6 +313,8 @@ class BleTransport(
 
     override fun getTransportType(): String = "BLE"
 
+    fun getConnectedDevice(): BluetoothDevice? = connectedDevice
+
     override fun getRemoteDeviceName(): String? = try {
         connectedDevice?.name ?: connectedDevice?.address
     } catch (e: Exception) {
