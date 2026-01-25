@@ -669,6 +669,19 @@ class BluetoothService : Service() {
         // Load saved internet settings into TransportManager
         notifyInternetSettingsChanged()
 
+        // Restore active watchdogs if we have paired device info
+        val savedWatchMac = prefs.getString("wifi_advertised_mac", null)
+        // Restore active watchdogs. Prefer paired phone MAC (Identity Address) over last connected MAC (which might be random/BLE)
+        val savedPhoneMac = prefs.getString("paired_phone_mac", null) ?: prefs.getString("last_phone_mac", null)
+
+        if (savedWatchMac != null && savedPhoneMac != null) {
+            Log.i(TAG, "Restoring Transport Watchdogs for Phone: $savedPhoneMac")
+            transportManager.startWifiServerWatchdog(this, android.os.Build.MODEL, savedWatchMac, savedPhoneMac)
+            transportManager.startInternetMonitorWatchdog(android.os.Build.MODEL, savedWatchMac, savedPhoneMac)
+        } else {
+            Log.w(TAG, "Not restoring Transport Watchdogs - missing MACs (watch=$savedWatchMac, phone=$savedPhoneMac)")
+        }
+
         // Load saved WiFi rule into TransportManager
         val savedWifiRule = prefs.getInt("wifi_activation_rule", 0)
         transportManager.updateWifiRule(savedWifiRule)
@@ -1204,8 +1217,9 @@ class BluetoothService : Service() {
         
         // Start automation and encryption
         serviceScope.launch {
-             // Save phone MAC for future reconnection
-             if (mac != null) {
+             // Save phone MAC for future reconnection, but ONLY if it's a stable Bluetooth Classic address
+             // BLE addresses are often randomized (RPA) and unsuitable for persistent ID/WebRTC signaling
+             if (mac != null && transportType.contains("BT", ignoreCase = true)) {
                  val oldMac = prefs.getString("last_phone_mac", null)
                  if (mac != oldMac) {
                      prefs.edit().putString("last_phone_mac", mac).apply()
