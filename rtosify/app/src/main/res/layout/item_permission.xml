@@ -18,7 +18,7 @@
             android:id="@+id/imgStatus"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:src="@android:drawable/presence_online" />
+            android:src="@drawable/ic_status_online" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -57,7 +57,7 @@
         <ImageView
             android:layout_width="24dp"
             android:layout_height="24dp"
-            android:src="@android:drawable/ic_menu_edit"
+            android:src="@drawable/ic_edit"
             android:alpha="0.5" />
 
     </LinearLayout>

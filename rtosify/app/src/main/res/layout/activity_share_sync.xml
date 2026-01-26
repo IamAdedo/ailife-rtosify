@@ -20,7 +20,7 @@
         android:id="@+id/imgShareIcon"
         android:layout_width="64dp"
         android:layout_height="64dp"
-        android:src="@android:drawable/ic_menu_share"
+        android:src="@drawable/ic_share"
         android:layout_marginBottom="24dp" />
 
     <TextView

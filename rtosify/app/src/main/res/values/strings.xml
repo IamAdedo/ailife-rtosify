@@ -555,6 +555,21 @@
     <string name="file_error_parse">Error parsing file list: %s</string>
     <string name="file_info_dir">Directory | %s</string>
     <string name="file_info_regular">%1$s | %2$s</string>
+    <string name="action_copy">Copy</string>
+    <string name="action_move">Move</string>
+    <string name="action_download">Download</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_paste">Paste Here</string>
+    <string name="action_select_all">Select All</string>
+    <string name="action_rename">Rename</string>
+    <string name="rename_title">Rename File</string>
+    <string name="rename_message">Enter new name for %s:</string>
+    <string name="rename_error_empty">Name cannot be empty</string>
+    <string name="file_renamed">File renamed</string>
+    <string name="msg_copied_clipboard">%d files copied to clipboard</string>
+    <string name="msg_moved_clipboard">%d files picked to move</string>
+    <string name="msg_paste_success">Files pasted successfully</string>
+
 
     <string name="mirror_stop">Stop Mirroring</string>
     <string name="mirror_start">Start Mirroring</string>

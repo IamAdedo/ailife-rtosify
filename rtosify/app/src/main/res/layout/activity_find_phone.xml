@@ -12,7 +12,7 @@
     <ImageView
         android:layout_width="120dp"
         android:layout_height="120dp"
-        android:src="@android:drawable/ic_lock_silent_mode_off"
+        android:src="@drawable/ic_speaker"
         app:tint="@android:color/white" />
 
     <TextView

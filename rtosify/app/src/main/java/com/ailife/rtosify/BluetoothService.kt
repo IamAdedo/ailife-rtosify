@@ -258,7 +258,7 @@ class BluetoothService : Service() {
         fun onHealthDataUpdated(healthData: HealthDataUpdate) {}
         fun onHealthHistoryReceived(historyData: HealthHistoryResponse) {}
         fun onHealthSettingsReceived(settings: HealthSettingsUpdate) {}
-        fun onPreviewReceived(path: String, imageBase64: String?) {}
+        fun onPreviewReceived(path: String, imageBase64: String?, textContent: String?) {}
         fun onWifiScanResultsReceived(results: List<WifiScanResultData>) {}
         fun onBatteryDetailReceived(data: BatteryDetailData) {}
         fun onDeviceInfoReceived(info: DeviceInfoData) {}
@@ -2727,7 +2727,27 @@ class BluetoothService : Service() {
     }
 
     fun deleteRemoteFile(path: String) {
-        sendMessage(ProtocolHelper.createDeleteFile(path))
+        sendMessage(ProtocolHelper.createDeleteFiles(listOf(path)))
+    }
+
+    fun renameRemoteFile(oldPath: String, newPath: String) {
+        sendMessage(ProtocolHelper.createRenameFile(oldPath, newPath))
+    }
+
+    fun deleteRemoteFiles(paths: List<String>) {
+        sendMessage(ProtocolHelper.createDeleteFiles(paths))
+    }
+
+    fun moveRemoteFiles(srcPaths: List<String>, dstPath: String) {
+        sendMessage(ProtocolHelper.createMoveFiles(srcPaths, dstPath))
+    }
+
+    fun copyRemoteFiles(srcPaths: List<String>, dstPath: String) {
+        sendMessage(ProtocolHelper.createCopyFiles(srcPaths, dstPath))
+    }
+    
+    fun requestPreview(path: String) {
+        sendMessage(ProtocolHelper.createRequestPreview(path))
     }
 
     fun requestWatchStatus() {
@@ -3263,8 +3283,9 @@ class BluetoothService : Service() {
     private suspend fun handlePreviewReceived(message: ProtocolMessage) {
         val path = ProtocolHelper.extractStringField(message, "path")
         val imageBase64 = ProtocolHelper.extractStringField(message, "imageBase64")
+        val textContent = ProtocolHelper.extractStringField(message, "textContent")
         if (path != null) {
-            withContext(Dispatchers.Main) { callback?.onPreviewReceived(path, imageBase64) }
+            withContext(Dispatchers.Main) { callback?.onPreviewReceived(path, imageBase64, textContent) }
         }
     }
 

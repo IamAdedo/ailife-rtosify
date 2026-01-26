@@ -389,7 +389,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
             ipAddress: String?,
             wifiState: String?
     ) {}
-    override fun onPreviewReceived(path: String, imageBase64: String?) {
+    override fun onPreviewReceived(path: String, imageBase64: String?, textContent: String?) {
         if (imageBase64 != null) {
             managerFragment.updatePreview(path, imageBase64)
         }

@@ -39,8 +39,23 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
     private val pathStack = Stack<String>()
     private var currentFiles = mutableListOf<FileInfo>()
 
+    private var fileAdapter: FileAdapter? = null
+
+    // Clipboard
+    private var clipboardFiles = mutableListOf<String>()
+    private var clipboardOperation = "" // "COPY" or "MOVE"
+    private var clipboardSourcePath = ""
+    
+    // Transfer Queue
+    private val transferQueue = java.util.LinkedList<TransferRequest>()
+    private var isProcessingQueue = false
+    
+    data class TransferRequest(val type: TransferType, val path: String, val uri: Uri? = null, val remoteDir: String? = null)
+    enum class TransferType { DOWNLOAD, UPLOAD }
+
     // Dialog References (similar to AppListActivity)
     private var transferDialog: AlertDialog? = null
+
     private var transferProgressBar: ProgressBar? = null
     private var transferPercentageText: TextView? = null
     private var transferDescriptionText: TextView? = null
@@ -85,6 +100,45 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = getString(R.string.file_manager)
         toolbar.setNavigationOnClickListener { onBackPressed() }
+        toolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                R.id.action_download -> {
+                    downloadSelectedFiles()
+                    true
+                }
+                R.id.action_rename -> {
+                    showRenameDialog()
+                    true
+                }
+                R.id.action_copy -> {
+                    copySelectedFiles()
+                    true
+                }
+                R.id.action_move -> {
+                    moveSelectedFiles()
+                    true
+                }
+                R.id.action_delete -> {
+                    deleteSelectedFiles()
+                    true
+                }
+                R.id.action_select_all -> {
+                    fileAdapter?.selectAll()
+                    updateMenu()
+                    true
+                }
+                R.id.action_paste -> {
+                    pasteFiles()
+                    true
+                }
+                R.id.action_refresh -> {
+                    val current = if (pathStack.isEmpty()) "/" else pathStack.peek()
+                    requestFileList(current)
+                    true
+                }
+                else -> false
+            }
+        }
 
         tvCurrentPath = findViewById(R.id.tvCurrentPath)
         recyclerViewFiles = findViewById(R.id.recyclerViewFiles)
@@ -92,34 +146,47 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         progressBarFiles = findViewById(R.id.progressBarFiles)
 
         recyclerViewFiles.layoutManager = LinearLayoutManager(this)
-        recyclerViewFiles.adapter =
-                FileAdapter(
-                        currentFiles,
-                        onItemClick = { fileInfo ->
-                            if (fileInfo.isDirectory) {
-                                val newPath =
-                                        if (pathStack.isEmpty()) {
-                                            "/" + fileInfo.name
-                                        } else {
-                                            val current = pathStack.peek()
-                                            if (current == "/") "/${fileInfo.name}"
-                                            else "$current/${fileInfo.name}"
-                                        }
-                                requestFileList(newPath)
-                            }
-                        },
-                        onDownloadClick = { fileInfo ->
-                            if (!fileInfo.isDirectory) {
-                                val fullPath = getFullPath(fileInfo.name)
-                                bluetoothService?.requestFileDownload(fullPath)
-                                showTransferDialog(
-                                        getString(R.string.file_downloading),
-                                        getString(R.string.file_getting_from_watch, fileInfo.name)
-                                )
-                            }
-                        },
-                        onDeleteClick = { fileInfo -> confirmDelete(fileInfo) }
-                )
+        val adapter = FileAdapter(
+            currentFiles,
+            onItemClick = { fileInfo ->
+                if (fileAdapter?.selectionMode == true) {
+                    toggleSelection(fileInfo)
+                } else if (fileInfo.isDirectory) {
+                    val newPath =
+                        if (pathStack.isEmpty()) {
+                            "/" + fileInfo.name
+                        } else {
+                            val current = pathStack.peek()
+                            if (current == "/") "/${fileInfo.name}"
+                            else "$current/${fileInfo.name}"
+                        }
+                    requestFileList(newPath)
+                } else {
+                    val fullPath = getFullPath(fileInfo.name)
+                    bluetoothService?.requestPreview(fullPath)
+                    Toast.makeText(this, "Requesting preview...", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onDownloadClick = { fileInfo ->
+                if (!fileInfo.isDirectory) {
+                    val fullPath = getFullPath(fileInfo.name)
+                    queueTransfer(TransferRequest(TransferType.DOWNLOAD, fullPath))
+                }
+            },
+            onDeleteClick = { fileInfo -> confirmDelete(fileInfo) },
+            onLongClick = { fileInfo ->
+                if (fileAdapter?.selectionMode == false) {
+                    fileAdapter?.selectionMode = true
+                    toggleSelection(fileInfo)
+                    true
+                } else {
+                    false
+                }
+            }
+        )
+        recyclerViewFiles.adapter = adapter
+        fileAdapter = adapter
+
 
         fabUpload.setOnClickListener { pickFileLauncher.launch("*/*") }
 
@@ -137,19 +204,47 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
     }
 
     private fun confirmUpload(uri: Uri) {
+        val currentPath = if (pathStack.isEmpty()) "/" else pathStack.peek()
         AlertDialog.Builder(this)
                 .setTitle(R.string.file_upload_confirm_title)
                 .setMessage(R.string.file_upload_confirm_desc)
                 .setPositiveButton(R.string.file_button_upload) { _, _ ->
-                    val currentPath = if (pathStack.isEmpty()) "/" else pathStack.peek()
-                    // Copy to temp file to get actual File object if needed,
-                    // but let's assume sendFile handles it or we refactor it.
-                    // Actually BluetoothService.sendApkFile does temp copy.
-                    // Let's use a similar approach for generic upload.
-                    uploadFile(uri, currentPath)
+                     queueTransfer(TransferRequest(TransferType.UPLOAD, "", uri, currentPath))
                 }
                 .setNegativeButton(android.R.string.cancel, null)
                 .show()
+    }
+
+    private fun queueTransfer(request: TransferRequest) {
+        transferQueue.add(request)
+        if (!isProcessingQueue) {
+            processNextTransfer()
+        } else {
+            Toast.makeText(this, "Added to queue (${transferQueue.size})", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun processNextTransfer() {
+        if (transferQueue.isEmpty()) {
+            isProcessingQueue = false
+            return
+        }
+        
+        isProcessingQueue = true
+        val request = transferQueue.peek() // Don't remove yet, remove on completion
+        
+        if (request.type == TransferType.DOWNLOAD) {
+            bluetoothService?.requestFileDownload(request.path)
+            showTransferDialog(
+                getString(R.string.file_downloading),
+                getString(R.string.file_getting_from_watch, request.path.substringAfterLast('/'))
+            )
+        } else if (request.type == TransferType.UPLOAD) {
+            request.uri?.let { uri ->
+                 val remoteDir = request.remoteDir ?: "/"
+                 uploadFile(uri, remoteDir)
+            }
+        }
     }
 
     private fun showTransferDialog(title: String, description: String) {
@@ -195,6 +290,13 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
                     if (downloadedFile != null) {
                         transferViewFileButton?.visibility = View.VISIBLE
                     }
+                    
+                    // Process next after short delay
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                         transferQueue.poll() // Remove completed
+                         dismissTransferDialog() // Close dialog
+                         processNextTransfer() // Next
+                    }, 1000)
                 }
                 -1 -> {
                     transferProgressBar?.visibility = View.GONE
@@ -205,6 +307,11 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
                     transferPercentageText?.text = getString(R.string.status_fail_short)
                     transferPercentageText?.setTextColor(android.graphics.Color.RED)
                     transferOkButton?.visibility = View.VISIBLE
+                    
+                    // On error, we still proceed? Or stop?
+                    // Let's stop queue on error for safety
+                    isProcessingQueue = false
+                    transferQueue.clear()
                 }
             }
         }
@@ -395,8 +502,191 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         }
     }
 
+    override fun onPreviewReceived(path: String, imageBase64: String?, textContent: String?) {
+        runOnUiThread {
+             val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_file_preview, null)
+             val imgPreview = dialogView.findViewById<ImageView>(R.id.imgPreview)
+             val tvPreview = dialogView.findViewById<TextView>(R.id.tvPreviewContent)
+             val tvTitle = dialogView.findViewById<TextView>(R.id.tvPreviewTitle)
+             
+             tvTitle.text = path.substringAfterLast('/')
+             
+             if (imageBase64 != null) {
+                 try {
+                     val decodedString = android.util.Base64.decode(imageBase64, android.util.Base64.DEFAULT)
+                     val decodedByte = android.graphics.BitmapFactory.decodeByteArray(decodedString, 0, decodedString.size)
+                     imgPreview.setImageBitmap(decodedByte)
+                     imgPreview.visibility = View.VISIBLE
+                     tvPreview.visibility = View.GONE
+                 } catch (e: Exception) {
+                     Toast.makeText(this, "Error decoding image", Toast.LENGTH_SHORT).show()
+                 }
+             } else if (textContent != null) {
+                 tvPreview.text = textContent
+                 tvPreview.visibility = View.VISIBLE
+                 imgPreview.visibility = View.GONE
+             } else {
+                 Toast.makeText(this, "Empty preview received", Toast.LENGTH_SHORT).show()
+                 return@runOnUiThread
+             }
+             
+             AlertDialog.Builder(this)
+                 .setView(dialogView)
+                 .setPositiveButton("Close", null)
+                 .show()
+        }
+    }
+    
+    // --- Selection and Menu ---
+    
+    private fun updateMenu() {
+        toolbar.menu.clear()
+        val selectionMode = fileAdapter?.selectionMode == true
+        
+        if (selectionMode) {
+            menuInflater.inflate(R.menu.menu_file_selection, toolbar.menu)
+            val count = fileAdapter?.selectedItems?.size ?: 0
+            supportActionBar?.title = "$count Selected"
+            
+            // Rename only allowed for single selection
+            val renameItem = toolbar.menu.findItem(R.id.action_rename)
+            renameItem?.isVisible = count == 1
+        } else {
+            menuInflater.inflate(R.menu.menu_file_manager, toolbar.menu)
+            supportActionBar?.title = getString(R.string.file_manager)
+            
+            val pasteItem = toolbar.menu.findItem(R.id.action_paste)
+            pasteItem.isVisible = clipboardFiles.isNotEmpty()
+        }
+    }
+    
+    private fun showRenameDialog() {
+        val selected = fileAdapter?.selectedItems?.toList() ?: return
+        if (selected.size != 1) return
+        val fileInfo = selected[0]
+        val oldPath = getFullPath(fileInfo.name)
+        
+        val input = android.widget.EditText(this)
+        input.setText(fileInfo.name)
+        input.setSelection(fileInfo.name.length)
+        
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.rename_title))
+            .setMessage(getString(R.string.rename_message, fileInfo.name))
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val newName = input.text.toString().trim()
+                if (newName.isNotEmpty() && newName != fileInfo.name) {
+                    val currentDir = if (pathStack.isEmpty()) "/" else pathStack.peek()
+                    val newPath = if (currentDir == "/") "/$newName" else "$currentDir/$newName"
+                    bluetoothService?.renameRemoteFile(oldPath, newPath)
+                    exitSelectionMode()
+                    // Refresh not needed immediately if we wait for response, but for now we can just request list or wait.
+                    // Ideally we should have a callback for rename success? 
+                    // Protocol doesn't guarantee response for rename usually unless error.
+                    // But "requestFileList" call after a short delay might be good.
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        requestFileList(currentDir)
+                    }, 500)
+                } else if (newName.isEmpty()) {
+                     Toast.makeText(this, getString(R.string.rename_error_empty), Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun downloadSelectedFiles() {
+        val selected = fileAdapter?.selectedItems?.toList() ?: return
+        if (selected.isEmpty()) return
+        
+        Toast.makeText(this, getString(R.string.file_downloading), Toast.LENGTH_SHORT).show()
+        
+        selected.forEach { file ->
+            if (!file.isDirectory) {
+               val fullPath = getFullPath(file.name)
+               queueTransfer(TransferRequest(TransferType.DOWNLOAD, fullPath))
+            }
+        }
+        exitSelectionMode()
+    }
+    
+    private fun copySelectedFiles() {
+        val selected = fileAdapter?.selectedItems?.toList() ?: return
+        clipboardFiles.clear()
+        selected.forEach { clipboardFiles.add(getFullPath(it.name)) }
+        clipboardOperation = "COPY"
+        clipboardSourcePath = if (pathStack.isEmpty()) "/" else pathStack.peek()
+        
+        Toast.makeText(this, getString(R.string.msg_copied_clipboard, selected.size), Toast.LENGTH_SHORT).show()
+        exitSelectionMode()
+    }
+    
+    private fun moveSelectedFiles() {
+        val selected = fileAdapter?.selectedItems?.toList() ?: return
+        clipboardFiles.clear()
+        selected.forEach { clipboardFiles.add(getFullPath(it.name)) }
+        clipboardOperation = "MOVE"
+        clipboardSourcePath = if (pathStack.isEmpty()) "/" else pathStack.peek()
+        
+        Toast.makeText(this, getString(R.string.msg_moved_clipboard, selected.size), Toast.LENGTH_SHORT).show()
+        exitSelectionMode()
+    }
+    
+    private fun deleteSelectedFiles() {
+         val selected = fileAdapter?.selectedItems?.toList() ?: return
+         if (selected.isEmpty()) return
+
+         AlertDialog.Builder(this)
+             .setTitle(getString(R.string.file_delete_confirm_title, "${selected.size} items"))
+             .setMessage("Are you sure you want to delete these ${selected.size} items?")
+             .setPositiveButton(R.string.file_button_delete) { _, _ ->
+                 val paths = selected.map { getFullPath(it.name) }
+                 bluetoothService?.deleteRemoteFiles(paths)
+                 progressBarFiles.visibility = View.VISIBLE
+                 exitSelectionMode()
+             }
+             .setNegativeButton(android.R.string.cancel, null)
+             .show()
+    }
+    
+    private fun pasteFiles() {
+        if (clipboardFiles.isEmpty()) return
+        val currentPath = if (pathStack.isEmpty()) "/" else pathStack.peek()
+        
+        if (clipboardOperation == "MOVE") {
+             bluetoothService?.moveRemoteFiles(clipboardFiles, currentPath)
+             clipboardFiles.clear() // Clear after move
+             clipboardOperation = ""
+        } else if (clipboardOperation == "COPY") {
+             bluetoothService?.copyRemoteFiles(clipboardFiles, currentPath)
+             // Keep clipboard for multiple pastes? Standard behavior usually yes.
+        }
+        
+        Toast.makeText(this, getString(R.string.msg_paste_success), Toast.LENGTH_SHORT).show()
+        updateMenu() // Update paste icon visibility
+        progressBarFiles.visibility = View.VISIBLE
+    }
+    
+    private fun exitSelectionMode() {
+        fileAdapter?.selectionMode = false
+        updateMenu()
+    }
+
+    private fun toggleSelection(file: FileInfo) {
+        fileAdapter?.toggleSelection(file)
+        updateMenu()
+    }
+    
+    // Need to update menu when file list loads (to reset selection if any error, or just general state)
+    // Actually onFileListReceived clears selection if we navigated properly?
+    // Let's add updateMenu() to onFileListReceived
+    
+    // ...
+    
     // ViewHolder & Adapter
     class FileViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+
         val imgIcon: ImageView = view.findViewById(R.id.imgFileIcon)
         val tvName: TextView = view.findViewById(R.id.tvFileName)
         val tvInfo: TextView = view.findViewById(R.id.tvFileInfo)
@@ -408,8 +698,32 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
             private val files: List<FileInfo>,
             private val onItemClick: (FileInfo) -> Unit,
             private val onDownloadClick: (FileInfo) -> Unit,
-            private val onDeleteClick: (FileInfo) -> Unit
+            private val onDeleteClick: (FileInfo) -> Unit,
+            private val onLongClick: (FileInfo) -> Boolean
     ) : RecyclerView.Adapter<FileViewHolder>() {
+
+        val selectedItems = mutableSetOf<FileInfo>()
+        var selectionMode = false
+            set(value) {
+                field = value
+                if (!value) selectedItems.clear()
+                notifyDataSetChanged()
+            }
+
+        fun toggleSelection(file: FileInfo) {
+            if (selectedItems.contains(file)) {
+                selectedItems.remove(file)
+            } else {
+                selectedItems.add(file)
+            }
+            notifyDataSetChanged()
+        }
+        
+        fun selectAll() {
+            selectedItems.clear()
+            selectedItems.addAll(files)
+            notifyDataSetChanged()
+        }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FileViewHolder {
             val view =
@@ -433,10 +747,28 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
                 holder.imgIcon.setImageResource(android.R.drawable.ic_menu_gallery) // File icon
                 holder.imgIcon.setColorFilter(Color.parseColor("#42A5F5")) // Blue
                 holder.tvInfo.text = holder.itemView.context.getString(R.string.file_info_regular, formatSize(file.size), dateStr)
-                holder.btnDownload.visibility = View.VISIBLE
+                holder.btnDownload.visibility = if (selectionMode) View.GONE else View.VISIBLE
+            }
+            
+            // Selection Visuals
+            if (selectionMode) {
+                holder.btnDelete.visibility = View.GONE
+                holder.btnDownload.visibility = View.GONE
+                if (selectedItems.contains(file)) {
+                    holder.itemView.setBackgroundColor(Color.parseColor("#E0E0E0")) // Highlight
+                } else {
+                    holder.itemView.setBackgroundColor(Color.TRANSPARENT)
+                }
+            } else {
+                 holder.itemView.setBackgroundColor(Color.TRANSPARENT)
+                 holder.btnDelete.visibility = View.VISIBLE
+                 if (!file.isDirectory) holder.btnDownload.visibility = View.VISIBLE
             }
 
             holder.itemView.setOnClickListener { onItemClick(file) }
+            holder.itemView.setOnLongClickListener { onLongClick(file) }
+            
+            // Individual/Non-selection actions
             holder.btnDownload.setOnClickListener { onDownloadClick(file) }
             holder.btnDelete.setOnClickListener { onDeleteClick(file) }
         }

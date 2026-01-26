@@ -69,9 +69,10 @@ object MessageType {
     const val REQUEST_FILE_LIST = "request_file_list"
     const val RESPONSE_FILE_LIST = "response_file_list"
     const val REQUEST_FILE_DOWNLOAD = "request_file_download"
-    const val DELETE_FILE = "delete_file"
+    const val DELETE_FILES = "delete_files" // Batch delete
     const val RENAME_FILE = "rename_file"
-    const val MOVE_FILE = "move_file"
+    const val MOVE_FILES = "move_files" // Batch move
+    const val COPY_FILES = "copy_files" // Batch copy
     const val UPDATE_SETTINGS = "update_settings"
     const val REQUEST_HEALTH_DATA = "request_health_data"
     const val HEALTH_DATA_UPDATE = "health_data_update"
@@ -165,6 +166,17 @@ data class NavigationInfoData(
     val keepScreenOn: Boolean,
     val packageName: String
 )
+
+data class PreviewRequestData(
+    val path: String
+)
+
+data class PreviewResponseData(
+    val path: String,
+    val imageBase64: String?, // For images
+    val textContent: String? // For text files (first N chars)
+)
+
 
 data class NotificationLiteData(
     val id: String,
@@ -697,10 +709,12 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.REQUEST_FILE_DOWNLOAD, data = data)
     }
 
-    fun createDeleteFile(path: String): ProtocolMessage {
+    fun createDeleteFiles(paths: List<String>): ProtocolMessage {
         val data = JsonObject()
-        data.addProperty("path", path)
-        return ProtocolMessage(type = MessageType.DELETE_FILE, data = data)
+        val array = com.google.gson.JsonArray()
+        paths.forEach { array.add(it) }
+        data.add("paths", array)
+        return ProtocolMessage(type = MessageType.DELETE_FILES, data = data)
     }
 
     fun createRenameFile(oldPath: String, newPath: String): ProtocolMessage {
@@ -710,12 +724,39 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.RENAME_FILE, data = data)
     }
 
-    fun createMoveFile(srcPath: String, dstPath: String): ProtocolMessage {
+    fun createMoveFiles(srcPaths: List<String>, dstPath: String): ProtocolMessage {
         val data = JsonObject()
-        data.addProperty("srcPath", srcPath)
+        val array = com.google.gson.JsonArray()
+        srcPaths.forEach { array.add(it) }
+        data.add("srcPaths", array)
         data.addProperty("dstPath", dstPath)
-        return ProtocolMessage(type = MessageType.MOVE_FILE, data = data)
+        return ProtocolMessage(type = MessageType.MOVE_FILES, data = data)
     }
+
+    fun createCopyFiles(srcPaths: List<String>, dstPath: String): ProtocolMessage {
+        val data = JsonObject()
+        val array = com.google.gson.JsonArray()
+        srcPaths.forEach { array.add(it) }
+        data.add("srcPaths", array)
+        data.addProperty("dstPath", dstPath)
+        return ProtocolMessage(type = MessageType.COPY_FILES, data = data)
+    }
+
+    // Singular helpers for compatibility
+    fun createDeleteFile(path: String): ProtocolMessage {
+        return createDeleteFiles(listOf(path))
+    }
+
+    fun createMoveFile(srcPath: String, dstPath: String): ProtocolMessage {
+        return createMoveFiles(listOf(srcPath), dstPath)
+    }
+
+    fun createRequestPreview(path: String): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("path", path)
+        return ProtocolMessage(type = MessageType.REQUEST_PREVIEW, data = data)
+    }
+
 
     fun createMediaControl(command: String, volume: Int? = null): ProtocolMessage {
         val data = JsonObject()
@@ -799,6 +840,13 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.MAKE_CALL, data = data)
     }
 
+
+    fun createResponsePreview(path: String, imageBase64: String?, textContent: String?): ProtocolMessage {
+        val data = gson.toJsonTree(PreviewResponseData(path, imageBase64, textContent)).asJsonObject
+        return ProtocolMessage(type = MessageType.RESPONSE_PREVIEW, data = data)
+    }
+
+
     fun createSyncCalendar(events: List<CalendarEvent>): ProtocolMessage {
         val data = JsonObject()
         data.add("events", gson.toJsonTree(events))
@@ -823,11 +871,7 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.CREATE_FOLDER, data = data)
     }
 
-    fun createRequestPreview(path: String): ProtocolMessage {
-        val data = JsonObject()
-        data.addProperty("path", path)
-        return ProtocolMessage(type = MessageType.REQUEST_PREVIEW, data = data)
-    }
+
 
     fun createResponsePreview(path: String, imageBase64: String?): ProtocolMessage {
         val data = JsonObject()

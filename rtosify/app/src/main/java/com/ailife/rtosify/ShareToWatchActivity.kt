@@ -128,7 +128,7 @@ class ShareToWatchActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     override fun onHealthDataUpdated(healthData: HealthDataUpdate) {}
     override fun onHealthHistoryReceived(historyData: HealthHistoryResponse) {}
     override fun onHealthSettingsReceived(settings: HealthSettingsUpdate) {}
-    override fun onPreviewReceived(path: String, imageBase64: String?) {}
+    override fun onPreviewReceived(path: String, imageBase64: String?, textContent: String?) {}
     override fun onWifiScanResultsReceived(results: List<WifiScanResultData>) {}
     override fun onBatteryDetailReceived(data: BatteryDetailData) {}
     override fun onDeviceInfoReceived(info: DeviceInfoData) {}

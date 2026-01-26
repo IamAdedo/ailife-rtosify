@@ -19,7 +19,7 @@
             android:id="@+id/imgFileIcon"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@android:drawable/ic_menu_gallery"
+            android:src="@drawable/ic_image"
             app:tint="@color/colorAccent" />
 
         <LinearLayout
@@ -55,7 +55,7 @@
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:padding="4dp"
-            android:src="@android:drawable/stat_sys_download"
+            android:src="@drawable/ic_download"
             app:tint="@color/colorAccent" />
 
         <ImageView
@@ -64,7 +64,7 @@
             android:layout_height="32dp"
             android:layout_marginStart="8dp"
             android:padding="4dp"
-            android:src="@android:drawable/ic_menu_delete"
+            android:src="@drawable/ic_delete"
             app:tint="#FF5252" />
 
     </LinearLayout>

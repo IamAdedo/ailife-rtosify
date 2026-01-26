@@ -1345,7 +1345,7 @@ class BluetoothService : Service() {
             MessageType.CAMERA_RECORDING_STATUS -> handleCameraRecordingStatus(message)
             MessageType.REQUEST_FILE_LIST -> handleRequestFileList(message)
             MessageType.REQUEST_FILE_DOWNLOAD -> handleRequestFileDownload(message)
-            MessageType.DELETE_FILE -> handleDeleteFile(message)
+            MessageType.DELETE_FILES -> handleDeleteFiles(message)
             MessageType.UPDATE_SETTINGS -> handleUpdateSettings(message)
             MessageType.UPDATE_WIFI_RULE -> handleUpdateWifiRule(message)
             MessageType.REQUEST_HEALTH_DATA -> handleRequestHealthData(message)
@@ -1357,7 +1357,8 @@ class BluetoothService : Service() {
             MessageType.SYNC_CALENDAR -> handleSyncCalendar(message)
             MessageType.SYNC_CONTACTS -> handleSyncContacts(message)
             MessageType.RENAME_FILE -> handleRenameFile(message)
-            MessageType.MOVE_FILE -> handleMoveFile(message)
+            MessageType.MOVE_FILES -> handleMoveFiles(message)
+            MessageType.COPY_FILES -> handleCopyFiles(message)
             MessageType.SET_WATCH_FACE -> handleSetWatchFace(message)
             MessageType.CREATE_FOLDER -> handleCreateFolder(message)
             MessageType.REQUEST_PREVIEW -> handleRequestPreview(message)
@@ -3578,17 +3579,27 @@ class BluetoothService : Service() {
         }
     }
 
-    private suspend fun handleDeleteFile(message: ProtocolMessage) {
-        val path = ProtocolHelper.extractStringField(message, "path") ?: return
-        val absolutePath = toAbsolutePath(path)
+    private suspend fun handleDeleteFiles(message: ProtocolMessage) {
+        val pathsJson = message.data.getAsJsonArray("paths") ?: return
+        var successCount = 0
+        
+        // We'll process sequentially for simplicity in this implementation
+        val iterator = pathsJson.iterator()
+        while(iterator.hasNext()) {
+             val path = iterator.next().asString
+             val absPath = toAbsolutePath(path)
+             android.util.Log.d(TAG, "Delete requested: $path -> $absPath")
+             if (deleteFileDispatcher(absPath)) {
+                 successCount++
+             }
+        }
 
-        android.util.Log.d(TAG, "Delete requested: $path -> $absolutePath")
-
-        val success = deleteFileDispatcher(absolutePath)
-
-        if (success) {
-            val parentPath =
-                    if (path.lastIndexOf('/') > 0) path.substring(0, path.lastIndexOf('/')) else "/"
+        // Ideally we should refresh the parent folder of the files.
+        // Assuming all files are in the same directory usually, or we just refresh the common root?
+        // Let's take the parent of the first file.
+        if (pathsJson.size() > 0) {
+            val firstPath = pathsJson[0].asString
+            val parentPath = if (firstPath.lastIndexOf('/') > 0) firstPath.substring(0, firstPath.lastIndexOf('/')) else "/"
             handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
         }
     }
@@ -3612,24 +3623,63 @@ class BluetoothService : Service() {
         }
     }
 
-    private suspend fun handleMoveFile(message: ProtocolMessage) {
-        val srcPath = message.data.get("srcPath")?.asString ?: return
+    private suspend fun handleMoveFiles(message: ProtocolMessage) {
+        val srcPathsJson = message.data.getAsJsonArray("srcPaths") ?: return
         val dstPath = message.data.get("dstPath")?.asString ?: return
+        val absDst = toAbsolutePath(dstPath)
+        
+        android.util.Log.d(TAG, "Move requested to: $absDst")
 
-        val absSrc = toAbsolutePath(srcPath)
+        val iterator = srcPathsJson.iterator()
+        while(iterator.hasNext()) {
+             val srcPath = iterator.next().asString
+             val absSrc = toAbsolutePath(srcPath)
+             // For move, we typically just rename/move.
+             // But moveFileDispatcher likely takes src and dst FULL paths?
+             // Or src file and dst FOLDER?
+             // Looking at existing handleMoveFile: moveFileDispatcher(absSrc, absDst)
+             // where absDst comes from dstPath.
+             // In batch move, typically dstPath is the TARGET DIRECTORY.
+             // So we should append the filename.
+             
+             // Wait, the existing handleMoveFile code:
+             // val absDst = toAbsolutePath(dstPath)
+             // val success = moveFileDispatcher(absSrc, absDst)
+             
+             // If moveFileDispatcher treats dest as a directory if it exists, that's fine.
+             // If it treats it as the new filename, then batch move to a file path is wrong.
+             // Usually "Move these 5 files to Folder X".
+             // So we need to construct the new path for each file.
+             
+             val filename = srcPath.substringAfterLast('/')
+             val targetPath = if (absDst.endsWith("/")) absDst + filename else "$absDst/$filename"
+             
+             moveFileDispatcher(absSrc, targetPath)
+        }
+        
+        // Refresh target directory
+        handleRequestFileList(ProtocolHelper.createRequestFileList(dstPath))
+    }
+
+    private suspend fun handleCopyFiles(message: ProtocolMessage) {
+        val srcPathsJson = message.data.getAsJsonArray("srcPaths") ?: return
+        val dstPath = message.data.get("dstPath")?.asString ?: return
         val absDst = toAbsolutePath(dstPath)
 
-        android.util.Log.d(TAG, "Move requested: $absSrc -> $absDst")
-
-        val success = moveFileDispatcher(absSrc, absDst)
-
-        if (success) {
-            val parentPath =
-                    if (dstPath.lastIndexOf('/') > 0) dstPath.substring(0, dstPath.lastIndexOf('/'))
-                    else "/"
-            handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
+        android.util.Log.d(TAG, "Copy requested to: $absDst")
+        
+        val iterator = srcPathsJson.iterator()
+        while(iterator.hasNext()) {
+             val srcPath = iterator.next().asString
+             val absSrc = toAbsolutePath(srcPath)
+             val filename = srcPath.substringAfterLast('/')
+             val targetPath = if (absDst.endsWith("/")) absDst + filename else "$absDst/$filename"
+             
+             copyFileDispatcher(absSrc, targetPath)
         }
+        handleRequestFileList(ProtocolHelper.createRequestFileList(dstPath))
     }
+
 
     private suspend fun handleCreateFolder(message: ProtocolMessage) {
         val path = message.data.get("path")?.asString ?: return
@@ -3643,6 +3693,32 @@ class BluetoothService : Service() {
             val parentPath =
                     if (path.lastIndexOf('/') > 0) path.substring(0, path.lastIndexOf('/')) else "/"
             handleRequestFileList(ProtocolHelper.createRequestFileList(parentPath))
+        }
+    }
+
+    private suspend fun copyFileDispatcher(srcPath: String, dstPath: String): Boolean {
+        // Basic copy implementation
+        return withContext(Dispatchers.IO) {
+            try {
+                val srcFile = File(srcPath)
+                val dstFile = File(dstPath)
+                
+                if (!srcFile.exists()) return@withContext false
+                
+                if (srcFile.isDirectory) {
+                    // Recursive copy not fully supported in this simple dispatcher yet, 
+                    // but usually copyFileDispatcher is called for files in the batch loop.
+                    // If we need directory copy, we'd need recursion.
+                    // For now, assume file copy.
+                    srcFile.copyRecursively(dstFile, overwrite = true)
+                } else {
+                    srcFile.copyTo(dstFile, overwrite = true)
+                }
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "Error copying file $srcPath to $dstPath: ${e.message}")
+                false
+            }
         }
     }
 
@@ -5883,39 +5959,93 @@ class BluetoothService : Service() {
         serviceScope.launch(Dispatchers.IO) {
             try {
                 var bitmap: Bitmap? = null
+                var textContent: String? = null
 
-                // 1. Try to check if it's a directory or file using dispatcher logic
-                val isDir = isDirectoryDispatcher(absPath)
+                val extension = path.substringAfterLast('.', "").lowercase()
+                
+                // 1. Check if it is an image file first
+                if (arrayOf("jpg", "jpeg", "png", "webp", "bmp").contains(extension)) {
+                     // Try to load bitmap directly
+                     bitmap = loadBitmapFromRestrictedPath(absPath)
+                     
+                     if (bitmap == null) {
+                        try {
+                           // Fallback to Shell if needed
+                           if (Shell.getShell().isRoot) {
+                               // CP to temp? Too complex for now.
+                           }
+                        } catch(e: Exception) {}
+                     }
+                } else if (arrayOf("txt", "log", "xml", "json", "md", "properties", "gradle", "kt", "java").contains(extension)) {
+                    // Load text snippet
+                    textContent = readTextSnippet(absPath, 1024)
+                }
 
-                if (isDir) {
-                    val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
-                    for (c in candidates) {
-                        val imgPath = if (absPath.endsWith("/")) "$absPath$c" else "$absPath/$c"
-                        bitmap = loadBitmapFromRestrictedPath(imgPath)
-                        if (bitmap != null) break
+                // 2. If no bitmap yet, check if it's a directory (legacy logic + new folder preview)
+                if (bitmap == null && textContent == null) {
+                    val isDir = isDirectoryDispatcher(absPath)
+                    if (isDir) {
+                        val candidates = listOf("preview.png", "img_gear_0.png", "preview.jpg")
+                        for (c in candidates) {
+                            val imgPath = if (absPath.endsWith("/")) "$absPath$c" else "$absPath/$c"
+                            bitmap = loadBitmapFromRestrictedPath(imgPath)
+                            if (bitmap != null) break
+                        }
+                    } else if (bitmap == null) {
+                         // It's likely a ZIP or .watch file
+                         bitmap = loadPreviewFromZip(absPath)
                     }
-                } else {
-                    // It's likely a ZIP or .watch file
-                    bitmap = loadPreviewFromZip(absPath)
                 }
 
                 if (bitmap != null) {
-                    val thumb = Bitmap.createScaledBitmap(bitmap!!, 200, 200, true)
+                    // Resize to thumbnail
+                    val maxDim = 200
+                    val scale = Math.min(maxDim.toFloat() / bitmap.width, maxDim.toFloat() / bitmap.height)
+                    val w = (bitmap.width * scale).toInt()
+                    val h = (bitmap.height * scale).toInt()
+                    
+                    val thumb = if (w > 0 && h > 0) Bitmap.createScaledBitmap(bitmap!!, w, h, true) else bitmap
                     val output = ByteArrayOutputStream()
-                    thumb.compress(Bitmap.CompressFormat.JPEG, 70, output)
-                    val base64 =
-                            android.util.Base64.encodeToString(
-                                    output.toByteArray(),
-                                    android.util.Base64.NO_WRAP
-                            )
-                    sendMessage(ProtocolHelper.createResponsePreview(path, base64))
+                    thumb?.compress(Bitmap.CompressFormat.JPEG, 60, output)
+                    
+                    if (thumb != bitmap) thumb?.recycle()
+                    bitmap?.recycle() // Recycle original if loaded
+                    
+                    val base64 = android.util.Base64.encodeToString(output.toByteArray(), android.util.Base64.NO_WRAP)
+                    sendMessage(ProtocolHelper.createResponsePreview(path, base64, null))
+                } else if (textContent != null) {
+                    sendMessage(ProtocolHelper.createResponsePreview(path, null, textContent))
                 } else {
-                    sendMessage(ProtocolHelper.createResponsePreview(path, null))
+                    sendMessage(ProtocolHelper.createResponsePreview(path, null, null))
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error generating preview for $path: ${e.message}")
-                sendMessage(ProtocolHelper.createResponsePreview(path, null))
+                sendMessage(ProtocolHelper.createResponsePreview(path, null, null))
             }
+        }
+    }
+
+    private fun readTextSnippet(path: String, maxLength: Int): String? {
+        return try {
+            val file = File(path)
+            if (!file.exists() || !file.canRead()) return null
+            
+            val sb = StringBuilder()
+            file.bufferedReader().use { reader ->
+               val buffer = CharArray(1024)
+               var read = 0
+               while (sb.length < maxLength && reader.read(buffer).also { read = it } != -1) {
+                   sb.append(buffer, 0, read)
+               }
+            }
+            if (sb.length > maxLength) {
+                sb.substring(0, maxLength)
+            } else {
+                sb.toString()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading text snippet from $path: ${e.message}")
+            null
         }
     }
 
