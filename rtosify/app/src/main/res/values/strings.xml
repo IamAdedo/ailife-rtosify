@@ -252,6 +252,8 @@
     <string name="notif_vibrate_desc">Vibrate the watch when a notification arrives</string>
     <string name="notif_vibrate_silent_title">Vibrate in silent mode</string>
     <string name="notif_vibrate_silent_desc">Vibrate even if the watch is in silent/DND mode</string>
+    <string name="notif_wake_screen_dnd_title">Wake screen in DND</string>
+    <string name="notif_wake_screen_dnd_desc">Wake the screen even when Do Not Disturb is enabled</string>
     <string name="notif_settings_description">Note: These settings are generally not required as the system handles them automatically.</string>
     <string name="notif_general_settings">General Settings</string>
     <string name="notif_phone_calls_title">Forward Phone Calls</string>

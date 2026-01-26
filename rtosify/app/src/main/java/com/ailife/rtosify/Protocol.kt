@@ -322,6 +322,7 @@ data class SettingsUpdateData(
         val autoDataEnabled: Boolean? = null,
         val autoBtTetherEnabled: Boolean? = null,
         val wakeScreenEnabled: Boolean? = null,
+        val wakeScreenDndEnabled: Boolean? = null,
         val vibrateEnabled: Boolean? = null,
         val vibrateInSilentEnabled: Boolean? = null,
         // Dynamic Island settings

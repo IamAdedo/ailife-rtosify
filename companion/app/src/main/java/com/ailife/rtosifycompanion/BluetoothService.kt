@@ -1747,6 +1747,10 @@ class BluetoothService : Service() {
                 prefs.edit().putBoolean("wake_screen_enabled", it).apply()
                 Log.d(TAG, "Wake Screen setting updated: $it")
             }
+            settings.wakeScreenDndEnabled?.let {
+                prefs.edit().putBoolean("wake_screen_dnd_enabled", it).apply()
+                Log.d(TAG, "Wake Screen DND setting updated: $it")
+            }
             settings.vibrateEnabled?.let {
                 prefs.edit().putBoolean("vibrate_enabled", it).apply()
                 Log.d(TAG, "Vibrate setting updated: $it")
@@ -5408,11 +5412,18 @@ class BluetoothService : Service() {
 
     private fun performNotificationAlert() {
         val wakeScreen = prefs.getBoolean("wake_screen_enabled", false)
+        val wakeScreenDnd = prefs.getBoolean("wake_screen_dnd_enabled", false)
         val vibrate = prefs.getBoolean("vibrate_enabled", false)
         val vibrateInSilent = prefs.getBoolean("vibrate_silent_enabled", false)
 
         if (wakeScreen) {
-            wakeDeviceScreen()
+            val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            val isSilent =
+                    nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+
+            if (!isSilent || wakeScreenDnd) {
+                wakeDeviceScreen()
+            }
         }
 
         if (vibrate) {

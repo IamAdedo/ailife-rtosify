@@ -27,6 +27,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
 
     private lateinit var switchEnable: SwitchMaterial
     private lateinit var switchWakeScreen: SwitchMaterial
+    private lateinit var switchWakeScreenDnd: SwitchMaterial
     private lateinit var switchVibrate: SwitchMaterial
     private lateinit var switchVibrateSilent: SwitchMaterial
     private lateinit var switchSkipScreenOn: SwitchMaterial
@@ -65,6 +66,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private fun initViews() {
         switchEnable = findViewById(R.id.switchEnableMirroring)
         switchWakeScreen = findViewById(R.id.switchWakeScreen)
+        switchWakeScreenDnd = findViewById(R.id.switchWakeScreenDnd)
         switchVibrate = findViewById(R.id.switchVibrate)
         switchVibrateSilent = findViewById(R.id.switchVibrateSilent)
         switchSkipScreenOn = findViewById(R.id.switchSkipScreenOn)
@@ -113,6 +115,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         val isEnabled = switchEnable.isChecked
         // General settings
         switchWakeScreen.isEnabled = isEnabled
+        switchWakeScreenDnd.isEnabled = isEnabled
         switchVibrate.isEnabled = isEnabled
         switchVibrateSilent.isEnabled = isEnabled
         switchSkipScreenOn.isEnabled = isEnabled
@@ -164,6 +167,12 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchVibrateSilent.isChecked = activePrefs.getBoolean("vibrate_silent_enabled", false)
         switchVibrateSilent.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean("vibrate_silent_enabled", isChecked).apply()
+            sendSettingsUpdate()
+        }
+
+        switchWakeScreenDnd.isChecked = activePrefs.getBoolean("wake_screen_dnd_enabled", false)
+        switchWakeScreenDnd.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("wake_screen_dnd_enabled", isChecked).apply()
             sendSettingsUpdate()
         }
     }

@@ -1603,6 +1603,7 @@ class BluetoothService : Service() {
                         internetSignalingUrl = activePrefs.getString("internet_signaling_url", ""),
                         hqLanEnabled = activePrefs.getBoolean("hq_lan_enabled", false),
                         wakeScreenEnabled = activePrefs.getBoolean("wake_screen_enabled", false),
+                        wakeScreenDndEnabled = activePrefs.getBoolean("wake_screen_dnd_enabled", false),
                         vibrateEnabled = activePrefs.getBoolean("vibrate_enabled", false),
                         vibrateInSilentEnabled = activePrefs.getBoolean("vibrate_silent_enabled", false)
                 )
