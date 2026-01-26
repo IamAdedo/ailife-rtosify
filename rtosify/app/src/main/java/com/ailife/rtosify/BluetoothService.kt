@@ -149,6 +149,7 @@ class BluetoothService : Service() {
     @Volatile private var lastMessageTime: Long = 0L
 
     @Volatile private var isTransferring: Boolean = false
+    @Volatile private var isTransferCancelled: Boolean = false
 
     // File Reception Variables
     private var receiveFile: File? = null
@@ -267,6 +268,7 @@ class BluetoothService : Service() {
         fun onWifiKeyAck(success: Boolean) {}
         fun onWifiTestAck(success: Boolean) {}
         fun onWifiTestReceived(message: String) {}
+        fun onTransferCancelled() {}
     }
 
     interface AlarmCallback {
@@ -311,6 +313,31 @@ class BluetoothService : Service() {
         return if (transportManager.connectionState.value is com.ailife.rtosify.communication.TransportManager.ConnectionState.Connected) {
             lastMac
         } else null
+    }
+
+    fun cancelTransfer() {
+        isTransferCancelled = true
+        
+        // Always notify UI to ensure it doesn't get stuck
+        serviceScope.launch(Dispatchers.Main) { 
+            callback?.onTransferCancelled() 
+        }
+        
+        if (isTransferring || receivingFileStream != null) {
+            // Active Cleanup for Receiving: Don't wait for next chunk, kill it now.
+            if (receivingFileStream != null) {
+                serviceScope.launch(Dispatchers.IO) {
+                    try {
+                        // Notify sender to stop
+                        sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = "Cancelled by user"))
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error sending cancel message: ${e.message}")
+                    }
+                    
+                    cleanupFileTransfer()
+                }
+            }
+        }
     }
 
     fun getEncryptionKeyForCurrentDevice(): String? {
@@ -2030,15 +2057,32 @@ class BluetoothService : Service() {
                         File(cacheDir, fileData.name)
                     }
 
+            isTransferCancelled = false
             try {
-                receivingFile = targetFile
+                // Avoid overwrite by renaming if exists
+                var finalFile = targetFile
+                var counter = 1
+                while (finalFile.exists()) {
+                    val name = fileData.name
+                    val dotIndex = name.lastIndexOf('.')
+                    val newName = if (dotIndex != -1) {
+                         "${name.substring(0, dotIndex)} ($counter)${name.substring(dotIndex)}"
+                    } else {
+                         "$name ($counter)"
+                    }
+                    finalFile = File(targetFile.parentFile, newName)
+                    counter++
+                }
+                
+                receivingFile = finalFile
                 receivingFileStream = java.io.RandomAccessFile(receivingFile!!, "rw")
+                android.util.Log.d(TAG, "Saving to: ${finalFile.absolutePath}")
             } catch (e: Exception) {
                 android.util.Log.w(TAG, "Failed to open primary target ${targetFile.absolutePath}, trying fallback: ${e.message}")
                 val fallbackFile = File(cacheDir, fileData.name)
                 receivingFile = fallbackFile
                 receivingFileStream = java.io.RandomAccessFile(fallbackFile, "rw")
-                android.util.Log.d(TAG, "Fallback to cache success: ${fallbackFile.absolutePath}")
+
             }
 
             receivingFileStream?.setLength(fileData.size) // Pre-allocate file size
@@ -2064,6 +2108,13 @@ class BluetoothService : Service() {
 
     private suspend fun handleFileChunk(message: ProtocolMessage) {
         try {
+            if (isTransferCancelled) {
+                cleanupFileTransfer()
+                // Notify sender to stop
+                sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = "Cancelled by user"))
+                withContext(Dispatchers.Main) { callback?.onTransferCancelled() }
+                return
+            }
             val chunkData = ProtocolHelper.extractData<FileChunkData>(message)
 
             val raf = receivingFileStream
@@ -2115,6 +2166,12 @@ class BluetoothService : Service() {
                 val error = ProtocolHelper.extractStringField(message, "error")
                 android.util.Log.e(TAG, "File transfer failed: $error")
                 cleanupFileTransfer()
+                
+                // If we are sending, this signals us to stop
+                if (isTransferring) {
+                    isTransferCancelled = true // Abort sender loop
+                }
+                
                 withContext(Dispatchers.Main) { callback?.onDownloadProgress(-1) }
                 return
             }
@@ -2166,7 +2223,6 @@ class BluetoothService : Service() {
                 withContext(kotlinx.coroutines.Dispatchers.Main) { showInstallApkDialog(file) }
             } else if (receivingFileType == "SHARE") {
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    callback?.onDownloadProgress(100, file)
                     val authority = "${packageName}.fileprovider"
                     val uri = androidx.core.content.FileProvider.getUriForFile(this@BluetoothService, authority, file)
                     showShareChooser("Received File: ${file.name}", null, contentResolver.getType(uri) ?: "*/*", uri)
@@ -2180,7 +2236,6 @@ class BluetoothService : Service() {
                 }
             } else {
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    callback?.onDownloadProgress(100, file)
                     Toast.makeText(
                                     this@BluetoothService,
                                     getString(R.string.upload_complete_title) + ": ${file.name}",
@@ -2598,6 +2653,9 @@ class BluetoothService : Service() {
             isTransferring = true
 
             try {
+                isTransferring = true
+                isTransferCancelled = false
+                
                 // Calculate MD5 using stream to avoid OOM
                 val md5 = java.security.MessageDigest.getInstance("MD5")
                 file.inputStream().use { driver ->
@@ -2620,6 +2678,7 @@ class BluetoothService : Service() {
                         )
                 if (!transportManager.send(ProtocolHelper.createFileTransferStart(fileData))) {
                      Log.w(TAG, "Failed to send file start")
+                     withContext(Dispatchers.Main) { callback?.onError("Failed to start transfer") }
                      return@launch
                 }
                 // sendMessage(ProtocolHelper.createFileTransferStart(fileData))
@@ -2635,6 +2694,16 @@ class BluetoothService : Service() {
                     var offset: Long = 0
                     
                     while (input.read(buffer).also { bytesRead = it } != -1) {
+                        if (isTransferCancelled) {
+                             Log.i(TAG, "File transfer cancelled by user")
+                             sendMessage(ProtocolHelper.createFileTransferEnd(false, "Cancelled by user"))
+                             withContext(Dispatchers.Main) { 
+                                 callback?.onTransferCancelled()
+                                 // onUploadProgress(-1) called by caller logic usually, but here we break
+                             }
+                             return@launch
+                        }
+
                         // If read less than buffer size (last chunk), truncate
                         val chunkBuffer = if (bytesRead == chunkSize) buffer else buffer.copyOf(bytesRead)
                         
@@ -2650,6 +2719,7 @@ class BluetoothService : Service() {
                                 )
                         val chunkMsg = ProtocolHelper.createFileChunk(chunkData)
                         if (!transportManager.send(chunkMsg)) {
+                             withContext(Dispatchers.Main) { callback?.onError("Failed to send chunk") }
                              throw java.io.IOException("Failed to send chunk $chunkNumber")
                         }
                         // sendMessage(ProtocolHelper.createFileChunk(chunkData))
@@ -2667,6 +2737,8 @@ class BluetoothService : Service() {
                 waitingForFileAck = true
                 if (!transportManager.send(ProtocolHelper.createFileTransferEnd(success = true))) {
                      Log.w(TAG, "Failed to send transfer end")
+                     withContext(Dispatchers.Main) { callback?.onError("Failed to send transfer end") }
+                     return@launch
                 }
                 // transportManager.send(ProtocolHelper.createFileTransferEnd(success = true))
 

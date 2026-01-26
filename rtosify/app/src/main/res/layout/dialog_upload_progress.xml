@@ -62,6 +62,14 @@
             android:visibility="gone" />
 
         <Button
+            android:id="@+id/btnUploadCancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@android:string/cancel"
+            android:textColor="#FF5252"
+            style="?android:attr/borderlessButtonStyle" />
+
+        <Button
             android:id="@+id/btnUploadOk"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

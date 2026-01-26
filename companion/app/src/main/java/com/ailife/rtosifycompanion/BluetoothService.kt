@@ -137,6 +137,7 @@ class BluetoothService : Service() {
     @Volatile private var lastMessageTime: Long = 0L
 
     @Volatile private var isTransferring: Boolean = false
+    @Volatile private var isTransferCancelled: Boolean = false
 
     // File Reception Variables
     private var receiveFile: File? = null
@@ -3169,6 +3170,27 @@ class BluetoothService : Service() {
                 targetFile = File(cacheDirToUse, fileData.name)
             }
 
+            // Global Unique Filename Logic (Applies to all paths)
+            // If we have a final destination path (deferred move), we don't restart logic here usually, 
+            // but for the temp file it doesn't matter much. 
+            // However, sticking to the main logic:
+            if (finalDestinationPath == null) { // Only rename if we are saving directly to final location
+                var counter = 1
+                var finalFile = targetFile
+                while (finalFile.exists()) {
+                     val name = targetFile.name
+                     val dotIndex = name.lastIndexOf('.')
+                     val newName = if (dotIndex != -1) {
+                         "${name.substring(0, dotIndex)} ($counter)${name.substring(dotIndex)}"
+                     } else {
+                         "$name ($counter)"
+                     }
+                     finalFile = File(targetFile.parentFile, newName)
+                     counter++
+                }
+                targetFile = finalFile
+            }
+
             android.util.Log.d(TAG, "Receiving file to: ${targetFile.absolutePath}")
 
             // Ensure parent directory exists (if possible)
@@ -3259,6 +3281,12 @@ class BluetoothService : Service() {
                 val error = ProtocolHelper.extractStringField(message, "error")
                 android.util.Log.e(TAG, "File transfer failed: $error")
                 cleanupFileTransfer()
+                
+                // If we are sending, this signals us to stop
+                if (isTransferring) {
+                    isTransferCancelled = true // Abort sender loop
+                }
+                
                 withContext(Dispatchers.Main) { callback?.onDownloadProgress(-1) }
                 return
             }
@@ -4780,6 +4808,7 @@ class BluetoothService : Service() {
                 return@launch
             }
             isTransferring = true
+            isTransferCancelled = false
 
             try {
                 val fileBytes = file.readBytes()
@@ -4815,6 +4844,14 @@ class BluetoothService : Service() {
                     val base64Chunk =
                             android.util.Base64.encodeToString(chunk, android.util.Base64.NO_WRAP)
 
+                    if (isTransferCancelled) {
+                        Log.i(TAG, "File transfer cancelled by logic")
+                        sendMessage(ProtocolHelper.createFileTransferEnd(success = false, error = "Cancelled by user"))
+                         withContext(Dispatchers.Main) { 
+                             // No UI callback needed for sender usually, or maybe error?
+                         }
+                        return@launch
+                    }
                     val chunkData =
                             FileChunkData(
                                     offset = offset.toLong(),

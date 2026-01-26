@@ -26,6 +26,10 @@ import java.text.SimpleDateFormat
 import java.util.*
 import org.json.JSONArray
 
+import android.graphics.PorterDuff
+import android.view.Menu
+import android.view.MenuItem
+
 class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     private lateinit var toolbar: Toolbar
@@ -62,8 +66,12 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
     private var transferTitleText: TextView? = null
     private var transferIconView: ImageView? = null
     private var transferOkButton: android.widget.Button? = null
+    private var transferCancelButton: android.widget.Button? = null
     private var transferViewFileButton: android.widget.Button? = null
     private var downloadedFile: File? = null
+    
+    private var totalTransferCount = 0
+    private var currentTransferIndex = 0
 
     private val connection =
             object : ServiceConnection {
@@ -84,8 +92,10 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
             }
 
     private val pickFileLauncher =
-            registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-                uri?.let { confirmUpload(it) }
+            registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris: List<Uri> ->
+                if (uris.isNotEmpty()) {
+                    confirmUpload(uris)
+                }
             }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -136,8 +146,19 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
                     requestFileList(current)
                     true
                 }
+                android.R.id.home -> {
+                    onBackPressed()
+                    true
+                }
                 else -> false
             }
+        }
+        
+        // Ensure popup menu is themed correctly or use white icons
+        // Since we can't easily change popup theme dynamically in code without ContextThemeWrapper in layout,
+        // we'll at least fix the overflow icon tint.
+        toolbar.post { 
+             toolbar.overflowIcon?.setTint(Color.WHITE)
         }
 
         tvCurrentPath = findViewById(R.id.tvCurrentPath)
@@ -203,13 +224,17 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         bluetoothService?.requestFileList(path)
     }
 
-    private fun confirmUpload(uri: Uri) {
+    private fun confirmUpload(uris: List<Uri>) {
         val currentPath = if (pathStack.isEmpty()) "/" else pathStack.peek()
         AlertDialog.Builder(this)
                 .setTitle(R.string.file_upload_confirm_title)
-                .setMessage(R.string.file_upload_confirm_desc)
+                .setMessage(getString(R.string.file_upload_confirm_desc) + "\n(${uris.size} files)")
                 .setPositiveButton(R.string.file_button_upload) { _, _ ->
-                     queueTransfer(TransferRequest(TransferType.UPLOAD, "", uri, currentPath))
+                     totalTransferCount = uris.size
+                     currentTransferIndex = 0
+                     uris.forEach { uri ->
+                        queueTransfer(TransferRequest(TransferType.UPLOAD, "", uri, currentPath))
+                     }
                 }
                 .setNegativeButton(android.R.string.cancel, null)
                 .show()
@@ -221,6 +246,8 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
             processNextTransfer()
         } else {
             Toast.makeText(this, "Added to queue (${transferQueue.size})", Toast.LENGTH_SHORT).show()
+            // If queue is stuck (isProcessingQueue true but no active transfer), we might need a timeout or check?
+            // For now, rely on consistent completion callbacks.
         }
     }
 
@@ -231,23 +258,55 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         }
         
         isProcessingQueue = true
-        val request = transferQueue.peek() // Don't remove yet, remove on completion
+        val request = transferQueue.peek()
+        currentTransferIndex++
+        
+        val total = if (totalTransferCount > 0) totalTransferCount else transferQueue.size // Fallback
+        val progressStr = "Processing ${currentTransferIndex}/$total"
         
         if (request.type == TransferType.DOWNLOAD) {
             bluetoothService?.requestFileDownload(request.path)
             showTransferDialog(
-                getString(R.string.file_downloading),
-                getString(R.string.file_getting_from_watch, request.path.substringAfterLast('/'))
+                getString(R.string.file_downloading) + " ($currentTransferIndex/$total)",
+                getString(R.string.file_getting_from_watch, request.path.substringAfterLast('/')),
+                TransferType.DOWNLOAD
             )
         } else if (request.type == TransferType.UPLOAD) {
             request.uri?.let { uri ->
                  val remoteDir = request.remoteDir ?: "/"
-                 uploadFile(uri, remoteDir)
+                 val fileName = uploadFile(uri, remoteDir)
+                 
+                 if (fileName != null) {
+                     showTransferDialog(
+                        getString(R.string.file_uploading) + " ($currentTransferIndex/$total)",
+                        getString(R.string.file_sending_to_watch, fileName),
+                        TransferType.UPLOAD
+                     )
+                 } else {
+                     // Error starting upload
+                     Toast.makeText(this, "Failed to read file: $uri", Toast.LENGTH_SHORT).show()
+                     // Treat as error/done to process next?
+                     updateTransferProgress(-1, "", "")
+                 }
             }
         }
     }
 
-    private fun showTransferDialog(title: String, description: String) {
+    private fun showTransferDialog(title: String, description: String, type: TransferType) {
+        if (transferDialog?.isShowing == true) {
+            // Update existing
+            transferTitleText?.text = title
+            transferDescriptionText?.text = description
+            transferProgressBar?.progress = 0
+            transferPercentageText?.text = "0%"
+            transferOkButton?.visibility = View.GONE
+            transferCancelButton?.visibility = View.VISIBLE
+            
+            val iconRes = if (type == TransferType.DOWNLOAD) android.R.drawable.stat_sys_download else android.R.drawable.ic_menu_upload
+            transferIconView?.setImageResource(iconRes)
+            transferIconView?.colorFilter = null // Reset color
+            return
+        }
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_upload_progress, null)
         transferProgressBar = dialogView.findViewById(R.id.progressBarUpload)
         transferPercentageText = dialogView.findViewById(R.id.tvUploadPercentage)
@@ -256,9 +315,16 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         transferIconView = dialogView.findViewById(R.id.imgUploadIcon)
         transferOkButton = dialogView.findViewById(R.id.btnUploadOk)
 
+        transferCancelButton = dialogView.findViewById(R.id.btnUploadCancel)
+
         transferTitleText?.text = title
         transferDescriptionText?.text = description
         transferOkButton?.setOnClickListener { dismissTransferDialog() }
+        transferCancelButton?.setOnClickListener {
+             bluetoothService?.cancelTransfer()
+             // Immediate UI feedback
+             onTransferCancelled()
+        }
         transferViewFileButton = dialogView.findViewById(R.id.btnViewFile)
         transferViewFileButton?.setOnClickListener { viewDownloadedFile() }
 
@@ -278,25 +344,37 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
                     transferPercentageText?.text = getString(R.string.status_progress_format, progress)
                 }
                 100 -> {
+                    // Item complete
                     transferProgressBar?.progress = 100
                     transferPercentageText?.text = getString(R.string.status_progress_format, 100)
-                    transferTitleText?.text = successTitle
-                    transferDescriptionText?.text = successMessage
-                    transferIconView?.setImageResource(android.R.drawable.stat_sys_upload_done)
-                    transferIconView?.setColorFilter(android.graphics.Color.GREEN)
-                    transferProgressBar?.visibility = View.GONE
-                    transferOkButton?.visibility = View.VISIBLE
-                    // Show View File button only for downloads when file is available
-                    if (downloadedFile != null) {
-                        transferViewFileButton?.visibility = View.VISIBLE
-                    }
                     
-                    // Process next after short delay
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                         transferQueue.poll() // Remove completed
-                         dismissTransferDialog() // Close dialog
-                         processNextTransfer() // Next
-                    }, 1000)
+                    // Poll current
+                    transferQueue.poll()
+                    
+                    if (transferQueue.isNotEmpty()) {
+                        // Continue to next
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            processNextTransfer()
+                        }, 500)
+                    } else {
+                        // All done
+                        transferTitleText?.text = successTitle
+                        transferDescriptionText?.text = successMessage
+                        transferIconView?.setImageResource(android.R.drawable.stat_sys_upload_done)
+                        transferIconView?.setColorFilter(android.graphics.Color.GREEN)
+                        transferProgressBar?.visibility = View.GONE
+                        transferOkButton?.visibility = View.VISIBLE
+                        transferOkButton?.visibility = View.VISIBLE
+                        transferCancelButton?.visibility = View.GONE
+
+                        isProcessingQueue = false // Reset queue state
+
+                        
+                        // Show View File button only for SINGLE downloads
+                        if (downloadedFile != null && totalTransferCount == 1) {
+                            transferViewFileButton?.visibility = View.VISIBLE
+                        }
+                    }
                 }
                 -1 -> {
                     transferProgressBar?.visibility = View.GONE
@@ -307,6 +385,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
                     transferPercentageText?.text = getString(R.string.status_fail_short)
                     transferPercentageText?.setTextColor(android.graphics.Color.RED)
                     transferOkButton?.visibility = View.VISIBLE
+                    transferCancelButton?.visibility = View.GONE
                     
                     // On error, we still proceed? Or stop?
                     // Let's stop queue on error for safety
@@ -369,16 +448,21 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         }
     }
 
-    private fun uploadFile(uri: Uri, remoteDir: String) {
+    private fun uploadFile(uri: Uri, remoteDir: String): String? {
         val fileName = getFileNameFromUri(uri) ?: "upload_${System.currentTimeMillis()}"
         val remotePath = if (remoteDir == "/") "/$fileName" else "$remoteDir/$fileName"
 
-        contentResolver.openInputStream(uri)?.use { inputStream ->
-            val tempFile = File(cacheDir, "temp_upload")
-            tempFile.outputStream().use { outputStream -> inputStream.copyTo(outputStream) }
-            bluetoothService?.sendFile(tempFile, "REGULAR", remotePath)
-            showTransferDialog(getString(R.string.file_uploading), getString(R.string.file_sending_to_watch, fileName))
+        try {
+            contentResolver.openInputStream(uri)?.use { inputStream ->
+                val tempFile = File(cacheDir, "temp_upload")
+                tempFile.outputStream().use { outputStream -> inputStream.copyTo(outputStream) }
+                bluetoothService?.sendFile(tempFile, "REGULAR", remotePath)
+                return fileName
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
+        return null
     }
 
     private fun getFileNameFromUri(uri: Uri): String? {
@@ -410,6 +494,10 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
 
     @android.annotation.SuppressLint("GestureBackNavigation")
     override fun onBackPressed() {
+        if (fileAdapter?.selectionMode == true) {
+            exitSelectionMode()
+            return
+        }
         if (pathStack.size > 1) {
             pathStack.pop() // Remove current
             val previous = pathStack.peek()
@@ -497,7 +585,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         super.onDestroy()
         if (isBound) {
             bluetoothService?.callback = null
-            unbindService(connection)
+            try { unbindService(connection) } catch(e: Exception) {}
             isBound = false
         }
     }
@@ -537,6 +625,17 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         }
     }
     
+    override fun onTransferCancelled() {
+        runOnUiThread {
+             dismissTransferDialog()
+             Toast.makeText(this, "Transfer cancelled", Toast.LENGTH_SHORT).show()
+             
+             // Stop queue
+             isProcessingQueue = false
+             transferQueue.clear()
+        }
+    }
+    
     // --- Selection and Menu ---
     
     private fun updateMenu() {
@@ -548,6 +647,16 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
             val count = fileAdapter?.selectedItems?.size ?: 0
             supportActionBar?.title = "$count Selected"
             
+            
+            // Set nav icon to Close
+            supportActionBar?.setHomeAsUpIndicator(android.R.drawable.ic_menu_close_clear_cancel)
+            supportActionBar?.setDisplayHomeAsUpEnabled(true)
+            
+            // Tint menu items white
+            for (i in 0 until toolbar.menu.size()) {
+                toolbar.menu.getItem(i).icon?.setTint(Color.WHITE)
+            }
+            
             // Rename only allowed for single selection
             val renameItem = toolbar.menu.findItem(R.id.action_rename)
             renameItem?.isVisible = count == 1
@@ -555,8 +664,16 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
             menuInflater.inflate(R.menu.menu_file_manager, toolbar.menu)
             supportActionBar?.title = getString(R.string.file_manager)
             
+            supportActionBar?.setHomeAsUpIndicator(null) // Restore default
+            supportActionBar?.setDisplayHomeAsUpEnabled(true)
+            
             val pasteItem = toolbar.menu.findItem(R.id.action_paste)
             pasteItem.isVisible = clipboardFiles.isNotEmpty()
+            
+            // Tint menu items white
+            for (i in 0 until toolbar.menu.size()) {
+                toolbar.menu.getItem(i).icon?.setTint(Color.WHITE)
+            }
         }
     }
     
@@ -601,6 +718,9 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         if (selected.isEmpty()) return
         
         Toast.makeText(this, getString(R.string.file_downloading), Toast.LENGTH_SHORT).show()
+        
+        totalTransferCount = selected.size
+        currentTransferIndex = 0
         
         selected.forEach { file ->
             if (!file.isDirectory) {
@@ -755,7 +875,8 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
                 holder.btnDelete.visibility = View.GONE
                 holder.btnDownload.visibility = View.GONE
                 if (selectedItems.contains(file)) {
-                    holder.itemView.setBackgroundColor(Color.parseColor("#E0E0E0")) // Highlight
+                    // Darker highlight #339E9E9E
+                    holder.itemView.setBackgroundColor(Color.parseColor("#339E9E9E")) 
                 } else {
                     holder.itemView.setBackgroundColor(Color.TRANSPARENT)
                 }
