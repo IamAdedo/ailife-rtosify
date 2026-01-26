@@ -347,7 +347,9 @@ data class SettingsUpdateData(
         val shareSyncEnabled: Boolean? = null,
         val internetActivationRule: Int? = null,
         val internetSignalingUrl: String? = null,
-        val hqLanEnabled: Boolean? = null
+        val hqLanEnabled: Boolean? = null,
+        val dynamicIslandFollowDnd: Boolean? = null,
+        val dynamicIslandBlacklistHidePeak: Boolean? = null
 )
 
 data class HealthDataUpdate(

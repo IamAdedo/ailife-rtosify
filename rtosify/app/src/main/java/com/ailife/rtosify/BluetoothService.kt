@@ -1641,7 +1641,10 @@ class BluetoothService : Service() {
                 diShowPhoneCalls = activePrefs.getBoolean("di_show_phone_calls", true),
                 diShowAlarms = activePrefs.getBoolean("di_show_alarms", true),
                 diShowDisconnect = activePrefs.getBoolean("di_show_disconnect", true),
-                diShowMedia = activePrefs.getBoolean("di_show_media", true)
+                diShowMedia = activePrefs.getBoolean("di_show_media", true),
+                // New settings
+                dynamicIslandFollowDnd = activePrefs.getBoolean("di_follow_dnd", false),
+                dynamicIslandBlacklistHidePeak = activePrefs.getBoolean("di_blacklist_hide_peak", false)
         )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
     }

@@ -1824,6 +1824,14 @@ class BluetoothService : Service() {
                 prefs.edit().putBoolean("di_show_media", it).apply()
                 Log.d(TAG, "Dynamic Island Show Media updated: $it")
             }
+            settings.dynamicIslandFollowDnd?.let {
+                prefs.edit().putBoolean("di_follow_dnd", it).apply()
+                Log.d(TAG, "Dynamic Island Follow DND updated: $it")
+            }
+            settings.dynamicIslandBlacklistHidePeak?.let {
+                prefs.edit().putBoolean("di_blacklist_hide_peak", it).apply()
+                Log.d(TAG, "Dynamic Island Blacklist Hide Peak updated: $it")
+            }
             
             // Broadcast settings update to Dynamic Island Service if any DI setting changed
             if (settings.notificationStyle != null || settings.dynamicIslandTimeout != null ||
@@ -1832,7 +1840,8 @@ class BluetoothService : Service() {
                 settings.dynamicIslandBlacklistApps != null || settings.dynamicIslandHideWithActiveNotifs != null ||  
                 settings.dynamicIslandTextMultiplier != null || settings.dynamicIslandLimitMessageLength != null ||
                 settings.diShowPhoneCalls != null || settings.diShowAlarms != null ||
-                settings.diShowDisconnect != null || settings.diShowMedia != null) {
+                settings.diShowDisconnect != null || settings.diShowMedia != null ||
+                settings.dynamicIslandFollowDnd != null || settings.dynamicIslandBlacklistHidePeak != null) {
                 val intent = Intent(ACTION_UPDATE_DI_SETTINGS)
                 intent.setPackage(packageName)
                 sendBroadcast(intent)

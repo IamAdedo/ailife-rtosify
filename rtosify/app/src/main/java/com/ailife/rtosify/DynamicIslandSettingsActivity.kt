@@ -23,11 +23,14 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
     private lateinit var switchShowAlarms: SwitchMaterial
     private lateinit var switchShowDisconnect: SwitchMaterial
     private lateinit var switchShowMedia: SwitchMaterial
+    private lateinit var switchFollowDnd: SwitchMaterial
 
     // Auto-hide settings
     private lateinit var spinnerAutoHideMode: Spinner
     private lateinit var switchHideWithActiveNotifs: SwitchMaterial
     private lateinit var layoutHideWithActiveNotifs: LinearLayout
+    private lateinit var switchBlacklistHidePeak: SwitchMaterial
+    private lateinit var layoutBlacklistHidePeak: LinearLayout
     private lateinit var cardBlacklist: View
 
     // Display settings
@@ -92,11 +95,14 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
         switchShowAlarms = findViewById(R.id.switchShowAlarms)
         switchShowDisconnect = findViewById(R.id.switchShowDisconnect)
         switchShowMedia = findViewById(R.id.switchShowMedia)
+        switchFollowDnd = findViewById(R.id.switchFollowDnd)
 
         // Auto-hide
         spinnerAutoHideMode = findViewById(R.id.spinnerAutoHideMode)
         switchHideWithActiveNotifs = findViewById(R.id.switchHideWithActiveNotifs)
         layoutHideWithActiveNotifs = findViewById(R.id.layoutHideWithActiveNotifs)
+        switchBlacklistHidePeak = findViewById(R.id.switchBlacklistHidePeak)
+        layoutBlacklistHidePeak = findViewById(R.id.layoutBlacklistHidePeak)
         cardBlacklist = findViewById(R.id.cardBlacklist)
 
         // Display settings
@@ -143,6 +149,13 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
             activePrefs.edit().putBoolean("di_show_media", isChecked).apply()
             syncSettings()
         }
+
+        // Follow DND toggle
+        switchFollowDnd.isChecked = activePrefs.getBoolean("di_follow_dnd", false)
+        switchFollowDnd.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("di_follow_dnd", isChecked).apply()
+            syncSettings()
+        }
     }
 
 
@@ -169,6 +182,7 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
                 val showBlacklistOptions = position == 2 // Hide in Blacklisted Apps
                 cardBlacklist.visibility = if (showBlacklistOptions) View.VISIBLE else View.GONE
                 layoutHideWithActiveNotifs.visibility = if (showBlacklistOptions) View.VISIBLE else View.GONE
+                layoutBlacklistHidePeak.visibility = if (showBlacklistOptions) View.VISIBLE else View.GONE
             }
 
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -181,10 +195,18 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
             syncSettings()
         }
 
+        // Hide peak in blacklist toggle
+        switchBlacklistHidePeak.isChecked = activePrefs.getBoolean("di_blacklist_hide_peak", false)
+        switchBlacklistHidePeak.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("di_blacklist_hide_peak", isChecked).apply()
+            syncSettings()
+        }
+
         // Initial visibility
         val showBlacklistOptions = currentMode == 2
         cardBlacklist.visibility = if (showBlacklistOptions) View.VISIBLE else View.GONE
         layoutHideWithActiveNotifs.visibility = if (showBlacklistOptions) View.VISIBLE else View.GONE
+        layoutBlacklistHidePeak.visibility = if (showBlacklistOptions) View.VISIBLE else View.GONE
     }
 
     private fun setupDisplaySettings() {

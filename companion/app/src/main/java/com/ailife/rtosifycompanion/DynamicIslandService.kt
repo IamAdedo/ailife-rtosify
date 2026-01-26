@@ -58,6 +58,8 @@ class DynamicIslandService : Service() {
     private var hideWithActiveNotifs = false
     private var lastForegroundApp: String? = null
     private var isCurrentlyInBlacklistedApp = false
+    private var followDnd = false
+    private var blacklistHidePeak = false
     
     // Feature toggles
     private var showPhoneCalls = true
@@ -229,6 +231,8 @@ class DynamicIslandService : Service() {
         autoHideMode = prefs.getInt("di_auto_hide_mode", AUTO_HIDE_ALWAYS_SHOW)
         blacklistedApps = prefs.getStringSet("di_blacklist_apps", emptySet()) ?: emptySet()
         hideWithActiveNotifs = prefs.getBoolean("di_hide_with_active_notifs", false)
+        blacklistHidePeak = prefs.getBoolean("di_blacklist_hide_peak", false)
+        followDnd = prefs.getBoolean("di_follow_dnd", false)
         
         // Load feature toggles
         showPhoneCalls = prefs.getBoolean("di_show_phone_calls", true)
@@ -588,6 +592,10 @@ class DynamicIslandService : Service() {
      * Wake screen and vibrate if enabled in settings
      */
     private fun wakeScreenAndVibrate() {
+        if (followDnd && isDndActive()) {
+            Log.d(TAG, "Suppressed wakeScreenAndVibrate due to Follow DND")
+            return
+        }
         try {
             // Check if wake screen is enabled
             val wakeEnabled = prefs.getBoolean("wake_screen_enabled", false)
@@ -616,6 +624,11 @@ class DynamicIslandService : Service() {
     }
 
     private fun wakeScreen(durationMs: Long) {
+        if (followDnd && isDndActive()) {
+            Log.d(TAG, "Suppressed wakeScreen due to Follow DND")
+            return
+        }
+        
         try {
             val powerManager = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
             if (powerManager != null) {
@@ -635,6 +648,11 @@ class DynamicIslandService : Service() {
     private fun startPriorityVibration() {
         val vibrateEnabled = prefs.getBoolean("vibrate_enabled", true)
         if (!vibrateEnabled) return
+
+        if (followDnd && isDndActive()) {
+            Log.d(TAG, "Suppressed startPriorityVibration due to Follow DND")
+            return
+        }
 
         try {
             val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
@@ -866,6 +884,26 @@ class DynamicIslandService : Service() {
             return false
         }
         
+        // Strict Blacklist Hide Peak mode
+        if (blacklistHidePeak) {
+            // In this mode, we hide everything except ongoing calls/alarms validation
+            // But requirement says "just will be colapsed and when exit blacklisted app can see it"
+            // So we should hide even if there are notification icons.
+            
+            // Allow transient states (like charging animation) or critical alerts (calls/alarms)
+            if (currentCall != null || currentAlarm != null) {
+                return false
+            }
+            
+            // Allow active transient ONLY if it's NOT a notification peek (which shouldn't happen anyway due to showNotification check)
+            if (currentState == "active_transient") { 
+                 return false 
+            }
+            
+            // Hide for everything else: idle, icons, media, etc.
+            return true
+        }
+        
         // Don't hide if actively showing something important or transient animations
         if (isExpanded || currentNotification != null || currentCall != null || 
             currentAlarm != null || currentState == "active_transient") {
@@ -890,16 +928,44 @@ class DynamicIslandService : Service() {
         notificationQueue.removeAll { it.key == notif.key } // Remove duplicates
         notificationQueue.add(0, notif) // Add to front
 
-        // If not currently expanded, show this one as a peek
-        if (!isExpanded) {
+        // Check conditions to skip peeking (expanding)
+        var shouldPeek = true
+
+        // 1. Follow DND
+        if (followDnd && isDndActive()) {
+            Log.d(TAG, "DND active: Skipping notification peek")
+            shouldPeek = false
+        }
+
+        // 2. Blacklist Hide Peak
+        if (blacklistHidePeak && isCurrentlyInBlacklistedApp) {
+            Log.d(TAG, "In blacklisted app (Hide Peak): Skipping notification peek")
+            shouldPeek = false
+        }
+
+        // If not currently expanded and should peek, show this one as a peek
+        if (!isExpanded && shouldPeek) {
             displayNotification(notif)
-        } else {
+        } else if (isExpanded) {
             // Already expanded to list, just update the list content
             overlayView.expandToList(notificationQueue)
         }
 
         // Force visibility update to unhide if necessary
         updateState()
+    }
+
+    private fun isDndActive(): Boolean {
+        return try {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val filter = notificationManager.currentInterruptionFilter
+            filter == NotificationManager.INTERRUPTION_FILTER_NONE ||
+            filter == NotificationManager.INTERRUPTION_FILTER_PRIORITY ||
+            filter == NotificationManager.INTERRUPTION_FILTER_ALARMS
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking DND status: ${e.message}")
+            false
+        }
     }
 
     private fun handleAlarmTriggerBroadcast(intent: Intent) {

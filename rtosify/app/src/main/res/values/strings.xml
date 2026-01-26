@@ -442,6 +442,10 @@
     <!-- Dynamic Island Customization -->
     <string name="di_hide_idle">Hide when idle</string>
     <string name="di_hide_idle_desc">Hide the pill when there are no active notifications</string>
+    <string name="di_follow_dnd_title">Follow Do Not Disturb</string>
+    <string name="di_follow_dnd_desc">Do not expand notifications when DND is active</string>
+    <string name="di_hide_peak_title">Hide peak in blacklisted app</string>
+    <string name="di_hide_peak_desc">Completely hide dynamic island and prevent expansion in blacklisted apps</string>
     <string name="toast_bt_required">Bluetooth required. Please enable it.</string>
     <string name="toast_perm_calendar_not_granted">Permission READ_CALENDAR not granted</string>
     <string name="toast_perm_contacts_not_granted">Permission READ_CONTACTS not granted</string>

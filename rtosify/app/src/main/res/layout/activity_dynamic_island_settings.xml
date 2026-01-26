@@ -81,6 +81,42 @@
                         android:textColor="?android:attr/textColorSecondary"
                         android:layout_marginBottom="16dp"/>
 
+                    <!-- Follow DND (Moved to General) -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="24dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/di_follow_dnd_title"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/di_follow_dnd_desc"
+                                android:textSize="13sp"
+                                android:textColor="?android:attr/textColorSecondary"/>
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchFollowDnd"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"/>
+                    </LinearLayout>
+
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -241,6 +277,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
                     </LinearLayout>
+
+
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -334,6 +372,44 @@
                             android:layout_height="wrap_content"/>
                     </LinearLayout>
 
+                    <!-- Hide Peak in Blacklisted App (Moved here) -->
+                    <LinearLayout
+                        android:id="@+id/layoutBlacklistHidePeak"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="16dp"
+                        android:visibility="gone">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/di_hide_peak_title"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/di_hide_peak_desc"
+                                android:textSize="13sp"
+                                android:textColor="?android:attr/textColorSecondary"/>
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchBlacklistHidePeak"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"/>
+                    </LinearLayout>
+
                     <!-- Blacklist Management Card -->
                     <com.google.android.material.card.MaterialCardView
                         android:id="@+id/cardBlacklist"
@@ -372,7 +448,9 @@
                                 android:textColor="@android:color/white"/>
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
-                </LinearLayout>
+
+
+            </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
             <!-- Card: Display Settings -->
