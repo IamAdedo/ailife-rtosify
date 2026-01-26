@@ -281,6 +281,10 @@
     <string name="di_message_length_limit">Limit Message Length</string>
     <string name="di_message_length_limit_desc">Truncate long messages to 2 lines</string>
 
+    <!-- Debugging -->
+    <string name="notif_debug_title">Debugging</string>
+    <string name="notif_debug_simulate">Simulate Notification</string>
+
     <string name="menu_uninstall_app">Uninstall</string>
     <string name="dialog_uninstall_title">Uninstall App?</string>
     <string name="dialog_uninstall_message">Do you want to uninstall %s from your watch?</string>

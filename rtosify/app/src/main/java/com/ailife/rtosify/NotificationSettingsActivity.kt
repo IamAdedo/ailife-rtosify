@@ -39,6 +39,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var layoutPermissionWarning: View
     private lateinit var btnGrantPermission: View
     private lateinit var btnManageDynamicIsland: View
+    private lateinit var btnSimulateNotification: android.widget.Button
 
     private lateinit var spinnerNotifStyle: Spinner
 
@@ -55,6 +56,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         setupBehaviorSwitches()
         setupDynamicIslandSettings()
         setupCardClickListeners()
+        setupDebugSettings()
     }
 
     override fun onResume() {
@@ -78,6 +80,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         layoutPermissionWarning = findViewById(R.id.layoutPermissionWarning)
         btnGrantPermission = findViewById(R.id.btnOpenSettings)
         btnManageDynamicIsland = findViewById(R.id.btnManageDynamicIsland)
+        btnSimulateNotification = findViewById(R.id.btnSimulateNotification)
 
         spinnerNotifStyle = findViewById(R.id.spinnerNotificationStyle)
     }
@@ -215,6 +218,64 @@ class NotificationSettingsActivity : AppCompatActivity() {
 
         cardManageApps.setOnClickListener {
             startActivity(android.content.Intent(this, NotificationAppListActivity::class.java))
+        }
+    }
+
+    private fun setupDebugSettings() {
+        btnSimulateNotification.setOnClickListener {
+            sendSimulatedNotification()
+        }
+    }
+
+    private fun sendSimulatedNotification() {
+        try {
+            // 1. Get app icon
+            val drawable = packageManager.getApplicationIcon(packageName)
+            val bitmap = (drawable as? android.graphics.drawable.BitmapDrawable)?.bitmap 
+                ?: (drawable as? android.graphics.drawable.AdaptiveIconDrawable)?.let {
+                    val bmp = android.graphics.Bitmap.createBitmap(
+                        it.intrinsicWidth, 
+                        it.intrinsicHeight, 
+                        android.graphics.Bitmap.Config.ARGB_8888
+                    )
+                    val canvas = android.graphics.Canvas(bmp)
+                    it.setBounds(0, 0, canvas.width, canvas.height)
+                    it.draw(canvas)
+                    bmp
+                }
+
+            val iconBase64 = bitmap?.let { bmp ->
+                val outputStream = java.io.ByteArrayOutputStream()
+                bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, outputStream)
+                android.util.Base64.encodeToString(outputStream.toByteArray(), android.util.Base64.NO_WRAP)
+            }
+
+            // 2. Create Notification Data
+            val notifData = NotificationData(
+                packageName = packageName,
+                title = "Test Notification",
+                text = "This is a simulated notification from RTOSify settings.",
+                key = "test_notif_${System.currentTimeMillis()}",
+                appName =getString(R.string.app_name),
+                largeIcon = iconBase64,
+                smallIcon = iconBase64 // Use same for simplicity
+            )
+
+            // 3. Serialize to JSON
+            val gson = com.google.gson.Gson()
+            val jsonString = gson.toJson(notifData)
+
+            // 4. Send Broadcast
+            val intent = Intent(BluetoothService.ACTION_SEND_NOTIF_TO_WATCH)
+            intent.putExtra(BluetoothService.EXTRA_NOTIF_JSON, jsonString)
+            intent.setPackage(packageName)
+            sendBroadcast(intent)
+            
+            Toast.makeText(this, "Simulated notification sent", Toast.LENGTH_SHORT).show()
+
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error sending simulation: ${e.message}", Toast.LENGTH_SHORT).show()
+            e.printStackTrace()
         }
     }
 
