@@ -1414,6 +1414,7 @@ class BluetoothService : Service() {
     private fun handlePhoneBatteryUpdate(message: ProtocolMessage) {
         try {
             val data = ProtocolHelper.extractData<PhoneBatteryData>(message)
+            Log.d("CHARGING_DEBUG", "WATCH received PHONE_BATTERY_UPDATE: level=${data.level}, isCharging=${data.isCharging}")
             lastPhoneBattery = data.level
             updateDashboardWidget()
             serviceScope.launch(Dispatchers.Main) {
@@ -2399,7 +2400,13 @@ class BluetoothService : Service() {
     private fun collectWatchStatus(): StatusUpdateData {
         val bm = getSystemService(BATTERY_SERVICE) as BatteryManager
         val batteryLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-        val isCharging = bm.isCharging
+
+        // Use ACTION_BATTERY_CHANGED intent for reliable charging detection (same as DynamicIslandService)
+        val batteryIntent = registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val status = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+        val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                         status == BatteryManager.BATTERY_STATUS_FULL
+        Log.d("CHARGING_DEBUG", "WATCH collectWatchStatus: battery=$batteryLevel, isCharging=$isCharging, status=$status")
 
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         val dndEnabled = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
@@ -2642,6 +2649,7 @@ class BluetoothService : Service() {
     private suspend fun handleStatusUpdateReceived(message: ProtocolMessage) {
         try {
             val status = ProtocolHelper.extractData<StatusUpdateData>(message)
+            Log.d("CHARGING_DEBUG", "WATCH received STATUS_UPDATE: battery=${status.battery}, charging=${status.charging}")
             serviceScope.launch(Dispatchers.Main) {
                 // Determine logic for callback arguments based on new fields
                 // wifiSsid: String

@@ -783,11 +783,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     override fun onPhoneBatteryUpdated(battery: Int, isCharging: Boolean) {
+        android.util.Log.d("CHARGING_DEBUG", "WATCH onPhoneBatteryUpdated: battery=$battery, isCharging=$isCharging")
         runOnUiThread {
             tvPhoneBattery.text = "$battery%"
             tvPhoneBattery.visibility = View.VISIBLE
             imgPhoneBattery.visibility = View.VISIBLE
-            
+
             if (isCharging) {
                  imgPhoneBattery.setImageResource(android.R.drawable.ic_lock_idle_charging)
             } else {

@@ -1373,6 +1373,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             wifiEnabled: Boolean,
             dnd: Boolean
     ) {
+        android.util.Log.d("CHARGING_DEBUG", "PHONE updateWatchStatusCard: battery=$battery, isCharging=$isCharging")
         tvBatteryPercent.text = "$battery%"
         if (isCharging) {
             imgBatteryIcon.setImageResource(android.R.drawable.ic_lock_idle_charging)
