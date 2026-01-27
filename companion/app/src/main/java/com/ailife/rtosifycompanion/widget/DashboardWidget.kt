@@ -34,7 +34,7 @@ class DashboardWidget : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (intent.action == ACTION_DASHBOARD_UPDATE) {
-            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val appWidgetManager = AppWidgetManager.getInstance(context) ?: return
             val appWidgetIds = appWidgetManager.getAppWidgetIds(
                 android.content.ComponentName(context, DashboardWidget::class.java)
             )
