@@ -11,20 +11,23 @@ import com.ailife.rtosify.R
 
 sealed class ManagerItem {
     data class Header(val name: String, var isExpanded: Boolean = true) : ManagerItem()
-    data class Face(val fileInfo: WatchFaceFileInfo, val folderName: String) : ManagerItem()
+    data class Face(val fileInfo: WatchFaceFileInfo, val folderName: String, var isSelected: Boolean = false) : ManagerItem()
 }
 
 class WatchFaceManagerAdapter(
     private var allItems: List<ManagerItem>,
     private val isLocal: Boolean,
     private val onRequestPreview: (String) -> Unit,
-    private val onAction: (Action, ManagerItem) -> Unit
+    private val onAction: (Action, ManagerItem) -> Unit,
+    private val onSelectionChanged: (Boolean, Int) -> Unit // isSelectionMode, selectedCount
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    enum class Action { SET, RENAME, DELETE, TOGGLE_FOLDER, RENAME_FOLDER, DELETE_FOLDER }
+    enum class Action { SET, RENAME, DELETE, TOGGLE_FOLDER, RENAME_FOLDER, DELETE_FOLDER, SELECTION_MODE }
 
     private var displayedItems = mutableListOf<ManagerItem>()
     private val previewCache = mutableMapOf<String, android.graphics.Bitmap>()
+    var isInSelectionMode = false
+        private set
 
     init {
         updateDisplayedItems()
@@ -58,6 +61,18 @@ class WatchFaceManagerAdapter(
     }
 
     fun getAllItems(): List<ManagerItem> = allItems
+
+    fun clearSelection() {
+        isInSelectionMode = false
+        allItems.filterIsInstance<ManagerItem.Face>().forEach { it.isSelected = false }
+        displayedItems.filterIsInstance<ManagerItem.Face>().forEach { it.isSelected = false }
+        notifyDataSetChanged()
+        onSelectionChanged(false, 0)
+    }
+
+    fun getSelectedItems(): List<ManagerItem.Face> {
+        return allItems.filterIsInstance<ManagerItem.Face>().filter { it.isSelected }
+    }
 
     fun getItemAt(position: Int): ManagerItem? = displayedItems.getOrNull(position)
 
@@ -131,6 +146,70 @@ class WatchFaceManagerAdapter(
             btnSet.setOnClickListener { onAction(Action.SET, item) }
             btnRename.setOnClickListener { onAction(Action.RENAME, item) }
             btnDelete.setOnClickListener { onAction(Action.DELETE, item) }
+
+            // Selection Logic
+            if (isInSelectionMode) {
+                btnSet.visibility = View.GONE
+                btnRename.visibility = View.GONE
+                btnDelete.visibility = View.GONE
+                
+                // Show selection indicator (checking background or overlay)
+                if (item.isSelected) {
+                    itemView.setBackgroundColor(0x8000FF00.toInt()) // Semi-transparent green
+                } else {
+                    itemView.setBackgroundColor(0x00000000) // Transparent
+                }
+            } else {
+                btnSet.visibility = View.VISIBLE
+                btnRename.visibility = View.VISIBLE
+                btnDelete.visibility = View.VISIBLE
+                itemView.setBackgroundColor(0x00000000)
+            }
+
+            itemView.setOnLongClickListener {
+                if (!isInSelectionMode) {
+                    enterSelectionMode(item)
+                    true
+                } else {
+                    false
+                }
+            }
+            
+            itemView.setOnClickListener {
+                if (isInSelectionMode) {
+                    toggleSelection(item)
+                } else {
+                    // Maybe show preview dialog or immediate apply?
+                    // For now keeping button actions as primary
+                }
+            }
+        }
+        
+        private fun enterSelectionMode(initialItem: ManagerItem.Face) {
+            isInSelectionMode = true
+            initialItem.isSelected = true
+            onSelectionChanged(true, 1)
+            notifyDataSetChanged()
+        }
+
+        private fun toggleSelection(item: ManagerItem.Face) {
+            item.isSelected = !item.isSelected
+            val wasInSelectionMode = isInSelectionMode
+            val count = displayedItems.count { it is ManagerItem.Face && it.isSelected }
+            
+            if (count == 0) {
+                isInSelectionMode = false
+                onSelectionChanged(false, 0)
+            } else {
+                onSelectionChanged(true, count) // Updates UI count
+            }
+            
+            // If we switched modes, we must refresh ALL items to show/hide buttons
+            if (wasInSelectionMode != isInSelectionMode) {
+                 notifyDataSetChanged()
+            } else {
+                 notifyItemChanged(adapterPosition)
+            }
         }
         
         private fun loadLocalPreview(path: String) {

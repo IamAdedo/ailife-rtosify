@@ -23,7 +23,7 @@ class WatchFaceStoreFragment : Fragment() {
     
     // Use factory to instantiate ViewModel
     private val viewModel: WatchFaceStoreViewModel by lazy {
-        androidx.lifecycle.ViewModelProvider(this)[WatchFaceStoreViewModel::class.java]
+        androidx.lifecycle.ViewModelProvider(requireActivity())[WatchFaceStoreViewModel::class.java]
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {

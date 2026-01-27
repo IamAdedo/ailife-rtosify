@@ -601,6 +601,9 @@
     <string name="wf_folder_name_hint">Folder name</string>
     <string name="wf_create_folder_title">Create Folder</string>
     <string name="wf_button_create">Create</string>
+    <string name="wf_button_delete">Delete</string>
+    <string name="wf_upload">Upload</string>
+    <string name="wf_delete_confirm_count">Are you sure you want to delete %d watch faces?</string>
     <string name="wf_header_downloaded">Downloaded</string>
     <string name="wf_rename_folder_title">Rename Folder</string>
     <string name="wf_rename_title">Rename</string>

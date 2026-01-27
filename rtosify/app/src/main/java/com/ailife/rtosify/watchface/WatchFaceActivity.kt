@@ -24,6 +24,16 @@ import com.ailife.rtosify.FileTransferData
 import com.ailife.rtosify.R
 import com.google.android.material.tabs.TabLayout
 import java.io.File
+import java.util.LinkedList
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.lifecycle.lifecycleScope
+import android.view.View
+import android.widget.ProgressBar
+import android.widget.TextView
+
+data class TransferRequest(val file: File, val remotePath: String)
 
 class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
@@ -31,6 +41,11 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
     private lateinit var toolbar: Toolbar
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
+
+    // Transfer Queue
+    private val transferQueue = LinkedList<TransferRequest>()
+    private var isProcessingQueue = false
+    private var currentTransferFile: File? = null
 
     private val storeFragment = WatchFaceStoreFragment()
 
@@ -56,8 +71,10 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
             }
 
     private val pickFileLauncher =
-            registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-                uri?.let { handleImportedUri(it) }
+            registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+                if (uris.isNotEmpty()) {
+                    handleImportedUris(uris)
+                }
             }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -147,7 +164,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
                         )
                         .setDestinationInExternalPublicDir(
                                 Environment.DIRECTORY_DOWNLOADS,
-                                "RTOSify/WatchFaces/$fileName"
+                                "RTOSify/WatchFaces/Downloaded/$fileName"
                         )
                         .setAllowedOverMetered(true)
                         .setAllowedOverRoaming(true)
@@ -155,7 +172,8 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
         val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         val downloadId = dm.enqueue(request)
         android.util.Log.d("WatchFace", "Enqueued download id: $downloadId, file: $fileName")
-        downloadMap[downloadId] = fileName
+        // Store relative path so receiver knows where to look
+        downloadMap[downloadId] = "Downloaded/$fileName"
         Toast.makeText(this, R.string.wf_downloading, Toast.LENGTH_SHORT).show()
     }
 
@@ -165,8 +183,8 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
                     if (intent.action == DownloadManager.ACTION_DOWNLOAD_COMPLETE) {
                         val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
                         android.util.Log.d("WatchFace", "Download complete received for id: $id")
-                        val fileName = downloadMap.remove(id)
-                        if (fileName != null) {
+                        val relativePath = downloadMap.remove(id)
+                        if (relativePath != null) {
                             val file =
                                     File(
                                             File(
@@ -175,7 +193,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
                                                     ),
                                                     "RTOSify/WatchFaces"
                                             ),
-                                            fileName
+                                            relativePath
                                     )
                             android.util.Log.d(
                                     "WatchFace",
@@ -205,18 +223,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
                 }
             }
 
-    fun transferWatchFace(file: File) {
-        val service = bluetoothService
-        if (service == null || !service.isConnected) {
-            Toast.makeText(this, R.string.toast_watch_not_connected, Toast.LENGTH_SHORT).show()
-            return
-        }
 
-        showProgressDialog(getString(R.string.wf_transferring, file.name))
-        // Specify remote restricted path
-        val remotePath = "Android/data/com.ailife.ClockSkinCoco/files/ClockSkin/${file.name}"
-        service.sendFile(file, FileTransferData.TYPE_WATCHFACE, remotePath)
-    }
 
     private fun showProgressDialog(message: String) {
         runOnUiThread {
@@ -278,6 +285,52 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
         bluetoothService?.sendMessage(com.ailife.rtosify.ProtocolHelper.createRequestPreview(path))
     }
 
+    private fun handleImportedUris(uris: List<Uri>) {
+        val progressDialog = android.app.ProgressDialog(this)
+        progressDialog.setMessage(getString(R.string.wf_import))
+        progressDialog.setCancelable(false)
+        progressDialog.show()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            var successCount = 0
+            for (uri in uris) {
+                try {
+                    val inputStream = contentResolver.openInputStream(uri) ?: continue
+                    // Use a more unique name if needed, or keep original
+                    val originalName = getFileName(uri)
+                    val fileName = originalName ?: "imported_wf_${System.currentTimeMillis()}.watch"
+                    
+                    val destFile =
+                            File(
+                                    File(
+                                            Environment.getExternalStoragePublicDirectory(
+                                                    Environment.DIRECTORY_DOWNLOADS
+                                            ),
+                                            "RTOSify/WatchFaces/Imported"
+                                    ),
+                                    fileName
+                            )
+                    if (!destFile.parentFile.exists()) destFile.parentFile.mkdirs()
+
+                    destFile.outputStream().use { output -> inputStream.copyTo(output) }
+                    successCount++
+                } catch (e: Exception) {
+                    android.util.Log.e("WatchFace", "Failed to import ${uri.path}", e)
+                }
+            }
+            
+            withContext(Dispatchers.Main) {
+                progressDialog.dismiss()
+                if (successCount > 0) {
+                    localFragment.refresh()
+                    Toast.makeText(this@WatchFaceActivity, getString(R.string.wf_import_success, "$successCount files"), Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this@WatchFaceActivity, "Failed to import files", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     fun pickWatchFaceFromDevice() {
         pickFileLauncher.launch("*/*")
     }
@@ -304,6 +357,74 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
             Toast.makeText(this, getString(R.string.wf_import_success, fileName), Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(this, getString(R.string.wf_import_fail, e.message), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun transferWatchFace(file: File) {
+        val remotePath = "ClockSkin/${file.name}" // Relative path for watch face
+        transferQueue.offer(TransferRequest(file, remotePath))
+        if (!isProcessingQueue) {
+            processNextTransfer()
+        } else {
+            Toast.makeText(this, "Added to queue (${transferQueue.size})", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun processNextTransfer() {
+        if (transferQueue.isEmpty()) {
+            isProcessingQueue = false
+            currentTransferFile = null
+            return
+        }
+        
+        isProcessingQueue = true
+        val request = transferQueue.poll()
+        val file = request?.file
+        currentTransferFile = file
+        
+        if (file == null || !file.exists()) {
+             processNextTransfer()
+             return
+        }
+
+        // Show Progress Dialog
+        showProgressDialog(getString(R.string.upload_transferring).replace("...", ""), file.name)
+        
+        // Use the remote path from request or default
+        val relPath = request!!.remotePath.ifEmpty { "ClockSkin/${file.name}" }
+        // Delay slightly to allow dialog to show? No, execute immediately.
+        bluetoothService?.sendFile(file, FileTransferData.TYPE_WATCHFACE, relPath)
+    }
+
+    private fun showProgressDialog(title: String, message: String) {
+        runOnUiThread {
+            if (progressDialog == null || progressDialog?.isShowing == false) {
+                val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+                val view = layoutInflater.inflate(R.layout.dialog_upload_progress, null)
+                builder.setView(view)
+                builder.setCancelable(false)
+                progressDialog = builder.create()
+                progressDialog?.show()
+                
+                view.findViewById<android.widget.Button>(R.id.btnUploadCancel).setOnClickListener {
+                    bluetoothService?.cancelTransfer()
+                    transferQueue.clear()
+                    isProcessingQueue = false
+                    dismissProgressDialog()
+                    Toast.makeText(this, "Transfer cancelled", Toast.LENGTH_SHORT).show()
+                }
+                view.findViewById<android.widget.Button>(R.id.btnUploadOk).setOnClickListener {
+                    dismissProgressDialog()
+                    isProcessingQueue = false // Ensure focused reset
+                }
+            }
+            // Update content
+            progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadTitle)?.text = title
+            progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadDescription)?.text = message
+            progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadPercentage)?.text = "0%"
+            progressDialog?.findViewById<android.widget.ProgressBar>(R.id.progressBarUpload)?.progress = 0
+            progressDialog?.findViewById<android.widget.Button>(R.id.btnUploadOk)?.visibility = View.GONE
+            progressDialog?.findViewById<android.widget.Button>(R.id.btnUploadCancel)?.visibility = View.VISIBLE
         }
     }
 
@@ -343,9 +464,30 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
     override fun onUploadProgress(progress: Int) {
         runOnUiThread {
             if (progress >= 100 || progress < 0) {
-                dismissProgressDialog()
                 if (progress == 100) {
-                    Toast.makeText(this, getString(R.string.wf_transfer_complete), Toast.LENGTH_SHORT).show()
+                    if (transferQueue.isEmpty()) {
+                        // All done
+                        isProcessingQueue = false
+                        Toast.makeText(this, getString(R.string.wf_transfer_complete), Toast.LENGTH_SHORT).show()
+                        
+                         // Update UI to show completion
+                         progressDialog?.findViewById<android.widget.Button>(R.id.btnUploadOk)?.visibility = View.VISIBLE
+                         progressDialog?.findViewById<android.widget.Button>(R.id.btnUploadCancel)?.visibility = View.GONE
+                         progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadTitle)?.text = getString(R.string.upload_complete_title)
+                         progressDialog?.findViewById<android.widget.ProgressBar>(R.id.progressBarUpload)?.progress = 100
+                         progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadPercentage)?.text = "100%"
+                    } else {
+                         // Next item - keep dialog open
+                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                             processNextTransfer()
+                         }, 500)
+                    }
+                } else {
+                    // Error case
+                    isProcessingQueue = false
+                    transferQueue.clear()
+                    dismissProgressDialog()
+                    Toast.makeText(this, "Transfer failed", Toast.LENGTH_SHORT).show()
                 }
             } else {
                 progressDialog?.findViewById<android.widget.ProgressBar>(R.id.progressBarUpload)

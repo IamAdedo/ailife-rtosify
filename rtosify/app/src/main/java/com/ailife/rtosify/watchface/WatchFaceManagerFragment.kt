@@ -13,10 +13,14 @@ import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
-import com.ailife.rtosify.R
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import org.json.JSONArray
 import java.io.File
+import com.ailife.rtosify.R
 
 class WatchFaceManagerFragment : Fragment() {
 
@@ -24,6 +28,9 @@ class WatchFaceManagerFragment : Fragment() {
     private lateinit var adapter: WatchFaceManagerAdapter
     private lateinit var btnImport: View
     private lateinit var fabCreateFolder: FloatingActionButton
+    private lateinit var layoutSelection: View
+    private lateinit var btnDeleteSelected: View
+    private lateinit var btnUploadSelected: View
     
     private val watchPath = "Android/data/com.ailife.ClockSkinCoco/files/ClockSkin"
     private val folderContents = mutableMapOf<String, List<WatchFaceFileInfo>>()
@@ -55,6 +62,12 @@ class WatchFaceManagerFragment : Fragment() {
         btnImport = view.findViewById(R.id.btnImport)
         fabCreateFolder = view.findViewById(R.id.fabCreateFolder)
         recyclerView = view.findViewById(R.id.recyclerView)
+        layoutSelection = view.findViewById(R.id.layoutSelection)
+        btnDeleteSelected = view.findViewById(R.id.btnDeleteSelected)
+        btnUploadSelected = view.findViewById(R.id.btnUploadSelected)
+        
+        btnDeleteSelected.setOnClickListener { deleteSelectedItems() }
+        btnUploadSelected.setOnClickListener { uploadSelectedItems() }
 
         if (isLocal) {
             btnImport.visibility = View.VISIBLE
@@ -86,6 +99,9 @@ class WatchFaceManagerFragment : Fragment() {
             },
             onAction = { action, item ->
                 handleAction(action, item)
+            },
+            onSelectionChanged = { isSelectionMode, count ->
+                updateSelectionUI(isSelectionMode, count)
             }
         )
         recyclerView.adapter = adapter
@@ -161,29 +177,135 @@ class WatchFaceManagerFragment : Fragment() {
     }
 
     private fun loadLocalFiles() {
-        try {
-            val dir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "RTOSify/WatchFaces")
-            if (!dir.exists()) dir.mkdirs()
-            
-            val files = dir.listFiles { file -> 
-                file.isFile && (file.name.endsWith(".zip", true) || file.name.endsWith(".watch", true))
-            } ?: emptyArray()
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val rootDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "RTOSify/WatchFaces")
+                if (!rootDir.exists()) rootDir.mkdirs()
 
-            val items = mutableListOf<ManagerItem>()
-            if (files.isNotEmpty()) {
-                items.add(ManagerItem.Header(getString(R.string.wf_header_downloaded), true))
-                items.addAll(files.map { file ->
-                    val fileInfo = WatchFaceFileInfo(file.name, file.absolutePath, false, file.length())
-                    ManagerItem.Face(fileInfo, getString(R.string.wf_header_downloaded))
-                })
+                val downloadedDir = File(rootDir, "Downloaded")
+                val importedDir = File(rootDir, "Imported")
+                
+                if (!downloadedDir.exists()) downloadedDir.mkdirs()
+                if (!importedDir.exists()) importedDir.mkdirs()
+
+                val items = mutableListOf<ManagerItem>()
+                
+                // 1. Downloaded
+                val downloadedFiles = downloadedDir.listFiles { file -> 
+                    file.isFile && (file.name.endsWith(".zip", true) || file.name.endsWith(".watch", true))
+                } ?: emptyArray()
+                
+                if (downloadedFiles.isNotEmpty()) {
+                    items.add(ManagerItem.Header(getString(R.string.wf_header_downloaded), true))
+                    items.addAll(downloadedFiles.map { file ->
+                        val fileInfo = WatchFaceFileInfo(file.name, file.absolutePath, false, file.length())
+                        ManagerItem.Face(fileInfo, getString(R.string.wf_header_downloaded))
+                    })
+                }
+
+                // 2. Imported
+                val importedFiles = importedDir.listFiles { file -> 
+                    file.isFile && (file.name.endsWith(".zip", true) || file.name.endsWith(".watch", true))
+                } ?: emptyArray()
+
+                if (importedFiles.isNotEmpty()) {
+                    items.add(ManagerItem.Header("Imported", true))
+                    items.addAll(importedFiles.map { file ->
+                        val fileInfo = WatchFaceFileInfo(file.name, file.absolutePath, false, file.length())
+                        ManagerItem.Face(fileInfo, "Imported")
+                    })
+                }
+
+                // 3. Other (Root)
+                val otherFiles = rootDir.listFiles { file -> 
+                    file.isFile && (file.name.endsWith(".zip", true) || file.name.endsWith(".watch", true))
+                } ?: emptyArray()
+
+                if (otherFiles.isNotEmpty()) {
+                    items.add(ManagerItem.Header("Other", true))
+                    items.addAll(otherFiles.map { file ->
+                        val fileInfo = WatchFaceFileInfo(file.name, file.absolutePath, false, file.length())
+                        ManagerItem.Face(fileInfo, "Other")
+                    })
+                }
+                
+                withContext(Dispatchers.Main) {
+                    adapter.setData(items)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                   Toast.makeText(context, "Error loading files", Toast.LENGTH_SHORT).show()
+                }
             }
-            
-            activity?.runOnUiThread {
-                adapter.setData(items)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
+    }
+    
+    private fun updateSelectionUI(isSelectionMode: Boolean, count: Int) {
+        activity?.runOnUiThread {
+            if (isSelectionMode) {
+                layoutSelection.visibility = View.VISIBLE
+                btnImport.visibility = View.GONE
+                fabCreateFolder.visibility = View.GONE
+                // Update text or buttons if needed
+            } else {
+                layoutSelection.visibility = View.GONE
+                if (isLocal) {
+                    btnImport.visibility = View.VISIBLE
+                    fabCreateFolder.visibility = View.GONE
+                } else {
+                    btnImport.visibility = View.GONE
+                    fabCreateFolder.visibility = View.VISIBLE
+                }
+            }
+        }
+    }
+    
+    private fun deleteSelectedItems() {
+        val selected = adapter.getSelectedItems()
+        if (selected.isEmpty()) return
+        
+        AlertDialog.Builder(context)
+            .setTitle(R.string.wf_delete)
+            .setMessage(getString(R.string.wf_delete_confirm_count, selected.size))
+            .setPositiveButton(R.string.wf_button_delete) { _, _ ->
+                if (isLocal) {
+                    var deletedCount = 0
+                    selected.forEach { item ->
+                        try {
+                            if (File(item.fileInfo.path).delete()) deletedCount++
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                    Toast.makeText(context, "Deleted $deletedCount files", Toast.LENGTH_SHORT).show()
+                    adapter.clearSelection()
+                    refresh()
+                } else {
+                     // Remote delete
+                     selected.forEach { item ->
+                        (activity as? WatchFaceActivity)?.deleteWatchFaceOnWatch(item.fileInfo.path)
+                     }
+                     adapter.clearSelection()
+                     // Protocol doesn't support bulk delete properly in one go without delay, 
+                     // but sending multiple messages is fine. Refresh will happen eventually.
+                     // Maybe trigger refresh after delay
+                }
+            }
+            .setNegativeButton("Cancel") { _, _ -> }
+            .show()
+    }
+
+    private fun uploadSelectedItems() {
+        val selected = adapter.getSelectedItems()
+        if (selected.isEmpty()) return
+        
+        if (!isLocal) return // Can't upload from watch to watch (move?)
+        
+        selected.forEach { item ->
+            (activity as? WatchFaceActivity)?.transferWatchFace(File(item.fileInfo.path))
+        }
+        adapter.clearSelection()
     }
 
     fun updateList(filesJson: String) {
@@ -326,6 +448,9 @@ class WatchFaceManagerFragment : Fragment() {
             }
             WatchFaceManagerAdapter.Action.TOGGLE_FOLDER -> {
                 if (!isLocal) rebuildList()
+            }
+            WatchFaceManagerAdapter.Action.SELECTION_MODE -> {
+                // Handled by Adapter internal logic, but required for exhaustiveness
             }
         }
     }

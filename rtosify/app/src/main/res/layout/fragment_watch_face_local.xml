@@ -24,6 +24,32 @@
             android:padding="8dp" />
 
     </LinearLayout>
+    
+    <LinearLayout
+        android:id="@+id/layoutSelection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="#DD333333"
+        android:padding="8dp"
+        android:gravity="center"
+        android:visibility="gone"
+        android:orientation="horizontal">
+        
+        <Button
+            android:id="@+id/btnDeleteSelected"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:text="@string/wf_delete" />
+            
+        <Button
+            android:id="@+id/btnUploadSelected"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/wf_upload" />
+            
+    </LinearLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabCreateFolder"
