@@ -790,6 +790,43 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
             textContainer.addView(titleView)
             textContainer.addView(contentTextView)
+
+            // Text content (preview)
+            if (!notif.textContent.isNullOrBlank()) {
+                val textPreview =
+                        TextView(context).apply {
+                            layoutParams =
+                                    LinearLayout.LayoutParams(
+                                                    LayoutParams.MATCH_PARENT,
+                                                    LayoutParams.WRAP_CONTENT
+                                            )
+                                            .apply {
+                                                topMargin = dpToPx(4)
+                                                setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+                                            }
+                            text = notif.textContent
+                            textSize = getScaledTextSize(12f)
+                            setTextColor(Color.WHITE)
+                            setBackgroundResource(android.R.drawable.edit_text)
+                            backgroundTintList =
+                                    android.content.res.ColorStateList.valueOf(
+                                            Color.parseColor("#333333")
+                                    )
+                            maxLines = 5
+                            ellipsize = android.text.TextUtils.TruncateAt.END
+                            // Slide animation from center
+                            alpha = 0f
+                            translationX = 50f
+                            animate()
+                                    .alpha(1f)
+                                    .translationX(0f)
+                                    .setDuration(300)
+                                    .setStartDelay(100)
+                                    .start()
+                        }
+                textContainer.addView(textPreview)
+            }
+
             addView(textContainer)
         }
     }
