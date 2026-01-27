@@ -35,6 +35,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     var onNotificationClick: ((NotificationData) -> Unit)? = null
     var onNotificationDismiss: ((NotificationData) -> Unit)? = null
     var onNotificationReply: ((NotificationData, String) -> Unit)? = null
+    var onActionClick: ((NotificationData, NotificationActionData) -> Unit)? = null
     var onPillClick: (() -> Unit)? = null
     var onClearAllClicked: (() -> Unit)? = null
 
@@ -690,32 +691,55 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                         if (iconBitmap != null) {
                             setImageBitmap(getCircularBitmap(iconBitmap))
                         } else {
-                            setImageResource(android.R.drawable.ic_dialog_info)
+                            val defaultRes = when(notif.fileType) {
+                                "image" -> android.R.drawable.ic_menu_gallery
+                                "video" -> android.R.drawable.ic_menu_slideshow
+                                "audio" -> android.R.drawable.ic_lock_silent_mode_off
+                                "text" -> android.R.drawable.ic_menu_edit
+                                else -> android.R.drawable.ic_dialog_info
+                            }
+                            setImageResource(defaultRes)
                         }
                     }
             iconFrame.addView(mainIcon)
 
-            // Small overlay icon at bottom right (app icon)
-            if (notif.smallIcon != null && (notif.senderIcon != null || notif.groupIcon != null || notif.largeIcon != null)) {
-                val smallIcon =
+            // Small overlay icon at bottom right
+            if (notif.fileType != null || (notif.smallIcon != null && (notif.senderIcon != null || notif.groupIcon != null || notif.largeIcon != null))) {
+                val smallIconView =
                         ImageView(context).apply {
                             layoutParams =
                                     FrameLayout.LayoutParams(dpToPx(18), dpToPx(18)).apply {
                                         gravity = Gravity.BOTTOM or Gravity.END
                                     }
-                            scaleType = ImageView.ScaleType.CENTER_CROP
+                            scaleType = ImageView.ScaleType.FIT_CENTER
                             setPadding(dpToPx(2), dpToPx(2), dpToPx(2), dpToPx(2))
-                            decodeBase64ToBitmap(notif.smallIcon)?.let {
-                                setImageBitmap(getCircularBitmap(it))
+                            
+                            val typeRes = when(notif.fileType) {
+                                "image" -> android.R.drawable.ic_menu_gallery
+                                "video" -> android.R.drawable.ic_menu_slideshow
+                                "audio" -> android.R.drawable.ic_lock_silent_mode_off
+                                "text" -> android.R.drawable.ic_menu_edit
+                                else -> null
                             }
+                            
+                            if (typeRes != null) {
+                                setImageResource(typeRes)
+                            } else {
+                                notif.smallIcon?.let { iconStr ->
+                                    decodeBase64ToBitmap(iconStr)?.let {
+                                        setImageBitmap(getCircularBitmap(it))
+                                    }
+                                }
+                            }
+                            
                             background =
                                     GradientDrawable().apply {
                                         shape = GradientDrawable.OVAL
-                                        setColor(Color.parseColor("#2C2C2E"))
+                                        setColor(Color.parseColor("#333333"))
                                         setStroke(dpToPx(2), Color.parseColor("#1C1C1E"))
                                     }
                         }
-                iconFrame.addView(smallIcon)
+                iconFrame.addView(smallIconView)
             }
 
             addView(iconFrame)
@@ -1046,23 +1070,40 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                     }
             iconFrame.addView(icon)
 
-            // Small overlay icon at bottom right (app icon)
-            if (notif.smallIcon != null && (notif.senderIcon != null || notif.groupIcon != null || notif.largeIcon != null)) {
+            // Small overlay icon at bottom right
+            if (notif.fileType != null || (notif.smallIcon != null && (notif.senderIcon != null || notif.groupIcon != null || notif.largeIcon != null))) {
                 val smallIcon =
                         ImageView(context).apply {
                             layoutParams =
-                                    FrameLayout.LayoutParams(dpToPx(14), dpToPx(14)).apply {
+                                    FrameLayout.LayoutParams(dpToPx(16), dpToPx(16)).apply {
                                         gravity = Gravity.BOTTOM or Gravity.END
                                     }
-                            scaleType = ImageView.ScaleType.CENTER_CROP
+                            scaleType = ImageView.ScaleType.FIT_CENTER
                             setPadding(dpToPx(2), dpToPx(2), dpToPx(2), dpToPx(2))
-                            decodeBase64ToBitmap(notif.smallIcon)?.let {
-                                setImageBitmap(getCircularBitmap(it))
+                            
+                            // Load based on file type OR base64
+                            val typeRes = when(notif.fileType) {
+                                "image" -> android.R.drawable.ic_menu_gallery
+                                "video" -> android.R.drawable.ic_menu_slideshow
+                                "audio" -> android.R.drawable.ic_lock_silent_mode_off
+                                "text" -> android.R.drawable.ic_menu_edit
+                                else -> null
                             }
+                            
+                            if (typeRes != null) {
+                                setImageResource(typeRes)
+                            } else {
+                                notif.smallIcon?.let { iconStr ->
+                                    decodeBase64ToBitmap(iconStr)?.let {
+                                        setImageBitmap(getCircularBitmap(it))
+                                    }
+                                }
+                            }
+                            
                             background =
                                     GradientDrawable().apply {
                                         shape = GradientDrawable.OVAL
-                                        setColor(Color.parseColor("#2C2C2E"))
+                                        setColor(Color.parseColor("#333333"))
                                         setStroke(dpToPx(1), Color.parseColor("#1C1C1E"))
                                     }
                         }
@@ -1096,6 +1137,24 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                         maxLines = getAdaptiveMaxLines(3)
                     }
             addView(content)
+
+            // Text content (preview)
+            if (!notif.textContent.isNullOrBlank()) {
+                val textPreview = TextView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                        topMargin = dpToPx(4)
+                        setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+                    }
+                    text = notif.textContent
+                    textSize = getScaledTextSize(12f)
+                    setTextColor(Color.WHITE)
+                    setBackgroundResource(android.R.drawable.edit_text)
+                    backgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#333333"))
+                    maxLines = 5
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                }
+                addView(textPreview)
+            }
 
             // Big Picture
             notif.bigPicture?.let { base64Image ->
@@ -1136,6 +1195,32 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                             }
                     addView(bigPictureView)
                 }
+            }
+
+            // Media actions
+            if (notif.actions.isNotEmpty()) {
+                val actionsLayout = LinearLayout(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                        topMargin = dpToPx(12)
+                    }
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.END
+                }
+                
+                notif.actions.forEach { action ->
+                    val actionButton = Button(context, null, android.R.attr.borderlessButtonStyle).apply {
+                        layoutParams = LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, dpToPx(36))
+                        text = action.title
+                        textSize = getScaledTextSize(12f)
+                        isAllCaps = false
+                        setTextColor(Color.parseColor("#0A84FF"))
+                        setOnClickListener {
+                            performNotificationAction(notif, action)
+                        }
+                    }
+                    actionsLayout.addView(actionButton)
+                }
+                addView(actionsLayout)
             }
 
             // Chat messages
@@ -1757,7 +1842,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     }
     
     // Callback for call actions
-    var onCallAction: ((String) -> Unit)? = null
+
     
     /**
      * Show alarm in Dynamic Island
@@ -2312,4 +2397,9 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     // Callbacks
     var onAlarmAction: ((String) -> Unit)? = null
     var onMediaAction: ((String) -> Unit)? = null
+    var onCallAction: ((String) -> Unit)? = null
+
+    private fun performNotificationAction(notif: NotificationData, action: NotificationActionData) {
+        onActionClick?.invoke(notif, action)
+    }
 }

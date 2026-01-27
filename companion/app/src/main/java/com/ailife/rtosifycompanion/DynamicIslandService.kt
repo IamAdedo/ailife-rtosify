@@ -13,6 +13,8 @@ import android.view.*
 import android.view.animation.DecelerateInterpolator
 import androidx.core.app.NotificationCompat
 import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.ailife.rtosifycompanion.MessageType
 
 class DynamicIslandService : Service() {
 
@@ -33,6 +35,23 @@ class DynamicIslandService : Service() {
     private lateinit var overlayView: DynamicIslandView
     private lateinit var params: WindowManager.LayoutParams
     private lateinit var prefs: SharedPreferences
+    private var bluetoothService: BluetoothService? = null
+    private var isBound = false
+
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            val binder = service as BluetoothService.LocalBinder
+            bluetoothService = binder.getService()
+            isBound = true
+            Log.d(TAG, "Bound to BluetoothService")
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            bluetoothService = null
+            isBound = false
+            Log.d(TAG, "Disconnected from BluetoothService")
+        }
+    }
 
     private val notificationQueue = mutableListOf<NotificationData>()
     private var currentNotification: NotificationData? = null
@@ -191,6 +210,10 @@ class DynamicIslandService : Service() {
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "DynamicIslandService onCreate")
+
+        // Bind to BluetoothService
+        val intent = Intent(this, BluetoothService::class.java)
+        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
 
         // Check if we have overlay permission
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -416,6 +439,29 @@ class DynamicIslandService : Service() {
 
         overlayView.onNotificationReply = { notif, replyText ->
             handleNotificationReply(notif, replyText)
+        }
+
+        overlayView.onActionClick = { notif, action ->
+            if (action.actionKey.startsWith("rtosify_play_")) {
+                val fileKey = action.actionKey.removePrefix("rtosify_play_")
+                val fileData = fileDataCache[fileKey]
+                if (fileData != null && isBound) {
+                    val request = JsonObject().apply {
+                        addProperty("type", MessageType.REQUEST_FILE_DOWNLOAD)
+                        addProperty("path", fileData.path)
+                        if (fileData.type == "video") {
+                            addProperty("prepare_video", true)
+                        }
+                    }
+                    bluetoothService?.sendMessage(ProtocolHelper.createRequestFileDownload(fileData.path))
+                    // Optionally show a "Downloading..." toast or update UI
+                }
+            } else {
+                // Handle other actions (Reply, dismiss, etc.)
+                if (action.actionKey.startsWith("dismiss_")) {
+                    dismissNotification(notif.key)
+                }
+            }
         }
 
         overlayView.onClearAllClicked = {
@@ -1378,23 +1424,50 @@ class DynamicIslandService : Service() {
         val key = "file_${data.path.hashCode()}"
         fileDataCache[key] = data
         
+        val actions = mutableListOf<NotificationActionData>()
+        if (data.type == "video" || data.type == "audio") {
+            actions.add(NotificationActionData(
+                title = "Play",
+                actionKey = "rtosify_play_${key}"
+            ))
+        }
+
         // Construct a NotificationData from FileDetectedData
         val notificationData = NotificationData(
             packageName = if (data.smallIconType?.contains(".") == true) data.smallIconType else "file.observer",
             title = data.notificationTitle.takeIf { !it.isNullOrBlank() } ?: "New File Detected",
-            text = "${data.name} (${android.text.format.Formatter.formatShortFileSize(this, data.size)})",
+            text = "${data.name} (${android.text.format.Formatter.formatShortFileSize(this, data.size)})" + 
+                   (data.duration?.let { " - ${formatDuration(it)}" } ?: ""),
             key = key,
             appName = "File Observer",
-            largeIcon = data.largeIcon ?: data.thumbnail, // Use rule icon if available, fallback to thumbnail for preview
-            smallIcon = data.largeIcon, // Use rule icon as small icon if set
-            bigPicture = data.thumbnail // Main image preview
+            largeIcon = data.largeIcon ?: data.thumbnail, 
+            smallIcon = data.largeIcon, // Fallback, but view will use category icon if smallIconType is category
+            bigPicture = data.thumbnail, 
+            actions = actions,
+            textContent = data.textContent,
+            fileType = data.type
         )
         // Add to queue
         showNotification(notificationData)
     }
 
+    private fun formatDuration(ms: Long): String {
+        val seconds = (ms / 1000) % 60
+        val minutes = (ms / (1000 * 60)) % 60
+        val hours = (ms / (1000 * 60 * 60))
+        return if (hours > 0) {
+            String.format("%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format("%d:%02d", minutes, seconds)
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        if (isBound) {
+            unbindService(serviceConnection)
+            isBound = false
+        }
         Log.d(TAG, "DynamicIslandService onDestroy")
         isRunning = false
 

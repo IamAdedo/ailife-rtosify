@@ -199,7 +199,8 @@ data class FileDetectedData(
     val timestamp: Long,
     val largeIcon: String?, // Base64 App Icon
     val notificationTitle: String? = null,
-    val smallIconType: String? = null
+    val smallIconType: String? = null,
+    val textContent: String? = null
 )
 
 data class PhoneBatteryData(val level: Int, val isCharging: Boolean)
@@ -264,7 +265,9 @@ data class NotificationData(
         val actions: List<NotificationActionData> = emptyList(),
         val isGroupConversation: Boolean = false, // Whether this is a group chat
         val conversationTitle: String? = null, // Explicit conversation title (API 30+)
-        val shortcutId: String? = null // For linking to conversation shortcuts (API 30+)
+        val shortcutId: String? = null, // For linking to conversation shortcuts (API 30+)
+        val fileType: String? = null, // Type of file if this is a file notification ("video", "audio", "image", etc.)
+        val textContent: String? = null // Text content for text files
 )
 
 data class NotificationMessageData(

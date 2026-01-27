@@ -197,7 +197,8 @@ data class FileDetectedData(
     val timestamp: Long,
     val largeIcon: String?, // Base64 App Icon
     val notificationTitle: String? = null,
-    val smallIconType: String? = null
+    val smallIconType: String? = null,
+    val textContent: String? = null
 )
 
 data class PhoneBatteryData(val level: Int, val isCharging: Boolean)

@@ -1090,6 +1090,7 @@ class BluetoothService : Service() {
             MessageType.SYNC_MAC -> handleSyncMac(message)
             MessageType.NOTIFICATION_LITE -> Log.d(TAG, "Ignored NOTIFICATION_LITE on RTOSify")
             MessageType.SET_LITE_MODE -> Log.d(TAG, "Ignored SET_LITE_MODE on RTOSify")
+            MessageType.REQUEST_FILE_DOWNLOAD -> handleRequestFileDownload(message)
             else -> Log.d(TAG, "Unknown message type: ${message.type}")
         }
     }
@@ -2682,6 +2683,34 @@ class BluetoothService : Service() {
             }
         }
         return result
+    }
+
+    private fun handleRequestFileDownload(message: ProtocolMessage) {
+        val data = message.data
+        val path = data.get("path")?.asString ?: return
+        val prepareVideo = data.get("prepare_video")?.asBoolean ?: false
+        
+        serviceScope.launch(Dispatchers.IO) {
+            var fileToDownload = File(path)
+            if (prepareVideo) {
+                userService?.let { service ->
+                    try {
+                        val preparedPath = service.prepareVideo(path)
+                        if (preparedPath.isNotEmpty()) {
+                            fileToDownload = File(preparedPath)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "prepareVideo failed: ${e.message}")
+                    }
+                }
+            }
+            
+            if (fileToDownload.exists()) {
+                sendFile(fileToDownload)
+            } else {
+                Log.e(TAG, "Requested file does not exist: ${fileToDownload.absolutePath}")
+            }
+        }
     }
 
     fun sendFile(file: File, type: String = "REGULAR", remotePath: String? = null) {

@@ -35,4 +35,6 @@ interface IUserService {
     String executeCommand(String command) = 25;
     boolean setBluetoothEnabled(boolean enabled) = 26;
     String getFileMetadata(String path, String type) = 27;
+    String readTextFile(String path, int maxLength) = 28;
+    String prepareVideo(String path) = 29;
 }

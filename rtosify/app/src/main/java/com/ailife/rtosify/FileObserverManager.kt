@@ -160,9 +160,23 @@ class FileObserverManager(
         var thumbnail: String? = null
         var duration: Long? = null
         var fileSize = file.length()
+        var textContent: String? = null
         
         if (rule.sendToWatch) {
-            // Check if we can read the file directly
+            // Read text content
+            if (type == "text") {
+                if (file.canRead()) {
+                    try {
+                        textContent = file.bufferedReader().use { reader ->
+                            val buffer = CharArray(500)
+                            val read = reader.read(buffer, 0, 500)
+                            if (read > 0) String(buffer, 0, read) else ""
+                        }
+                    } catch (e: Exception) {}
+                }
+            }
+
+            // Check if we can read the file directly for metadata
             if (file.canRead()) {
                 try {
                     if (type == "image") {
@@ -187,10 +201,14 @@ class FileObserverManager(
                 }
             }
             
-            // Fallback to Shizuku for metadata if direct read failed or thumbnail still null
-            if (thumbnail == null || duration == null) {
+            // Fallback to Shizuku for metadata/text if direct read failed
+            if (thumbnail == null || duration == null || (type == "text" && textContent == null)) {
                 userServiceGetter()?.let { service ->
                     try {
+                        if (type == "text" && textContent == null) {
+                            textContent = service.readTextFile(file.absolutePath, 500)
+                        }
+
                         val json = service.getFileMetadata(file.absolutePath, type)
                         if (!json.isNullOrEmpty() && json != "{}") {
                             val metaType = object : com.google.gson.reflect.TypeToken<Map<String, Any?>>() {}.type
@@ -200,13 +218,12 @@ class FileObserverManager(
                             if (duration == null) {
                                 duration = (meta["duration"] as? Double)?.toLong() ?: (meta["duration"] as? Long)
                             }
-                            // Also update size if it was 0
                             if (fileSize <= 0) {
                                 fileSize = (meta["size"] as? Double)?.toLong() ?: (meta["size"] as? Long) ?: 0L
                             }
                         }
                     } catch (e: Exception) {
-                        Log.e("FileObserver", "Shizuku metadata fallback failed for ${file.name}", e)
+                        Log.e("FileObserver", "Shizuku fallback failed for ${file.name}", e)
                     }
                 }
             }
@@ -222,10 +239,8 @@ class FileObserverManager(
             timestamp = System.currentTimeMillis(),
             largeIcon = rule.iconBase64, 
             notificationTitle = rule.notificationTitle,
-            smallIconType = rule.smallIconType ?: rule.path.let { 
-                // Infer small icon from path if possible (e.g. WhatsApp folder)
-                if (it.contains("com.whatsapp")) "com.whatsapp" else type 
-            }
+            smallIconType = rule.smallIconType ?: type, // Default to file category
+            textContent = textContent
         )
         
         onFileDetected(data)

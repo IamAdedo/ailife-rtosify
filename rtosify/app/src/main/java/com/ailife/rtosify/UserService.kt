@@ -176,6 +176,36 @@ class UserService : IUserService.Stub() {
         }
     }
 
+    override fun readTextFile(path: String, maxLength: Int): String {
+        return try {
+            val file = File(path)
+            if (file.exists() && file.canRead()) {
+                val text = file.bufferedReader().use { reader ->
+                    val buffer = CharArray(maxLength)
+                    val read = reader.read(buffer, 0, maxLength)
+                    if (read > 0) String(buffer, 0, read) else ""
+                }
+                text
+            } else {
+                // Fallback to shell cat
+                val output = runShellCommand("cat", path)
+                val fullText = output?.joinToString("\n") ?: ""
+                if (fullText.length > maxLength) fullText.substring(0, maxLength) else fullText
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "readTextFile failed: ${e.message}")
+            ""
+        }
+    }
+
+    override fun prepareVideo(path: String): String {
+        // This is where video compression would go. 
+        // For now, we return the original path or a placeholder if we were to implement it.
+        // Users on low-power watches benefit from compression.
+        Log.i(TAG, "prepareVideo called for $path")
+        return path 
+    }
+
     private fun bitmapToBase64(bitmap: android.graphics.Bitmap): String {
         val outputStream = java.io.ByteArrayOutputStream()
         // Mantain aspect ratio with max dimension of 300
