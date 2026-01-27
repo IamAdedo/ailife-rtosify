@@ -145,6 +145,9 @@ class BluetoothService : Service() {
 
     // Media Session Listener
     private var mediaSessionListener: MediaSessionListener? = null
+    
+    // File Observer Manager
+    private var fileObserverManager: FileObserverManager? = null
 
     @Volatile private var lastMessageTime: Long = 0L
 
@@ -483,6 +486,9 @@ class BluetoothService : Service() {
         const val EXTRA_REPLY_TEXT = "extra_reply_text"
 
         const val ACTION_UPDATE_SETTINGS = "com.ailife.rtosify.ACTION_UPDATE_SETTINGS"
+        const val ACTION_RELOAD_FILE_RULES = "com.ailife.rtosify.ACTION_RELOAD_FILE_RULES"
+
+        // DISTINCT IDs to ensure correct cleanup when changing states
 
         // DISTINCT IDs to ensure correct cleanup when changing states
         const val NOTIFICATION_ID_WAITING = 10
@@ -587,6 +593,10 @@ class BluetoothService : Service() {
                         }
                         StatusWidget.ACTION_TOGGLE_MIRROR -> {
                              handleMirrorToggle()
+                        }
+                        ACTION_RELOAD_FILE_RULES -> {
+                            Log.d(TAG, "Reloading File Observer rules")
+                            fileObserverManager?.reload()
                         }
                     }
                 }
@@ -710,6 +720,7 @@ class BluetoothService : Service() {
                     addAction(ACTION_UPDATE_SETTINGS)
                     addAction(StatusWidget.ACTION_TOGGLE_DND)
                     addAction(StatusWidget.ACTION_TOGGLE_MIRROR)
+                    addAction(ACTION_RELOAD_FILE_RULES)
                 }
         val filterWatch = IntentFilter(ACTION_WATCH_DISMISSED_LOCAL)
 
@@ -786,6 +797,16 @@ class BluetoothService : Service() {
             }
         })
         mediaSessionListener?.start()
+        
+        // Initialize File Observer
+        fileObserverManager = FileObserverManager(this) { data ->
+            if (isConnected) {
+                // Send detected file info to watch
+                serviceScope.launch {
+                    sendMessage(ProtocolHelper.createFileDetected(data))
+                }
+            }
+        }
         
         // Initialize mirroring state
         transportManager.updateMirroringState(MirroringService.isRunning)

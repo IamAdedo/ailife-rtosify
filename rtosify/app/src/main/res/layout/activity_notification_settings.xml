@@ -639,6 +639,46 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Card: File Observer Button -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardFileObserver"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="24dp"
+                app:cardElevation="0dp"
+                app:strokeWidth="1dp"
+                app:strokeColor="?android:attr/textColorSecondary"
+                app:cardBackgroundColor="?android:attr/colorBackground"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="24dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="File Observer"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="?android:attr/textColorPrimary"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Monitor folders for new files"
+                        android:textSize="14sp"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:layout_marginTop="4dp"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
             <!-- Card: Debugging -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/cardDebugging"

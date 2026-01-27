@@ -213,6 +213,12 @@
             android:theme="@style/Theme.Smartwatch" />
 
         <activity
+            android:name=".FilePreviewActivity"
+            android:enabled="true"
+            android:exported="false"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+            
+        <activity
             android:name=".MediaControlActivity"
             android:exported="false"
             android:screenOrientation="portrait"

@@ -330,6 +330,7 @@ class BluetoothService : Service() {
         const val ACTION_LITE_MODE_UPDATE = "com.ailife.rtosifycompanion.ACTION_LITE_MODE_UPDATE"
         const val ACTION_RESTART_BLE_ADVERTISING = "com.ailife.rtosifycompanion.ACTION_RESTART_BLE_ADVERTISING"
         const val ACTION_IOS_CONNECTED = "com.ailife.rtosifycompanion.ACTION_IOS_CONNECTED"
+        const val ACTION_FILE_DETECTED = "com.ailife.rtosifycompanion.ACTION_FILE_DETECTED"
 
         private const val TAG = "BluetoothService"
         private const val DEBUG_NOTIFICATIONS = false // Ative para debug
@@ -1397,6 +1398,7 @@ class BluetoothService : Service() {
             MessageType.NOTIFICATION_LITE -> handleNotificationLite(message)
             MessageType.SET_LITE_MODE -> handleSetLiteMode(message)
             MessageType.IOS_CONNECTED -> handleIosConnected(message)
+            MessageType.FILE_DETECTED -> handleFileDetected(message)
             else -> Log.w(TAG, "Unknown message type: ${message.type}")
         }
     }
@@ -7564,6 +7566,22 @@ class BluetoothService : Service() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error getting permission info: ${e.message}", e)
             }
+        }
+    }
+
+    private fun handleFileDetected(message: ProtocolMessage) {
+        try {
+            val data = Gson().fromJson(message.data, FileDetectedData::class.java)
+            Log.d(TAG, "File Detected: ${data.name} (${data.type})")
+            
+            // Broadcast for DynamicIsland or other consumers
+            val intent = Intent(ACTION_FILE_DETECTED)
+            intent.putExtra("data", Gson().toJson(data))
+            intent.setPackage(packageName)
+            sendBroadcast(intent)
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling File Detected: ${e.message}")
         }
     }
 }

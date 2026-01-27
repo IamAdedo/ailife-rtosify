@@ -219,6 +219,10 @@ class NotificationSettingsActivity : AppCompatActivity() {
         cardManageApps.setOnClickListener {
             startActivity(android.content.Intent(this, NotificationAppListActivity::class.java))
         }
+
+        findViewById<View>(R.id.cardFileObserver).setOnClickListener {
+            startActivity(android.content.Intent(this, FileObserverSettingsActivity::class.java))
+        }
     }
 
     private fun setupDebugSettings() {

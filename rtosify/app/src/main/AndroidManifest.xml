@@ -48,6 +48,7 @@
 
     <!-- Leitura de Arquivos (APK) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
@@ -167,6 +168,11 @@
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.Smartwatch" />
         <!-- Regras de Notificação -->
+        <activity
+            android:name=".FileObserverSettingsActivity"
+            android:label="File Observer Rules"
+            android:parentActivityName=".NotificationSettingsActivity"
+            android:theme="@style/Theme.Smartwatch" />
 
         
         <!-- Dynamic Island Settings -->
@@ -209,6 +215,11 @@
             android:name=".PermissionActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity"
+            android:theme="@style/Theme.Smartwatch" />
+
+        <activity
+            android:name=".DirectoryPickerActivity"
+            android:exported="false"
             android:theme="@style/Theme.Smartwatch" />
 
         <activity

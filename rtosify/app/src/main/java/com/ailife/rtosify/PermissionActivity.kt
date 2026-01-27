@@ -303,6 +303,23 @@ class PermissionActivity : AppCompatActivity() {
                 )
         )
 
+        // 12b. Manage All Files (Android 11+)
+        val hasManageStorage = 
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                android.os.Environment.isExternalStorageManager()
+            } else {
+                true // Legacy storage permission covers it
+            }
+        
+        perms.add(
+             PermissionItem(
+                 "MANAGE_STORAGE",
+                 "Access All Files",
+                 "Required to monitor files in all folders.",
+                 hasManageStorage
+             )
+        )
+
         // 13. Call Phone
         perms.add(
                 PermissionItem(
@@ -510,6 +527,19 @@ class PermissionActivity : AppCompatActivity() {
                 } else {
                     requestPermissions(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), 107)
                 }
+            }
+            "MANAGE_STORAGE" -> {
+                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                     try {
+                         val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                         intent.addCategory("android.intent.category.DEFAULT")
+                         intent.data = Uri.parse("package:$packageName")
+                         startActivity(intent)
+                     } catch (e: Exception) {
+                         val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                         startActivity(intent)
+                     }
+                 }
             }
             "CALL" -> requestPermissions(arrayOf(Manifest.permission.CALL_PHONE), 108)
             "CALENDAR" -> requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR), 109)

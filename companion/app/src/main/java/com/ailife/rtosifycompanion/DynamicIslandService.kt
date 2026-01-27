@@ -110,6 +110,17 @@ class DynamicIslandService : Service() {
             object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
                     when (intent?.action) {
+                        BluetoothService.ACTION_FILE_DETECTED -> {
+                            val dataJson = intent.getStringExtra("data")
+                            if (dataJson != null) {
+                                try {
+                                    val data = Gson().fromJson(dataJson, com.ailife.rtosifycompanion.FileDetectedData::class.java)
+                                    showFileNotification(data)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error parsing file data: ${e.message}")
+                                }
+                            }
+                        }
                         BluetoothService.ACTION_SHOW_IN_DYNAMIC_ISLAND -> {
                             val notifKey = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_KEY)
                             val notifJson = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_JSON)
@@ -473,7 +484,9 @@ class DynamicIslandService : Service() {
                     addAction("com.ailife.rtosifycompanion.CALL_STATE_CHANGED")
                     addAction(MediaControlActivity.ACTION_MEDIA_STATE_UPDATE)
                     addAction("com.ailife.rtosifycompanion.ALARM_TRIGGERED")
+                    addAction("com.ailife.rtosifycompanion.ALARM_TRIGGERED")
                     addAction("com.ailife.rtosifycompanion.ALARM_CLEARED")
+                    addAction(BluetoothService.ACTION_FILE_DETECTED)
                 }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -1118,8 +1131,32 @@ class DynamicIslandService : Service() {
 
     private fun handleNotificationClick(notif: NotificationData) {
         Log.d(TAG, "Notification clicked: ${notif.key}")
-        // The notification system handles the click through PendingIntent
-        // Just dismiss from Dynamic Island
+        if (notif.packageName == "file.observer") {
+            // Launch FilePreviewActivity
+            // We need to pass the file data. But NotificationData doesn't hold it directly.
+            // However, we can use the key to retrieve it if we cached it, or pass valid data if possible.
+            // Since we don't have a cache for file data, maybe we encoded it in the key? No.
+            // Ideally we should have passed pending intent or similar.
+            // But since this is a custom view, we handle click here.
+            // Let's use a workaround: The showFileNotification created a NotificationData.
+            // We can perhaps store the data in a static map temporarily or similar?
+            // Or better: Encode data in intent extra when showing? No, this is internal.
+            
+            // Simplest hack: Use a static map in FilePreviewActivity or here to hold the last file data for the key.
+            // Or just launch Activity and let it handle? No, it needs data.
+            
+            // Re-architecture: showFileNotification should put data into a cache.
+             val data = fileDataCache[notif.key]
+             if (data != null) {
+                 val intent = Intent(this, FilePreviewActivity::class.java)
+                 intent.putExtra("data", Gson().toJson(data))
+                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                 startActivity(intent)
+             }
+        } else {
+             // The notification system handles the click through PendingIntent
+             // Just dismiss from Dynamic Island
+        }
         dismissNotification(notif.key)
     }
 
@@ -1329,6 +1366,25 @@ class DynamicIslandService : Service() {
                 updateState()
             }
         }
+    }
+
+    // Cache for file data to pass to activity on click
+    private val fileDataCache = mutableMapOf<String, com.ailife.rtosifycompanion.FileDetectedData>()
+
+    private fun showFileNotification(data: com.ailife.rtosifycompanion.FileDetectedData) {
+        val key = "file_${data.path.hashCode()}"
+        fileDataCache[key] = data
+        
+        // Construct a NotificationData from FileDetectedData
+        val notificationData = NotificationData(
+            packageName = "file.observer",
+            title = "New File Detected",
+            text = "${data.name} (${android.text.format.Formatter.formatShortFileSize(this, data.size)})",
+            key = key,
+            appName = "File Observer"
+        )
+        // Add to queue
+        showNotification(notificationData)
     }
 
     override fun onDestroy() {

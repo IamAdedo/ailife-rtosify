@@ -159,6 +159,9 @@ object MessageType {
 
     // iOS Connection
     const val IOS_CONNECTED = "ios_connected"
+
+    // File Observer
+    const val FILE_DETECTED = "file_detected"
 }
 
 data class NavigationInfoData(
@@ -184,6 +187,17 @@ data class NotificationLiteData(
     val id: String,
     val title: String,
     val content: String
+)
+
+data class FileDetectedData(
+    val name: String,
+    val path: String, // Phone path
+    val size: Long,
+    val type: String, // "image", "video", "audio", "text", "other"
+    val thumbnail: String?, // Base64 compressed
+    val duration: Long?, // Milliseconds
+    val timestamp: Long,
+    val largeIcon: String? // Base64 App Icon
 )
 
 data class PhoneBatteryData(val level: Int, val isCharging: Boolean)
@@ -1209,5 +1223,10 @@ object ProtocolHelper {
     fun createShareSync(shareData: ShareData): ProtocolMessage {
         val data = gson.toJsonTree(shareData).asJsonObject
         return ProtocolMessage(type = MessageType.SHARE_SYNC, data = data)
+    }
+
+    fun createFileDetected(data: FileDetectedData): ProtocolMessage {
+        val jsonData = gson.toJsonTree(data).asJsonObject
+        return ProtocolMessage(type = MessageType.FILE_DETECTED, data = jsonData)
     }
 }
