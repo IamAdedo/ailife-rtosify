@@ -959,6 +959,9 @@ class DynamicIslandService : Service() {
         // If not currently expanded and should peek, show this one as a peek
         if (!isExpanded && shouldPeek) {
             displayNotification(notif)
+            
+            // Wake and vibrate for the new peek/priority notification
+            wakeScreenAndVibrate()
         } else if (isExpanded) {
             // Already expanded to list, just update the list content
             overlayView.expandToList(notificationQueue)
@@ -1377,11 +1380,14 @@ class DynamicIslandService : Service() {
         
         // Construct a NotificationData from FileDetectedData
         val notificationData = NotificationData(
-            packageName = "file.observer",
-            title = "New File Detected",
+            packageName = if (data.smallIconType?.contains(".") == true) data.smallIconType else "file.observer",
+            title = data.notificationTitle.takeIf { !it.isNullOrBlank() } ?: "New File Detected",
             text = "${data.name} (${android.text.format.Formatter.formatShortFileSize(this, data.size)})",
             key = key,
-            appName = "File Observer"
+            appName = "File Observer",
+            largeIcon = data.largeIcon ?: data.thumbnail, // Use rule icon if available, fallback to thumbnail for preview
+            smallIcon = data.largeIcon, // Use rule icon as small icon if set
+            bigPicture = data.thumbnail // Main image preview
         )
         // Add to queue
         showNotification(notificationData)

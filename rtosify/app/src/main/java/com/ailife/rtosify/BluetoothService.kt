@@ -799,7 +799,7 @@ class BluetoothService : Service() {
         mediaSessionListener?.start()
         
         // Initialize File Observer
-        fileObserverManager = FileObserverManager(this) { data ->
+        fileObserverManager = FileObserverManager(this, { userService }) { data ->
             if (isConnected) {
                 // Send detected file info to watch
                 serviceScope.launch {

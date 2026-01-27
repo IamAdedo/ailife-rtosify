@@ -34,4 +34,5 @@ interface IUserService {
     void setPrimaryClipText(String text) = 24;
     String executeCommand(String command) = 25;
     boolean setBluetoothEnabled(boolean enabled) = 26;
+    String getFileMetadata(String path, String type) = 27;
 }

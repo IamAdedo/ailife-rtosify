@@ -13,6 +13,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import android.content.ComponentName
+import android.content.ServiceConnection
+import android.os.IBinder
+import android.util.Log
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import rikka.shizuku.Shizuku
 import java.io.File
 import java.util.Stack
 
@@ -23,6 +30,33 @@ class DirectoryPickerActivity : AppCompatActivity() {
     private lateinit var adapter: DirectoryAdapter
     private var currentPath: File = Environment.getExternalStorageDirectory()
     private val historyStack = Stack<File>()
+    private val gson = Gson()
+
+    // Shizuku UserService
+    private var userService: IUserService? = null
+    private val userServiceArgs by lazy {
+        Shizuku.UserServiceArgs(
+            ComponentName(BuildConfig.APPLICATION_ID, UserService::class.java.name)
+        )
+            .daemon(false)
+            .processNameSuffix("user_service")
+            .debuggable(BuildConfig.DEBUG)
+            .version(1)
+    }
+
+    private val userServiceConn = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName, binder: IBinder) {
+            if (binder.pingBinder()) {
+                userService = IUserService.Stub.asInterface(binder)
+                Log.i("DirectoryPicker", "UserService connected successfully")
+                refreshList() // Refresh once connected
+            }
+        }
+
+        override fun onServiceDisconnected(name: ComponentName) {
+            userService = null
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,11 +97,25 @@ class DirectoryPickerActivity : AppCompatActivity() {
             }
         })
 
-        if (!Environment.isExternalStorageManager()) {
-            // Should warn user? For now assume permission granted via PermissionActivity
+        // Bind Shizuku if available
+        try {
+            if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                Shizuku.bindUserService(userServiceArgs, userServiceConn)
+            }
+        } catch (e: Exception) {
+            Log.e("DirectoryPicker", "Shizuku bind failed: ${e.message}")
         }
 
         refreshList()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            Shizuku.unbindUserService(userServiceArgs, userServiceConn, true)
+        } catch (e: Exception) {
+            // ignore
+        }
     }
 
     private fun navigateTo(file: File) {
@@ -78,8 +126,27 @@ class DirectoryPickerActivity : AppCompatActivity() {
 
     private fun refreshList() {
         currentPathTextView.text = currentPath.absolutePath
-        val files = currentPath.listFiles()?.filter { it.isDirectory && !it.isHidden }?.sortedBy { it.name } ?: emptyList()
-        adapter.submitList(files)
+        
+        // Try standard API
+        var files = currentPath.listFiles()?.filter { it.isDirectory && !it.isHidden }?.sortedBy { it.name }
+        
+        // Fallback to Shizuku UserService
+        if (files == null && userService != null) {
+            try {
+                val json = userService?.listFiles(currentPath.absolutePath)
+                if (!json.isNullOrEmpty() && json != "[]") {
+                    val type = object : TypeToken<List<Map<String, Any>>>() {}.type
+                    val list: List<Map<String, Any>> = gson.fromJson(json, type)
+                    files = list.filter { it["isDirectory"] == true }
+                        .map { File(currentPath, it["name"] as String) }
+                        .sortedBy { it.name }
+                }
+            } catch (e: Exception) {
+                Log.e("DirectoryPicker", "Shizuku listFiles failed: ${e.message}")
+            }
+        }
+        
+        adapter.submitList(files ?: emptyList())
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {

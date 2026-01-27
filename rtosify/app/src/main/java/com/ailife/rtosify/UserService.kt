@@ -110,16 +110,16 @@ class UserService : IUserService.Stub() {
                 }
             }
 
-            // Fallback to Shell (ls -F1)
+            // Fallback to Shell (ls -p1)
             if (files == null) {
                 Log.d(TAG, "Standard listFiles failed for $path, trying shell fallback")
                 val cmdPath = if (path.endsWith("/")) path else "$path/"
-                val output = runShellCommand("ls", "-F1L", cmdPath)
+                val output = runShellCommand("ls", "-p1", cmdPath)
                 if (output != null) {
-                    files = output.map { line ->
-                        // ls -F markers: / folder, @ link, * executable, | FIFO, = socket, > door
+                    files = output.filter { it.isNotBlank() }.map { line ->
+                        // ls -p appends / to directories
                         val isDir = line.endsWith("/")
-                        val name = line.trimEnd('/', '@', '*', '|', '=', '>')
+                        val name = line.trimEnd('/')
                         mapOf(
                             "name" to name,
                             "size" to 0L,
@@ -135,6 +135,63 @@ class UserService : IUserService.Stub() {
             Log.e(TAG, "Error listing files: ${e.message}")
             "[]"
         }
+    }
+
+    override fun getFileMetadata(path: String, type: String): String {
+        return try {
+            val result = mutableMapOf<String, Any?>()
+            val file = File(path)
+            
+            // Basic info
+            result["size"] = file.length()
+            result["lastModified"] = file.lastModified()
+
+            // Metadata based on type
+            try {
+                if (type == "image") {
+                    val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = 4 }
+                    val bmp = android.graphics.BitmapFactory.decodeFile(path, opts)
+                    result["thumbnail"] = bmp?.let { bitmapToBase64(it) }
+                } else if (type == "video") {
+                    val retriever = android.media.MediaMetadataRetriever()
+                    retriever.setDataSource(path)
+                    val bmp = retriever.getFrameAtTime()
+                    result["thumbnail"] = bmp?.let { bitmapToBase64(it) }
+                    result["duration"] = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+                    retriever.release()
+                } else if (type == "audio") {
+                    val retriever = android.media.MediaMetadataRetriever()
+                    retriever.setDataSource(path)
+                    result["duration"] = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+                    retriever.release()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Sensitive metadata retrieval failed for $path: ${e.message}")
+            }
+
+            gson.toJson(result)
+        } catch (e: Exception) {
+            Log.e(TAG, "getFileMetadata failed: ${e.message}")
+            "{}"
+        }
+    }
+
+    private fun bitmapToBase64(bitmap: android.graphics.Bitmap): String {
+        val outputStream = java.io.ByteArrayOutputStream()
+        // Mantain aspect ratio with max dimension of 300
+        val maxDim = 300
+        val width = bitmap.width
+        val height = bitmap.height
+        val scale = maxDim.toFloat() / maxOf(width, height).coerceAtLeast(1)
+        
+        val scaled = if (scale < 1f) {
+            android.graphics.Bitmap.createScaledBitmap(bitmap, (width * scale).toInt(), (height * scale).toInt(), true)
+        } else {
+            bitmap
+        }
+        
+        scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 75, outputStream)
+        return android.util.Base64.encodeToString(outputStream.toByteArray(), android.util.Base64.NO_WRAP)
     }
 
     override fun deleteFile(path: String): Boolean {

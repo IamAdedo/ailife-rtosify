@@ -17,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 class FileObserverManager(
     private val context: Context,
+    private val userServiceGetter: () -> IUserService?,
     private val onFileDetected: (FileDetectedData) -> Unit
 ) {
 
@@ -143,13 +144,13 @@ class FileObserverManager(
     }
 
     private suspend fun processFile(file: File, rule: FileObserverRule) {
-        // Double check extension types
+        // Comprehensive extension check
         val ext = file.extension.lowercase()
         val type = when {
-            ext in listOf("jpg", "jpeg", "png", "webp", "gif") -> "image"
-            ext in listOf("mp4", "mkv", "avi", "mov") -> "video"
-            ext in listOf("mp3", "wav", "aac", "ogg") -> "audio"
-            ext in listOf("txt", "log", "md", "json") -> "text"
+            ext in listOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif") -> "image"
+            ext in listOf("mp4", "mkv", "avi", "mov", "wmv", "flv", "3gp", "webm") -> "video"
+            ext in listOf("mp3", "wav", "aac", "ogg", "m4a", "flac", "amr") -> "audio"
+            ext in listOf("txt", "log", "md", "json", "xml", "csv", "pdf") -> "text"
             else -> "other"
         }
 
@@ -158,56 +159,91 @@ class FileObserverManager(
         // Prepare Data
         var thumbnail: String? = null
         var duration: Long? = null
+        var fileSize = file.length()
         
         if (rule.sendToWatch) {
-            // Generate metadata + thumbnail
-             try {
-                 if (type == "image") {
-                     // Load bitmap, resize, compress to base64
-                     val opts = BitmapFactory.Options().apply { inSampleSize = 4 }
-                     val bmp = BitmapFactory.decodeFile(file.absolutePath, opts)
-                     thumbnail = bmp?.let { bitmapToBase64(it) }
-                 } else if (type == "video") {
-                     val retriever = MediaMetadataRetriever()
-                     retriever.setDataSource(file.absolutePath)
-                     val bmp = retriever.getFrameAtTime()
-                     thumbnail = bmp?.let { bitmapToBase64(it) }
-                     val time = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-                     duration = time?.toLongOrNull()
-                     retriever.release()
-                 } else if (type == "audio") {
-                      val retriever = MediaMetadataRetriever()
-                      retriever.setDataSource(file.absolutePath)
-                      val time = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-                      duration = time?.toLongOrNull()
-                      retriever.release()
-                 }
-             } catch (e: Exception) {
-                 Log.e("FileObserver", "Error generating metadata for ${file.name}", e)
-             }
+            // Check if we can read the file directly
+            if (file.canRead()) {
+                try {
+                    if (type == "image") {
+                        val opts = BitmapFactory.Options().apply { inSampleSize = 4 }
+                        val bmp = BitmapFactory.decodeFile(file.absolutePath, opts)
+                        thumbnail = bmp?.let { bitmapToBase64(it) }
+                    } else if (type == "video") {
+                        val retriever = MediaMetadataRetriever()
+                        retriever.setDataSource(file.absolutePath)
+                        val bmp = retriever.getFrameAtTime()
+                        thumbnail = bmp?.let { bitmapToBase64(it) }
+                        duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+                        retriever.release()
+                    } else if (type == "audio") {
+                        val retriever = MediaMetadataRetriever()
+                        retriever.setDataSource(file.absolutePath)
+                        duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+                        retriever.release()
+                    }
+                } catch (e: Exception) {
+                    Log.e("FileObserver", "Direct metadata failed for ${file.name}, trying via Shizuku if available", e)
+                }
+            }
+            
+            // Fallback to Shizuku for metadata if direct read failed or thumbnail still null
+            if (thumbnail == null || duration == null) {
+                userServiceGetter()?.let { service ->
+                    try {
+                        val json = service.getFileMetadata(file.absolutePath, type)
+                        if (!json.isNullOrEmpty() && json != "{}") {
+                            val metaType = object : com.google.gson.reflect.TypeToken<Map<String, Any?>>() {}.type
+                            val meta: Map<String, Any?> = gson.fromJson(json, metaType)
+                            
+                            if (thumbnail == null) thumbnail = meta["thumbnail"] as? String
+                            if (duration == null) {
+                                duration = (meta["duration"] as? Double)?.toLong() ?: (meta["duration"] as? Long)
+                            }
+                            // Also update size if it was 0
+                            if (fileSize <= 0) {
+                                fileSize = (meta["size"] as? Double)?.toLong() ?: (meta["size"] as? Long) ?: 0L
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e("FileObserver", "Shizuku metadata fallback failed for ${file.name}", e)
+                    }
+                }
+            }
         }
 
         val data = FileDetectedData(
             name = file.name,
             path = file.absolutePath,
-            size = file.length(),
+            size = fileSize,
             type = type,
             thumbnail = thumbnail,
             duration = duration,
             timestamp = System.currentTimeMillis(),
-            largeIcon = rule.iconBase64 // Use the rule's icon/app icon
+            largeIcon = rule.iconBase64, 
+            notificationTitle = rule.notificationTitle,
+            smallIconType = rule.smallIconType ?: rule.path.let { 
+                // Infer small icon from path if possible (e.g. WhatsApp folder)
+                if (it.contains("com.whatsapp")) "com.whatsapp" else type 
+            }
         )
         
-        // Switch to Main thread if callback expects it? Thread safe callback is better.
         onFileDetected(data)
     }
     
     private fun bitmapToBase64(bitmap: Bitmap): String {
         val outputStream = ByteArrayOutputStream()
-        // Resize if too big? 
-        // Create scaled bitmap if needed
-        val scaled = Bitmap.createScaledBitmap(bitmap, 200, 200, true) // Small thumbnail
-        scaled.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
+        
+        // Mantain aspect ratio with max dimension of 300
+        val maxDim = 300
+        val scale = maxDim.toFloat() / maxOf(bitmap.width, bitmap.height).coerceAtLeast(1)
+        val scaled = if (scale < 1f) {
+            Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt(), (bitmap.height * scale).toInt(), true)
+        } else {
+            bitmap
+        }
+        
+        scaled.compress(Bitmap.CompressFormat.JPEG, 75, outputStream)
         return Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
     }
 }

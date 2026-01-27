@@ -141,6 +141,9 @@ class FileObserverSettingsActivity : AppCompatActivity() {
         // val etName = dialogView.findViewById<TextInputEditText>(R.id.etRuleName) // Removed from layout
         val etPath = dialogView.findViewById<TextInputEditText>(R.id.etRulePath)
         val textInputLayoutPath = etPath.parent.parent as? TextInputLayout
+        val etNotificationTitle = dialogView.findViewById<TextInputEditText>(R.id.etNotificationTitle)
+        val ivRuleIcon = dialogView.findViewById<android.widget.ImageView>(R.id.ivRuleIcon)
+        val btnPickIcon = dialogView.findViewById<android.widget.Button>(R.id.btnPickIcon)
         
         val cbImage = dialogView.findViewById<CheckBox>(R.id.cbTypeImage)
         val cbVideo = dialogView.findViewById<CheckBox>(R.id.cbTypeVideo)
@@ -150,8 +153,32 @@ class FileObserverSettingsActivity : AppCompatActivity() {
         val switchSendToWatch = dialogView.findViewById<SwitchMaterial>(R.id.switchSendToWatch)
 
         currentDialogPathInput = etPath
-        // currentDialogNameInput = etName // Removed
         currentDialogIconBase64 = existingRule?.iconBase64
+        var smallIconType = existingRule?.smallIconType
+
+        fun updateIconPreview() {
+            if (!currentDialogIconBase64.isNullOrEmpty()) {
+                try {
+                    val decodedBytes = Base64.decode(currentDialogIconBase64, Base64.DEFAULT)
+                    val bitmap = android.graphics.BitmapFactory.decodeByteArray(decodedBytes, 0, decodedBytes.size)
+                    ivRuleIcon.setImageBitmap(bitmap)
+                } catch (e: Exception) {
+                    ivRuleIcon.setImageResource(android.R.drawable.ic_menu_agenda)
+                }
+            } else {
+                ivRuleIcon.setImageResource(android.R.drawable.ic_menu_agenda)
+            }
+        }
+
+        updateIconPreview()
+
+        btnPickIcon.setOnClickListener {
+            showIconPickerDialog { iconBase64, pkgName ->
+                currentDialogIconBase64 = iconBase64
+                smallIconType = pkgName
+                updateIconPreview()
+            }
+        }
 
         // Setup Path Picker
         textInputLayoutPath?.setEndIconOnClickListener {
@@ -160,8 +187,8 @@ class FileObserverSettingsActivity : AppCompatActivity() {
         }
 
         if (existingRule != null) {
-            // etName.setText(existingRule.name) // Removed
             etPath.setText(existingRule.path)
+            etNotificationTitle.setText(existingRule.notificationTitle)
             cbImage.isChecked = existingRule.types.contains("image")
             cbVideo.isChecked = existingRule.types.contains("video")
             cbAudio.isChecked = existingRule.types.contains("audio")
@@ -211,6 +238,7 @@ class FileObserverSettingsActivity : AppCompatActivity() {
                              if (pkg != null) {
                                  val icon = packageManager.getApplicationIcon(pkg)
                                  currentDialogIconBase64 = drawableToBase64(icon)
+                                 if (smallIconType == null) smallIconType = pkg
                              }
                          } catch (e: Exception) {}
                      }
@@ -223,6 +251,8 @@ class FileObserverSettingsActivity : AppCompatActivity() {
                     isRecursive = switchRecursive.isChecked,
                     sendToWatch = switchSendToWatch.isChecked,
                     name = name,
+                    notificationTitle = etNotificationTitle.text.toString().takeIf { it.isNotBlank() },
+                    smallIconType = smallIconType,
                     iconBase64 = currentDialogIconBase64
                 )
 
@@ -242,13 +272,37 @@ class FileObserverSettingsActivity : AppCompatActivity() {
             .setNegativeButton("Cancel", null)
             .show()
     }
+
+    private fun showIconPickerDialog(onIconPicked: (String?, String?) -> Unit) {
+        val apps = packageManager.getInstalledApplications(android.content.pm.PackageManager.GET_META_DATA)
+            .filter { packageManager.getLaunchIntentForPackage(it.packageName) != null }
+            .sortedBy { it.loadLabel(packageManager).toString() }
+
+        val items = apps.map { it.loadLabel(packageManager).toString() }.toTypedArray()
+        
+        AlertDialog.Builder(this)
+            .setTitle("Select App Icon")
+            .setItems(items) { _, which ->
+                val app = apps[which]
+                try {
+                    val icon = packageManager.getApplicationIcon(app.packageName)
+                    val base64 = drawableToBase64(icon)
+                    onIconPicked(base64, app.packageName)
+                } catch (e: Exception) {
+                    onIconPicked(null, null)
+                }
+            }
+            .setNeutralButton("Clear Icon") { _, _ -> onIconPicked(null, null) }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
     
     private fun drawableToBase64(drawable: android.graphics.drawable.Drawable): String? {
         val bitmap = (drawable as? BitmapDrawable)?.bitmap 
             ?: (drawable as? AdaptiveIconDrawable)?.let {
                 val bmp = Bitmap.createBitmap(
-                    it.intrinsicWidth, 
-                    it.intrinsicHeight, 
+                    it.intrinsicWidth.takeIf { w -> w > 0 } ?: 128, 
+                    it.intrinsicHeight.takeIf { h -> h > 0 } ?: 128, 
                     Bitmap.Config.ARGB_8888
                 )
                 val canvas = Canvas(bmp)

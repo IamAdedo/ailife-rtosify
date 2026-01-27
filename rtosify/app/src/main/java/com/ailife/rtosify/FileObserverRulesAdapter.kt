@@ -16,8 +16,10 @@ data class FileObserverRule(
     val types: Set<String>, // "image", "video", "audio", "text"
     val isRecursive: Boolean,
     val sendToWatch: Boolean,
-    val name: String,
-    val iconBase64: String? = null // For display
+    val name: String, // This is actually the user-friendly name/label of the rule
+    val notificationTitle: String? = null,
+    val smallIconType: String? = null, // "image", "video", "audio", "text", or app package name
+    val iconBase64: String? = null // For display in Settings UI
 )
 
 class FileObserverRulesAdapter(
