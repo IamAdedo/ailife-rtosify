@@ -123,6 +123,8 @@
     <string name="automation_force_bt_desc">Automatically re-enable Bluetooth if it is disabled</string>
     <string name="automation_sharing_sync_title">Sharing Sync</string>
     <string name="automation_sharing_sync_desc">Forward shared content (links, text) between phone and watch</string>
+    <string name="automation_keepalive_title">Aggressive Keepalive</string>
+    <string name="automation_keepalive_desc">Restart watch services every 5 mins to ensure connection reliable</string>
     <string name="menu_health_desc">Monitor health metrics</string>
     <string name="menu_alarms">Alarms</string>
     <string name="menu_alarms_desc">Manage watch alarms</string>

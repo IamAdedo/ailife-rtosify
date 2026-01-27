@@ -17,6 +17,7 @@ class WatchAutomationsActivity : AppCompatActivity() {
     private lateinit var switchAutoBtTether: SwitchMaterial
     private lateinit var switchForceBt: SwitchMaterial
     private lateinit var switchSharingSync: SwitchMaterial
+    private lateinit var switchAggressiveKeepalive: SwitchMaterial
 
     private lateinit var devicePrefManager: DevicePrefManager
     private lateinit var globalPrefs: SharedPreferences
@@ -46,6 +47,7 @@ class WatchAutomationsActivity : AppCompatActivity() {
         setupAutoBtTetherSwitch()
         setupForceBtSwitch()
         setupSharingSyncSwitch()
+        setupAggressiveKeepaliveSwitch()
     }
 
     private fun initViews() {
@@ -56,6 +58,7 @@ class WatchAutomationsActivity : AppCompatActivity() {
         switchAutoBtTether = findViewById(R.id.switchAutoBtTether)
         switchForceBt = findViewById(R.id.switchForceBt)
         switchSharingSync = findViewById(R.id.switchSharingSync)
+        switchAggressiveKeepalive = findViewById(R.id.switchAggressiveKeepalive)
     }
 
     private fun setupBootServiceSwitch() {
@@ -116,6 +119,15 @@ class WatchAutomationsActivity : AppCompatActivity() {
         switchSharingSync.isChecked = isEnabled
         switchSharingSync.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean("sharing_sync_enabled", isChecked).apply()
+            sendAutomationUpdate()
+        }
+    }
+
+    private fun setupAggressiveKeepaliveSwitch() {
+        val isEnabled = activePrefs.getBoolean("aggressive_keepalive_enabled", false)
+        switchAggressiveKeepalive.isChecked = isEnabled
+        switchAggressiveKeepalive.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("aggressive_keepalive_enabled", isChecked).apply()
             sendAutomationUpdate()
         }
     }

@@ -509,4 +509,13 @@
     <string name="upload_to_phone">Transferring file to phone…</string>
     <string name="initializing">Initializing...</string>
     <string name="error_location_disabled">Location services are disabled. Please enable location to use Find Device.</string>
+    
+    <!-- Watch Automation -->
+    <string name="title_activity_watch_automation">Watch Automation</string>
+    <string name="menu_watch_automation">Watch Automation</string>
+    <string name="menu_watch_automation_desc">Service keepalive settings</string>
+    <string name="automation_keepalive_title">Aggressive Keepalive</string>
+    <string name="automation_keepalive_desc">Periodically restarts services every 5 minutes to ensure connection stability. May impact battery life.</string>
+    <string name="automation_keepalive_warning">This feature will wake up your device every 5 minutes.</string>
+
 </resources>

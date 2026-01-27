@@ -192,6 +192,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     bluetoothService?.currentTransportType ?: ""
             )
         }
+        if (prefs.getBoolean("aggressive_keepalive_enabled", false)) {
+            KeepaliveReceiver.schedule(this)
+        }
         syncDynamicIslandService()
         startPhoneBatteryPolling()
     }

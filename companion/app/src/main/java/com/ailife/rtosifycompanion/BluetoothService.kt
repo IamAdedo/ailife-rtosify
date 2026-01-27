@@ -1743,6 +1743,15 @@ class BluetoothService : Service() {
                 prefs.edit().putBoolean("auto_bt_tether_enabled", it).apply()
                 Log.d(TAG, "Auto BT Tether setting updated: $it")
             }
+            settings.aggressiveKeepaliveEnabled?.let {
+                prefs.edit().putBoolean("aggressive_keepalive_enabled", it).apply()
+                Log.d(TAG, "Aggressive Keepalive setting updated: $it")
+                if (it) {
+                    KeepaliveReceiver.schedule(this)
+                } else {
+                    KeepaliveReceiver.cancel(this)
+                }
+            }
             settings.wakeScreenEnabled?.let {
                 prefs.edit().putBoolean("wake_screen_enabled", it).apply()
                 Log.d(TAG, "Wake Screen setting updated: $it")

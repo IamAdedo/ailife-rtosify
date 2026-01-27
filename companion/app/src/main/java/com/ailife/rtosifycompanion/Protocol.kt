@@ -323,6 +323,7 @@ data class SettingsUpdateData(
         val autoWifiEnabled: Boolean? = null,
         val autoDataEnabled: Boolean? = null,
         val autoBtTetherEnabled: Boolean? = null,
+        val aggressiveKeepaliveEnabled: Boolean? = null,
         val wakeScreenEnabled: Boolean? = null,
         val wakeScreenDndEnabled: Boolean? = null,
         val vibrateEnabled: Boolean? = null,
