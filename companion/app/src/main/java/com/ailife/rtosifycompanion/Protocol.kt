@@ -267,7 +267,11 @@ data class NotificationData(
         val conversationTitle: String? = null, // Explicit conversation title (API 30+)
         val shortcutId: String? = null, // For linking to conversation shortcuts (API 30+)
         val fileType: String? = null, // Type of file if this is a file notification ("video", "audio", "image", etc.)
-        val textContent: String? = null // Text content for text files
+        val textContent: String? = null, // Text content for text files
+        var isMediaPlaying: Boolean = false,
+        var isDownloading: Boolean = false,
+        var downloadProgress: Int = 0,
+        var localFilePath: String? = null
 )
 
 data class NotificationMessageData(
@@ -728,9 +732,10 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.RESPONSE_FILE_LIST, data = data)
     }
 
-    fun createRequestFileDownload(path: String): ProtocolMessage {
+    fun createRequestFileDownload(path: String, prepareVideo: Boolean = false): ProtocolMessage {
         val data = JsonObject()
         data.addProperty("path", path)
+        data.addProperty("prepare_video", prepareVideo)
         return ProtocolMessage(type = MessageType.REQUEST_FILE_DOWNLOAD, data = data)
     }
 

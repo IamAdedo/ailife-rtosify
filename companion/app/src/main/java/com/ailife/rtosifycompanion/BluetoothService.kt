@@ -331,6 +331,9 @@ class BluetoothService : Service() {
         const val ACTION_RESTART_BLE_ADVERTISING = "com.ailife.rtosifycompanion.ACTION_RESTART_BLE_ADVERTISING"
         const val ACTION_IOS_CONNECTED = "com.ailife.rtosifycompanion.ACTION_IOS_CONNECTED"
         const val ACTION_FILE_DETECTED = "com.ailife.rtosifycompanion.ACTION_FILE_DETECTED"
+        const val ACTION_FILE_DOWNLOAD_COMPLETE = "com.ailife.rtosifycompanion.ACTION_FILE_DOWNLOAD_COMPLETE"
+        const val EXTRA_FILE_PATH = "extra_file_path"
+        const val EXTRA_SUCCESS = "extra_success"
 
         private const val TAG = "BluetoothService"
         private const val DEBUG_NOTIFICATIONS = false // Ative para debug
@@ -3359,6 +3362,13 @@ class BluetoothService : Service() {
 
             // Report completion
             withContext(Dispatchers.Main) { callback?.onDownloadProgress(100) }
+
+            // Broadcast completion for Dynamic Island or other listeners
+            val intent = Intent(ACTION_FILE_DOWNLOAD_COMPLETE)
+            intent.putExtra(EXTRA_FILE_PATH, file.absolutePath)
+            intent.putExtra(EXTRA_SUCCESS, true)
+            intent.setPackage(packageName)
+            sendBroadcast(intent)
 
             // Send success acknowledgment to phone
             sendMessage(ProtocolHelper.createFileTransferEnd(success = true))

@@ -77,6 +77,7 @@ import kotlinx.coroutines.flow.collect
 import org.json.JSONArray
 import org.json.JSONObject
 import rikka.shizuku.Shizuku
+import com.ailife.rtosify.media.VideoCompressor
 
 class BluetoothService : Service() {
 
@@ -2692,23 +2693,62 @@ class BluetoothService : Service() {
         
         serviceScope.launch(Dispatchers.IO) {
             var fileToDownload = File(path)
-            if (prepareVideo) {
+            var tempSourceFile: File? = null
+            
+            // Check if file is accessible directly
+            if (!fileToDownload.exists() || !fileToDownload.canRead()) {
+                Log.d(TAG, "File restricted or not found directly, trying copy via UserService: $path")
+                val cacheDir = externalCacheDir ?: cacheDir
+                val uniqueName = "stream_${System.currentTimeMillis()}_${File(path).name}"
+                tempSourceFile = File(cacheDir, uniqueName)
+                
+                var copied = false
                 userService?.let { service ->
                     try {
-                        val preparedPath = service.prepareVideo(path)
-                        if (preparedPath.isNotEmpty()) {
-                            fileToDownload = File(preparedPath)
-                        }
+                        copied = service.copyFile(path, tempSourceFile!!.absolutePath)
                     } catch (e: Exception) {
-                        Log.e(TAG, "prepareVideo failed: ${e.message}")
+                        Log.e(TAG, "Failed to copy restricted file: ${e.message}")
                     }
+                }
+                
+                if (copied && tempSourceFile!!.exists() && tempSourceFile!!.length() > 0) {
+                     fileToDownload = tempSourceFile!!
+                     Log.d(TAG, "Restricted file copied to cache: ${fileToDownload.absolutePath}")
+                } else {
+                     Log.e(TAG, "Failed to access file even via UserService: $path")
+                     // Fallback: try one last check if it appeared magically (e.g. slight delay)
+                }
+            }
+
+            if (prepareVideo && fileToDownload.exists()) {
+                Log.d(TAG, "Preparing video for watch: ${fileToDownload.absolutePath}")
+                try {
+                    val cacheDir = externalCacheDir ?: cacheDir
+                    val compressedFile = File(cacheDir, "cmp_${System.currentTimeMillis()}.mp4")
+                    
+                    val success = VideoCompressor.compressVideo(
+                        fileToDownload.absolutePath, 
+                        compressedFile.absolutePath
+                    )
+                    
+                    if (success && compressedFile.exists()) {
+                         Log.i(TAG, "Video compressed successfully: ${compressedFile.absolutePath} (${compressedFile.length()} bytes)")
+                         fileToDownload = compressedFile
+                    } else {
+                         Log.e(TAG, "Video compression failed, using original")
+                    }
+                } catch (e: Exception) {
+                     Log.e(TAG, "Error during video preparation: ${e.message}")
                 }
             }
             
-            if (fileToDownload.exists()) {
+            if (fileToDownload.exists() && fileToDownload.canRead()) {
                 sendFile(fileToDownload)
+                // Cleanup temp files lazily or we could add a deletion callback to sendFile if we modify it
             } else {
                 Log.e(TAG, "Requested file does not exist: ${fileToDownload.absolutePath}")
+                // Clean up temp source if we failed
+                tempSourceFile?.delete()
             }
         }
     }

@@ -649,8 +649,15 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     }
 
     private fun createNotificationExpandedLayout(notif: NotificationData): View {
-        return LinearLayout(context).apply {
-            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+        Log.d(TAG, "createNotificationExpandedLayout for ${notif.title}: fileType=${notif.fileType}, isMedia= ${notif.isMediaPlaying}")
+        val rootLayout = LinearLayout(context).apply {
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+            orientation = LinearLayout.VERTICAL
+        }
+
+        // Header Row (Icon + Text)
+        val headerRow = LinearLayout(context).apply {
+            layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dpToPx(16), dpToPx(8), dpToPx(16), dpToPx(8))
@@ -741,6 +748,43 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                         }
                 iconFrame.addView(smallIconView)
             }
+            
+            // Play overlay for video/audio if not playing
+            if (!notif.isMediaPlaying && (notif.fileType == "video" || notif.fileType == "audio")) {
+                 val playOverlay = ImageView(context).apply {
+                    layoutParams = FrameLayout.LayoutParams(dpToPx(18), dpToPx(18)).apply {
+                        gravity = Gravity.CENTER
+                    }
+                    setImageResource(android.R.drawable.ic_media_play)
+                    setColorFilter(Color.WHITE)
+                    background = GradientDrawable().apply {
+                         shape = GradientDrawable.OVAL
+                         setColor(Color.parseColor("#80000000"))
+                    }
+                    setPadding(dpToPx(4), dpToPx(4), dpToPx(4), dpToPx(4))
+                 }
+                 iconFrame.addView(playOverlay)
+            iconFrame.bringToFront() // CRITICAL: Ensure overlay is on top of icon
+                 
+                 // Loading spinner
+                 val spinner = ProgressBar(context).apply {
+                     layoutParams = FrameLayout.LayoutParams(dpToPx(24), dpToPx(24)).apply {
+                         gravity = Gravity.CENTER
+                     }
+                     visibility = if (notif.isDownloading) View.VISIBLE else View.GONE
+                     indeterminateTintList = ColorStateList.valueOf(Color.WHITE)
+                 }
+                 iconFrame.addView(spinner)
+                 
+                 iconFrame.setOnClickListener {
+                     if (!notif.isDownloading) {
+                         notif.isDownloading = true
+                         spinner.visibility = View.VISIBLE
+                         playOverlay.visibility = View.GONE
+                         onActionClick?.invoke(notif, NotificationActionData("Play", "rtosify_play_" + notif.key))
+                     }
+                 }
+            }
 
             addView(iconFrame)
 
@@ -791,7 +835,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             textContainer.addView(titleView)
             textContainer.addView(contentTextView)
 
-            // Text content (preview)
+            // Text content (preview) for text files
             if (!notif.textContent.isNullOrBlank()) {
                 val textPreview =
                         TextView(context).apply {
@@ -829,6 +873,65 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
             addView(textContainer)
         }
+        rootLayout.addView(headerRow)
+        
+        // Media Player Container
+        if (notif.isMediaPlaying && notif.localFilePath != null) {
+            val mediaContainer = FrameLayout(context).apply {
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+            }
+            
+            if (notif.fileType == "video") {
+                val videoView = VideoView(context).apply {
+                     layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(200)) // Fixed height for now
+                     setVideoPath(notif.localFilePath)
+                     start()
+                     setOnCompletionListener {
+                         // Loop or stop?
+                     }
+                }
+                mediaContainer.addView(videoView)
+            } else if (notif.fileType == "audio") {
+                val audioLayout = LinearLayout(context).apply {
+                    layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                    setPadding(0, dpToPx(8), 0, dpToPx(8))
+                    
+                    val playPause = Button(context).apply {
+                        text = "Pause"
+                        setOnClickListener {
+                            // Toggle play pause logic
+                        }
+                    }
+                    addView(playPause)
+                }
+                mediaContainer.addView(audioLayout)
+                
+                // For audio we also need to start playing silently or using MediaPlayer if VideoView doesn't support audio only well
+                // VideoView handles audio too.
+                val audioPlayer = VideoView(context).apply {
+                    layoutParams = FrameLayout.LayoutParams(1, 1) // Hidden
+                    setVideoPath(notif.localFilePath)
+                    start()
+                }
+                mediaContainer.addView(audioPlayer)
+            }
+            rootLayout.addView(mediaContainer)
+        }
+
+        return rootLayout
+    }
+
+    fun handleFileDownloadComplete(notif: NotificationData, path: String) {
+        notif.isDownloading = false
+        notif.isMediaPlaying = true
+        notif.localFilePath = path
+        
+        // Re-expand to show player
+        expandWithNotification(notif)
+        
+        Log.d(TAG, "File download complete for ${notif.title}, starting playback")
     }
 
     fun collapseToIcons(notifications: List<NotificationData>) {
@@ -1234,8 +1337,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 }
             }
 
-            // Media actions
-            if (notif.actions.isNotEmpty()) {
+            // Media actions - ONLY if NOT a media file (video/audio has its own overlay)
+            if (notif.actions.isNotEmpty() && notif.fileType != "video" && notif.fileType != "audio") {
                 val actionsLayout = LinearLayout(context).apply {
                     layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
                         topMargin = dpToPx(12)

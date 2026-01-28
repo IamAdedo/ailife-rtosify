@@ -203,6 +203,16 @@ class DynamicIslandService : Service() {
                         "com.ailife.rtosifycompanion.ALARM_CLEARED" -> {
                             handleAlarmCleared()
                         }
+                        BluetoothService.ACTION_FILE_DOWNLOAD_COMPLETE -> {
+                             val path = intent.getStringExtra(BluetoothService.EXTRA_FILE_PATH)
+                             val success = intent.getBooleanExtra(BluetoothService.EXTRA_SUCCESS, false)
+                             if (success && path != null) {
+                                 val notif = notificationQueue.find { it.isDownloading } ?: currentNotification
+                                 if (notif != null) {
+                                     overlayView.handleFileDownloadComplete(notif, path)
+                                 }
+                             }
+                        }
                     }
                 }
             }
@@ -442,18 +452,18 @@ class DynamicIslandService : Service() {
         }
 
         overlayView.onActionClick = { notif, action ->
-            if (action.actionKey.startsWith("rtosify_play_")) {
-                val fileKey = action.actionKey.removePrefix("rtosify_play_")
+            if (action.actionKey.startsWith("rtosify_play_") || action.actionKey.startsWith("rtosify_download_")) {
+                val fileKey = if (action.actionKey.startsWith("rtosify_play_")) 
+                    action.actionKey.removePrefix("rtosify_play_") 
+                else 
+                    action.actionKey.removePrefix("rtosify_download_")
                 val fileData = fileDataCache[fileKey]
                 if (fileData != null && isBound) {
-                    val request = JsonObject().apply {
-                        addProperty("type", MessageType.REQUEST_FILE_DOWNLOAD)
-                        addProperty("path", fileData.path)
-                        if (fileData.type == "video") {
-                            addProperty("prepare_video", true)
-                        }
+                    val msg = ProtocolHelper.createRequestFileDownload(fileData.path)
+                    if (fileData.type == "video") {
+                        msg.data.addProperty("prepare_video", true)
                     }
-                    bluetoothService?.sendMessage(ProtocolHelper.createRequestFileDownload(fileData.path))
+                    bluetoothService?.sendMessage(msg)
                     // Optionally show a "Downloading..." toast or update UI
                 }
             } else {
@@ -533,6 +543,7 @@ class DynamicIslandService : Service() {
                     addAction("com.ailife.rtosifycompanion.ALARM_TRIGGERED")
                     addAction("com.ailife.rtosifycompanion.ALARM_CLEARED")
                     addAction(BluetoothService.ACTION_FILE_DETECTED)
+                    addAction(BluetoothService.ACTION_FILE_DOWNLOAD_COMPLETE)
                 }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -1212,6 +1223,19 @@ class DynamicIslandService : Service() {
     private fun handleNotificationDismiss(notif: NotificationData) {
         Log.d(TAG, "Notification dismissed: ${notif.key}")
 
+        // Clean up downloaded file
+        if (notif.localFilePath != null) {
+            try {
+                val file = java.io.File(notif.localFilePath)
+                if (file.exists()) {
+                    val deleted = file.delete()
+                    Log.d(TAG, "Deleted local file: ${notif.localFilePath}, success=$deleted")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error deleting file: ${e.message}")
+            }
+        }
+
         // Remove from queue
         notificationQueue.removeAll { it.key == notif.key }
 
@@ -1427,8 +1451,8 @@ class DynamicIslandService : Service() {
         val actions = mutableListOf<NotificationActionData>()
         if (data.type == "video" || data.type == "audio") {
             actions.add(NotificationActionData(
-                title = "Play",
-                actionKey = "rtosify_play_${key}"
+                title = "Download",
+                actionKey = "rtosify_download_${key}"
             ))
         }
 
@@ -1443,7 +1467,7 @@ class DynamicIslandService : Service() {
             largeIcon = data.largeIcon ?: data.thumbnail, 
             smallIcon = data.largeIcon, // Fallback, but view will use category icon if smallIconType is category
             bigPicture = data.thumbnail, 
-            actions = actions,
+            actions = emptyList(),
             textContent = data.textContent,
             fileType = data.type
         )
