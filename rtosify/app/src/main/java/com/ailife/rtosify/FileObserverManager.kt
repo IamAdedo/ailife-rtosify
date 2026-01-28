@@ -105,75 +105,143 @@ class FileObserverManager(
         observers[file.absolutePath] = observer
     }
 
+    // State for polling: RuleID -> Set of Filenames
+    // Use KeySet which is a thread-safe implementation of a Set backed by ConcurrentHashMap
+    private val monitoredFileStates = ConcurrentHashMap<String, MutableSet<String>>()
+
     private fun startPolling() {
         pollingJob = scope.launch {
-            // Keep track of known files to detect new ones? 
-            // Or just rely on "last modified > last check time".
-            // Since we want "New File", we can track "Last Scan Time".
-            var lastScanTime = System.currentTimeMillis()
-
+            // Initial delay to allow system to settle? 
             while (isActive) {
-                delay(5000) // Poll every 5 seconds (tunable)
-                
                 val currentTime = System.currentTimeMillis()
                 
                 currentRules.forEach { rule ->
-                    // Handle standard paths and potential Shizuku paths (if implemented via shell)
-                    // For now, standard File Walk for accessible paths
+                    val currentFiles = mutableSetOf<String>()
+                    var success = false
+                    
+                    // 1. Get List of Files (Accessible + Restricted)
                     val file = File(rule.path)
-                    if (file.exists() && file.isDirectory) {
+                    if (file.exists() && file.isDirectory && file.canRead()) {
                         try {
-                           file.walk()
-                               .maxDepth(if (rule.isRecursive) Int.MAX_VALUE else 1)
-                               .filter { it.isFile && it.lastModified() > lastScanTime }
-                               .forEach { newFile ->
-                                   processFile(newFile, rule)
-                               }
+                             file.walk()
+                                .maxDepth(if (rule.isRecursive) Int.MAX_VALUE else 1)
+                                .filter { it.isFile }
+                                .forEach { f ->
+                                    val relPath = f.toRelativeString(file)
+                                    currentFiles.add(relPath)
+                                }
+                            success = true
                         } catch (e: Exception) {
                             Log.e("FileObserver", "Error walking path ${rule.path}", e)
+                            success = false
                         }
                     } else {
                         // Restricted path: Use Shizuku Polling
                         userServiceGetter()?.let { service ->
                             try {
                                 val json = service.listFiles(rule.path)
-                                if (!json.isNullOrEmpty() && json != "[]") {
-                                    val type = object : TypeToken<List<Map<String, Any>>>() {}.type
-                                    val list: List<Map<String, Any>> = gson.fromJson(json, type)
-                                    
-                                    list.forEach { fileData ->
-                                        val isDirectory = fileData["isDirectory"] == true
-                                        // JSON numbers are often Doubles
-                                        val lastMod = (fileData["lastModified"] as? Number)?.toLong() ?: 0L
+                                if (json != "<ERROR>") {
+                                    success = true
+                                    if (!json.isNullOrEmpty() && json != "[]") {
+                                        val type = object : TypeToken<List<Map<String, Any>>>() {}.type
+                                        val list: List<Map<String, Any>> = gson.fromJson(json, type)
                                         
-                                        if (!isDirectory && lastMod > lastScanTime) {
+                                        list.forEach { fileData ->
+                                            val isDirectory = fileData["isDirectory"] == true
                                             val name = fileData["name"] as? String
-                                            if (name != null) {
-                                                val newFile = File(rule.path, name)
-                                                processFile(newFile, rule)
+                                            if (!isDirectory && name != null) {
+                                                 currentFiles.add(name)
                                             }
                                         }
                                     }
+                                } else {
+                                    Log.w("FileObserver", "Shizuku poll returned ERROR for ${rule.path}")
+                                    success = false
                                 }
                             } catch (e: Exception) {
                                 Log.e("FileObserver", "Shizuku poll failed for ${rule.path}", e)
+                                success = false
                             }
+                        }
+                    }
+                    
+                    // 2. Process Differences ONLY on success
+                    if (success) {
+                        // Use putIfAbsent for thread-safety during init? 
+                        // Actually we need to obtain the existing set or create new safely.
+                        // Since we are iterating rules, we can just use put.
+                        
+                        // We need to use ConcurrentHashMap.newKeySet() for thread safety of the VALUES
+                        val previousState = monitoredFileStates.getOrPut(rule.id) { 
+                            // First run! Just populate and don't notify
+                            ConcurrentHashMap.newKeySet()
+                        }
+                        
+                        // Check if this rule is newly initialized
+                        if (!ruleInitialized.contains(rule.id)) {
+                            previousState.addAll(currentFiles)
+                            ruleInitialized.add(rule.id)
+                        } else {
+                            // Find new files
+                            currentFiles.forEach { relPath ->
+                                if (!previousState.contains(relPath)) {
+                                    // NEW FILE!
+                                    val fullPath = File(rule.path, relPath)
+                                    processFile(fullPath, rule)
+                                    // Note: processFile will now add it to monitoredFileStates
+                                }
+                            }
+                            
+                            // Update state: Add all current files to keep set in sync.
+                            // We don't just replace the set, we update it to maintain concurrency?
+                            // Actually, replacing the set is fine since we are the only writer?
+                            // But processFile is a writer too! So we must NOT replace the set object.
+                            // We should clear and addAll or just addAll if we don't care about deletions?
+                            // If file is deleted, we should remove it? 
+                            // The current logic doesn't handle deletions explicitly for notifications, 
+                            // but for detecting re-additions we should remove missing files.
+                            
+                            // SYNC LOGIC:
+                            // Remove files that verify as no longer existing (not in currentFiles)
+                            previousState.retainAll(currentFiles)
+                            // Add all current files (some might be new ones we just processed, some old)
+                            previousState.addAll(currentFiles)
                         }
                     }
                 }
                 
-                lastScanTime = currentTime
+                delay(5000) // Poll every 5 seconds
             }
         }
     }
+    
+    private val ruleInitialized = ConcurrentHashMap.newKeySet<String>()
 
     private suspend fun processFile(file: File, rule: FileObserverRule) {
+        // Register this file as "seen" to prevent Polling from re-detecting it
+        // We need to determine the relative path or name used by polling
+        try {
+            val ruleRoot = File(rule.path)
+            val relPath = if (file.absolutePath.startsWith(ruleRoot.absolutePath)) {
+                // Determine relative path for state tracking
+                file.toRelativeString(ruleRoot)
+            } else {
+                file.name // Fallback
+            }
+            
+            // Thread-safe update
+            monitoredFileStates.getOrPut(rule.id) { ConcurrentHashMap.newKeySet() }.add(relPath)
+        } catch (e: Exception) {
+            Log.e("FileObserver", "Error updating state for ${file.name}", e)
+        }
+    
         // Comprehensive extension check
         val ext = file.extension.lowercase()
         val type = when {
             ext in listOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "heif") -> "image"
             ext in listOf("mp4", "mkv", "avi", "mov", "wmv", "flv", "3gp", "webm") -> "video"
-            ext in listOf("mp3", "wav", "aac", "ogg", "m4a", "flac", "amr") -> "audio"
+            // ADDED: opus, oga, wma, mid
+            ext in listOf("mp3", "wav", "aac", "ogg", "m4a", "flac", "amr", "opus", "oga", "wma", "mid", "midi") -> "audio"
             ext in listOf("txt", "log", "md", "json", "xml", "csv", "pdf") -> "text"
             else -> "other"
         }
@@ -226,6 +294,7 @@ class FileObserverManager(
             }
             
             // Fallback to Shizuku for metadata/text if direct read failed
+            // Note: For OGG/OPUS, direct MediaMetadataRetriever might fail if path is restricted.
             if (thumbnail == null || duration == null || (type == "text" && textContent == null)) {
                 userServiceGetter()?.let { service ->
                     try {

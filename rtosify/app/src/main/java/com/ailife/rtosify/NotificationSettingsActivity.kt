@@ -200,6 +200,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 val style = if (position == 1) "dynamic_island" else "android"
                 activePrefs.edit().putString("notification_style", style).apply()
+                sendSettingsUpdate()
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }

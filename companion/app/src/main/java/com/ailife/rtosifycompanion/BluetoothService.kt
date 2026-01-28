@@ -7293,15 +7293,13 @@ class BluetoothService : Service() {
                 }
             }
 
-            if (!DynamicIslandService.isRunning) {
-                val intent = Intent(this, DynamicIslandService::class.java)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(intent)
-                } else {
-                    startService(intent)
-                }
-                Log.d(TAG, "Started DynamicIslandService")
+            val intent = Intent(this, DynamicIslandService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
             }
+            Log.d(TAG, "Started DynamicIslandService")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start DynamicIslandService: ${e.message}")
         }
@@ -7309,11 +7307,9 @@ class BluetoothService : Service() {
 
     private fun stopDynamicIslandService() {
         try {
-            if (DynamicIslandService.isRunning) {
-                val intent = Intent(this, DynamicIslandService::class.java)
-                stopService(intent)
-                Log.d(TAG, "Stopped DynamicIslandService")
-            }
+            val intent = Intent(this, DynamicIslandService::class.java)
+            stopService(intent)
+            Log.d(TAG, "Stopped DynamicIslandService")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to stop DynamicIslandService: ${e.message}")
         }

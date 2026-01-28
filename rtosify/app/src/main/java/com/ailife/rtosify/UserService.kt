@@ -112,11 +112,16 @@ class UserService : IUserService.Stub() {
 
             // Fallback to Shell (stat)
             if (files.isNullOrEmpty()) {
+                // First, check if directory exists and is accessible using basic ls
+                // This helps distinguish between "empty directory" and "error/permission denied"
+                val checkCmd = if (path.endsWith("/")) path else "$path/"
+                if (!runShellStatus("ls", checkCmd)) {
+                    Log.e(TAG, "Shell ls failed for $path - assuming error/access denied")
+                    return "<ERROR>" // Return sentinel to indicate error
+                }
+
                 Log.d(TAG, "Standard listFiles failed for $path, trying shell fallback")
-                // file name | size | last modified (epoch) | type (directory/regular file)
-                // We use * to list all files in the directory
-                val cmdPath = if (path.endsWith("/")) path else "$path/"
-                val globPath = "${cmdPath}*"
+                val globPath = "${checkCmd}*"
                 
                 // Format: %n (name) | %s (size) | %Y (modification time seconds) | %F (type)
                 val output = runShellCommand("stat", "-c", "%n|%s|%Y|%F", globPath)
@@ -131,13 +136,13 @@ class UserService : IUserService.Stub() {
                                 val lastModSec = parts[2].toLongOrNull() ?: 0L
                                 val typeStr = parts[3].lowercase()
                                 val isDir = typeStr.contains("directory")
-                                val name = File(fullPath).name // Extract name from full path
+                                val name = File(fullPath).name 
                                 
                                 mapOf(
                                     "name" to name,
                                     "size" to size,
                                     "isDirectory" to isDir,
-                                    "lastModified" to (lastModSec * 1000L) // Convert to millis
+                                    "lastModified" to (lastModSec * 1000L) 
                                 )
                             } else {
                                 null
@@ -147,13 +152,21 @@ class UserService : IUserService.Stub() {
                             null
                         }
                     }
+                } else {
+                     // Verify empty with ls
+                     val lsOutput = runShellCommand("ls", checkCmd)
+                     if (lsOutput.isNullOrEmpty()) {
+                         files = emptyList() // Truly empty
+                     } else {
+                         return "<ERROR>"
+                     }
                 }
             }
             
             gson.toJson(files ?: emptyList<Map<String, Any>>())
         } catch (e: Exception) {
             Log.e(TAG, "Error listing files: ${e.message}")
-            "[]"
+            "<ERROR>" // Return sentinel
         }
     }
 

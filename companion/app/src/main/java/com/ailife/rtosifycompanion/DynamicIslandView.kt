@@ -814,25 +814,25 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                                     LayoutParams.WRAP_CONTENT
                                             )
                                             .apply {
-                                                topMargin = dpToPx(4)
-                                                setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+                                                topMargin = dpToPx(8)
                                             }
                             text = notif.textContent
-                            textSize = getScaledTextSize(12f)
+                            textSize = getScaledTextSize(14f)
                             setTextColor(Color.WHITE)
-                            setBackgroundResource(android.R.drawable.edit_text)
-                            backgroundTintList =
-                                    android.content.res.ColorStateList.valueOf(
-                                            Color.parseColor("#333333")
-                                    )
-                            maxLines = 5
+                            setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12))
+                            background = GradientDrawable().apply {
+                                shape = GradientDrawable.RECTANGLE
+                                cornerRadius = dpToPx(16).toFloat()
+                                setColor(Color.parseColor("#333333"))
+                            }
+                            maxLines = 10
                             ellipsize = android.text.TextUtils.TruncateAt.END
                             // Slide animation from center
                             alpha = 0f
-                            translationX = 50f
+                            translationY = 20f
                             animate()
                                     .alpha(1f)
-                                    .translationX(0f)
+                                    .translationY(0f)
                                     .setDuration(300)
                                     .setStartDelay(100)
                                     .start()
