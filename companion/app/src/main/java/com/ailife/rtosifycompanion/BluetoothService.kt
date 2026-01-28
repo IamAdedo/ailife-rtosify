@@ -332,8 +332,10 @@ class BluetoothService : Service() {
         const val ACTION_IOS_CONNECTED = "com.ailife.rtosifycompanion.ACTION_IOS_CONNECTED"
         const val ACTION_FILE_DETECTED = "com.ailife.rtosifycompanion.ACTION_FILE_DETECTED"
         const val ACTION_FILE_DOWNLOAD_COMPLETE = "com.ailife.rtosifycompanion.ACTION_FILE_DOWNLOAD_COMPLETE"
+        const val ACTION_FILE_DOWNLOAD_PROGRESS = "com.ailife.rtosifycompanion.ACTION_FILE_DOWNLOAD_PROGRESS"
         const val EXTRA_FILE_PATH = "extra_file_path"
         const val EXTRA_SUCCESS = "extra_success"
+        const val EXTRA_PROGRESS = "extra_progress"
 
         private const val TAG = "BluetoothService"
         private const val DEBUG_NOTIFICATIONS = false // Ative para debug
@@ -3287,6 +3289,11 @@ class BluetoothService : Service() {
             if (expectedFileSize > 0) {
                 val progress = (receivedFileSize * 100 / expectedFileSize).toInt()
                 withContext(Dispatchers.Main) { callback?.onDownloadProgress(progress) }
+                // Broadcast progress for Dynamic Island
+                val progressIntent = Intent(ACTION_FILE_DOWNLOAD_PROGRESS)
+                progressIntent.putExtra(EXTRA_PROGRESS, progress)
+                progressIntent.setPackage(packageName)
+                sendBroadcast(progressIntent)
             }
 
             android.util.Log.d(

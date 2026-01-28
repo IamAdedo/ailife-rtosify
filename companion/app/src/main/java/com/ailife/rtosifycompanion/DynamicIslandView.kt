@@ -15,6 +15,8 @@ import android.view.ViewOutlineProvider
 import android.view.animation.DecelerateInterpolator
 import android.widget.*
 import android.content.res.ColorStateList
+import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import androidx.core.view.setPadding
@@ -62,6 +64,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     private var isMediaPlaying: Boolean = false
     private var lastAlbumArtBase64: String? = null
     private var cachedAlbumBitmap: Bitmap? = null
+
+    // File media playback
+    private var currentAudioPlayer: MediaPlayer? = null
+    private var currentVideoView: VideoView? = null
 
     private enum class State {
         IDLE,
@@ -749,43 +755,6 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 iconFrame.addView(smallIconView)
             }
             
-            // Play overlay for video/audio if not playing
-            if (!notif.isMediaPlaying && (notif.fileType == "video" || notif.fileType == "audio")) {
-                 val playOverlay = ImageView(context).apply {
-                    layoutParams = FrameLayout.LayoutParams(dpToPx(18), dpToPx(18)).apply {
-                        gravity = Gravity.CENTER
-                    }
-                    setImageResource(android.R.drawable.ic_media_play)
-                    setColorFilter(Color.WHITE)
-                    background = GradientDrawable().apply {
-                         shape = GradientDrawable.OVAL
-                         setColor(Color.parseColor("#80000000"))
-                    }
-                    setPadding(dpToPx(4), dpToPx(4), dpToPx(4), dpToPx(4))
-                 }
-                 iconFrame.addView(playOverlay)
-            iconFrame.bringToFront() // CRITICAL: Ensure overlay is on top of icon
-                 
-                 // Loading spinner
-                 val spinner = ProgressBar(context).apply {
-                     layoutParams = FrameLayout.LayoutParams(dpToPx(24), dpToPx(24)).apply {
-                         gravity = Gravity.CENTER
-                     }
-                     visibility = if (notif.isDownloading) View.VISIBLE else View.GONE
-                     indeterminateTintList = ColorStateList.valueOf(Color.WHITE)
-                 }
-                 iconFrame.addView(spinner)
-                 
-                 iconFrame.setOnClickListener {
-                     if (!notif.isDownloading) {
-                         notif.isDownloading = true
-                         spinner.visibility = View.VISIBLE
-                         playOverlay.visibility = View.GONE
-                         onActionClick?.invoke(notif, NotificationActionData("Play", "rtosify_play_" + notif.key))
-                     }
-                 }
-            }
-
             addView(iconFrame)
 
             // Text content (title and text)
@@ -877,45 +846,171 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         
         // Media Player Container
         if (notif.isMediaPlaying && notif.localFilePath != null) {
+            // Clean up any existing media players
+            releaseMediaPlayers()
+
             val mediaContainer = FrameLayout(context).apply {
                 layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
             }
-            
+
             if (notif.fileType == "video") {
                 val videoView = VideoView(context).apply {
-                     layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(200)) // Fixed height for now
-                     setVideoPath(notif.localFilePath)
-                     start()
-                     setOnCompletionListener {
-                         // Loop or stop?
-                     }
+                    layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(200))
+
+                    // Add media controller for playback controls
+                    val mediaController = MediaController(context)
+                    mediaController.setAnchorView(this)
+                    setMediaController(mediaController)
+
+                    setVideoPath(notif.localFilePath)
+
+                    // Wait for media to be prepared before starting
+                    setOnPreparedListener { mp ->
+                        Log.d(TAG, "Video prepared, starting playback")
+                        mp.start()
+                    }
+
+                    setOnErrorListener { mp, what, extra ->
+                        Log.e(TAG, "Video playback error: what=$what, extra=$extra")
+                        true // Handled
+                    }
+
+                    setOnCompletionListener {
+                        Log.d(TAG, "Video playback completed")
+                    }
                 }
+                currentVideoView = videoView
                 mediaContainer.addView(videoView)
+
             } else if (notif.fileType == "audio") {
+                // Audio player UI
                 val audioLayout = LinearLayout(context).apply {
                     layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16))
+                    setBackgroundColor(Color.parseColor("#1C1C1E"))
+                }
+
+                // Audio icon
+                val audioIcon = ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(dpToPx(48), dpToPx(48))
+                    setImageResource(android.R.drawable.ic_lock_silent_mode_off)
+                    setColorFilter(Color.WHITE)
+                }
+                audioLayout.addView(audioIcon)
+
+                // Now Playing label
+                val nowPlaying = TextView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                        topMargin = dpToPx(8)
+                    }
+                    text = "Now Playing"
+                    setTextColor(Color.parseColor("#AAAAAA"))
+                    textSize = 12f
+                }
+                audioLayout.addView(nowPlaying)
+
+                // File name
+                val fileName = TextView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                        topMargin = dpToPx(4)
+                    }
+                    text = notif.localFilePath?.substringAfterLast("/") ?: "Unknown"
+                    setTextColor(Color.WHITE)
+                    textSize = 14f
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
+                }
+                audioLayout.addView(fileName)
+
+                // Control buttons row
+                val controlsRow = LinearLayout(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                        topMargin = dpToPx(12)
+                    }
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER
-                    setPadding(0, dpToPx(8), 0, dpToPx(8))
-                    
-                    val playPause = Button(context).apply {
-                        text = "Pause"
-                        setOnClickListener {
-                            // Toggle play pause logic
+                }
+
+                // Create MediaPlayer for audio
+                val audioPlayer = MediaPlayer().apply {
+                    try {
+                        setDataSource(context, Uri.parse(notif.localFilePath))
+                        setOnPreparedListener { mp ->
+                            Log.d(TAG, "Audio prepared, starting playback")
+                            mp.start()
+                        }
+                        setOnErrorListener { mp, what, extra ->
+                            Log.e(TAG, "Audio playback error: what=$what, extra=$extra")
+                            true
+                        }
+                        setOnCompletionListener {
+                            Log.d(TAG, "Audio playback completed")
+                        }
+                        prepareAsync()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to set audio data source", e)
+                    }
+                }
+                currentAudioPlayer = audioPlayer
+
+                // Play/Pause button
+                val playPauseBtn = ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(dpToPx(48), dpToPx(48))
+                    setImageResource(android.R.drawable.ic_media_pause)
+                    setColorFilter(Color.WHITE)
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(Color.parseColor("#333333"))
+                    }
+                    setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12))
+
+                    setOnClickListener {
+                        try {
+                            if (audioPlayer.isPlaying) {
+                                audioPlayer.pause()
+                                setImageResource(android.R.drawable.ic_media_play)
+                            } else {
+                                audioPlayer.start()
+                                setImageResource(android.R.drawable.ic_media_pause)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error toggling audio playback", e)
                         }
                     }
-                    addView(playPause)
                 }
+                controlsRow.addView(playPauseBtn)
+
+                // Stop button
+                val stopBtn = ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(dpToPx(48), dpToPx(48)).apply {
+                        marginStart = dpToPx(16)
+                    }
+                    setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
+                    setColorFilter(Color.WHITE)
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(Color.parseColor("#333333"))
+                    }
+                    setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12))
+
+                    setOnClickListener {
+                        try {
+                            audioPlayer.stop()
+                            audioPlayer.release()
+                            currentAudioPlayer = null
+                            notif.isMediaPlaying = false
+                            expandWithNotification(notif)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error stopping audio", e)
+                        }
+                    }
+                }
+                controlsRow.addView(stopBtn)
+
+                audioLayout.addView(controlsRow)
                 mediaContainer.addView(audioLayout)
-                
-                // For audio we also need to start playing silently or using MediaPlayer if VideoView doesn't support audio only well
-                // VideoView handles audio too.
-                val audioPlayer = VideoView(context).apply {
-                    layoutParams = FrameLayout.LayoutParams(1, 1) // Hidden
-                    setVideoPath(notif.localFilePath)
-                    start()
-                }
-                mediaContainer.addView(audioPlayer)
             }
             rootLayout.addView(mediaContainer)
         }
@@ -923,18 +1018,100 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         return rootLayout
     }
 
+    private fun releaseMediaPlayers() {
+        try {
+            currentAudioPlayer?.let {
+                if (it.isPlaying) it.stop()
+                it.release()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error releasing audio player", e)
+        }
+        currentAudioPlayer = null
+
+        try {
+            currentVideoView?.stopPlayback()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping video", e)
+        }
+        currentVideoView = null
+    }
+
     fun handleFileDownloadComplete(notif: NotificationData, path: String) {
         notif.isDownloading = false
         notif.isMediaPlaying = true
         notif.localFilePath = path
-        
-        // Re-expand to show player
-        expandWithNotification(notif)
-        
+
         Log.d(TAG, "File download complete for ${notif.title}, starting playback")
+
+        // Start playback immediately
+        startFilePlayback(notif)
+
+        // Refresh current view in-place without collapsing
+        when (currentState) {
+            State.LIST_EXPANDED -> {
+                // Rebuild only this item's parent list
+                expandedList.removeAllViews()
+                val queue = (context as? android.app.Service)?.let { null }
+                // Trigger list refresh via callback
+                onFilePlaybackStarted?.invoke(notif)
+            }
+            State.NOTIFICATION_EXPANDED -> {
+                // Rebuild the expanded single notification
+                contentContainer.removeAllViews()
+                contentContainer.addView(createNotificationExpandedLayout(notif))
+            }
+            else -> {
+                // Not visible, just start playback
+            }
+        }
+    }
+
+    // Callback for service to refresh the list
+    var onFilePlaybackStarted: ((NotificationData) -> Unit)? = null
+
+    // Track current download progress views for updates
+    private var currentDownloadProgressBar: ProgressBar? = null
+    private var currentDownloadLabel: TextView? = null
+
+    fun updateDownloadProgress(notif: NotificationData, progress: Int) {
+        currentDownloadProgressBar?.progress = progress
+        currentDownloadLabel?.text = "Downloading... $progress%"
+    }
+
+    private fun startFilePlayback(notif: NotificationData) {
+        releaseMediaPlayers()
+
+        val filePath = notif.localFilePath ?: return
+
+        if (notif.fileType == "audio") {
+            try {
+                currentAudioPlayer = MediaPlayer().apply {
+                    setDataSource(context, Uri.parse(filePath))
+                    setOnPreparedListener { mp ->
+                        Log.d(TAG, "Audio prepared, starting playback")
+                        mp.start()
+                    }
+                    setOnErrorListener { _, what, extra ->
+                        Log.e(TAG, "Audio playback error: what=$what, extra=$extra")
+                        true
+                    }
+                    setOnCompletionListener {
+                        Log.d(TAG, "Audio playback completed")
+                        notif.isMediaPlaying = false
+                        currentAudioPlayer = null
+                    }
+                    prepareAsync()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start audio playback", e)
+            }
+        }
+        // Video playback is handled inline by VideoView in createNotificationExpandedLayout
     }
 
     fun collapseToIcons(notifications: List<NotificationData>) {
+        releaseMediaPlayers()
         currentState = State.NOTIFICATION_COLLAPSED
 
         // Animate list out before hiding
@@ -1296,45 +1473,299 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 addView(textPreview)
             }
 
-            // Big Picture
-            notif.bigPicture?.let { base64Image ->
-                decodeBase64ToBitmap(base64Image)?.let { bitmap ->
-                    val bigPictureView =
-                            ImageView(context).apply {
-                                // Calculate height to maintain aspect ratio with max height of 200dp
-                                val maxHeight = dpToPx(200)
-                                val aspectRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
-                                val calculatedHeight = if (aspectRatio > 0) {
-                                    minOf(maxHeight, (dpToPx(pillWidthExpanded - 32) / aspectRatio).toInt())
-                                } else {
-                                    maxHeight
-                                }
-                                
-                                layoutParams =
-                                        LinearLayout.LayoutParams(
-                                                        LayoutParams.MATCH_PARENT,
-                                                        calculatedHeight
-                                                )
-                                                .apply { topMargin = dpToPx(8) }
-                                scaleType = ImageView.ScaleType.FIT_CENTER
-                                adjustViewBounds = true
-                                setImageBitmap(bitmap)
-                                clipToOutline = true
-                                outlineProvider =
-                                        object : ViewOutlineProvider() {
-                                            override fun getOutline(view: View, outline: Outline) {
-                                                outline.setRoundRect(
-                                                        0,
-                                                        0,
-                                                        view.width,
-                                                        view.height,
-                                                        dpToPx(8).toFloat()
-                                                )
-                                            }
-                                        }
+            // Video player or thumbnail preview
+            if (notif.fileType == "video" && notif.isMediaPlaying && notif.localFilePath != null) {
+                // Show VideoView for playing video
+                val videoContainer = FrameLayout(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(180))
+                        .apply { topMargin = dpToPx(8) }
+                    clipToOutline = true
+                    outlineProvider = object : ViewOutlineProvider() {
+                        override fun getOutline(view: View, outline: Outline) {
+                            outline.setRoundRect(0, 0, view.width, view.height, dpToPx(8).toFloat())
+                        }
+                    }
+                }
+
+                val videoView = VideoView(context).apply {
+                    layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                    setVideoPath(notif.localFilePath)
+                    setOnPreparedListener { mp ->
+                        Log.d(TAG, "Video prepared in list, starting playback")
+                        mp.start()
+                    }
+                    setOnErrorListener { _, what, extra ->
+                        Log.e(TAG, "Video playback error: what=$what, extra=$extra")
+                        true
+                    }
+                }
+                currentVideoView = videoView
+                videoContainer.addView(videoView)
+                addView(videoContainer)
+
+            } else if (notif.bigPicture != null) {
+                // Show thumbnail preview
+                decodeBase64ToBitmap(notif.bigPicture!!)?.let { bitmap ->
+                    val maxHeight = dpToPx(200)
+                    val aspectRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+                    val calculatedHeight = if (aspectRatio > 0) {
+                        minOf(maxHeight, (dpToPx(pillWidthExpanded - 32) / aspectRatio).toInt())
+                    } else {
+                        maxHeight
+                    }
+
+                    val bigPictureView = ImageView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, calculatedHeight)
+                            .apply { topMargin = dpToPx(8) }
+                        scaleType = ImageView.ScaleType.FIT_CENTER
+                        adjustViewBounds = true
+                        setImageBitmap(bitmap)
+                        clipToOutline = true
+                        outlineProvider = object : ViewOutlineProvider() {
+                            override fun getOutline(view: View, outline: Outline) {
+                                outline.setRoundRect(0, 0, view.width, view.height, dpToPx(8).toFloat())
                             }
+                        }
+                    }
                     addView(bigPictureView)
                 }
+            }
+
+            // Media bar for video/audio files
+            if (notif.fileType == "video" || notif.fileType == "audio") {
+                val mediaContainer = LinearLayout(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                        topMargin = dpToPx(8)
+                    }
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(dpToPx(12), dpToPx(10), dpToPx(12), dpToPx(10))
+                    background = GradientDrawable().apply {
+                        cornerRadius = dpToPx(12).toFloat()
+                        setColor(Color.parseColor("#3A3A3C"))
+                    }
+                }
+
+                // Top row with controls
+                val controlsRow = LinearLayout(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                }
+
+                if (notif.isMediaPlaying && notif.localFilePath != null) {
+                    // Now Playing state
+                    val pauseIcon = ImageView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(dpToPx(36), dpToPx(36))
+                        setImageResource(android.R.drawable.ic_media_pause)
+                        setColorFilter(Color.WHITE)
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(Color.parseColor("#0A84FF"))
+                        }
+                        setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+                    }
+                    controlsRow.addView(pauseIcon)
+
+                    val nowPlayingLabel = TextView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply {
+                            marginStart = dpToPx(12)
+                        }
+                        text = if (notif.fileType == "video") "Playing Video" else "Playing Audio"
+                        textSize = getScaledTextSize(13f)
+                        setTextColor(Color.WHITE)
+                    }
+                    controlsRow.addView(nowPlayingLabel)
+
+                    // Stop button
+                    val stopIcon = ImageView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(dpToPx(32), dpToPx(32))
+                        setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
+                        setColorFilter(Color.parseColor("#FF6B6B"))
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(Color.parseColor("#333333"))
+                        }
+                        setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+                        setOnClickListener {
+                            releaseMediaPlayers()
+                            notif.isMediaPlaying = false
+                            notif.localFilePath = null
+                            onFilePlaybackStarted?.invoke(notif)
+                        }
+                    }
+                    controlsRow.addView(stopIcon)
+
+                    // Pause/resume toggle - works for both audio and video
+                    pauseIcon.setOnClickListener {
+                        try {
+                            val audioPlayer = currentAudioPlayer
+                            val videoPlayer = currentVideoView
+
+                            if (audioPlayer != null) {
+                                if (audioPlayer.isPlaying) {
+                                    audioPlayer.pause()
+                                    pauseIcon.setImageResource(android.R.drawable.ic_media_play)
+                                    nowPlayingLabel.text = "Paused"
+                                } else {
+                                    audioPlayer.start()
+                                    pauseIcon.setImageResource(android.R.drawable.ic_media_pause)
+                                    nowPlayingLabel.text = "Playing Audio"
+                                }
+                            } else if (videoPlayer != null) {
+                                if (videoPlayer.isPlaying) {
+                                    videoPlayer.pause()
+                                    pauseIcon.setImageResource(android.R.drawable.ic_media_play)
+                                    nowPlayingLabel.text = "Paused"
+                                } else {
+                                    videoPlayer.start()
+                                    pauseIcon.setImageResource(android.R.drawable.ic_media_pause)
+                                    nowPlayingLabel.text = "Playing Video"
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error toggling playback", e)
+                        }
+                    }
+
+                    mediaContainer.addView(controlsRow)
+
+                    // Playback progress bar
+                    val progressBar = SeekBar(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                            topMargin = dpToPx(8)
+                        }
+                        max = 100
+                        progress = 0
+                        progressTintList = ColorStateList.valueOf(Color.parseColor("#0A84FF"))
+                        thumbTintList = ColorStateList.valueOf(Color.parseColor("#0A84FF"))
+                    }
+                    mediaContainer.addView(progressBar)
+
+                    // Update progress periodically
+                    val progressHandler = Handler(Looper.getMainLooper())
+                    val updateProgress = object : Runnable {
+                        override fun run() {
+                            try {
+                                val audioPlayer = currentAudioPlayer
+                                val videoPlayer = currentVideoView
+
+                                if (audioPlayer != null && audioPlayer.isPlaying) {
+                                    val duration = audioPlayer.duration
+                                    val position = audioPlayer.currentPosition
+                                    if (duration > 0) {
+                                        progressBar.progress = (position * 100 / duration)
+                                    }
+                                    progressHandler.postDelayed(this, 500)
+                                } else if (videoPlayer != null && videoPlayer.isPlaying) {
+                                    val duration = videoPlayer.duration
+                                    val position = videoPlayer.currentPosition
+                                    if (duration > 0) {
+                                        progressBar.progress = (position * 100 / duration)
+                                    }
+                                    progressHandler.postDelayed(this, 500)
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error updating progress", e)
+                            }
+                        }
+                    }
+                    progressHandler.post(updateProgress)
+
+                    // Seek on progress bar change
+                    progressBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                        override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                            if (fromUser) {
+                                try {
+                                    val audioPlayer = currentAudioPlayer
+                                    val videoPlayer = currentVideoView
+
+                                    if (audioPlayer != null) {
+                                        val seekPos = (audioPlayer.duration * progress / 100)
+                                        audioPlayer.seekTo(seekPos)
+                                    } else if (videoPlayer != null) {
+                                        val seekPos = (videoPlayer.duration * progress / 100)
+                                        videoPlayer.seekTo(seekPos)
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Error seeking", e)
+                                }
+                            }
+                        }
+                        override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+                        override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+                    })
+
+                } else {
+                    // Play/download state
+                    val playIcon = ImageView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(dpToPx(36), dpToPx(36))
+                        setImageResource(android.R.drawable.ic_media_play)
+                        setColorFilter(Color.WHITE)
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(Color.parseColor("#0A84FF"))
+                        }
+                        setPadding(dpToPx(8), dpToPx(8), dpToPx(6), dpToPx(8))
+                    }
+                    controlsRow.addView(playIcon)
+
+                    val playLabel = TextView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply {
+                            marginStart = dpToPx(12)
+                        }
+                        text = if (notif.fileType == "video") "Play Video" else "Play Audio"
+                        textSize = getScaledTextSize(13f)
+                        setTextColor(Color.WHITE)
+                    }
+                    controlsRow.addView(playLabel)
+
+                    mediaContainer.addView(controlsRow)
+
+                    if (notif.isDownloading) {
+                        playIcon.visibility = View.GONE
+                        playLabel.text = "Downloading... ${notif.downloadProgress}%"
+
+                        // Download progress bar
+                        val downloadProgress = ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+                            layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(4)).apply {
+                                topMargin = dpToPx(8)
+                            }
+                            max = 100
+                            progress = notif.downloadProgress
+                            progressTintList = ColorStateList.valueOf(Color.parseColor("#0A84FF"))
+                        }
+                        mediaContainer.addView(downloadProgress)
+
+                        // Store references for updates
+                        currentDownloadProgressBar = downloadProgress
+                        currentDownloadLabel = playLabel
+                    }
+
+                    mediaContainer.setOnClickListener {
+                        if (!notif.isDownloading) {
+                            notif.isDownloading = true
+                            playIcon.visibility = View.GONE
+                            playLabel.text = "Downloading... 0%"
+
+                            // Add progress bar dynamically
+                            val downloadProgress = ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+                                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(4)).apply {
+                                    topMargin = dpToPx(8)
+                                }
+                                max = 100
+                                progress = 0
+                                progressTintList = ColorStateList.valueOf(Color.parseColor("#0A84FF"))
+                            }
+                            mediaContainer.addView(downloadProgress)
+                            currentDownloadProgressBar = downloadProgress
+                            currentDownloadLabel = playLabel
+
+                            onActionClick?.invoke(notif, NotificationActionData("Play", "rtosify_play_" + notif.key))
+                        }
+                    }
+                }
+
+                addView(mediaContainer)
             }
 
             // Media actions - ONLY if NOT a media file (video/audio has its own overlay)
@@ -2541,5 +2972,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
     private fun performNotificationAction(notif: NotificationData, action: NotificationActionData) {
         onActionClick?.invoke(notif, action)
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        releaseMediaPlayers()
     }
 }

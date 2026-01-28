@@ -17,8 +17,8 @@ object VideoCompressor {
     private const val TAG = "VideoCompressor"
     private const val TIMEOUT_USEC = 2500L
     private const val I_FRAME_INTERVAL = 5 // Sync frame every 5 seconds
-    private const val COMPRESSED_HEIGHT = 480
-    private const val COMPRESSED_BITRATE = 500 * 1024 // 1 Mbps
+    private const val COMPRESSED_HEIGHT = 360 // Lower resolution for watch
+    private const val COMPRESSED_BITRATE = 300 * 1024 // ~300 Kbps for smaller files
 
     fun compressVideo(inputPath: String, outputPath: String): Boolean {
         Log.d(TAG, "Starting video compression: $inputPath -> $outputPath")

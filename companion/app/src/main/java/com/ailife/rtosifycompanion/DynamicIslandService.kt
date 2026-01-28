@@ -213,6 +213,14 @@ class DynamicIslandService : Service() {
                                  }
                              }
                         }
+                        BluetoothService.ACTION_FILE_DOWNLOAD_PROGRESS -> {
+                            val progress = intent.getIntExtra(BluetoothService.EXTRA_PROGRESS, 0)
+                            val notif = notificationQueue.find { it.isDownloading } ?: currentNotification
+                            if (notif != null) {
+                                notif.downloadProgress = progress
+                                overlayView.updateDownloadProgress(notif, progress)
+                            }
+                        }
                     }
                 }
             }
@@ -474,6 +482,13 @@ class DynamicIslandService : Service() {
             }
         }
 
+        overlayView.onFilePlaybackStarted = { notif ->
+            // Refresh the list in-place after playback starts
+            if (isExpanded) {
+                overlayView.expandToList(notificationQueue)
+            }
+        }
+
         overlayView.onClearAllClicked = {
             Log.d(TAG, "Clear All clicked")
             // Make a copy to avoid ConcurrentModificationException
@@ -544,6 +559,7 @@ class DynamicIslandService : Service() {
                     addAction("com.ailife.rtosifycompanion.ALARM_CLEARED")
                     addAction(BluetoothService.ACTION_FILE_DETECTED)
                     addAction(BluetoothService.ACTION_FILE_DOWNLOAD_COMPLETE)
+                    addAction(BluetoothService.ACTION_FILE_DOWNLOAD_PROGRESS)
                 }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -1447,31 +1463,22 @@ class DynamicIslandService : Service() {
     private fun showFileNotification(data: com.ailife.rtosifycompanion.FileDetectedData) {
         val key = "file_${data.path.hashCode()}"
         fileDataCache[key] = data
-        
-        val actions = mutableListOf<NotificationActionData>()
-        if (data.type == "video" || data.type == "audio") {
-            actions.add(NotificationActionData(
-                title = "Download",
-                actionKey = "rtosify_download_${key}"
-            ))
-        }
 
         // Construct a NotificationData from FileDetectedData
         val notificationData = NotificationData(
             packageName = if (data.smallIconType?.contains(".") == true) data.smallIconType else "file.observer",
             title = data.notificationTitle.takeIf { !it.isNullOrBlank() } ?: "New File Detected",
-            text = "${data.name} (${android.text.format.Formatter.formatShortFileSize(this, data.size)})" + 
+            text = "${data.name} (${android.text.format.Formatter.formatShortFileSize(this, data.size)})" +
                    (data.duration?.let { " - ${formatDuration(it)}" } ?: ""),
             key = key,
             appName = "File Observer",
-            largeIcon = data.largeIcon ?: data.thumbnail, 
-            smallIcon = data.largeIcon, // Fallback, but view will use category icon if smallIconType is category
-            bigPicture = data.thumbnail, 
+            largeIcon = data.largeIcon ?: data.thumbnail,
+            smallIcon = data.largeIcon,
+            bigPicture = data.thumbnail,
             actions = emptyList(),
             textContent = data.textContent,
             fileType = data.type
         )
-        // Add to queue
         showNotification(notificationData)
     }
 
