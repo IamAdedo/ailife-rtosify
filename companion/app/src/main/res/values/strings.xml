@@ -518,4 +518,7 @@
     <string name="automation_keepalive_desc">Periodically restarts services every 5 minutes to ensure connection stability. May impact battery life.</string>
     <string name="automation_keepalive_warning">This feature will wake up your device every 5 minutes.</string>
 
+    <!-- File Observer Notifications -->
+    <string name="notification_file_detected_title">New File Detected</string>
+
 </resources>

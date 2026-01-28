@@ -505,4 +505,7 @@
     <string name="upload_to_watch">正在传输文件到手表...</string>
     <string name="upload_to_phone">正在传输文件到手机...</string>
     <string name="initializing">正在初始化...</string>
+
+    <!-- File Observer Notifications -->
+    <string name="notification_file_detected_title">检测到新文件</string>
 </resources>

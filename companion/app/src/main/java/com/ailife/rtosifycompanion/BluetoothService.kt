@@ -7586,15 +7586,94 @@ class BluetoothService : Service() {
         try {
             val data = Gson().fromJson(message.data, FileDetectedData::class.java)
             Log.d(TAG, "File Detected: ${data.name} (${data.type})")
-            
-            // Broadcast for DynamicIsland or other consumers
-            val intent = Intent(ACTION_FILE_DETECTED)
-            intent.putExtra("data", Gson().toJson(data))
-            intent.setPackage(packageName)
-            sendBroadcast(intent)
-            
+
+            // Check notification style preference
+            val notificationStyle = prefs.getString("notification_style", "android") ?: "android"
+
+            if (notificationStyle == "dynamic_island") {
+                // Broadcast for DynamicIsland
+                val intent = Intent(ACTION_FILE_DETECTED)
+                intent.putExtra("data", Gson().toJson(data))
+                intent.setPackage(packageName)
+                sendBroadcast(intent)
+            } else {
+                // Show as standard Android notification
+                showFileDetectedNotification(data)
+            }
+
         } catch (e: Exception) {
             Log.e(TAG, "Error handling File Detected: ${e.message}")
+        }
+    }
+
+    private fun showFileDetectedNotification(data: FileDetectedData) {
+        val title = data.notificationTitle ?: getString(R.string.notification_file_detected_title)
+
+        // Build notification text with filename, size, and duration
+        val sizeText = formatFileSize(data.size)
+        val durationText = data.duration?.let { " • ${formatDuration(it)}" } ?: ""
+        val text = "${data.name} ($sizeText$durationText)"
+
+        val notifId = ("file_${data.path}".hashCode() and 0x7FFFFFFF) + MIRRORED_NOTIFICATION_ID_START
+
+        val builder = NotificationCompat.Builder(this, MIRRORED_CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSmallIcon(getFileTypeIcon(data.type))
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setCategory(NotificationCompat.CATEGORY_EVENT)
+
+        // Set large icon from thumbnail or app icon
+        val thumbnail = data.thumbnail?.let { decodeBase64ToBitmap(it) }
+        val largeIcon = data.largeIcon?.let { decodeBase64ToBitmap(it) }
+        (thumbnail ?: largeIcon)?.let { builder.setLargeIcon(it) }
+
+        // Add text preview for text files
+        if (data.type == "text" && !data.textContent.isNullOrEmpty()) {
+            builder.setStyle(NotificationCompat.BigTextStyle()
+                .bigText("${data.name}\n\n${data.textContent.take(200)}..."))
+        }
+
+        // Add image preview for images
+        if (data.type == "image" && thumbnail != null) {
+            builder.setStyle(NotificationCompat.BigPictureStyle()
+                .bigPicture(thumbnail)
+                .bigLargeIcon(largeIcon))
+        }
+
+        performNotificationAlert()
+        notificationManager.notify(notifId, builder.build())
+        Log.d(TAG, "File notification shown: ${data.name}")
+    }
+
+    private fun getFileTypeIcon(type: String): Int {
+        return when (type) {
+            "image" -> android.R.drawable.ic_menu_gallery
+            "video" -> android.R.drawable.ic_media_play
+            "audio" -> android.R.drawable.ic_lock_silent_mode_off
+            "text" -> android.R.drawable.ic_menu_edit
+            else -> android.R.drawable.ic_menu_save
+        }
+    }
+
+    private fun formatFileSize(bytes: Long): String {
+        return when {
+            bytes < 1024 -> "$bytes B"
+            bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+            bytes < 1024 * 1024 * 1024 -> String.format("%.1f MB", bytes / (1024.0 * 1024.0))
+            else -> String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
+        }
+    }
+
+    private fun formatDuration(millis: Long): String {
+        val seconds = (millis / 1000) % 60
+        val minutes = (millis / (1000 * 60)) % 60
+        val hours = millis / (1000 * 60 * 60)
+        return if (hours > 0) {
+            String.format("%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format("%d:%02d", minutes, seconds)
         }
     }
 }
