@@ -217,7 +217,13 @@
             android:enabled="true"
             android:exported="false"
             android:theme="@style/Theme.AppCompat.NoActionBar" />
-            
+
+        <activity
+            android:name=".FullScreenMediaActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
         <activity
             android:name=".MediaControlActivity"
             android:exported="false"

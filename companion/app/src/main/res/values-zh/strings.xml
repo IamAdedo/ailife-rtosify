@@ -508,4 +508,11 @@
 
     <!-- File Observer Notifications -->
     <string name="notification_file_detected_title">检测到新文件</string>
+    <string name="notification_file_play_audio">播放</string>
+    <string name="notification_file_view">查看</string>
+
+    <!-- Full Screen Media Activity -->
+    <string name="fullscreen_downloading">正在下载...</string>
+    <string name="fullscreen_downloading_progress">正在下载... %d%%</string>
+    <string name="fullscreen_download_failed">下载失败</string>
 </resources>

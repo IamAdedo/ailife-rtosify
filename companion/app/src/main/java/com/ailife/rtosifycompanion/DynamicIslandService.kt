@@ -516,7 +516,24 @@ class DynamicIslandService : Service() {
             }
             collapseList()
         }
-        
+
+        // Handle full screen viewer launch for images/videos
+        overlayView.onOpenFullScreenViewer = { notif ->
+            Log.d(TAG, "Opening full screen viewer for: ${notif.key}")
+            val intent = Intent(this, FullScreenMediaActivity::class.java).apply {
+                // If this is a file notification, pass the FileDetectedData
+                val fileData = fileDataCache[notif.key]
+                if (fileData != null) {
+                    putExtra(FullScreenMediaActivity.EXTRA_DATA_JSON, Gson().toJson(fileData))
+                }
+                putExtra(FullScreenMediaActivity.EXTRA_NOTIFICATION_KEY, notif.key)
+                notif.bigPicture?.let { putExtra(FullScreenMediaActivity.EXTRA_BIG_PICTURE_BASE64, it) }
+                notif.localFilePath?.let { putExtra(FullScreenMediaActivity.EXTRA_LOCAL_FILE_PATH, it) }
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            startActivity(intent)
+        }
+
         overlayView.onCallAction = { action ->
             Log.d(TAG, "Call action: $action - clearing Dynamic Island")
             // Send call action to BluetoothService

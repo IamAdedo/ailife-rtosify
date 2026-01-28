@@ -7615,6 +7615,10 @@ class BluetoothService : Service() {
         val text = "${data.name} ($sizeText$durationText)"
 
         val notifId = ("file_${data.path}".hashCode() and 0x7FFFFFFF) + MIRRORED_NOTIFICATION_ID_START
+        val notifKey = "file_${data.path.hashCode()}"
+
+        // Cache the file data for later use
+        fileDetectedCache[notifKey] = data
 
         val builder = NotificationCompat.Builder(this, MIRRORED_CHANNEL_ID)
             .setContentTitle(title)
@@ -7624,28 +7628,87 @@ class BluetoothService : Service() {
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_EVENT)
 
-        // Set large icon from thumbnail or app icon
+        // Decode bitmaps
         val thumbnail = data.thumbnail?.let { decodeBase64ToBitmap(it) }
-        val largeIcon = data.largeIcon?.let { decodeBase64ToBitmap(it) }
-        (thumbnail ?: largeIcon)?.let { builder.setLargeIcon(it) }
+        val appIcon = data.largeIcon?.let { decodeBase64ToBitmap(it) }
 
-        // Add text preview for text files
-        if (data.type == "text" && !data.textContent.isNullOrEmpty()) {
-            builder.setStyle(NotificationCompat.BigTextStyle()
-                .bigText("${data.name}\n\n${data.textContent.take(200)}..."))
+        // Large icon is always the app icon (or fallback to thumbnail)
+        (appIcon ?: thumbnail)?.let { builder.setLargeIcon(it) }
+
+        // Create tap intent to launch FullScreenMediaActivity
+        val viewIntent = Intent(this, FullScreenMediaActivity::class.java).apply {
+            putExtra(FullScreenMediaActivity.EXTRA_DATA_JSON, Gson().toJson(data))
+            putExtra(FullScreenMediaActivity.EXTRA_NOTIFICATION_KEY, notifKey)
+            data.thumbnail?.let { putExtra(FullScreenMediaActivity.EXTRA_BIG_PICTURE_BASE64, it) }
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
+        val contentPendingIntent = PendingIntent.getActivity(
+            this,
+            notifId,
+            viewIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        builder.setContentIntent(contentPendingIntent)
 
-        // Add image preview for images
-        if (data.type == "image" && thumbnail != null) {
-            builder.setStyle(NotificationCompat.BigPictureStyle()
-                .bigPicture(thumbnail)
-                .bigLargeIcon(largeIcon))
+        when (data.type) {
+            "image" -> {
+                // BigPictureStyle: thumbnail as big picture, app icon stays as large icon
+                if (thumbnail != null) {
+                    builder.setStyle(NotificationCompat.BigPictureStyle()
+                        .bigPicture(thumbnail)
+                        .bigLargeIcon(appIcon)) // App icon when expanded
+                }
+            }
+            "video" -> {
+                // BigPictureStyle for video thumbnail with play overlay effect
+                if (thumbnail != null) {
+                    builder.setStyle(NotificationCompat.BigPictureStyle()
+                        .bigPicture(thumbnail)
+                        .bigLargeIcon(appIcon)
+                        .setSummaryText(getString(R.string.notification_file_view)))
+                }
+            }
+            "audio" -> {
+                // Add play action button for audio
+                val playIntent = Intent(this, FullScreenMediaActivity::class.java).apply {
+                    putExtra(FullScreenMediaActivity.EXTRA_DATA_JSON, Gson().toJson(data))
+                    putExtra(FullScreenMediaActivity.EXTRA_NOTIFICATION_KEY, notifKey)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
+                val playPendingIntent = PendingIntent.getActivity(
+                    this,
+                    notifId + 1,
+                    playIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                builder.addAction(
+                    android.R.drawable.ic_media_play,
+                    getString(R.string.notification_file_play_audio),
+                    playPendingIntent
+                )
+
+                // Show duration in expanded text if available
+                data.duration?.let { duration ->
+                    builder.setStyle(NotificationCompat.BigTextStyle()
+                        .bigText("${data.name}\n${sizeText} • ${formatDuration(duration)}"))
+                }
+            }
+            "text" -> {
+                // BigTextStyle for text file preview
+                if (!data.textContent.isNullOrEmpty()) {
+                    builder.setStyle(NotificationCompat.BigTextStyle()
+                        .bigText("${data.name}\n\n${data.textContent.take(200)}..."))
+                }
+            }
         }
 
         performNotificationAlert()
         notificationManager.notify(notifId, builder.build())
         Log.d(TAG, "File notification shown: ${data.name}")
     }
+
+    // Cache for file detected data (for FullScreenMediaActivity access)
+    private val fileDetectedCache = mutableMapOf<String, FileDetectedData>()
 
     private fun getFileTypeIcon(type: String): Int {
         return when (type) {

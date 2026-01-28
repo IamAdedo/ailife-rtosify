@@ -40,6 +40,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     var onActionClick: ((NotificationData, NotificationActionData) -> Unit)? = null
     var onPillClick: (() -> Unit)? = null
     var onClearAllClicked: (() -> Unit)? = null
+    var onOpenFullScreenViewer: ((NotificationData) -> Unit)? = null
 
     private val pillContainer: FrameLayout
     private val contentContainer: LinearLayout
@@ -1557,6 +1558,12 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                         outlineProvider = object : ViewOutlineProvider() {
                             override fun getOutline(view: View, outline: Outline) {
                                 outline.setRoundRect(0, 0, view.width, view.height, dpToPx(8).toFloat())
+                            }
+                        }
+                        // Click to open full screen viewer for images and videos
+                        if (notif.fileType == "image" || notif.fileType == "video" || notif.packageName == "file.observer") {
+                            setOnClickListener {
+                                onOpenFullScreenViewer?.invoke(notif)
                             }
                         }
                     }
