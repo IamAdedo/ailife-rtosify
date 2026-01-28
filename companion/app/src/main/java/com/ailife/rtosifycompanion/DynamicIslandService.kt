@@ -467,12 +467,27 @@ class DynamicIslandService : Service() {
                     action.actionKey.removePrefix("rtosify_download_")
                 val fileData = fileDataCache[fileKey]
                 if (fileData != null && isBound) {
-                    val msg = ProtocolHelper.createRequestFileDownload(fileData.path)
-                    if (fileData.type == "video") {
-                        msg.data.addProperty("prepare_video", true)
+                    val file = java.io.File(fileData.path) // Note: fileData.path in cache is the PHONE path usually, we need local path.
+                    // Actually, NotificationData has the localFilePath if it was downloaded.
+                    // But here we only have the fileKey (which is path or id).
+                    // The cache stores FileDetectedData which has phone path. It doesn't know about local watch path.
+                    // HOWEVER, we might have successfully downloaded it before.
+                    // Let's check if we have a notification for this file that has localFilePath set.
+                    
+                    val existingNotif = notificationQueue.find { it.key == notif.key } ?: currentNotification
+                    if (existingNotif != null && existingNotif.localFilePath != null && java.io.File(existingNotif.localFilePath!!).exists()) {
+                         Log.d(TAG, "File already exists at ${existingNotif.localFilePath}, playing immediately")
+                         // Play immediately
+                         overlayView.handleFileDownloadComplete(existingNotif, existingNotif.localFilePath!!)
+                    } else {
+                        // Not found locally, request download
+                        Log.d(TAG, "Requesting file download for $fileKey")
+                        val msg = ProtocolHelper.createRequestFileDownload(fileData.path)
+                        if (fileData.type == "video") {
+                            msg.data.addProperty("prepare_video", true)
+                        }
+                        bluetoothService?.sendMessage(msg)
                     }
-                    bluetoothService?.sendMessage(msg)
-                    // Optionally show a "Downloading..." toast or update UI
                 }
             } else {
                 // Handle other actions (Reply, dismiss, etc.)
