@@ -25,6 +25,8 @@ import java.util.Stack
 
 class DirectoryPickerActivity : AppCompatActivity() {
 
+    data class DirectoryItem(val file: File, val isDirectory: Boolean)
+
     private lateinit var recyclerView: RecyclerView
     private lateinit var currentPathTextView: TextView
     private lateinit var adapter: DirectoryAdapter
@@ -71,9 +73,9 @@ class DirectoryPickerActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.recyclerViewFiles)
         recyclerView.layoutManager = LinearLayoutManager(this)
 
-        adapter = DirectoryAdapter { file ->
-            if (file.isDirectory) {
-                navigateTo(file)
+        adapter = DirectoryAdapter { item ->
+            if (item.isDirectory) {
+                navigateTo(item.file)
             }
         }
         recyclerView.adapter = adapter
@@ -130,23 +132,29 @@ class DirectoryPickerActivity : AppCompatActivity() {
         // Try standard API
         var files = currentPath.listFiles()?.filter { it.isDirectory && !it.isHidden }?.sortedBy { it.name }
         
+        var items: List<DirectoryItem>? = null
+
+        if (files != null && files.isNotEmpty()) {
+             items = files.map { DirectoryItem(it, it.isDirectory) }
+        }
+        
         // Fallback to Shizuku UserService
-        if (files == null && userService != null) {
+        if ((items == null || items.isEmpty()) && userService != null) {
             try {
                 val json = userService?.listFiles(currentPath.absolutePath)
                 if (!json.isNullOrEmpty() && json != "[]") {
                     val type = object : TypeToken<List<Map<String, Any>>>() {}.type
                     val list: List<Map<String, Any>> = gson.fromJson(json, type)
-                    files = list.filter { it["isDirectory"] == true }
-                        .map { File(currentPath, it["name"] as String) }
-                        .sortedBy { it.name }
+                    items = list.filter { it["isDirectory"] == true }
+                        .map { DirectoryItem(File(currentPath, it["name"] as String), true) }
+                        .sortedBy { it.file.name }
                 }
             } catch (e: Exception) {
                 Log.e("DirectoryPicker", "Shizuku listFiles failed: ${e.message}")
             }
         }
         
-        adapter.submitList(files ?: emptyList())
+        adapter.submitList(items ?: emptyList())
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -157,11 +165,11 @@ class DirectoryPickerActivity : AppCompatActivity() {
         return super.onOptionsItemSelected(item)
     }
 
-    class DirectoryAdapter(private val onClick: (File) -> Unit) : RecyclerView.Adapter<DirectoryAdapter.ViewHolder>() {
-        private var files = listOf<File>()
+    class DirectoryAdapter(private val onClick: (DirectoryItem) -> Unit) : RecyclerView.Adapter<DirectoryAdapter.ViewHolder>() {
+        private var items = listOf<DirectoryItem>()
 
-        fun submitList(newFiles: List<File>) {
-            files = newFiles
+        fun submitList(newItems: List<DirectoryItem>) {
+            items = newItems
             notifyDataSetChanged()
         }
 
@@ -171,15 +179,15 @@ class DirectoryPickerActivity : AppCompatActivity() {
         }
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            holder.bind(files[position])
+            holder.bind(items[position])
         }
 
-        override fun getItemCount() = files.size
+        override fun getItemCount() = items.size
 
-        class ViewHolder(itemView: View, val onClick: (File) -> Unit) : RecyclerView.ViewHolder(itemView) {
-            fun bind(file: File) {
-                (itemView as TextView).text = file.name
-                itemView.setOnClickListener { onClick(file) }
+        class ViewHolder(itemView: View, val onClick: (DirectoryItem) -> Unit) : RecyclerView.ViewHolder(itemView) {
+            fun bind(item: DirectoryItem) {
+                (itemView as TextView).text = item.file.name
+                itemView.setOnClickListener { onClick(item) }
             }
         }
     }

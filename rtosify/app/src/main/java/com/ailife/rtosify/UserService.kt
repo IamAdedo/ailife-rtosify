@@ -110,22 +110,42 @@ class UserService : IUserService.Stub() {
                 }
             }
 
-            // Fallback to Shell (ls -p1)
-            if (files == null) {
+            // Fallback to Shell (stat)
+            if (files.isNullOrEmpty()) {
                 Log.d(TAG, "Standard listFiles failed for $path, trying shell fallback")
+                // file name | size | last modified (epoch) | type (directory/regular file)
+                // We use * to list all files in the directory
                 val cmdPath = if (path.endsWith("/")) path else "$path/"
-                val output = runShellCommand("ls", "-p1", cmdPath)
+                val globPath = "${cmdPath}*"
+                
+                // Format: %n (name) | %s (size) | %Y (modification time seconds) | %F (type)
+                val output = runShellCommand("stat", "-c", "%n|%s|%Y|%F", globPath)
+                
                 if (output != null) {
-                    files = output.filter { it.isNotBlank() }.map { line ->
-                        // ls -p appends / to directories
-                        val isDir = line.endsWith("/")
-                        val name = line.trimEnd('/')
-                        mapOf(
-                            "name" to name,
-                            "size" to 0L,
-                            "isDirectory" to isDir,
-                            "lastModified" to System.currentTimeMillis()
-                        )
+                    files = output.filter { it.isNotBlank() && !it.contains("No such file") }.mapNotNull { line ->
+                        try {
+                            val parts = line.split("|")
+                            if (parts.size >= 4) {
+                                val fullPath = parts[0]
+                                val size = parts[1].toLongOrNull() ?: 0L
+                                val lastModSec = parts[2].toLongOrNull() ?: 0L
+                                val typeStr = parts[3].lowercase()
+                                val isDir = typeStr.contains("directory")
+                                val name = File(fullPath).name // Extract name from full path
+                                
+                                mapOf(
+                                    "name" to name,
+                                    "size" to size,
+                                    "isDirectory" to isDir,
+                                    "lastModified" to (lastModSec * 1000L) // Convert to millis
+                                )
+                            } else {
+                                null
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error parsing stat line: $line", e)
+                            null
+                        }
                     }
                 }
             }

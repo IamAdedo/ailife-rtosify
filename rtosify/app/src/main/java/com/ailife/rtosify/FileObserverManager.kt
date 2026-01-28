@@ -133,8 +133,32 @@ class FileObserverManager(
                             Log.e("FileObserver", "Error walking path ${rule.path}", e)
                         }
                     } else {
-                        // TODO: Shizuku logic here if path is not directly accessible
-                        // callShizukuLs(rule.path, lastScanTime)
+                        // Restricted path: Use Shizuku Polling
+                        userServiceGetter()?.let { service ->
+                            try {
+                                val json = service.listFiles(rule.path)
+                                if (!json.isNullOrEmpty() && json != "[]") {
+                                    val type = object : TypeToken<List<Map<String, Any>>>() {}.type
+                                    val list: List<Map<String, Any>> = gson.fromJson(json, type)
+                                    
+                                    list.forEach { fileData ->
+                                        val isDirectory = fileData["isDirectory"] == true
+                                        // JSON numbers are often Doubles
+                                        val lastMod = (fileData["lastModified"] as? Number)?.toLong() ?: 0L
+                                        
+                                        if (!isDirectory && lastMod > lastScanTime) {
+                                            val name = fileData["name"] as? String
+                                            if (name != null) {
+                                                val newFile = File(rule.path, name)
+                                                processFile(newFile, rule)
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e("FileObserver", "Shizuku poll failed for ${rule.path}", e)
+                            }
+                        }
                     }
                 }
                 
