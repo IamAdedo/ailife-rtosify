@@ -521,6 +521,10 @@
     <!-- File Observer Notifications -->
     <string name="notification_file_detected_title">New File Detected</string>
     <string name="notification_file_play_audio">Play</string>
+    <string name="notification_file_pause_audio">Pause</string>
+    <string name="notification_file_stop_audio">Stop</string>
+    <string name="notification_file_download">Download</string>
+    <string name="notification_file_downloading">Downloading %d%%</string>
     <string name="notification_file_view">View</string>
 
     <!-- Full Screen Media Activity -->

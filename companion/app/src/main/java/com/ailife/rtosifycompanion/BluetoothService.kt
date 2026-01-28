@@ -234,6 +234,24 @@ class BluetoothService : Service() {
         getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     }
 
+    // Audio notification playback
+    private var audioNotifPlayer: android.media.MediaPlayer? = null
+    private var audioNotifCurrentKey: String? = null
+    private var audioNotifCurrentNotifId: Int = 0
+    private var audioNotifIsPlaying: Boolean = false
+    private val audioProgressHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var audioProgressRunnable: Runnable? = null
+
+    // Track audio notification states: key -> state (downloading, playing, paused)
+    private data class AudioNotifState(
+        var state: String = "idle", // idle, downloading, playing, paused
+        var localPath: String? = null,
+        var downloadProgress: Int = 0,
+        var playbackProgress: Int = 0,
+        var duration: Int = 0
+    )
+    private val audioNotifStates = mutableMapOf<String, AudioNotifState>()
+
     private var panManager: BluetoothPanManager? = null
     private var currentDevice: BluetoothDevice? = null
 
@@ -336,6 +354,13 @@ class BluetoothService : Service() {
         const val EXTRA_FILE_PATH = "extra_file_path"
         const val EXTRA_SUCCESS = "extra_success"
         const val EXTRA_PROGRESS = "extra_progress"
+
+        // Audio notification playback actions
+        const val ACTION_AUDIO_DOWNLOAD = "com.ailife.rtosifycompanion.ACTION_AUDIO_DOWNLOAD"
+        const val ACTION_AUDIO_PLAY_PAUSE = "com.ailife.rtosifycompanion.ACTION_AUDIO_PLAY_PAUSE"
+        const val ACTION_AUDIO_STOP = "com.ailife.rtosifycompanion.ACTION_AUDIO_STOP"
+        const val EXTRA_NOTIF_ID = "extra_notif_id"
+        const val EXTRA_FILE_KEY = "extra_file_key"
 
         private const val TAG = "BluetoothService"
         private const val DEBUG_NOTIFICATIONS = false // Ative para debug
@@ -588,6 +613,27 @@ class BluetoothService : Service() {
                 }
             }
 
+    // Receiver for audio notification playback controls (doesn't require connection)
+    private val audioNotificationReceiver =
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    val fileKey = intent?.getStringExtra(EXTRA_FILE_KEY) ?: return
+                    val notifId = intent.getIntExtra(EXTRA_NOTIF_ID, 0)
+
+                    when (intent.action) {
+                        ACTION_AUDIO_DOWNLOAD -> {
+                            handleAudioDownload(fileKey, notifId)
+                        }
+                        ACTION_AUDIO_PLAY_PAUSE -> {
+                            handleAudioPlayPause(fileKey, notifId)
+                        }
+                        ACTION_AUDIO_STOP -> {
+                            handleAudioStop(fileKey, notifId)
+                        }
+                    }
+                }
+            }
+
     private val wifiStateReceiver =
             object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
@@ -803,6 +849,16 @@ class BluetoothService : Service() {
                     ContextCompat.RECEIVER_EXPORTED // Needs to be exported for system ACL events
             )
             registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            ContextCompat.registerReceiver(
+                    this,
+                    audioNotificationReceiver,
+                    IntentFilter().apply {
+                        addAction(ACTION_AUDIO_DOWNLOAD)
+                        addAction(ACTION_AUDIO_PLAY_PAUSE)
+                        addAction(ACTION_AUDIO_STOP)
+                    },
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+            )
         } else {
             registerReceiver(internalReceiver, filterInternal)
             registerReceiver(watchDismissReceiver, filterWatch)
@@ -810,6 +866,11 @@ class BluetoothService : Service() {
             registerReceiver(dynamicIslandHandshakeReceiver, filterHandshake)
             registerReceiver(aclDisconnectReceiver, IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED))
             registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            registerReceiver(audioNotificationReceiver, IntentFilter().apply {
+                addAction(ACTION_AUDIO_DOWNLOAD)
+                addAction(ACTION_AUDIO_PLAY_PAUSE)
+                addAction(ACTION_AUDIO_STOP)
+            })
         }
 
         // Initialize health data collector
@@ -3288,7 +3349,11 @@ class BluetoothService : Service() {
             // Report progress
             if (expectedFileSize > 0) {
                 val progress = (receivedFileSize * 100 / expectedFileSize).toInt()
-                withContext(Dispatchers.Main) { callback?.onDownloadProgress(progress) }
+                withContext(Dispatchers.Main) {
+                    callback?.onDownloadProgress(progress)
+                    // Update audio notification progress if applicable
+                    onAudioFileDownloadProgress(progress)
+                }
                 // Broadcast progress for Dynamic Island
                 val progressIntent = Intent(ACTION_FILE_DOWNLOAD_PROGRESS)
                 progressIntent.putExtra(EXTRA_PROGRESS, progress)
@@ -3368,7 +3433,11 @@ class BluetoothService : Service() {
             }
 
             // Report completion
-            withContext(Dispatchers.Main) { callback?.onDownloadProgress(100) }
+            withContext(Dispatchers.Main) {
+                callback?.onDownloadProgress(100)
+                // Notify audio notification if applicable
+                onAudioFileDownloadComplete(file.absolutePath)
+            }
 
             // Broadcast completion for Dynamic Island or other listeners
             val intent = Intent(ACTION_FILE_DOWNLOAD_COMPLETE)
@@ -6011,6 +6080,12 @@ class BluetoothService : Service() {
         try {
             unregisterReceiver(aclDisconnectReceiver)
         } catch (_: Exception) {}
+        try {
+            unregisterReceiver(audioNotificationReceiver)
+        } catch (_: Exception) {}
+
+        // Cleanup audio notification player
+        releaseAudioNotificationPlayer()
 
         if (MirroringService.isRunning) {
             Log.d(TAG, "onDestroy: Mirroring is active, stopping it.")
@@ -7669,22 +7744,27 @@ class BluetoothService : Service() {
                 }
             }
             "audio" -> {
-                // Add play action button for audio
-                val playIntent = Intent(this, FullScreenMediaActivity::class.java).apply {
-                    putExtra(FullScreenMediaActivity.EXTRA_DATA_JSON, Gson().toJson(data))
-                    putExtra(FullScreenMediaActivity.EXTRA_NOTIFICATION_KEY, notifKey)
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                // Initialize audio state if not exists
+                if (!audioNotifStates.containsKey(notifKey)) {
+                    audioNotifStates[notifKey] = AudioNotifState()
                 }
-                val playPendingIntent = PendingIntent.getActivity(
+
+                // Add download action button for audio (initially shows download)
+                val downloadIntent = Intent(ACTION_AUDIO_DOWNLOAD).apply {
+                    putExtra(EXTRA_FILE_KEY, notifKey)
+                    putExtra(EXTRA_NOTIF_ID, notifId)
+                    setPackage(packageName)
+                }
+                val downloadPendingIntent = PendingIntent.getBroadcast(
                     this,
                     notifId + 1,
-                    playIntent,
+                    downloadIntent,
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
                 builder.addAction(
-                    android.R.drawable.ic_media_play,
-                    getString(R.string.notification_file_play_audio),
-                    playPendingIntent
+                    android.R.drawable.stat_sys_download,
+                    getString(R.string.notification_file_download),
+                    downloadPendingIntent
                 )
 
                 // Show duration in expanded text if available
@@ -7692,6 +7772,9 @@ class BluetoothService : Service() {
                     builder.setStyle(NotificationCompat.BigTextStyle()
                         .bigText("${data.name}\n${sizeText} • ${formatDuration(duration)}"))
                 }
+
+                // Make it ongoing so user can't dismiss while downloading/playing
+                builder.setOngoing(false)
             }
             "text" -> {
                 // BigTextStyle for text file preview
@@ -7737,6 +7820,282 @@ class BluetoothService : Service() {
             String.format("%d:%02d:%02d", hours, minutes, seconds)
         } else {
             String.format("%d:%02d", minutes, seconds)
+        }
+    }
+
+    // ==================== Audio Notification Playback ====================
+
+    private fun handleAudioDownload(fileKey: String, notifId: Int) {
+        val fileData = fileDetectedCache[fileKey] ?: return
+        val state = audioNotifStates.getOrPut(fileKey) { AudioNotifState() }
+
+        // Check if already downloaded
+        if (state.localPath != null && java.io.File(state.localPath!!).exists()) {
+            // Already downloaded, start playing
+            handleAudioPlayPause(fileKey, notifId)
+            return
+        }
+
+        // Start downloading
+        state.state = "downloading"
+        state.downloadProgress = 0
+
+        // Update notification to show downloading state
+        updateAudioNotification(fileKey, notifId, fileData)
+
+        // Request file download from phone
+        if (isConnected) {
+            Log.d(TAG, "Requesting audio file download: ${fileData.path}")
+            val msg = ProtocolHelper.createRequestFileDownload(fileData.path)
+            sendMessage(msg)
+
+            // Store the key so we can match when download completes
+            audioNotifCurrentKey = fileKey
+            audioNotifCurrentNotifId = notifId
+        }
+    }
+
+    private fun handleAudioPlayPause(fileKey: String, notifId: Int) {
+        val fileData = fileDetectedCache[fileKey] ?: return
+        val state = audioNotifStates.getOrPut(fileKey) { AudioNotifState() }
+
+        when (state.state) {
+            "idle", "downloading" -> {
+                // Not downloaded yet, trigger download
+                if (state.localPath == null || !java.io.File(state.localPath!!).exists()) {
+                    handleAudioDownload(fileKey, notifId)
+                    return
+                }
+                // Start playback
+                startAudioNotifPlayback(fileKey, notifId, fileData, state)
+            }
+            "playing" -> {
+                // Pause
+                audioNotifPlayer?.pause()
+                state.state = "paused"
+                stopAudioProgressUpdater()
+                updateAudioNotification(fileKey, notifId, fileData)
+            }
+            "paused" -> {
+                // Resume
+                audioNotifPlayer?.start()
+                state.state = "playing"
+                startAudioProgressUpdater(fileKey, notifId, fileData)
+                updateAudioNotification(fileKey, notifId, fileData)
+            }
+        }
+    }
+
+    private fun handleAudioStop(fileKey: String, notifId: Int) {
+        val fileData = fileDetectedCache[fileKey]
+        val state = audioNotifStates[fileKey]
+
+        releaseAudioNotificationPlayer()
+
+        state?.apply {
+            this.state = "idle"
+            playbackProgress = 0
+        }
+
+        // Update notification back to download state or remove
+        if (fileData != null && state != null) {
+            updateAudioNotification(fileKey, notifId, fileData)
+        }
+    }
+
+    private fun startAudioNotifPlayback(fileKey: String, notifId: Int, fileData: FileDetectedData, state: AudioNotifState) {
+        releaseAudioNotificationPlayer()
+
+        try {
+            audioNotifPlayer = android.media.MediaPlayer().apply {
+                setDataSource(this@BluetoothService, android.net.Uri.parse(state.localPath))
+                setOnPreparedListener { mp ->
+                    state.duration = mp.duration
+                    mp.start()
+                    state.state = "playing"
+                    audioNotifIsPlaying = true
+                    audioNotifCurrentKey = fileKey
+                    audioNotifCurrentNotifId = notifId
+                    updateAudioNotification(fileKey, notifId, fileData)
+                    startAudioProgressUpdater(fileKey, notifId, fileData)
+                }
+                setOnCompletionListener {
+                    state.state = "idle"
+                    state.playbackProgress = 0
+                    audioNotifIsPlaying = false
+                    stopAudioProgressUpdater()
+                    updateAudioNotification(fileKey, notifId, fileData)
+                }
+                setOnErrorListener { _, what, extra ->
+                    Log.e(TAG, "Audio playback error: what=$what, extra=$extra")
+                    state.state = "idle"
+                    audioNotifIsPlaying = false
+                    stopAudioProgressUpdater()
+                    updateAudioNotification(fileKey, notifId, fileData)
+                    true
+                }
+                prepareAsync()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start audio playback: ${e.message}")
+            state.state = "idle"
+        }
+    }
+
+    private fun startAudioProgressUpdater(fileKey: String, notifId: Int, fileData: FileDetectedData) {
+        stopAudioProgressUpdater()
+
+        audioProgressRunnable = object : Runnable {
+            override fun run() {
+                try {
+                    val player = audioNotifPlayer
+                    val state = audioNotifStates[fileKey]
+                    if (player != null && state != null && player.isPlaying) {
+                        state.playbackProgress = player.currentPosition
+                        updateAudioNotification(fileKey, notifId, fileData)
+                        audioProgressHandler.postDelayed(this, 1000)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error updating audio progress: ${e.message}")
+                }
+            }
+        }
+        audioProgressHandler.post(audioProgressRunnable!!)
+    }
+
+    private fun stopAudioProgressUpdater() {
+        audioProgressRunnable?.let { audioProgressHandler.removeCallbacks(it) }
+        audioProgressRunnable = null
+    }
+
+    private fun releaseAudioNotificationPlayer() {
+        stopAudioProgressUpdater()
+        try {
+            audioNotifPlayer?.stop()
+            audioNotifPlayer?.release()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error releasing audio player: ${e.message}")
+        }
+        audioNotifPlayer = null
+        audioNotifIsPlaying = false
+    }
+
+    private fun updateAudioNotification(fileKey: String, notifId: Int, fileData: FileDetectedData) {
+        val state = audioNotifStates[fileKey] ?: return
+
+        val title = fileData.notificationTitle ?: getString(R.string.notification_file_detected_title)
+        val sizeText = formatFileSize(fileData.size)
+
+        val builder = NotificationCompat.Builder(this, MIRRORED_CHANNEL_ID)
+            .setContentTitle(title)
+            .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setOnlyAlertOnce(true)
+
+        // Large icon
+        val appIcon = fileData.largeIcon?.let { decodeBase64ToBitmap(it) }
+        appIcon?.let { builder.setLargeIcon(it) }
+
+        when (state.state) {
+            "downloading" -> {
+                builder.setContentText(getString(R.string.notification_file_downloading, state.downloadProgress))
+                builder.setProgress(100, state.downloadProgress, false)
+                builder.setOngoing(true)
+            }
+            "playing", "paused" -> {
+                val progress = state.playbackProgress
+                val duration = state.duration
+                val progressText = "${formatDuration(progress.toLong())} / ${formatDuration(duration.toLong())}"
+                builder.setContentText("${fileData.name} - $progressText")
+
+                // Progress bar showing playback progress
+                if (duration > 0) {
+                    builder.setProgress(duration, progress, false)
+                }
+
+                // Play/Pause action
+                val playPauseIntent = Intent(ACTION_AUDIO_PLAY_PAUSE).apply {
+                    putExtra(EXTRA_FILE_KEY, fileKey)
+                    putExtra(EXTRA_NOTIF_ID, notifId)
+                    setPackage(packageName)
+                }
+                val playPausePendingIntent = PendingIntent.getBroadcast(
+                    this, notifId + 1, playPauseIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val playPauseIcon = if (state.state == "playing")
+                    android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
+                val playPauseLabel = if (state.state == "playing")
+                    getString(R.string.notification_file_pause_audio) else getString(R.string.notification_file_play_audio)
+                builder.addAction(playPauseIcon, playPauseLabel, playPausePendingIntent)
+
+                // Stop action
+                val stopIntent = Intent(ACTION_AUDIO_STOP).apply {
+                    putExtra(EXTRA_FILE_KEY, fileKey)
+                    putExtra(EXTRA_NOTIF_ID, notifId)
+                    setPackage(packageName)
+                }
+                val stopPendingIntent = PendingIntent.getBroadcast(
+                    this, notifId + 2, stopIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                builder.addAction(android.R.drawable.ic_media_pause, getString(R.string.notification_file_stop_audio), stopPendingIntent)
+
+                builder.setOngoing(state.state == "playing")
+            }
+            else -> { // idle
+                val durationText = fileData.duration?.let { " • ${formatDuration(it)}" } ?: ""
+                builder.setContentText("${fileData.name} ($sizeText$durationText)")
+
+                // Show download or play button depending on if file exists
+                val hasLocalFile = state.localPath != null && java.io.File(state.localPath!!).exists()
+                val actionIntent = Intent(if (hasLocalFile) ACTION_AUDIO_PLAY_PAUSE else ACTION_AUDIO_DOWNLOAD).apply {
+                    putExtra(EXTRA_FILE_KEY, fileKey)
+                    putExtra(EXTRA_NOTIF_ID, notifId)
+                    setPackage(packageName)
+                }
+                val actionPendingIntent = PendingIntent.getBroadcast(
+                    this, notifId + 1, actionIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val actionIcon = if (hasLocalFile) android.R.drawable.ic_media_play else android.R.drawable.stat_sys_download
+                val actionLabel = if (hasLocalFile) getString(R.string.notification_file_play_audio) else getString(R.string.notification_file_download)
+                builder.addAction(actionIcon, actionLabel, actionPendingIntent)
+
+                builder.setOngoing(false)
+                builder.setAutoCancel(true)
+            }
+        }
+
+        notificationManager.notify(notifId, builder.build())
+    }
+
+    // Called when file download completes (from handleFileTransferEnd)
+    fun onAudioFileDownloadComplete(filePath: String) {
+        val fileKey = audioNotifCurrentKey ?: return
+        val notifId = audioNotifCurrentNotifId
+        val fileData = fileDetectedCache[fileKey] ?: return
+        val state = audioNotifStates[fileKey] ?: return
+
+        Log.d(TAG, "Audio file download complete: $filePath")
+        state.localPath = filePath
+        state.state = "idle"
+        state.downloadProgress = 100
+
+        // Auto-start playback after download
+        startAudioNotifPlayback(fileKey, notifId, fileData, state)
+    }
+
+    // Called during file download progress (from handleFileChunk)
+    fun onAudioFileDownloadProgress(progress: Int) {
+        val fileKey = audioNotifCurrentKey ?: return
+        val notifId = audioNotifCurrentNotifId
+        val fileData = fileDetectedCache[fileKey] ?: return
+        val state = audioNotifStates[fileKey] ?: return
+
+        if (state.state == "downloading") {
+            state.downloadProgress = progress
+            updateAudioNotification(fileKey, notifId, fileData)
         }
     }
 }

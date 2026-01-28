@@ -168,32 +168,60 @@ class FullScreenMediaActivity : ComponentActivity() {
         }
         setContentView(rootContainer)
 
-        // Loading container
+        // Loading container - centered with semi-transparent background
         loadingContainer = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = android.view.Gravity.CENTER
             visibility = View.GONE
+            setBackgroundColor(Color.parseColor("#CC000000"))
+            setPadding(dpToPx(32), dpToPx(32), dpToPx(32), dpToPx(32))
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
         }
 
-        loadingProgress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-            layoutParams = LinearLayout.LayoutParams(dpToPx(200), dpToPx(8)).apply {
-                bottomMargin = dpToPx(16)
+        // Download icon
+        val downloadIcon = ImageView(this).apply {
+            setImageResource(android.R.drawable.stat_sys_download)
+            setColorFilter(Color.WHITE)
+            layoutParams = LinearLayout.LayoutParams(dpToPx(64), dpToPx(64)).apply {
+                bottomMargin = dpToPx(24)
             }
-            max = 100
-            progress = 0
         }
-        loadingContainer.addView(loadingProgress)
+        loadingContainer.addView(downloadIcon)
 
+        // Loading text - larger and bold
         loadingText = TextView(this).apply {
             text = getString(R.string.fullscreen_downloading)
             setTextColor(Color.WHITE)
-            textSize = 14f
+            textSize = 20f
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            gravity = android.view.Gravity.CENTER
         }
         loadingContainer.addView(loadingText)
+
+        // Progress bar - wider and more visible
+        loadingProgress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            layoutParams = LinearLayout.LayoutParams(dpToPx(280), dpToPx(12)).apply {
+                topMargin = dpToPx(20)
+                bottomMargin = dpToPx(8)
+            }
+            max = 100
+            progress = 0
+            progressDrawable.setColorFilter(Color.parseColor("#4CAF50"), android.graphics.PorterDuff.Mode.SRC_IN)
+        }
+        loadingContainer.addView(loadingProgress)
+
+        // Percentage text
+        val percentText = TextView(this).apply {
+            tag = "percent_text"
+            text = "0%"
+            setTextColor(Color.parseColor("#AAAAAA"))
+            textSize = 16f
+            gravity = android.view.Gravity.CENTER
+        }
+        loadingContainer.addView(percentText)
 
         rootContainer.addView(loadingContainer)
 
@@ -393,7 +421,8 @@ class FullScreenMediaActivity : ComponentActivity() {
 
     private fun updateDownloadProgress(progress: Int) {
         loadingProgress.progress = progress
-        loadingText.text = getString(R.string.fullscreen_downloading_progress, progress)
+        loadingText.text = getString(R.string.fullscreen_downloading)
+        loadingContainer.findViewWithTag<TextView>("percent_text")?.text = "$progress%"
     }
 
     private fun onDownloadComplete(path: String) {

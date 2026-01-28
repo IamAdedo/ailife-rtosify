@@ -509,6 +509,10 @@
     <!-- File Observer Notifications -->
     <string name="notification_file_detected_title">检测到新文件</string>
     <string name="notification_file_play_audio">播放</string>
+    <string name="notification_file_pause_audio">暂停</string>
+    <string name="notification_file_stop_audio">停止</string>
+    <string name="notification_file_download">下载</string>
+    <string name="notification_file_downloading">下载中 %d%%</string>
     <string name="notification_file_view">查看</string>
 
     <!-- Full Screen Media Activity -->

@@ -3,14 +3,17 @@ package com.ailife.rtosifycompanion
 import android.content.Context
 import android.graphics.Matrix
 import android.graphics.PointF
+import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import androidx.appcompat.widget.AppCompatImageView
+import kotlin.math.max
+import kotlin.math.min
 
 /**
- * A custom ImageView that supports pinch-to-zoom, pan, and double-tap to zoom.
+ * A custom ImageView that supports smooth pinch-to-zoom, pan, and double-tap to zoom.
  */
 class ZoomableImageView @JvmOverloads constructor(
     context: Context,
@@ -18,226 +21,251 @@ class ZoomableImageView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : AppCompatImageView(context, attrs, defStyleAttr) {
 
-    private val matrix = Matrix()
-    private val savedMatrix = Matrix()
-
-    private val start = PointF()
-    private val mid = PointF()
-    private var oldDist = 1f
-
-    private var mode = NONE
+    private val imageMatrix = Matrix()
+    private val matrixValues = FloatArray(9)
 
     private var minScale = 1f
-    private var maxScale = 5f
-    private var currentScale = 1f
-
-    private val matrixValues = FloatArray(9)
+    private var maxScale = 6f
+    private var midScale = 3f
 
     private var viewWidth = 0
     private var viewHeight = 0
-    private var imageWidth = 0f
-    private var imageHeight = 0f
+    private var intrinsicWidth = 0f
+    private var intrinsicHeight = 0f
 
-    private var isInitialized = false
+    // Touch state
+    private var lastTouchX = 0f
+    private var lastTouchY = 0f
+    private var activePointerId = -1
+    private var isScaling = false
 
     private val scaleDetector: ScaleGestureDetector
     private val gestureDetector: GestureDetector
 
-    companion object {
-        private const val NONE = 0
-        private const val DRAG = 1
-        private const val ZOOM = 2
-    }
-
     init {
         scaleType = ScaleType.MATRIX
-        imageMatrix = matrix
 
-        scaleDetector = ScaleGestureDetector(context, ScaleListener())
-        gestureDetector = GestureDetector(context, GestureListener())
+        scaleDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+                isScaling = true
+                return true
+            }
+
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                val scaleFactor = detector.scaleFactor
+                val focusX = detector.focusX
+                val focusY = detector.focusY
+
+                val currentScale = getCurrentScale()
+                var newScale = currentScale * scaleFactor
+
+                // Clamp scale
+                newScale = max(minScale, min(maxScale, newScale))
+                val actualScaleFactor = newScale / currentScale
+
+                imageMatrix.postScale(actualScaleFactor, actualScaleFactor, focusX, focusY)
+                constrainMatrix()
+                setImageMatrix(imageMatrix)
+                return true
+            }
+
+            override fun onScaleEnd(detector: ScaleGestureDetector) {
+                isScaling = false
+            }
+        })
+
+        gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                val currentScale = getCurrentScale()
+                val targetScale: Float
+
+                targetScale = when {
+                    currentScale < midScale - 0.1f -> midScale
+                    currentScale < maxScale - 0.1f -> maxScale
+                    else -> minScale
+                }
+
+                animateZoom(currentScale, targetScale, e.x, e.y)
+                return true
+            }
+
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+                return false
+            }
+        })
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         viewWidth = w
         viewHeight = h
-        fitImageToView()
+        setupInitialMatrix()
     }
 
     override fun setImageDrawable(drawable: android.graphics.drawable.Drawable?) {
         super.setImageDrawable(drawable)
-        isInitialized = false
-        fitImageToView()
+        drawable?.let {
+            intrinsicWidth = it.intrinsicWidth.toFloat()
+            intrinsicHeight = it.intrinsicHeight.toFloat()
+        }
+        setupInitialMatrix()
     }
 
-    private fun fitImageToView() {
+    private fun setupInitialMatrix() {
         val drawable = drawable ?: return
         if (viewWidth == 0 || viewHeight == 0) return
 
-        imageWidth = drawable.intrinsicWidth.toFloat()
-        imageHeight = drawable.intrinsicHeight.toFloat()
+        intrinsicWidth = drawable.intrinsicWidth.toFloat()
+        intrinsicHeight = drawable.intrinsicHeight.toFloat()
 
-        if (imageWidth == 0f || imageHeight == 0f) return
+        if (intrinsicWidth == 0f || intrinsicHeight == 0f) return
 
-        val scaleX = viewWidth / imageWidth
-        val scaleY = viewHeight / imageHeight
-        val scale = minOf(scaleX, scaleY)
+        // Calculate scale to fit image in view
+        val scaleX = viewWidth / intrinsicWidth
+        val scaleY = viewHeight / intrinsicHeight
+        val scale = min(scaleX, scaleY)
 
         minScale = scale
-        currentScale = scale
+        midScale = scale * 2.5f
+        maxScale = scale * 6f
 
-        matrix.reset()
-        matrix.postScale(scale, scale)
+        // Center the image
+        val dx = (viewWidth - intrinsicWidth * scale) / 2f
+        val dy = (viewHeight - intrinsicHeight * scale) / 2f
 
-        val redundantXSpace = viewWidth - (scale * imageWidth)
-        val redundantYSpace = viewHeight - (scale * imageHeight)
-        matrix.postTranslate(redundantXSpace / 2, redundantYSpace / 2)
-
-        imageMatrix = matrix
-        isInitialized = true
+        imageMatrix.reset()
+        imageMatrix.postScale(scale, scale)
+        imageMatrix.postTranslate(dx, dy)
+        setImageMatrix(imageMatrix)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         scaleDetector.onTouchEvent(event)
         gestureDetector.onTouchEvent(event)
 
-        when (event.action and MotionEvent.ACTION_MASK) {
+        when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                savedMatrix.set(matrix)
-                start.set(event.x, event.y)
-                mode = DRAG
+                activePointerId = event.getPointerId(0)
+                lastTouchX = event.x
+                lastTouchY = event.y
             }
+
             MotionEvent.ACTION_POINTER_DOWN -> {
-                oldDist = spacing(event)
-                if (oldDist > 10f) {
-                    savedMatrix.set(matrix)
-                    midPoint(mid, event)
-                    mode = ZOOM
-                }
+                // When second finger goes down, update tracking to primary finger
+                activePointerId = event.getPointerId(0)
+                lastTouchX = event.getX(0)
+                lastTouchY = event.getY(0)
             }
+
             MotionEvent.ACTION_MOVE -> {
-                if (mode == DRAG) {
-                    matrix.set(savedMatrix)
-                    val dx = event.x - start.x
-                    val dy = event.y - start.y
-                    matrix.postTranslate(dx, dy)
-                    fixTranslation()
-                } else if (mode == ZOOM && event.pointerCount >= 2) {
-                    val newDist = spacing(event)
-                    if (newDist > 10f) {
-                        matrix.set(savedMatrix)
-                        val scale = newDist / oldDist
-                        matrix.postScale(scale, scale, mid.x, mid.y)
-                        fixScaleAndTranslation()
+                if (!isScaling && event.pointerCount == 1) {
+                    val pointerIndex = event.findPointerIndex(activePointerId)
+                    if (pointerIndex >= 0) {
+                        val x = event.getX(pointerIndex)
+                        val y = event.getY(pointerIndex)
+
+                        val dx = x - lastTouchX
+                        val dy = y - lastTouchY
+
+                        // Only pan if zoomed in
+                        if (getCurrentScale() > minScale + 0.01f) {
+                            imageMatrix.postTranslate(dx, dy)
+                            constrainMatrix()
+                            setImageMatrix(imageMatrix)
+                        }
+
+                        lastTouchX = x
+                        lastTouchY = y
                     }
                 }
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
-                mode = NONE
+
+            MotionEvent.ACTION_POINTER_UP -> {
+                val pointerIndex = event.actionIndex
+                val pointerId = event.getPointerId(pointerIndex)
+                if (pointerId == activePointerId) {
+                    // Switch to another pointer
+                    val newPointerIndex = if (pointerIndex == 0) 1 else 0
+                    if (newPointerIndex < event.pointerCount) {
+                        lastTouchX = event.getX(newPointerIndex)
+                        lastTouchY = event.getY(newPointerIndex)
+                        activePointerId = event.getPointerId(newPointerIndex)
+                    }
+                }
+            }
+
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                activePointerId = -1
             }
         }
 
-        imageMatrix = matrix
         return true
     }
 
-    private fun spacing(event: MotionEvent): Float {
-        if (event.pointerCount < 2) return 0f
-        val x = event.getX(0) - event.getX(1)
-        val y = event.getY(0) - event.getY(1)
-        return kotlin.math.sqrt(x * x + y * y)
+    private fun getCurrentScale(): Float {
+        imageMatrix.getValues(matrixValues)
+        return matrixValues[Matrix.MSCALE_X]
     }
 
-    private fun midPoint(point: PointF, event: MotionEvent) {
-        if (event.pointerCount < 2) return
-        val x = event.getX(0) + event.getX(1)
-        val y = event.getY(0) + event.getY(1)
-        point.set(x / 2, y / 2)
-    }
+    private fun constrainMatrix() {
+        val rect = getImageRect() ?: return
 
-    private fun fixScaleAndTranslation() {
-        matrix.getValues(matrixValues)
-        currentScale = matrixValues[Matrix.MSCALE_X]
+        var dx = 0f
+        var dy = 0f
 
-        if (currentScale < minScale) {
-            matrix.setScale(minScale, minScale)
-            currentScale = minScale
-            // Re-center after reset
-            val redundantXSpace = viewWidth - (minScale * imageWidth)
-            val redundantYSpace = viewHeight - (minScale * imageHeight)
-            matrix.postTranslate(redundantXSpace / 2, redundantYSpace / 2)
-        } else if (currentScale > maxScale) {
-            val scale = maxScale / currentScale
-            matrix.postScale(scale, scale, mid.x, mid.y)
-            currentScale = maxScale
-        }
-
-        fixTranslation()
-    }
-
-    private fun fixTranslation() {
-        matrix.getValues(matrixValues)
-        val transX = matrixValues[Matrix.MTRANS_X]
-        val transY = matrixValues[Matrix.MTRANS_Y]
-        val scale = matrixValues[Matrix.MSCALE_X]
-
-        val scaledWidth = imageWidth * scale
-        val scaledHeight = imageHeight * scale
-
-        var fixTransX = 0f
-        var fixTransY = 0f
-
-        if (scaledWidth < viewWidth) {
-            fixTransX = (viewWidth - scaledWidth) / 2 - transX
+        if (rect.width() <= viewWidth) {
+            // Center horizontally
+            dx = (viewWidth - rect.width()) / 2f - rect.left
         } else {
-            if (transX > 0) fixTransX = -transX
-            else if (transX + scaledWidth < viewWidth) fixTransX = viewWidth - transX - scaledWidth
+            // Constrain to edges
+            if (rect.left > 0) dx = -rect.left
+            else if (rect.right < viewWidth) dx = viewWidth - rect.right
         }
 
-        if (scaledHeight < viewHeight) {
-            fixTransY = (viewHeight - scaledHeight) / 2 - transY
+        if (rect.height() <= viewHeight) {
+            // Center vertically
+            dy = (viewHeight - rect.height()) / 2f - rect.top
         } else {
-            if (transY > 0) fixTransY = -transY
-            else if (transY + scaledHeight < viewHeight) fixTransY = viewHeight - transY - scaledHeight
+            // Constrain to edges
+            if (rect.top > 0) dy = -rect.top
+            else if (rect.bottom < viewHeight) dy = viewHeight - rect.bottom
         }
 
-        matrix.postTranslate(fixTransX, fixTransY)
-    }
-
-    private inner class ScaleListener : ScaleGestureDetector.SimpleOnScaleGestureListener() {
-        override fun onScale(detector: ScaleGestureDetector): Boolean {
-            val scaleFactor = detector.scaleFactor
-            val newScale = currentScale * scaleFactor
-
-            if (newScale in minScale..maxScale) {
-                matrix.postScale(scaleFactor, scaleFactor, detector.focusX, detector.focusY)
-                currentScale = newScale
-                fixTranslation()
-                imageMatrix = matrix
-            }
-            return true
+        if (dx != 0f || dy != 0f) {
+            imageMatrix.postTranslate(dx, dy)
         }
     }
 
-    private inner class GestureListener : GestureDetector.SimpleOnGestureListener() {
-        override fun onDoubleTap(e: MotionEvent): Boolean {
-            if (currentScale > minScale * 1.5f) {
-                // Zoom out to fit
-                fitImageToView()
-            } else {
-                // Zoom in to 2.5x
-                val targetScale = minScale * 2.5f
-                val scaleFactor = targetScale / currentScale
-                matrix.postScale(scaleFactor, scaleFactor, e.x, e.y)
-                currentScale = targetScale
-                fixScaleAndTranslation()
-                imageMatrix = matrix
-            }
-            return true
+    private fun getImageRect(): RectF? {
+        if (intrinsicWidth == 0f || intrinsicHeight == 0f) return null
+        val rect = RectF(0f, 0f, intrinsicWidth, intrinsicHeight)
+        imageMatrix.mapRect(rect)
+        return rect
+    }
+
+    private fun animateZoom(startScale: Float, targetScale: Float, focusX: Float, focusY: Float) {
+        val startMatrix = Matrix(imageMatrix)
+
+        val animator = android.animation.ValueAnimator.ofFloat(0f, 1f)
+        animator.duration = 250
+        animator.interpolator = android.view.animation.DecelerateInterpolator()
+
+        animator.addUpdateListener { animation ->
+            val fraction = animation.animatedValue as Float
+            val currentScale = startScale + (targetScale - startScale) * fraction
+            val scaleFactor = currentScale / getCurrentScale()
+
+            imageMatrix.set(startMatrix)
+            val totalScale = currentScale / startScale
+            imageMatrix.postScale(totalScale, totalScale, focusX, focusY)
+            constrainMatrix()
+            setImageMatrix(imageMatrix)
         }
+
+        animator.start()
     }
 
     fun resetZoom() {
-        fitImageToView()
+        setupInitialMatrix()
     }
 }
