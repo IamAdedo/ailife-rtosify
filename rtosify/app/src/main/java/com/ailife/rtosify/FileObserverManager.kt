@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 class FileObserverManager(
     private val context: Context,
-    private val userServiceGetter: () -> IUserService?,
+    private val userServiceGetter: suspend () -> IUserService?,
     private val onFileDetected: (FileDetectedData) -> Unit
 ) {
 
@@ -54,6 +54,21 @@ class FileObserverManager(
         val json = prefs.getString("rules", "[]")
         val type = object : TypeToken<List<FileObserverRule>>() {}.type
         currentRules = gson.fromJson(json, type) ?: emptyList()
+    }
+    
+    private val appPrefs: SharedPreferences = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+
+    private fun getBypassedPath(path: String): String {
+        if (!appPrefs.getBoolean("native_access_bypass", true)) return path
+
+        var newPath = path
+        if (newPath.contains("/Android/data")) {
+            newPath = newPath.replace("/Android/data", "/Android/data\u200d")
+        }
+        if (newPath.contains("/Android/obb")) {
+            newPath = newPath.replace("/Android/obb", "/Android/obb\u200d")
+        }
+        return newPath
     }
 
     private fun stopObservers() {
@@ -120,19 +135,27 @@ class FileObserverManager(
                     var success = false
                     
                     // 1. Get List of Files (Accessible + Restricted)
-                    val file = File(rule.path)
+                    // Try with bypass first
+                    val effectivePath = getBypassedPath(rule.path)
+                    val file = File(effectivePath)
+                    
                     if (file.exists() && file.isDirectory && file.canRead()) {
                         try {
                              file.walk()
                                 .maxDepth(if (rule.isRecursive) Int.MAX_VALUE else 1)
                                 .filter { it.isFile }
                                 .forEach { f ->
+                                    // Fix name if it contains ZWJ in relative path
                                     val relPath = f.toRelativeString(file)
+                                    // We must strip \u200d from the relative path/filename if present for cleaner matching?
+                                    // Actually, standard File API usually returns clean names if the path works.
+                                    // But if the DIR has ZWJ, child files might not. 
+                                    // Let's assume standard behavior.
                                     currentFiles.add(relPath)
                                 }
                             success = true
                         } catch (e: Exception) {
-                            Log.e("FileObserver", "Error walking path ${rule.path}", e)
+                            Log.e("FileObserver", "Error walking path $effectivePath", e)
                             success = false
                         }
                     } else {
@@ -269,27 +292,40 @@ class FileObserverManager(
             }
 
             // Check if we can read the file directly for metadata
-            if (file.canRead()) {
+            var canReadDirectly = file.canRead()
+            var effectiveFile = file
+            
+            if (!canReadDirectly) {
+                // Try bypass
+                val bp = getBypassedPath(file.absolutePath)
+                val bf = File(bp)
+                if (bf.canRead()) {
+                    canReadDirectly = true
+                    effectiveFile = bf
+                }
+            }
+
+            if (canReadDirectly) {
                 try {
                     if (type == "image") {
                         val opts = BitmapFactory.Options().apply { inSampleSize = 4 }
-                        val bmp = BitmapFactory.decodeFile(file.absolutePath, opts)
+                        val bmp = BitmapFactory.decodeFile(effectiveFile.absolutePath, opts)
                         thumbnail = bmp?.let { bitmapToBase64(it) }
                     } else if (type == "video") {
                         val retriever = MediaMetadataRetriever()
-                        retriever.setDataSource(file.absolutePath)
+                        retriever.setDataSource(effectiveFile.absolutePath)
                         val bmp = retriever.getFrameAtTime()
                         thumbnail = bmp?.let { bitmapToBase64(it) }
                         duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
                         retriever.release()
                     } else if (type == "audio") {
                         val retriever = MediaMetadataRetriever()
-                        retriever.setDataSource(file.absolutePath)
+                        retriever.setDataSource(effectiveFile.absolutePath)
                         duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
                         retriever.release()
                     }
                 } catch (e: Exception) {
-                    Log.e("FileObserver", "Direct metadata failed for ${file.name}, trying via Shizuku if available", e)
+                    Log.e("FileObserver", "Direct metadata failed for ${effectiveFile.name}, trying via Shizuku if available", e)
                 }
             }
             

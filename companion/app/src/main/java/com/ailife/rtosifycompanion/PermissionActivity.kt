@@ -139,6 +139,18 @@ class PermissionActivity : AppCompatActivity() {
     private fun updatePermissionList() {
         val perms = mutableListOf<PermissionItem>()
 
+        // 0. Native Access Bypass (Custom Option)
+        val prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+        val isNativeBypassEnabled = prefs.getBoolean("native_access_bypass", false)
+        perms.add(
+            PermissionItem(
+                "NATIVE_BYPASS",
+                "Native Access Bypass",
+                "Injects special character to bypass path restrictions (Android/data). Recommended: ON",
+                isNativeBypassEnabled
+            )
+        )
+
         // 1. Bluetooth
         val hasBT =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -447,6 +459,31 @@ class PermissionActivity : AppCompatActivity() {
                             ),
                             101
                     )
+                }
+            }
+            "NATIVE_BYPASS" -> {
+                val prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+                val current = prefs.getBoolean("native_access_bypass", false)
+                
+                if (!current) {
+                    // Trying to enable. Check compatibility first.
+                    val root = android.os.Environment.getExternalStorageDirectory().absolutePath
+                    val testPath = "$root/Android/data\u200d"
+                    val testFile = java.io.File(testPath)
+                    
+                    // Simple stat check
+                    if (testFile.exists() && testFile.isDirectory) {
+                         prefs.edit().putBoolean("native_access_bypass", true).apply()
+                         updatePermissionList()
+                         android.widget.Toast.makeText(this, "Native Bypass Enabled Compatible Kernel Detected", android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                         // Compatibility failed
+                         android.widget.Toast.makeText(this, "Error: Kernel does not support ZWJ Bypass.", android.widget.Toast.LENGTH_LONG).show()
+                    }
+                } else {
+                    // Disable
+                    prefs.edit().putBoolean("native_access_bypass", false).apply()
+                    updatePermissionList()
                 }
             }
             "INSTALL" -> {

@@ -126,21 +126,43 @@ class DirectoryPickerActivity : AppCompatActivity() {
         refreshList()
     }
 
+    private fun getBypassedPath(path: String): String {
+        val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+        if (!prefs.getBoolean("native_access_bypass", true)) return path
+
+        var newPath = path
+        if (newPath.contains("/Android/data")) {
+            newPath = newPath.replace("/Android/data", "/Android/data\u200d")
+        }
+        if (newPath.contains("/Android/obb")) {
+            newPath = newPath.replace("/Android/obb", "/Android/obb\u200d")
+        }
+        return newPath
+    }
+
     private fun refreshList() {
         currentPathTextView.text = currentPath.absolutePath
         
-        // Try standard API
-        var files = currentPath.listFiles()?.filter { it.isDirectory && !it.isHidden }?.sortedBy { it.name }
+        // Try standard API with Bypass
+        val bypassPath = getBypassedPath(currentPath.absolutePath)
+        val bypassFile = File(bypassPath)
+        
+        var files = bypassFile.listFiles()?.filter { it.isDirectory && !it.isHidden }?.sortedBy { it.name }
         
         var items: List<DirectoryItem>? = null
 
         if (files != null && files.isNotEmpty()) {
-             items = files.map { DirectoryItem(it, it.isDirectory) }
+             items = files.map { 
+                 // Fix name if it contains ZWJ
+                 val name = it.name.replace("\u200d", "")
+                 DirectoryItem(File(currentPath, name), it.isDirectory) 
+             }
         }
         
         // Fallback to Shizuku UserService
         if ((items == null || items.isEmpty()) && userService != null) {
             try {
+                // ... same logic ...
                 val json = userService?.listFiles(currentPath.absolutePath)
                 if (!json.isNullOrEmpty() && json != "[]") {
                     val type = object : TypeToken<List<Map<String, Any>>>() {}.type

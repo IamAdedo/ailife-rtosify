@@ -143,6 +143,15 @@ class BluetoothService : Service() {
                     Log.w(TAG, "UserService disconnected")
                 }
             }
+            
+    private fun shizukuAvailable(): Boolean {
+        return try {
+            rikka.shizuku.Shizuku.pingBinder() &&
+            rikka.shizuku.Shizuku.checkSelfPermission() == android.content.pm.PackageManager.PERMISSION_GRANTED
+        } catch (e: Exception) {
+            false
+        }
+    }
 
     // Media Session Listener
     private var mediaSessionListener: MediaSessionListener? = null
@@ -806,7 +815,18 @@ class BluetoothService : Service() {
         mediaSessionListener?.start()
         
         // Initialize File Observer
-        fileObserverManager = FileObserverManager(this, { userService }) { data ->
+        fileObserverManager = FileObserverManager(this, {
+             try {
+                if (userService == null && shizukuAvailable()) {
+                     ensureUserServiceBound()
+                     // Wait briefly for bind
+                     kotlinx.coroutines.delay(500)
+                }
+                userService
+             } catch(e: Exception) {
+                 null
+             }
+        }) { data ->
             if (isConnected) {
                 // Send detected file info to watch
                 serviceScope.launch {
