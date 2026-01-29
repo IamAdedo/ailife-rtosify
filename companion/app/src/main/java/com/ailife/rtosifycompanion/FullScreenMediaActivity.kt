@@ -271,6 +271,9 @@ class FullScreenMediaActivity : ComponentActivity() {
     }
 
     private fun detectTypeFromPath(): String {
+        // If we have a big picture, it's an image, regardless of path
+        if (bigPictureBase64 != null) return "image"
+
         val path = localFilePath ?: fileData?.path ?: return "other"
         val ext = path.substringAfterLast('.', "").lowercase()
         return when (ext) {
@@ -279,6 +282,7 @@ class FullScreenMediaActivity : ComponentActivity() {
             "mp3", "wav", "aac", "ogg", "m4a", "flac", "amr", "opus", "oga", "wma" -> "audio"
             else -> "other"
         }
+
     }
 
     private fun showImage() {
@@ -384,16 +388,32 @@ class FullScreenMediaActivity : ComponentActivity() {
     }
 
     private fun showPlaceholderAndDownload() {
-        val placeholder = ImageView(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT
-            )
-            scaleType = ImageView.ScaleType.CENTER
-            setImageResource(android.R.drawable.ic_menu_gallery)
-            setColorFilter(Color.GRAY)
+        // Try to show low-res placeholder if available
+        val placeholderBitmap = fileData?.thumbnail?.let { decodeBase64ToBitmap(it) }
+        
+        if (placeholderBitmap != null) {
+            // Use ZoomableImageView for placeholder too so it's seamless
+            zoomableImageView = ZoomableImageView(this).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                setImageBitmap(placeholderBitmap)
+            }
+            rootContainer.addView(zoomableImageView, 0)
+        } else {
+            val placeholder = ImageView(this).apply {
+                tag = "placeholder"
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                scaleType = ImageView.ScaleType.CENTER
+                setImageResource(android.R.drawable.ic_menu_gallery)
+                setColorFilter(Color.GRAY)
+            }
+            rootContainer.addView(placeholder, 0)
         }
-        rootContainer.addView(placeholder, 0)
 
         if (fileData != null) {
             showLoadingAndDownload()
@@ -432,20 +452,29 @@ class FullScreenMediaActivity : ComponentActivity() {
         val type = fileData?.type ?: detectTypeFromPath()
         when (type) {
             "image" -> {
-                // Replace placeholder with actual image
-                rootContainer.findViewWithTag<View>("placeholder")?.let {
-                    rootContainer.removeView(it)
-                }
-                val bitmap = BitmapFactory.decodeFile(path)
-                if (bitmap != null) {
-                    zoomableImageView = ZoomableImageView(this).apply {
-                        layoutParams = FrameLayout.LayoutParams(
-                            FrameLayout.LayoutParams.MATCH_PARENT,
-                            FrameLayout.LayoutParams.MATCH_PARENT
-                        )
-                        setImageBitmap(bitmap)
+                // Check for existing zoomable view (loaded from low-res)
+                if (zoomableImageView != null) {
+                    val bitmap = BitmapFactory.decodeFile(path)
+                    if (bitmap != null) {
+                        Log.d(TAG, "Replacing low-res image with high-res from $path")
+                        zoomableImageView?.setImageBitmap(bitmap)
                     }
-                    rootContainer.addView(zoomableImageView, 0)
+                } else {
+                    // Replace placeholder with actual image
+                    rootContainer.findViewWithTag<View>("placeholder")?.let {
+                        rootContainer.removeView(it)
+                    }
+                    val bitmap = BitmapFactory.decodeFile(path)
+                    if (bitmap != null) {
+                        zoomableImageView = ZoomableImageView(this).apply {
+                            layoutParams = FrameLayout.LayoutParams(
+                                FrameLayout.LayoutParams.MATCH_PARENT,
+                                FrameLayout.LayoutParams.MATCH_PARENT
+                            )
+                            setImageBitmap(bitmap)
+                        }
+                        rootContainer.addView(zoomableImageView, 0)
+                    }
                 }
             }
             "video" -> setupVideoPlayer(path)

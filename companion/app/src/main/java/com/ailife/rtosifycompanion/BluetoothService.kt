@@ -5424,6 +5424,21 @@ class BluetoothService : Service() {
                                                 null as Bitmap?
                                         ) // Hide large icon when expanded
                         builder.setStyle(bigPictureStyle)
+
+                        // Create intent to open full screen viewer
+                        val fullScreenIntent = Intent(this, FullScreenMediaActivity::class.java).apply {
+                            putExtra(FullScreenMediaActivity.EXTRA_NOTIFICATION_KEY, key)
+                            putExtra(FullScreenMediaActivity.EXTRA_BIG_PICTURE_BASE64, pictureBase64)
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                        
+                        val contentPendingIntent = PendingIntent.getActivity(
+                            this,
+                            (notifId * 31), // Unique request code to avoid collisions
+                            fullScreenIntent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        )
+                        builder.setContentIntent(contentPendingIntent)
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error decoding big picture: ${e.message}", e)

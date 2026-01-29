@@ -11,6 +11,7 @@ import android.util.Base64
 import android.util.Log
 import android.view.Gravity
 import android.view.View
+import android.view.MotionEvent
 import android.view.ViewOutlineProvider
 import android.view.animation.DecelerateInterpolator
 import android.widget.*
@@ -1561,11 +1562,9 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                             }
                         }
                         // Click to open full screen viewer for images and videos
-                        if (notif.fileType == "image" || notif.fileType == "video" || notif.packageName == "file.observer") {
-                            setOnClickListener {
-                                onOpenFullScreenViewer?.invoke(notif)
-                            }
-                        }
+                        // Note: actual click handling is now done via setOnTouchListener (swipe logic)
+                        // inside createNotificationListItem to avoid conflict.
+                        tag = "big_picture_view"
                     }
                     addView(bigPictureView)
                 }
@@ -1970,60 +1969,97 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             }
 
             // Swipe right to dismiss gesture
+            val swipeListener = createSwipeDismissListener(this, notif) {
+                // On Click listener for the row (standard expanded state behavior - usually just logs or collapses)
+                // If we want the whole row to be clickable to open the app, we can do it here.
+                // For now, let's keep the default behavior which is just handling the swipe.
+                // If the user taps the row (not the image), maybe we should toggle something?
+                // The original code v.performClick calls the OnClickListener set on "itemView",
+                // but we didn't see an OnClickListener set on "this" (LinearLayout) explicitly in createNotificationListItem,
+                // except the buttons inside it.
+                // However, let's allow it to perform click if any.
+                this.performClick()
+            }
+            setOnTouchListener(swipeListener)
+
+            // Apply same swipe listener to bigPicture view if it exists, but with specific click action
+            findViewWithTag<ImageView>("big_picture_view")?.let { imgView ->
+                imgView.setOnTouchListener(createSwipeDismissListener(this, notif) {
+                    onOpenFullScreenViewer?.invoke(notif)
+                    // Trigger a proper collapse via pill click logic which updates state in service
+                    // If we just animate, the logical state might remain expanded.
+                    // Assuming onPillClick toggles expansion off if currently expanded.
+                    onPillClick?.invoke() 
+                })
+            }
+        }
+    }
+
+    private fun createSwipeDismissListener(
+        rowView: View, 
+        notif: NotificationData, 
+        onClick: () -> Unit
+    ): View.OnTouchListener {
+        return object : View.OnTouchListener {
+            var startX = 0f
             var startY = 0f
-            setOnTouchListener { v, event ->
-                when (event.action) {
-                    android.view.MotionEvent.ACTION_DOWN -> {
-                        startX = event.x
-                        startY = event.y
+            var startXTime = 0L
+
+            override fun onTouch(v: View, event: MotionEvent): Boolean {
+                 when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        startX = event.rawX
+                        startY = event.rawY
                         startXTime = System.currentTimeMillis()
-                        true // Must return true to receive subsequent events
+                        // Important: logic to allow parent scrollview to scroll vertical
+                        // but catch horizontal here. 
+                        return true 
                     }
-                    android.view.MotionEvent.ACTION_MOVE -> {
-                        val deltaX = event.x - startX
-                        val deltaY = event.y - startY
+                    MotionEvent.ACTION_MOVE -> {
+                        val deltaX = event.rawX - startX
+                        val deltaY = event.rawY - startY
 
                         // Determine if horizontal or vertical swipe
                         if (kotlin.math.abs(deltaX) > kotlin.math.abs(deltaY) &&
                                         kotlin.math.abs(deltaX) > 20
                         ) {
                             // Horizontal swipe confirmed - prevent parent from intercepting
-                            parent.requestDisallowInterceptTouchEvent(true)
+                            rowView.parent.requestDisallowInterceptTouchEvent(true)
 
                             // Only allow swiping right (positive deltaX)
                             if (deltaX > 0) {
-                                translationX = deltaX
-                                val safeWidth = if (v.width > 0) v.width else dpToPx(300)
-                                alpha = 1f - (deltaX / safeWidth.toFloat()) * 0.5f
+                                rowView.translationX = deltaX
+                                val safeWidth = if (rowView.width > 0) rowView.width else dpToPx(300)
+                                rowView.alpha = 1f - (deltaX / safeWidth.toFloat()) * 0.5f
                             }
-                            true
+                            return true
                         } else {
                             // Not a clear horizontal swipe - let parent (ScrollView) handle it
-                            false
+                            return false
                         }
                     }
-                    android.view.MotionEvent.ACTION_UP -> {
-                        val deltaX = event.x - startX
+                    MotionEvent.ACTION_UP -> {
+                        val deltaX = event.rawX - startX
                         val duration = System.currentTimeMillis() - startXTime
-                        val safeWidth = if (v.width > 0) v.width else dpToPx(300)
+                        val safeWidth = if (rowView.width > 0) rowView.width else dpToPx(300)
 
                         // Allow parent to intercept again
-                        parent.requestDisallowInterceptTouchEvent(false)
+                        rowView.parent.requestDisallowInterceptTouchEvent(false)
 
-                        // If it's a click (minimal move), trigger v.performClick()
-                        if (kotlin.math.abs(deltaX) < 15 && kotlin.math.abs(event.y - startY) < 15
-                        ) {
-                            translationX = 0f
-                            alpha = 1f
-                            v.performClick()
-                            true
+                        // If it's a click (minimal move)
+                        if (kotlin.math.abs(deltaX) < 15 && kotlin.math.abs(event.rawY - startY) < 15) {
+                            rowView.translationX = 0f
+                            rowView.alpha = 1f
+                            v.playSoundEffect(android.view.SoundEffectConstants.CLICK)
+                            onClick() // Execute the specific click action
+                            return true
                         } else {
                             // Was it a dismiss swipe?
                             val shouldDismiss =
                                     deltaX > safeWidth * 0.4f || (deltaX > 100 && duration < 300)
 
                             if (shouldDismiss) {
-                                animate()
+                                rowView.animate()
                                         .translationX(safeWidth.toFloat())
                                         .alpha(0f)
                                         .setDuration(200)
@@ -2031,21 +2067,22 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                         .start()
                             } else {
                                 // Snap back
-                                animate().translationX(0f).alpha(1f).setDuration(200).start()
+                                rowView.animate().translationX(0f).alpha(1f).setDuration(200).start()
                             }
-                            true
+                            return true
                         }
                     }
-                    android.view.MotionEvent.ACTION_CANCEL -> {
-                        parent.requestDisallowInterceptTouchEvent(false)
-                        animate().translationX(0f).alpha(1f).setDuration(200).start()
-                        true
+                    MotionEvent.ACTION_CANCEL -> {
+                        rowView.parent.requestDisallowInterceptTouchEvent(false)
+                        rowView.animate().translationX(0f).alpha(1f).setDuration(200).start()
+                        return true
                     }
-                    else -> false
+                    else -> return false
                 }
             }
         }
     }
+
 
     private fun showReplyDialog(notif: NotificationData) {
         val input =
@@ -2089,10 +2126,15 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     }
 
     private fun animateToCollapsed(onEnd: () -> Unit) {
+        // Ensure close container is hidden
+        closeContainer.visibility = GONE
+
         // Only show content container if NOT in expanded media state (which uses close UI)
-        if (currentState != State.MEDIA_EXPANDED) {
+        // And NOT in notification collapsed state (which implies iconContainer usage)
+        if (currentState != State.MEDIA_EXPANDED && currentState != State.NOTIFICATION_COLLAPSED) {
             contentContainer.visibility = VISIBLE
         }
+        
         val targetWidth = dpToPx(pillWidthCollapsed)
         val targetHeight = dpToPx(pillHeightCollapsed)
         animateSize(
