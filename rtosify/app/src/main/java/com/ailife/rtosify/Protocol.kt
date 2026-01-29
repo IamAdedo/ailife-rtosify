@@ -160,6 +160,9 @@ object MessageType {
 
     // File Observer
     const val FILE_DETECTED = "file_detected"
+    
+    // Dynamic Island Background
+    const val SET_DYNAMIC_ISLAND_BACKGROUND = "set_dynamic_island_background"
 }
 
 data class NavigationInfoData(
@@ -795,6 +798,13 @@ object ProtocolHelper {
     fun createUpdateSettings(settings: SettingsUpdateData): ProtocolMessage {
         val data = gson.toJsonTree(settings).asJsonObject
         return ProtocolMessage(type = MessageType.UPDATE_SETTINGS, data = data)
+    }
+    
+    fun createSetDynamicIslandBackground(image: String, opacity: Int): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("image", image)
+        data.addProperty("opacity", opacity)
+        return ProtocolMessage(type = MessageType.SET_DYNAMIC_ISLAND_BACKGROUND, data = data)
     }
 
     fun createRequestHealthData(type: String? = null): ProtocolMessage {

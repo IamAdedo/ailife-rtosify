@@ -49,6 +49,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     private val expandedContainer: ScrollView
     private val expandedList: LinearLayout
     private val closeContainer: LinearLayout
+    private var backgroundImageView: ImageView // New Background View
+    
     private var pillHeightCollapsed = PILL_HEIGHT_COLLAPSED_DP
     private var pillWidthCollapsed = PILL_WIDTH_COLLAPSED_DP
     private var pillHeightExpanded = PILL_HEIGHT_EXPANDED_DP
@@ -140,6 +142,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                     background = createPillBackground()
                     outlineProvider = ViewOutlineProvider.BACKGROUND
                     clipToOutline = true
+
                     elevation = dpToPx(8).toFloat()
                     clipChildren = false
                     clipToPadding = false
@@ -153,6 +156,15 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                         }
                     }
                 }
+        
+        // Background Image View
+        backgroundImageView = ImageView(context).apply {
+             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+             scaleType = ImageView.ScaleType.CENTER_CROP
+             alpha = 1.0f
+        }
+        pillContainer.addView(backgroundImageView)
+        updateBackground()
 
         // Content container (for text/icons)
         contentContainer =
@@ -3227,5 +3239,28 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         releaseMediaPlayers()
+    }
+
+    fun updateBackground() {
+        try {
+            val prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+            val opacity = prefs.getInt("di_background_opacity", 255)
+            val file = java.io.File(context.filesDir, "di_background.webp")
+            
+            if (file.exists()) {
+                val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                if (bitmap != null) {
+                    backgroundImageView.setImageBitmap(bitmap)
+                    backgroundImageView.alpha = opacity / 255f
+                    backgroundImageView.visibility = View.VISIBLE
+                } else {
+                     backgroundImageView.visibility = View.GONE
+                }
+            } else {
+                backgroundImageView.visibility = View.GONE
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating background: ${e.message}")
+        }
     }
 }

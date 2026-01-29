@@ -29,6 +29,7 @@ class DynamicIslandService : Service() {
         private const val AUTO_HIDE_IN_BLACKLIST = 2
 
         @Volatile var isRunning = false
+        const val ACTION_UPDATE_BACKGROUND = "com.ailife.rtosifycompanion.UPDATE_BACKGROUND"
     }
 
     private lateinit var windowManager: WindowManager
@@ -221,7 +222,11 @@ class DynamicIslandService : Service() {
                                 overlayView.updateDownloadProgress(notif, progress)
                             }
                         }
+                        ACTION_UPDATE_BACKGROUND -> {
+                             overlayView.updateBackground()
+                        }
                     }
+
                 }
             }
 
@@ -615,6 +620,7 @@ class DynamicIslandService : Service() {
                     addAction(BluetoothService.ACTION_FILE_DETECTED)
                     addAction(BluetoothService.ACTION_FILE_DOWNLOAD_COMPLETE)
                     addAction(BluetoothService.ACTION_FILE_DOWNLOAD_PROGRESS)
+                    addAction(ACTION_UPDATE_BACKGROUND)
                 }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

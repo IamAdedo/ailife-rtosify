@@ -416,6 +416,12 @@ class BluetoothService : Service() {
         transportManager.reenableWifi()
         Log.d(TAG, "WiFi re-enabled after re-pairing")
     }
+    
+    fun sendDynamicIslandBackground(base64: String, opacity: Int) {
+        if (isConnected) {
+            sendMessage(ProtocolHelper.createSetDynamicIslandBackground(base64, opacity))
+        }
+    }
 
     private val phoneStateReceiver =
             object : BroadcastReceiver() {

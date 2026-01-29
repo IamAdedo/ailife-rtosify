@@ -119,6 +119,11 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
         seekBarTextSize = findViewById(R.id.seekBarTextSize)
         tvTextSizeValue = findViewById(R.id.tvTextSizeValue)
         switchLimitMessageLength = findViewById(R.id.switchLimitMessageLength)
+        
+        // Appearance
+        findViewById<View>(R.id.cardAppearance).setOnClickListener {
+            startActivity(Intent(this, DynamicIslandBackgroundActivity::class.java))
+        }
     }
 
     private fun setupFeatureToggles() {

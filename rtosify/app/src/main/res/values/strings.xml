@@ -454,6 +454,17 @@
     <string name="di_follow_dnd_desc">Do not expand notifications when DND is active</string>
     <string name="di_hide_peak_title">Hide peak in blacklisted app</string>
     <string name="di_hide_peak_desc">Completely hide dynamic island and prevent expansion in blacklisted apps</string>
+    <string name="di_appearance_title">Appearance</string>
+    <string name="di_appearance_desc">Customize background and opacity</string>
+    <string name="di_background_title">Background Image</string>
+    <string name="di_background_desc">Set a custom background for the island</string>
+    <string name="di_select_image">Select Image</string>
+    <string name="di_opacity">Opacity</string>
+    <string name="di_preview">Preview</string>
+    <string name="di_preview_pill">Collapsed</string>
+    <string name="di_preview_expanded">Expanded</string>
+    <string name="di_save_sync">Save &amp; Sync</string>
+    <string name="di_crop_instruction">Drag and pinch to adjust the image within the frame.</string>
     <string name="toast_bt_required">Bluetooth required. Please enable it.</string>
     <string name="toast_perm_calendar_not_granted">Permission READ_CALENDAR not granted</string>
     <string name="toast_perm_contacts_not_granted">Permission READ_CONTACTS not granted</string>
@@ -952,6 +963,15 @@
     <string name="di_timeout_unit_seconds">%d seconds</string>
     <string name="di_timeout_seconds">seconds</string>
     <string name="error_location_disabled">Location services are disabled. Please enable location to use Find Device.</string>
+    <string name="di_close">Close</string>
+    <string name="di_clear_all">Clear All</string>
+    <string name="di_reply_hint">Type a reply…</string>
+    <string name="di_reply_to">Reply to %s</string>
+    <string name="di_send">Send</string>
+    <string name="di_cancel">Cancel</string>
+    <string name="notification_phone_disconnected_title">Disconnected</string>
+    <string name="notification_phone_disconnected_text">Phone is out of range or disconnected</string>
 </resources>
+
 
 

@@ -162,6 +162,9 @@ object MessageType {
 
     // File Observer
     const val FILE_DETECTED = "file_detected"
+
+    // Dynamic Island Background
+    const val SET_DYNAMIC_ISLAND_BACKGROUND = "set_dynamic_island_background"
 }
 
 data class NavigationInfoData(

@@ -1465,7 +1465,39 @@ class BluetoothService : Service() {
             MessageType.SET_LITE_MODE -> handleSetLiteMode(message)
             MessageType.IOS_CONNECTED -> handleIosConnected(message)
             MessageType.FILE_DETECTED -> handleFileDetected(message)
+            MessageType.SET_DYNAMIC_ISLAND_BACKGROUND -> handleSetDynamicIslandBackground(message)
             else -> Log.w(TAG, "Unknown message type: ${message.type}")
+        }
+    }
+
+    private fun handleSetDynamicIslandBackground(message: ProtocolMessage) {
+        try {
+            val imageBase64 = ProtocolHelper.extractStringField(message, "image")
+            val opacity = try { ProtocolHelper.extractIntField(message, "opacity") } catch (e: Exception) { 255 }
+            
+            Log.d(TAG, "Received SET_DYNAMIC_ISLAND_BACKGROUND: base64Length=${imageBase64?.length}, opacity=$opacity")
+            
+            if (imageBase64 != null) {
+                // Decode
+                val bytes = Base64.decode(imageBase64, Base64.DEFAULT)
+                Log.d(TAG, "Decoded image bytes: ${bytes.size}")
+                
+                // Save to internal storage
+                val file = File(filesDir, "di_background.webp")
+                FileOutputStream(file).use { it.write(bytes) }
+                
+                Log.d(TAG, "Saved Dynamic Island background to ${file.absolutePath}")
+                
+                // Save Opacity pref (though mostly redundant if baked in, good for future)
+                prefs.edit().putInt("di_background_opacity", opacity).apply()
+                
+                // Notify Service
+                val intent = Intent(DynamicIslandService.ACTION_UPDATE_BACKGROUND)
+                intent.setPackage(packageName)
+                sendBroadcast(intent)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling DI background: ${e.message}")
         }
     }
 

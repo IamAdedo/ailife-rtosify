@@ -175,9 +175,14 @@
             android:theme="@style/Theme.Smartwatch" />
 
         
-        <!-- Dynamic Island Settings -->
         <activity
             android:name=".DynamicIslandSettingsActivity"
+            android:theme="@style/Theme.Smartwatch" />
+            
+        <activity
+            android:name=".DynamicIslandBackgroundActivity"
+            android:label="@string/di_background_title"
+            android:parentActivityName=".DynamicIslandSettingsActivity"
             android:theme="@style/Theme.Smartwatch" />
         
         <!-- Dynamic Island App Blacklist -->
