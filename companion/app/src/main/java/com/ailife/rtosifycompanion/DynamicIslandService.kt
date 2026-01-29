@@ -451,6 +451,23 @@ class DynamicIslandService : Service() {
             }
         }
 
+        overlayView.onPillClick = {
+            if (isExpanded) {
+                if (notificationQueue.isNotEmpty()) {
+                    collapseList()
+                } else if (currentMedia != null) {
+                    isExpanded = false
+                    updateState()
+                }
+            } else {
+                if (notificationQueue.isNotEmpty()) {
+                    expandToList()
+                } else if (currentMedia != null) {
+                    expandMedia()
+                }
+            }
+        }
+
         overlayView.onNotificationClick = { notif -> handleNotificationClick(notif) }
 
         overlayView.onNotificationDismiss = { notif -> handleNotificationDismiss(notif) }
@@ -569,6 +586,12 @@ class DynamicIslandService : Service() {
             intent.setPackage(packageName)
             intent.putExtra("action", action)
             sendBroadcast(intent)
+        }
+
+        overlayView.onCollapse = {
+            Log.d(TAG, "Dynamic Island collapsed by user")
+            isExpanded = false
+            updateState()
         }
 
         windowManager.addView(overlayView, params)
@@ -854,8 +877,22 @@ class DynamicIslandService : Service() {
                 isExpanded && currentMedia != null -> "media_expanded"
                 isExpanded -> "expanded"
                 
-                // Active transient state (5 second display) - Higher priority for disconnects/animations
+                // Active transient state (5 second display) - check expiration
                 activeState != null && System.currentTimeMillis() < activeState!!.expiresAt -> "active_transient"
+                
+                // If activeState is expired, we need to let it fall through, but we should also null it out to prevent logic issues
+                activeState != null && System.currentTimeMillis() >= activeState!!.expiresAt -> {
+                    activeState = null // Clear expired state
+                    // Re-evaluate
+                    if (currentNotification != null) "active_notification"
+                    else if (currentCall != null) "call" 
+                    else if (currentAlarm != null) "alarm"
+                    else if (currentMedia != null && !overlayView.isMediaSuppressed(currentMedia?.title, currentMedia?.artist)) "media"
+                    else if (notificationQueue.isNotEmpty()) "notification_icons"
+                    else if (isCharging) "charging"
+                    else if (!isConnected) "disconnected"
+                    else "idle"
+                }
                 
                 // Active notification (5 second display)
                 currentNotification != null -> "active_notification"
@@ -865,7 +902,7 @@ class DynamicIslandService : Service() {
                 currentAlarm != null -> "alarm"
                 
                 // Idle states (persistent, priority order: media > notifications > charging > connection)
-                currentMedia != null -> "media"
+                currentMedia != null && !overlayView.isMediaSuppressed(currentMedia?.title, currentMedia?.artist) -> "media"
                 notificationQueue.isNotEmpty() -> "notification_icons"
                 isCharging -> "charging"
                 !isConnected -> "disconnected"

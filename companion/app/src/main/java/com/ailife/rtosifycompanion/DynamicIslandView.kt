@@ -89,6 +89,43 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     private var textSizeMultiplier: Float = 1.0f
     private var limitMessageLength: Boolean = true
 
+
+    // Media suppression
+    private var suppressedMediaTitle: String? = null
+    private var suppressedMediaArtist: String? = null
+    
+    // Active media tracking (to avoid stale closures)
+    private var activeMediaTitle: String? = null
+    private var activeMediaArtist: String? = null
+
+    private fun checkMediaSuppression(title: String?, artist: String?): Boolean {
+        // If we don't have active media, nothing to suppress against
+        if (suppressedMediaTitle == null) return false
+
+        val t = title ?: "Unknown Title"
+        val a = artist ?: "Unknown Artist"
+
+        // Exact match -> Suppressed
+        if (t == suppressedMediaTitle && a == suppressedMediaArtist) return true
+        
+        // If we are suppressing a specific valid song, don't let "Unknown" override it (transient protection)
+        // But if the NEW title is also Unknown, we should probably just treat it as Suppressed to avoid flicker
+        if ((t == "Unknown Title" || t == "Unknown") && 
+            suppressedMediaTitle != "Unknown Title" && 
+            suppressedMediaTitle != "Unknown") {
+            return true
+        }
+
+        // New valid session detected -> Reset suppression
+        suppressedMediaTitle = null
+        suppressedMediaArtist = null
+        return false
+    }
+
+    fun isMediaSuppressed(title: String?, artist: String?): Boolean {
+        return checkMediaSuppression(title, artist)
+    }
+
     init {
         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
         clipChildren = false
@@ -2568,6 +2605,20 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     }
     
     fun showMediaState(title: String?, artist: String?, isPlaying: Boolean, albumArtBase64: String?) {
+        // Update active tracking
+        activeMediaTitle = title
+        activeMediaArtist = artist
+
+        if (checkMediaSuppression(title, artist)) {
+            // Media suppressed. 
+            // If we are currently in a media state, revert to idle.
+            // If we are in another state (e.g. notification list), do nothing (don't force idle).
+            if (currentState == State.MEDIA_PLAYING || currentState == State.MEDIA_EXPANDED) {
+                 showIdleState()
+            }
+            return
+        }
+
         if (title == null || title.isEmpty() || title == "Unknown") {
             showIdleState("")
             return
@@ -2657,6 +2708,18 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     
     fun expandWithMedia(title: String?, artist: String?, isPlaying: Boolean, albumArtBase64: String?, 
                         position: Long = 0, duration: Long = 0, volume: Int = 0) {
+        // Update active tracking
+        activeMediaTitle = title
+        activeMediaArtist = artist
+
+        // Check for suppression (closed by user)
+        if (checkMediaSuppression(title, artist)) {
+             if (currentState == State.MEDIA_EXPANDED || currentState == State.MEDIA_PLAYING) {
+                showIdleState()
+            }
+            return
+        }
+
         val isAlreadyMediaExpanded = currentState == State.MEDIA_EXPANDED
         
         // Store playback state for progress animation
@@ -2898,6 +2961,33 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             
             mainLayout.addView(volumeLayout)
             currentMediaLayout.addView(mainLayout)
+
+            // Close Button (Dismiss until session change)
+            val closeBtn = TextView(context).apply {
+                layoutParams = FrameLayout.LayoutParams(dpToPx(30), dpToPx(30)).apply {
+                    gravity = Gravity.TOP or Gravity.END
+                    topMargin = dpToPx(8)
+                    marginEnd = dpToPx(8)
+                }
+                text = "✕"
+                setTextColor(Color.parseColor("#AAAAAA"))
+                textSize = getScaledTextSize(14f)
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Color.parseColor("#99000000")) // Semi-transparent black
+                }
+                setOnClickListener {
+                    // Use active class variables to ensure we suppress the CURRENT title, 
+                    // not the one captured when this closure was created.
+                    suppressedMediaTitle = activeMediaTitle ?: "Unknown Title"
+                    suppressedMediaArtist = activeMediaArtist ?: "Unknown Artist"
+                    showIdleState()
+                    onCollapse?.invoke()
+                }
+            }
+            currentMediaLayout.addView(closeBtn)
             
             // Smooth fade-in animation
             expandedContainer.visibility = VISIBLE
@@ -3041,6 +3131,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     var onAlarmAction: ((String) -> Unit)? = null
     var onMediaAction: ((String) -> Unit)? = null
     var onCallAction: ((String) -> Unit)? = null
+    var onCollapse: (() -> Unit)? = null
 
     private fun performNotificationAction(notif: NotificationData, action: NotificationActionData) {
         onActionClick?.invoke(notif, action)
