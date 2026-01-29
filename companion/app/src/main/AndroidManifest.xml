@@ -298,7 +298,12 @@
         <service
             android:name=".DynamicIslandService"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Overlay for status updates and notifications on companion device" />
+        </service>
 
         <!-- Media Widget -->
          <receiver
