@@ -206,7 +206,12 @@ class NotificationSettingsActivity : AppCompatActivity() {
         }
         
         btnManageDynamicIsland.setOnClickListener {
-             startActivity(android.content.Intent(this, DynamicIslandSettingsActivity::class.java))
+            val style = activePrefs.getString("notification_style", "android")
+            if (style == "dynamic_island") {
+                startActivity(android.content.Intent(this, DynamicIslandSettingsActivity::class.java))
+            } else {
+                startActivity(android.content.Intent(this, AndroidNotificationSettingsActivity::class.java))
+            }
         }
     }
     

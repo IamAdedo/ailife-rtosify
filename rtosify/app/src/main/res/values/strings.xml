@@ -283,6 +283,11 @@
     <string name="di_message_length_limit">Limit Message Length</string>
     <string name="di_message_length_limit_desc">Truncate long messages to 2 lines</string>
 
+    <!-- Android Style Settings -->
+    <string name="notif_android_settings">Android Style Settings</string>
+    <string name="in_app_reply_dialog_title">In-App Reply Dialog</string>
+    <string name="in_app_reply_dialog_desc">Use a custom dialog on the watch for replies instead of the system reply UI. Useful if native replies are not working.</string>
+
     <!-- Debugging -->
     <string name="notif_debug_title">Debugging</string>
     <string name="notif_debug_simulate">Simulate Notification</string>

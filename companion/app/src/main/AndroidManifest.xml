@@ -287,6 +287,11 @@
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Smartwatch" />
 
+        <activity
+            android:name=".ReplyDialogActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Smartwatch.Translucent" />
+
         <service
             android:name=".MirroringService"
             android:enabled="true"

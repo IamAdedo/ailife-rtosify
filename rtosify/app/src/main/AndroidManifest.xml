@@ -178,6 +178,11 @@
         <activity
             android:name=".DynamicIslandSettingsActivity"
             android:theme="@style/Theme.Smartwatch" />
+
+        <activity
+            android:name=".AndroidNotificationSettingsActivity"
+            android:parentActivityName=".NotificationSettingsActivity"
+            android:theme="@style/Theme.Smartwatch" />
             
         <activity
             android:name=".DynamicIslandBackgroundActivity"

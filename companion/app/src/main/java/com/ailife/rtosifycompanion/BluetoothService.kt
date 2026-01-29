@@ -1945,6 +1945,10 @@ class BluetoothService : Service() {
                 prefs.edit().putBoolean("di_blacklist_hide_peak", it).apply()
                 Log.d(TAG, "Dynamic Island Blacklist Hide Peak updated: $it")
             }
+            settings.inAppReplyDialog?.let {
+                prefs.edit().putBoolean("in_app_reply_dialog", it).apply()
+                Log.d(TAG, "In-App Reply Dialog setting updated: $it")
+            } ?: Log.d(TAG, "In-App Reply Dialog setting is NULL in update")
             
             // Broadcast settings update to Dynamic Island Service if any DI setting changed
             if (settings.notificationStyle != null || settings.dynamicIslandTimeout != null ||
@@ -5376,6 +5380,7 @@ class BluetoothService : Service() {
                                 putExtra(EXTRA_NOTIF_KEY, key)
                                 putExtra(EXTRA_ACTION_KEY, action.actionKey)
                                 putExtra("is_reply", true)
+                                putExtra("app_name", appName)
                             }
                         } else {
                             Intent(this, NotificationActionReceiver::class.java).apply {
@@ -5394,27 +5399,28 @@ class BluetoothService : Service() {
                                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
                         )
 
+                val useInAppReply = prefs.getBoolean("in_app_reply_dialog", false)
+                Log.d(TAG, "showMirroredNotification: useInAppReply = $useInAppReply for key $key")
+
                 if (action.isReplyAction) {
-                    // Create reply action with RemoteInput
-                    val remoteInput =
-                            androidx.core.app.RemoteInput.Builder(BluetoothService.EXTRA_REPLY_TEXT)
-                                    .setLabel(action.title)
-                                    .build()
+                    val actionBuilder = NotificationCompat.Action.Builder(
+                        androidx.core.graphics.drawable.IconCompat.createWithResource(
+                            this,
+                            android.R.drawable.ic_menu_send
+                        ),
+                        action.title,
+                        actionPendingIntent
+                    )
 
-                    val replyAction =
-                            NotificationCompat.Action.Builder(
-                                            androidx.core.graphics.drawable.IconCompat
-                                                    .createWithResource(
-                                                            this,
-                                                            android.R.drawable.ic_menu_send
-                                                    ),
-                                            action.title,
-                                            actionPendingIntent
-                                    )
-                                    .addRemoteInput(remoteInput)
-                                    .build()
+                    if (!useInAppReply) {
+                        // Create reply action with RemoteInput (standard behavior)
+                        val remoteInput = androidx.core.app.RemoteInput.Builder(BluetoothService.EXTRA_REPLY_TEXT)
+                            .setLabel(action.title)
+                            .build()
+                        actionBuilder.addRemoteInput(remoteInput)
+                    }
 
-                    builder.addAction(replyAction)
+                    builder.addAction(actionBuilder.build())
                 } else {
                     // Regular action button
                     val regularAction =

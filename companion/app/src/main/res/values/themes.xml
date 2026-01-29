@@ -22,4 +22,13 @@
         <item name="android:insetBottom">2dp</item>
         <item name="android:layout_margin">1dp</item>
     </style>
+
+    <style name="Theme.Smartwatch.Translucent" parent="Theme.Smartwatch">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:backgroundDimEnabled">true</item>
+    </style>
 </resources>

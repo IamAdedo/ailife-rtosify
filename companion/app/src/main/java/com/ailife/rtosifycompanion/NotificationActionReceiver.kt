@@ -18,6 +18,22 @@ class NotificationActionReceiver : BroadcastReceiver() {
         Log.d("NotificationAction", "Action received - notifKey: $notifKey, actionKey: $actionKey, isReply: $isReply")
 
         if (isReply) {
+            val prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+            val useInAppReply = prefs.getBoolean("in_app_reply_dialog", false)
+            Log.d("NotificationAction", "useInAppReply: $useInAppReply")
+
+            if (useInAppReply) {
+                // Launch custom reply dialog
+                val dialogIntent = Intent(context, ReplyDialogActivity::class.java).apply {
+                    putExtra(BluetoothService.EXTRA_NOTIF_KEY, notifKey)
+                    putExtra(BluetoothService.EXTRA_ACTION_KEY, actionKey)
+                    putExtra("app_name", intent.getStringExtra("app_name"))
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(dialogIntent)
+                return
+            }
+
             // Extract reply text from RemoteInput
             val remoteInput = RemoteInput.getResultsFromIntent(intent)
             val replyText = remoteInput?.getCharSequence(BluetoothService.EXTRA_REPLY_TEXT)?.toString()

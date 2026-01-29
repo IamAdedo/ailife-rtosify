@@ -369,7 +369,8 @@ data class SettingsUpdateData(
         val internetSignalingUrl: String? = null,
         val hqLanEnabled: Boolean? = null,
         val dynamicIslandFollowDnd: Boolean? = null,
-        val dynamicIslandBlacklistHidePeak: Boolean? = null
+        val dynamicIslandBlacklistHidePeak: Boolean? = null,
+        val inAppReplyDialog: Boolean? = null
 )
 
 data class HealthDataUpdate(

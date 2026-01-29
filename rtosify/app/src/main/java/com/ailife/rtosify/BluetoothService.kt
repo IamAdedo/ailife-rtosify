@@ -1676,8 +1676,10 @@ class BluetoothService : Service() {
                 diShowMedia = activePrefs.getBoolean("di_show_media", true),
                 // New settings
                 dynamicIslandFollowDnd = activePrefs.getBoolean("di_follow_dnd", false),
-                dynamicIslandBlacklistHidePeak = activePrefs.getBoolean("di_blacklist_hide_peak", false)
+                dynamicIslandBlacklistHidePeak = activePrefs.getBoolean("di_blacklist_hide_peak", false),
+                inAppReplyDialog = activePrefs.getBoolean("in_app_reply_dialog", false)
         )
+        Log.d(TAG, "syncDynamicIslandSettings: inAppReplyDialog = ${settings.inAppReplyDialog}")
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
     }
 
