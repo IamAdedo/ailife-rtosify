@@ -2,7 +2,9 @@ package com.ailife.rtosify
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.BitmapDrawable
@@ -60,6 +62,45 @@ class FileObserverSettingsActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private var onImagePicked: ((String) -> Unit)? = null
+
+    private val imagePickerLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val uri = result.data?.data ?: return@registerForActivityResult
+            try {
+                val inputStream = contentResolver.openInputStream(uri)
+                val originalBitmap = BitmapFactory.decodeStream(inputStream)
+                inputStream?.close()
+
+                if (originalBitmap != null) {
+                    val scaledBitmap = resizeBitmap(originalBitmap, 192)
+                    val outputStream = ByteArrayOutputStream()
+                    scaledBitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+                    val base64 = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+                    onImagePicked?.invoke(base64)
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show()
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun resizeBitmap(bitmap: Bitmap, maxDimension: Int): Bitmap {
+        val width = bitmap.width
+        val height = bitmap.height
+        val scale = kotlin.math.min(maxDimension.toFloat() / width, maxDimension.toFloat() / height)
+        
+        // Don't upscale
+        if (scale >= 1.0f) return bitmap
+        
+        val newWidth = (width * scale).toInt()
+        val newHeight = (height * scale).toInt()
+        return Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
     }
 
     // Temporary references for dialog communication
@@ -144,6 +185,7 @@ class FileObserverSettingsActivity : AppCompatActivity() {
         val etNotificationTitle = dialogView.findViewById<TextInputEditText>(R.id.etNotificationTitle)
         val ivRuleIcon = dialogView.findViewById<android.widget.ImageView>(R.id.ivRuleIcon)
         val btnPickIcon = dialogView.findViewById<android.widget.Button>(R.id.btnPickIcon)
+        val containerIcon = dialogView.findViewById<View>(R.id.tvIconLabel).parent as View
         
         val cbImage = dialogView.findViewById<CheckBox>(R.id.cbTypeImage)
         val cbVideo = dialogView.findViewById<CheckBox>(R.id.cbTypeVideo)
@@ -179,6 +221,47 @@ class FileObserverSettingsActivity : AppCompatActivity() {
                 updateIconPreview()
             }
         }
+
+        // Live path detection
+        etPath.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val path = s?.toString() ?: return
+                if (currentDialogIconBase64 == null || currentDialogIconBase64!!.isEmpty()) {
+                    // Try to detect package
+                     if (path.contains("Android/media/") || path.contains("Android/data/")) {
+                         try {
+                              val parts = path.split("/")
+                              // Find the part that looks like a package name (com.xxx)
+                              // Heuristic: looks like package name and is after 'data' or 'media'
+                              var pkg: String? = null
+                              val dataIndex = parts.indexOf("data")
+                              if (dataIndex != -1 && dataIndex + 1 < parts.size) pkg = parts[dataIndex + 1]
+                              
+                              if (pkg == null) {
+                                  val mediaIndex = parts.indexOf("media")
+                                  if (mediaIndex != -1 && mediaIndex + 1 < parts.size) pkg = parts[mediaIndex + 1]
+                              }
+                              
+                              if (pkg != null && pkg.contains(".")) {
+                                  try {
+                                      val icon = packageManager.getApplicationIcon(pkg)
+                                      val base64 = drawableToBase64(icon)
+                                      if (base64 != null) {
+                                         ivRuleIcon.setImageDrawable(icon) // Set directly for smooth UI
+                                         currentDialogIconBase64 = base64
+                                         if (smallIconType == null) smallIconType = pkg
+                                      }
+                                  } catch (e: Exception) {
+                                      // Package not found or icon fail
+                                  }
+                              }
+                         } catch (e: Exception) {}
+                     }
+                }
+            }
+        })
 
         // Setup Path Picker
         textInputLayoutPath?.setEndIconOnClickListener {
@@ -292,29 +375,64 @@ class FileObserverSettingsActivity : AppCompatActivity() {
                     onIconPicked(null, null)
                 }
             }
+            .setPositiveButton("Pick from Storage") { dialog, _ ->
+                onImagePicked = { base64 ->
+                    onIconPicked(base64, "custom_image")
+                }
+                
+                val intent = if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    // Android 13+ Photo Picker
+                    Intent("android.provider.action.PICK_IMAGES").apply {
+                        type = "image/*"
+                    }
+                } else {
+                    // SAF Fallback
+                    Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "image/*"
+                    }
+                }
+                
+                try {
+                    imagePickerLauncher.launch(intent)
+                } catch (e: Exception) {
+                     // Fallback if PICK_IMAGES fails on some modified ROMs even with SDK check
+                     val safIntent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "image/*"
+                     }
+                     try {
+                        imagePickerLauncher.launch(safIntent)
+                     } catch (e2: Exception) {
+                        Toast.makeText(this, "No image picker available", Toast.LENGTH_SHORT).show()
+                     }
+                }
+            }
             .setNeutralButton("Clear Icon") { _, _ -> onIconPicked(null, null) }
             .setNegativeButton("Cancel", null)
             .show()
     }
     
     private fun drawableToBase64(drawable: android.graphics.drawable.Drawable): String? {
-        val bitmap = (drawable as? BitmapDrawable)?.bitmap 
-            ?: (drawable as? AdaptiveIconDrawable)?.let {
-                val bmp = Bitmap.createBitmap(
-                    it.intrinsicWidth.takeIf { w -> w > 0 } ?: 128, 
-                    it.intrinsicHeight.takeIf { h -> h > 0 } ?: 128, 
-                    Bitmap.Config.ARGB_8888
-                )
+        try {
+            val bitmap = if (drawable is BitmapDrawable && drawable.bitmap != null) {
+                drawable.bitmap
+            } else {
+                val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 96
+                val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 96
+                val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                 val canvas = Canvas(bmp)
-                it.setBounds(0, 0, canvas.width, canvas.height)
-                it.draw(canvas)
+                drawable.setBounds(0, 0, canvas.width, canvas.height)
+                drawable.draw(canvas)
                 bmp
             }
-        
-        return bitmap?.let { bmp ->
+
             val outputStream = ByteArrayOutputStream()
-            bmp.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
-            Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream)
+            return Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
         }
     }
     
