@@ -1045,17 +1045,13 @@ class DynamicIslandService : Service() {
             // But requirement says "just will be colapsed and when exit blacklisted app can see it"
             // So we should hide even if there are notification icons.
             
-            // Allow transient states (like charging animation) or critical alerts (calls/alarms)
+            // Allow critical alerts only (calls/alarms)
             if (currentCall != null || currentAlarm != null) {
                 return false
             }
             
-            // Allow active transient ONLY if it's NOT a notification peek (which shouldn't happen anyway due to showNotification check)
-            if (currentState == "active_transient") { 
-                 return false 
-            }
-            
-            // Hide for everything else: idle, icons, media, etc.
+            // STRICT MODE: Hide everything else including transient states (charging, connection)
+            // User request: "no matter what do not show island except alarm, including connection state change and charging"
             return true
         }
         
