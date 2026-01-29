@@ -240,6 +240,93 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         addView(expandedContainer)
     }
 
+    private var initialTouchX = 0f
+    private var initialTouchY = 0f
+    private var isDraggingUp = false
+    private val touchSlop = androidx.core.view.ViewConfigurationCompat.getScaledPagingTouchSlop(android.view.ViewConfiguration.get(context))
+
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        // Only intercept if expanded and we are at the bottom of the content
+        if (expandedContainer.visibility != VISIBLE) {
+            return super.onInterceptTouchEvent(ev)
+        }
+
+        when (ev.action) {
+            MotionEvent.ACTION_DOWN -> {
+                initialTouchX = ev.rawX
+                initialTouchY = ev.rawY
+                isDraggingUp = false
+                // Let child handle down, but we track point
+                super.onInterceptTouchEvent(ev)
+                return false
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val deltaY = ev.rawY - initialTouchY
+                val deltaX = ev.rawX - initialTouchX
+                
+                // Check if moving UP significantly and Vertical movement is DOMINANT
+                // (deltaY must be negative and larger than deltaX)
+                if (deltaY < -touchSlop && Math.abs(deltaY) > Math.abs(deltaX) * 2) {
+                     // Check if at bottom
+                     if (!expandedContainer.canScrollVertically(1)) {
+                         isDraggingUp = true
+                         return true // Intercept!
+                     }
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                isDraggingUp = false
+            }
+        }
+        return super.onInterceptTouchEvent(ev)
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (!isDraggingUp && expandedContainer.visibility != VISIBLE) {
+             return super.onTouchEvent(event)
+        }
+
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                initialTouchY = event.rawY
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val deltaY = event.rawY - initialTouchY
+                // Only handle upward drag (negative delta)
+                if (deltaY < 0) {
+                     // Damped translation for visual feedback
+                     expandedContainer.translationY = deltaY * 0.5f 
+                     // Fade out
+                     val progress = Math.min(1f, Math.abs(deltaY) / dpToPx(200).toFloat())
+                     expandedContainer.alpha = 1f - progress
+                     return true
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (isDraggingUp) {
+                    val deltaY = event.rawY - initialTouchY
+                    val threshold = dpToPx(60)
+                    
+                    if (deltaY < -threshold) {
+                        // Collapse
+                        onPillClick?.invoke()
+                    } else {
+                        // Reset animation
+                        expandedContainer.animate()
+                            .translationY(0f)
+                            .alpha(1f)
+                            .setDuration(200)
+                            .start()
+                    }
+                    isDraggingUp = false
+                    return true
+                }
+            }
+        }
+        return super.onTouchEvent(event)
+    }
+
     private fun createPillBackground(): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
