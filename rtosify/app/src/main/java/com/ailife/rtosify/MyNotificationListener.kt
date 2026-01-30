@@ -303,6 +303,23 @@ class MyNotificationListener : NotificationListenerService() {
         super.onNotificationPosted(sbn)
         if (sbn == null) return
 
+        // --- AUTO-DISMISS SELF NOTIFICATIONS ---
+        // Check if the notification title or text contains the app name (e.g., "rtosify")
+        try {
+            val appName = getString(R.string.app_name)
+            val extras = sbn.notification.extras
+            val title = extras.getCharSequence("android.title")?.toString() ?: ""
+            val text = extras.getCharSequence("android.text")?.toString() ?: ""
+
+            if (title.contains(appName, ignoreCase = true) || text.contains(appName, ignoreCase = true)) {
+                Log.d("Listener", "Auto-dismissing notification containing app name '$appName': $title | $text")
+                cancelNotification(sbn.key)
+                return
+            }
+        } catch (e: Exception) {
+            Log.e("Listener", "Error in auto-dismiss check: ${e.message}")
+        }
+
         val isMirroringEnabled = activePrefs.getBoolean("notification_mirroring_enabled", false)
         if (!isMirroringEnabled) return
 
