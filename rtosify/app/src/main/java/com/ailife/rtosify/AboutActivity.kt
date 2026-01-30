@@ -28,9 +28,9 @@ class AboutActivity : AppCompatActivity() {
         // Set version info
         try {
             val pInfo = packageManager.getPackageInfo(packageName, 0)
-            tvVersion.text = "Version ${pInfo.versionName}"
+            tvVersion.text = getString(R.string.about_version_format, pInfo.versionName)
         } catch (e: Exception) {
-            tvVersion.text = "Version Unknown"
+            tvVersion.text = getString(R.string.about_version_unknown)
         }
 
         // Setup Auto Update Switch

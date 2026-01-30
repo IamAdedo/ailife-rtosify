@@ -1691,7 +1691,7 @@ class BluetoothService : Service() {
             override fun onAncsConnected() {
                 Log.i(TAG, "ANCS connected - ready to receive iOS notifications")
                 mainHandler.post {
-                    Toast.makeText(this@BluetoothService, "iOS Notifications enabled", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@BluetoothService, getString(R.string.msg_ios_notif_enabled), Toast.LENGTH_SHORT).show()
                 }
             }
 

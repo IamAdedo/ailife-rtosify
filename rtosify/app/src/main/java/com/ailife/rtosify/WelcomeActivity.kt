@@ -316,7 +316,7 @@ class WelcomeActivity : AppCompatActivity() {
     }
 
     private fun completeSetupWithDevice(device: android.bluetooth.BluetoothDevice) {
-        val name = device.name ?: "Watch"
+        val name = device.name ?: getString(R.string.default_device_name)
         devicePrefManager.addPairedDevice(name, device.address)
         devicePrefManager.setSelectedDeviceMac(device.address)
         completeSetupWithDeviceAddress(device.address)

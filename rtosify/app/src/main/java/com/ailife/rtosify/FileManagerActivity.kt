@@ -185,7 +185,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
                 } else {
                     val fullPath = getFullPath(fileInfo.name)
                     bluetoothService?.requestPreview(fullPath)
-                    Toast.makeText(this, "Requesting preview...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.file_requesting_preview), Toast.LENGTH_SHORT).show()
                 }
             },
             onDownloadClick = { fileInfo ->
@@ -245,7 +245,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         if (!isProcessingQueue) {
             processNextTransfer()
         } else {
-            Toast.makeText(this, "Added to queue (${transferQueue.size})", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.file_queue_added, transferQueue.size), Toast.LENGTH_SHORT).show()
             // If queue is stuck (isProcessingQueue true but no active transfer), we might need a timeout or check?
             // For now, rely on consistent completion callbacks.
         }
@@ -262,7 +262,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         currentTransferIndex++
         
         val total = if (totalTransferCount > 0) totalTransferCount else transferQueue.size // Fallback
-        val progressStr = "Processing ${currentTransferIndex}/$total"
+        val progressStr = getString(R.string.file_transfer_processing, currentTransferIndex, total)
         
         if (request.type == TransferType.DOWNLOAD) {
             bluetoothService?.requestFileDownload(request.path)
@@ -284,7 +284,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
                      )
                  } else {
                      // Error starting upload
-                     Toast.makeText(this, "Failed to read file: $uri", Toast.LENGTH_SHORT).show()
+                     Toast.makeText(this, getString(R.string.file_read_error, uri), Toast.LENGTH_SHORT).show()
                      // Treat as error/done to process next?
                      updateTransferProgress(-1, "", "")
                  }
@@ -607,20 +607,20 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
                      imgPreview.visibility = View.VISIBLE
                      tvPreview.visibility = View.GONE
                  } catch (e: Exception) {
-                     Toast.makeText(this, "Error decoding image", Toast.LENGTH_SHORT).show()
+                     Toast.makeText(this, getString(R.string.file_preview_error), Toast.LENGTH_SHORT).show()
                  }
              } else if (textContent != null) {
                  tvPreview.text = textContent
                  tvPreview.visibility = View.VISIBLE
                  imgPreview.visibility = View.GONE
              } else {
-                 Toast.makeText(this, "Empty preview received", Toast.LENGTH_SHORT).show()
+                 Toast.makeText(this, getString(R.string.file_preview_empty), Toast.LENGTH_SHORT).show()
                  return@runOnUiThread
              }
              
              AlertDialog.Builder(this)
                  .setView(dialogView)
-                 .setPositiveButton("Close", null)
+                 .setPositiveButton(R.string.btn_close, null)
                  .show()
         }
     }
@@ -628,7 +628,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
     override fun onTransferCancelled() {
         runOnUiThread {
              dismissTransferDialog()
-             Toast.makeText(this, "Transfer cancelled", Toast.LENGTH_SHORT).show()
+             Toast.makeText(this, getString(R.string.file_transfer_cancelled), Toast.LENGTH_SHORT).show()
              
              // Stop queue
              isProcessingQueue = false
@@ -645,7 +645,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         if (selectionMode) {
             menuInflater.inflate(R.menu.menu_file_selection, toolbar.menu)
             val count = fileAdapter?.selectedItems?.size ?: 0
-            supportActionBar?.title = "$count Selected"
+            supportActionBar?.title = getString(R.string.file_selected_count, count)
             
             
             // Set nav icon to Close
@@ -758,8 +758,8 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
          if (selected.isEmpty()) return
 
          AlertDialog.Builder(this)
-             .setTitle(getString(R.string.file_delete_confirm_title, "${selected.size} items"))
-             .setMessage("Are you sure you want to delete these ${selected.size} items?")
+             .setTitle(getString(R.string.file_delete_confirm_title, getString(R.string.file_items_count, selected.size)))
+             .setMessage(getString(R.string.file_delete_confirm_multi, selected.size))
              .setPositiveButton(R.string.file_button_delete) { _, _ ->
                  val paths = selected.map { getFullPath(it.name) }
                  bluetoothService?.deleteRemoteFiles(paths)
@@ -866,7 +866,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
             } else {
                 holder.imgIcon.setImageResource(android.R.drawable.ic_menu_gallery) // File icon
                 holder.imgIcon.setColorFilter(Color.parseColor("#42A5F5")) // Blue
-                holder.tvInfo.text = holder.itemView.context.getString(R.string.file_info_regular, formatSize(file.size), dateStr)
+                holder.tvInfo.text = holder.itemView.context.getString(R.string.file_info_regular, formatSize(holder.itemView.context, file.size), dateStr)
                 holder.btnDownload.visibility = if (selectionMode) View.GONE else View.VISIBLE
             }
             
@@ -896,9 +896,15 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
 
         override fun getItemCount() = files.size
 
-        private fun formatSize(size: Long): String {
-            if (size <= 0) return "0 B"
-            val units = arrayOf("B", "KB", "MB", "GB", "TB")
+        private fun formatSize(context: android.content.Context, size: Long): String {
+            if (size <= 0) return context.getString(R.string.file_size_0)
+            val units = arrayOf(
+                context.getString(R.string.unit_b),
+                context.getString(R.string.unit_kb),
+                context.getString(R.string.unit_mb),
+                context.getString(R.string.unit_gb),
+                context.getString(R.string.unit_tb)
+            )
             val digitGroups = (Math.log10(size.toDouble()) / Math.log10(1024.0)).toInt()
             return String.format(
                     "%.1f %s",

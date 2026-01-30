@@ -61,7 +61,7 @@ class FilePreviewActivity : ComponentActivity() {
                 // Or we can add a helper in BluetoothService to handle ACTION_CMD_DOWNLOAD_FILE
                 
                 // For now, let's just show a toast as placeholder
-                Toast.makeText(this, "Requesting download...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.msg_requesting_download), Toast.LENGTH_SHORT).show()
                 
                 // TODO: Implement actual download request logic
                 // startDownload(data.path)

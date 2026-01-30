@@ -142,8 +142,8 @@ class PermissionActivity : AppCompatActivity() {
         perms.add(
             PermissionItem(
                 "NATIVE_BYPASS",
-                "Native Access Bypass",
-                "Injects special character to bypass path restrictions (Android/data). Recommended: ON",
+                getString(R.string.perm_native_bypass_title),
+                getString(R.string.perm_native_bypass_desc),
                 isNativeBypassEnabled
             )
         )
@@ -326,8 +326,8 @@ class PermissionActivity : AppCompatActivity() {
         perms.add(
              PermissionItem(
                  "MANAGE_STORAGE",
-                 "Access All Files",
-                 "Required to monitor files in all folders.",
+                 getString(R.string.perm_manage_storage_title),
+                 getString(R.string.perm_manage_storage_desc),
                  hasManageStorage
              )
         )
@@ -454,10 +454,10 @@ class PermissionActivity : AppCompatActivity() {
                     if (testFile.exists() && testFile.isDirectory) {
                          prefs.edit().putBoolean("native_access_bypass", true).apply()
                          updatePermissionList()
-                         android.widget.Toast.makeText(this, "Native Bypass Enabled Compatible Kernel Detected", android.widget.Toast.LENGTH_SHORT).show()
+                         android.widget.Toast.makeText(this, getString(R.string.toast_native_bypass_enabled), android.widget.Toast.LENGTH_SHORT).show()
                     } else {
                          // Compatibility failed
-                         android.widget.Toast.makeText(this, "Error: Kernel does not support ZWJ Bypass.", android.widget.Toast.LENGTH_LONG).show()
+                         android.widget.Toast.makeText(this, getString(R.string.toast_native_bypass_error), android.widget.Toast.LENGTH_LONG).show()
                     }
                 } else {
                     // Disable
@@ -662,7 +662,7 @@ class PermissionActivity : AppCompatActivity() {
                     val clipboard =
                             getSystemService(Context.CLIPBOARD_SERVICE) as
                                     android.content.ClipboardManager
-                    val clip = android.content.ClipData.newPlainText("ADB Command", adbCommand)
+                    val clip = android.content.ClipData.newPlainText(getString(R.string.adb_command_label), adbCommand)
                     clipboard.setPrimaryClip(clip)
                     android.widget.Toast.makeText(
                                     this,

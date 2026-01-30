@@ -113,6 +113,7 @@
     <string name="notif_grant_access">授予访问权限</string>
     <string name="notif_apps_title">应用程序</string>
     <string name="notif_apps_loading">正在加载应用程序…</string>
+    <string name="title_activity_mirror_settings">镜像设置</string>
 
     <!-- Permissions Activity -->
     <string name="perm_title">权限</string>
@@ -243,6 +244,7 @@
     <string name="wifi_status_disconnected">已断开连接</string>
     <string name="wifi_status_disabled">WiFi 已禁用</string>
     <string name="wifi_status_no_permission">无权限</string>
+    <string name="status_no_permission">无权限</string>
     <string name="wifi_status_error">WiFi 错误</string>
     <string name="wifi_status_connected">已连接</string>
     <string name="toast_watch_face_set">表盘已设置：%1$s</string>
@@ -432,6 +434,7 @@
     <string name="di_channel_desc">灵动岛通知叠加层</string>
     <string name="di_active_title">灵动岛已激活</string>
     <string name="di_active_desc">正在显示通知</string>
+    <string name="di_alarm_triggered">闹钟</string>
     <string name="network_stun_url_hint">STUN 服务器 URL</string>
     <string name="network_turn_url_hint">TURN 服务器 URL (turn:host:port)</string>
     <string name="network_turn_username_hint">TURN 用户名</string>
@@ -439,6 +442,8 @@
     <string name="camera_record">录像</string>
     <string name="widget_media_name">媒体控制</string>
     <string name="widget_dashboard_name">仪表盘</string>
+    <string name="title_notification_history">通知历史</string>
+    <string name="text_no_notifications">暂无通知</string>
 
     <!-- Hardcoded String Extractions -->
     <string name="find_phone_title">查找手机</string>
@@ -478,6 +483,7 @@
     <string name="action_ring_stop">停止响铃</string>
 
     <string name="transport_bt">蓝牙</string>
+    <string name="transport_ble">BLE</string>
     <string name="transport_lan">局域网</string>
     <string name="transport_internet">互联网</string>
     <string name="status_connected_via">已连接 (%s)</string>
@@ -505,6 +511,15 @@
     <string name="upload_to_watch">正在传输文件到手表...</string>
     <string name="upload_to_phone">正在传输文件到手机...</string>
     <string name="initializing">正在初始化...</string>
+    <string name="error_location_disabled">定位服务已禁用。请开启定位以使用查找设备功能。</string>
+
+    <!-- Watch Automation -->
+    <string name="title_activity_watch_automation">手表自动化</string>
+    <string name="menu_watch_automation">手表自动化</string>
+    <string name="menu_watch_automation_desc">服务保活设置</string>
+    <string name="automation_keepalive_title">激进保活</string>
+    <string name="automation_keepalive_desc">每 5 分钟定期重启服务以确保连接稳定。可能会影响电池续航。</string>
+    <string name="automation_keepalive_warning">此功能将每 5 分钟唤醒您的设备。</string>
 
     <!-- File Observer Notifications -->
     <string name="notification_file_detected_title">检测到新文件</string>
@@ -519,4 +534,29 @@
     <string name="fullscreen_downloading">正在下载...</string>
     <string name="fullscreen_downloading_progress">正在下载... %d%%</string>
     <string name="fullscreen_download_failed">下载失败</string>
+
+    <!-- Generic Formats -->
+    <string name="percent_format">%d%%</string>
+    <string name="percent_100">100%</string>
+    <string name="msg_requesting_download">正在请求下载...</string>
+    <string name="msg_ios_notif_enabled">已启用 iOS 通知</string>
+    <string name="msg_native_bypass_enabled">已启用原生绕过，检测到兼容内核</string>
+    <string name="msg_error_zwj_bypass">错误：内核不支持 ZWJ 绕过。</string>
+    <string name="symbol_plus">+</string>
+    <string name="digit_0">0</string>
+    <string name="digit_1">1</string>
+    <string name="digit_2">2</string>
+    <string name="digit_3">3</string>
+    <string name="digit_4">4</string>
+    <string name="digit_5">5</string>
+    <string name="digit_6">6</string>
+    <string name="digit_7">7</string>
+    <string name="digit_8">8</string>
+    <string name="digit_9">9</string>
+    <string name="perm_native_bypass_title">原生访问绕过</string>
+    <string name="perm_native_bypass_desc">注入特殊字符以绕过路径限制 (Android/data)。建议：开启</string>
+    <string name="msg_userservice_not_connected">UserService 未连接。请重试。</string>
+    <string name="msg_permission_granted">权限已授予！</string>
+    <string name="msg_permission_failed">失败 (错误码: %d)。请尝试使用 ADB。</string>
+    <string name="msg_error_format">错误: %s</string>
 </resources>

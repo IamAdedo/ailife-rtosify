@@ -12,11 +12,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:hint="Directory Path"
+        android:hint="@string/fo_hint_directory_path"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         app:endIconMode="custom"
         app:endIconDrawable="@android:drawable/ic_menu_search"
-        app:endIconContentDescription="Pick Folder">
+        app:endIconContentDescription="@string/fo_hint_pick_folder">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etRulePath"
@@ -29,7 +29,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:hint="Custom Notification Title"
+        android:hint="@string/fo_hint_notification_title"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
         <com.google.android.material.textfield.TextInputEditText
@@ -59,7 +59,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Custom Icon (Optional)"
+            android:text="@string/fo_icon_label"
             android:layout_marginStart="8dp"/>
 
         <Button
@@ -67,13 +67,13 @@
             style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Choose Icon"/>
+            android:text="@string/fo_btn_choose_icon"/>
     </LinearLayout>
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="File Types to Watch:"
+        android:text="@string/fo_file_types_label"
         android:layout_marginTop="16dp"
         android:textStyle="bold"/>
 
@@ -86,13 +86,13 @@
             android:id="@+id/cbTypeImage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Image"
+            android:text="@string/fo_type_image"
             android:layout_weight="1"/>
         <CheckBox
             android:id="@+id/cbTypeVideo"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Video"
+            android:text="@string/fo_type_video"
             android:layout_weight="1"/>
     </LinearLayout>
     
@@ -104,13 +104,13 @@
             android:id="@+id/cbTypeAudio"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Audio"
+            android:text="@string/fo_type_audio"
             android:layout_weight="1"/>
         <CheckBox
             android:id="@+id/cbTypeText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Text"
+            android:text="@string/fo_type_text"
             android:layout_weight="1"/>
     </LinearLayout>
 
@@ -119,19 +119,19 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Scan Recursive"/>
+        android:text="@string/fo_switch_recursive"/>
 
     <com.google.android.material.switchmaterial.SwitchMaterial
         android:id="@+id/switchSendToWatch"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Send Full File to Watch (Auto)"/>
+        android:text="@string/fo_switch_send_to_watch"/>
     
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="If disabled, only notification text is sent."
+        android:text="@string/fo_send_to_watch_hint"
         android:textSize="12sp"
         android:textColor="?android:attr/textColorSecondary"
         android:layout_marginStart="40dp"/>

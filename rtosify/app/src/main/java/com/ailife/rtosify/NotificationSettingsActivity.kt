@@ -263,8 +263,8 @@ class NotificationSettingsActivity : AppCompatActivity() {
             // 2. Create Notification Data
             val notifData = NotificationData(
                 packageName = packageName,
-                title = "Test Notification",
-                text = "This is a simulated notification from RTOSify settings.",
+                title = getString(R.string.notif_sim_title),
+                text = getString(R.string.notif_sim_text),
                 key = "test_notif_${System.currentTimeMillis()}",
                 appName =getString(R.string.app_name),
                 largeIcon = iconBase64,
@@ -281,10 +281,10 @@ class NotificationSettingsActivity : AppCompatActivity() {
             intent.setPackage(packageName)
             sendBroadcast(intent)
             
-            Toast.makeText(this, "Simulated notification sent", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.notif_sim_sent), Toast.LENGTH_SHORT).show()
 
         } catch (e: Exception) {
-            Toast.makeText(this, "Error sending simulation: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.notif_sim_error, e.message), Toast.LENGTH_SHORT).show()
             e.printStackTrace()
         }
     }

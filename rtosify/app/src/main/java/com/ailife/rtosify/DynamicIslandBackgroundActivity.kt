@@ -148,8 +148,8 @@ class DynamicIslandBackgroundActivity : AppCompatActivity() {
              // Show a mock notification for expanded preview
              val mockNotif = NotificationData(
                  packageName = "com.android.systemui",
-                 title = "Preview User",
-                 text = "This is how your background looks in expanded notifications.",
+                 title = getString(R.string.di_bg_preview_user),
+                 text = getString(R.string.di_bg_preview_text),
                  key = "preview_key"
              )
              dynamicIslandPreview.showNotification(mockNotif)
@@ -166,14 +166,14 @@ class DynamicIslandBackgroundActivity : AppCompatActivity() {
             dynamicIslandPreview.setPreviewImage(bitmap)
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.di_bg_toast_load_failed), Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun saveAndSync() {
         val result = dynamicIslandPreview.generateCroppedBitmap()
         if (result == null) {
-            Toast.makeText(this, "Please select an image first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.di_bg_toast_select_first), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -202,11 +202,11 @@ class DynamicIslandBackgroundActivity : AppCompatActivity() {
             // Delay exit to show progress
             Handler(Looper.getMainLooper()).postDelayed({
                 if (isDestroyed) return@postDelayed
-                Toast.makeText(this, "Saved and Synced!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.di_bg_toast_success), Toast.LENGTH_SHORT).show()
                 finish()
             }, 1000)
         } else {
-            Toast.makeText(this, "Watch Service not connected", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.di_bg_toast_service_disconnected), Toast.LENGTH_SHORT).show()
         }
     }
 

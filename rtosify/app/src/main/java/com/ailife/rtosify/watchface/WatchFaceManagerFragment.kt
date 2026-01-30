@@ -115,7 +115,7 @@ class WatchFaceManagerFragment : Fragment() {
             // Setup drag-and-drop only for Watch mode
             val dragCallback = WatchFaceDragCallback { fromPath, toFolder ->
                 val fileName = fromPath.substringAfterLast("/")
-                val destPath = if (toFolder == "<root>") {
+                val destPath = if (toFolder == getString(R.string.wf_root)) {
                     "$watchPath/$fileName"
                 } else {
                     "$watchPath/$toFolder/$fileName"
@@ -158,7 +158,7 @@ class WatchFaceManagerFragment : Fragment() {
                     (activity as? WatchFaceActivity)?.createFolder(folderPath)
                 }
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.btn_cancel, null)
             .show()
     }
 
@@ -214,10 +214,10 @@ class WatchFaceManagerFragment : Fragment() {
                 } ?: emptyArray()
 
                 if (importedFiles.isNotEmpty()) {
-                    items.add(ManagerItem.Header("Imported", true))
+                    items.add(ManagerItem.Header(getString(R.string.wf_imported), true))
                     items.addAll(importedFiles.map { file ->
                         val fileInfo = WatchFaceFileInfo(file.name, file.absolutePath, false, file.length())
-                        ManagerItem.Face(fileInfo, "Imported")
+                        ManagerItem.Face(fileInfo, getString(R.string.wf_imported))
                     })
                 }
 
@@ -227,10 +227,10 @@ class WatchFaceManagerFragment : Fragment() {
                 } ?: emptyArray()
 
                 if (otherFiles.isNotEmpty()) {
-                    items.add(ManagerItem.Header("Other", true))
+                    items.add(ManagerItem.Header(getString(R.string.wf_other), true))
                     items.addAll(otherFiles.map { file ->
                         val fileInfo = WatchFaceFileInfo(file.name, file.absolutePath, false, file.length())
-                        ManagerItem.Face(fileInfo, "Other")
+                        ManagerItem.Face(fileInfo, getString(R.string.wf_other))
                     })
                 }
                 
@@ -240,7 +240,7 @@ class WatchFaceManagerFragment : Fragment() {
             } catch (e: Exception) {
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                   Toast.makeText(context, "Error loading files", Toast.LENGTH_SHORT).show()
+                   Toast.makeText(context, getString(R.string.msg_error_loading_files), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -283,7 +283,7 @@ class WatchFaceManagerFragment : Fragment() {
                             e.printStackTrace()
                         }
                     }
-                    Toast.makeText(context, "Deleted $deletedCount files", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, getString(R.string.msg_deleted_files, deletedCount), Toast.LENGTH_SHORT).show()
                     adapter.clearSelection()
                     refresh()
                 } else {
@@ -297,7 +297,7 @@ class WatchFaceManagerFragment : Fragment() {
                      // Maybe trigger refresh after delay
                 }
             }
-            .setNegativeButton("Cancel") { _, _ -> }
+            .setNegativeButton(R.string.btn_cancel) { _, _ -> }
             .show()
     }
 
@@ -380,12 +380,12 @@ class WatchFaceManagerFragment : Fragment() {
         val items = mutableListOf<ManagerItem>()
         
         // Always add root header
-        val rootHeader = adapter.getAllItems().find { it is ManagerItem.Header && it.name == "<root>" } as? ManagerItem.Header 
-            ?: ManagerItem.Header("<root>", true)
+        val rootHeader = adapter.getAllItems().find { it is ManagerItem.Header && it.name == getString(R.string.wf_root) } as? ManagerItem.Header 
+            ?: ManagerItem.Header(getString(R.string.wf_root), true)
         
         items.add(rootHeader)
         if (rootHeader.isExpanded) {
-            items.addAll(rootFiles.map { ManagerItem.Face(it, "<root>") })
+            items.addAll(rootFiles.map { ManagerItem.Face(it, getString(R.string.wf_root)) })
         }
         
         // Add folders
@@ -442,12 +442,12 @@ class WatchFaceManagerFragment : Fragment() {
                 }
             }
             WatchFaceManagerAdapter.Action.DELETE_FOLDER -> {
-                if (!isLocal && item is ManagerItem.Header && item.name != "<root>") {
+                if (!isLocal && item is ManagerItem.Header && item.name != getString(R.string.wf_root)) {
                     (activity as? WatchFaceActivity)?.deleteWatchFaceOnWatch("$watchPath/${item.name}")
                 }
             }
             WatchFaceManagerAdapter.Action.RENAME_FOLDER -> {
-                if (!isLocal && item is ManagerItem.Header && item.name != "<root>") {
+                if (!isLocal && item is ManagerItem.Header && item.name != getString(R.string.wf_root)) {
                     showRenameFolderDialog(item.name)
                 }
             }
@@ -468,19 +468,19 @@ class WatchFaceManagerFragment : Fragment() {
         AlertDialog.Builder(context)
             .setTitle(R.string.wf_rename_folder_title)
             .setView(input)
-            .setPositiveButton("OK") { _, _ ->
+            .setPositiveButton(R.string.btn_ok) { _, _ ->
                 val newName = input.text.toString().trim()
                 if (newName.isNotBlank() && newName != oldName) {
                     val oldPath = "$watchPath/$oldName"
                     (activity as? WatchFaceActivity)?.renameWatchFile(oldPath, newName)
                 }
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.btn_cancel, null)
             .show()
     }
 
     private fun setWatchFace(face: ManagerItem.Face) {
-        val relPath = if (face.folderName == "<root>") face.fileInfo.name else "${face.folderName}/${face.fileInfo.name}"
+        val relPath = if (face.folderName == getString(R.string.wf_root)) face.fileInfo.name else "${face.folderName}/${face.fileInfo.name}"
         (activity as? WatchFaceActivity)?.applyWatchFace(relPath, null)
     }
 
@@ -489,7 +489,7 @@ class WatchFaceManagerFragment : Fragment() {
         AlertDialog.Builder(context)
             .setTitle(R.string.wf_rename_title)
             .setView(input)
-            .setPositiveButton("OK") { _, _ ->
+            .setPositiveButton(R.string.btn_ok) { _, _ ->
                 val newName = input.text.toString()
                 if (newName.isNotBlank() && newName != fileInfo.name) {
                     if (isLocal) {
@@ -510,7 +510,7 @@ class WatchFaceManagerFragment : Fragment() {
                     }
                 }
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.btn_cancel, null)
             .show()
     }
 }

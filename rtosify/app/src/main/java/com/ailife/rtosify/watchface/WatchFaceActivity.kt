@@ -240,7 +240,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
             progressDialog?.findViewById<android.widget.ProgressBar>(R.id.progressBarUpload)
                     ?.progress = 0
             progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadPercentage)?.text =
-                    "0%"
+                    getString(R.string.percent_format, 0)
         }
     }
 
@@ -374,7 +374,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
                     localFragment.refresh()
                     Toast.makeText(this@WatchFaceActivity, getString(R.string.wf_import_success, "$successCount files"), Toast.LENGTH_SHORT).show()
                 } else {
-                    Toast.makeText(this@WatchFaceActivity, "Failed to import files", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@WatchFaceActivity, getString(R.string.wf_import_failed_files), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -415,7 +415,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
         if (!isProcessingQueue) {
             processNextTransfer()
         } else {
-            Toast.makeText(this, "Added to queue (${transferQueue.size})", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.file_queue_added, transferQueue.size), Toast.LENGTH_SHORT).show()
         }
     }
     
@@ -460,7 +460,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
                     transferQueue.clear()
                     isProcessingQueue = false
                     dismissProgressDialog()
-                    Toast.makeText(this, "Transfer cancelled", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.file_transfer_cancelled), Toast.LENGTH_SHORT).show()
                 }
                 view.findViewById<android.widget.Button>(R.id.btnUploadOk).setOnClickListener {
                     dismissProgressDialog()
@@ -470,7 +470,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
             // Update content
             progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadTitle)?.text = title
             progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadDescription)?.text = message
-            progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadPercentage)?.text = "0%"
+            progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadPercentage)?.text = getString(R.string.percent_format, 0)
             progressDialog?.findViewById<android.widget.ProgressBar>(R.id.progressBarUpload)?.progress = 0
             progressDialog?.findViewById<android.widget.Button>(R.id.btnUploadOk)?.visibility = View.GONE
             progressDialog?.findViewById<android.widget.Button>(R.id.btnUploadCancel)?.visibility = View.VISIBLE
@@ -524,7 +524,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
                          progressDialog?.findViewById<android.widget.Button>(R.id.btnUploadCancel)?.visibility = View.GONE
                          progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadTitle)?.text = getString(R.string.upload_complete_title)
                          progressDialog?.findViewById<android.widget.ProgressBar>(R.id.progressBarUpload)?.progress = 100
-                         progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadPercentage)?.text = "100%"
+                         progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadPercentage)?.text = getString(R.string.percent_100)
                     } else {
                          // Next item - keep dialog open
                          android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
@@ -536,13 +536,13 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
                     isProcessingQueue = false
                     transferQueue.clear()
                     dismissProgressDialog()
-                    Toast.makeText(this, "Transfer failed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.wf_transfer_failed), Toast.LENGTH_SHORT).show()
                 }
             } else {
                 progressDialog?.findViewById<android.widget.ProgressBar>(R.id.progressBarUpload)
                         ?.progress = progress
                 progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadPercentage)
-                        ?.text = "$progress%"
+                        ?.text = getString(R.string.percent_format, progress)
             }
         }
     }

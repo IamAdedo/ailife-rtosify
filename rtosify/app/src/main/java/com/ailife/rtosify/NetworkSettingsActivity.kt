@@ -368,7 +368,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
         
         Toast.makeText(
             this,
-            "Bluetooth mode: $modeName\nReconnect to apply changes",
+            getString(R.string.network_bt_mode_changed, modeName),
             Toast.LENGTH_LONG
         ).show()
     }
@@ -537,7 +537,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
                 tvCurrentWifi.text = if (ssid == "<unknown ssid>") getString(R.string.status_connected) else ssid
 
                 val ip = info.ipAddress
-                tvPhoneIp.text = if (ip == 0) "N/A" else String.format(
+                tvPhoneIp.text = if (ip == 0) getString(R.string.status_na) else String.format(
                     "%d.%d.%d.%d",
                     (ip and 0xff),
                     (ip shr 8 and 0xff),

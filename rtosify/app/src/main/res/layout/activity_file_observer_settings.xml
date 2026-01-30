@@ -14,7 +14,7 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="File Observer Rules"
+            app:title="@string/fo_toolbar_title"
             app:navigationIcon="?attr/homeAsUpIndicator"
             android:background="?attr/colorSurface"/>
 
@@ -32,7 +32,7 @@
         android:id="@+id/tvEmptyState"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="No rules added. Tap + to add."
+        android:text="@string/fo_empty_state"
         android:layout_gravity="center"
         android:textColor="?android:attr/textColorSecondary"
         android:visibility="gone"/>
@@ -45,6 +45,6 @@
         android:layout_margin="24dp"
         android:src="@android:drawable/ic_input_add"
         app:tint="?attr/colorOnSecondary"
-        android:contentDescription="Add Rule"/>
+        android:contentDescription="@string/fo_fab_add_rule"/>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

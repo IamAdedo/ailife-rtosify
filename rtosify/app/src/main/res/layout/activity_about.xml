@@ -52,13 +52,13 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Automatic Updates"
+                android:text="@string/about_auto_updates_title"
                 android:textSize="18sp"
                 android:textStyle="bold"/>
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Check for updates on app launch"/>
+                android:text="@string/about_auto_updates_desc"/>
 
         </LinearLayout>
 
@@ -78,14 +78,14 @@
         android:id="@+id/btnCheckUpdate"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:text="Check for Updates Now"
+        android:text="@string/about_check_update_button"
         android:layout_marginTop="24dp"/>
 
     <Button
         android:id="@+id/btnWebsite"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
-        android:text="Developer Website"
+        android:text="@string/about_website_button"
         style="@style/Widget.AppCompat.Button.Borderless"
         android:layout_marginTop="8dp"/>
 

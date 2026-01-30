@@ -706,9 +706,9 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         // Filter out zero values for stats calculation
         val nonZeroValues = dataPoints.filter { it.value > 0 }.map { it.value }
         if (nonZeroValues.isEmpty()) {
-            tvMinValue.text = "0"
-            tvAvgValue.text = "0"
-            tvMaxValue.text = "0"
+            tvMinValue.text = getString(R.string.battery_value_zero)
+            tvAvgValue.text = getString(R.string.battery_value_zero)
+            tvMaxValue.text = getString(R.string.battery_value_zero)
             return
         }
 
@@ -716,9 +716,9 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         val max = nonZeroValues.maxOrNull() ?: 0f
         val avg = nonZeroValues.average().toFloat()
 
-        tvMinValue.text = String.format(Locale.getDefault(), "%.0f", min)
-        tvAvgValue.text = String.format(Locale.getDefault(), "%.0f", avg)
-        tvMaxValue.text = String.format(Locale.getDefault(), "%.0f", max)
+        tvMinValue.text = String.format(Locale.getDefault(), getString(R.string.health_value_format_no_decimals), min)
+        tvAvgValue.text = String.format(Locale.getDefault(), getString(R.string.health_value_format_no_decimals), avg)
+        tvMaxValue.text = String.format(Locale.getDefault(), getString(R.string.health_value_format_no_decimals), max)
     }
 
     private fun updateStepCards(dataPoints: List<HealthDataPoint>) {

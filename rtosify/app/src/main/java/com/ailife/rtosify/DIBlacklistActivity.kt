@@ -66,7 +66,7 @@ class DIBlacklistActivity : AppCompatActivity() {
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "Blacklisted Apps"
+        supportActionBar?.title = getString(R.string.di_blacklist_title)
 
         devicePrefManager = DevicePrefManager(this)
 

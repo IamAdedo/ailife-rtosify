@@ -555,6 +555,7 @@
     <string name="battery_sort_power">Battery Used (mAh)</string>
     <string name="battery_sort_speed">Drain Speed (mA)</string>
     <string name="battery_sort_by">Sort by %s</string>
+    <string name="default_device_name">Watch</string>
     <string name="battery_label_level">Battery Level</string>
     <string name="battery_label_current">Current (mA)</string>
     <string name="battery_no_history">No history available</string>
@@ -599,6 +600,7 @@
     <string name="msg_paste_success">Files pasted successfully</string>
 
 
+    <string name="adb_command_label">ADB Command</string>
     <string name="mirror_stop">Stop Mirroring</string>
     <string name="mirror_start">Start Mirroring</string>
     <string name="mirror_requesting_watch">Requesting watch screen…</string>
@@ -797,6 +799,47 @@
     <string name="network_turn_url_hint">TURN Server URL (turn:host:port)</string>
     <string name="network_turn_username_hint">TURN Username</string>
     <string name="network_turn_password_hint">TURN Password</string>
+
+    <!-- OTA Manager -->
+    <string name="ota_no_internet">No internet connection</string>
+    <string name="ota_check_failed_server">Update check failed: Server error %d</string>
+    <string name="ota_check_failed_generic">Update check failed: %s</string>
+    <string name="ota_no_artifacts">No update artifacts found</string>
+    <string name="ota_parse_error">Failed to parse update info</string>
+    <string name="ota_up_to_date">You are up to date (v%s)</string>
+    <string name="ota_update_available_title">Update Available: v%s</string>
+    <string name="ota_btn_update">Update</string>
+    <string name="ota_btn_later">Later</string>
+    <string name="ota_btn_dont_ask">Don\'t ask again</string>
+    <string name="ota_checks_disabled_toast">Update checks disabled</string>
+    <string name="ota_downloading_phone_title">Downloading Phone Update</string>
+    <string name="ota_downloading_watch_title">Downloading Watch Update</string>
+    <string name="ota_download_started">Started: %s</string>
+    <string name="ota_watch_downloaded_transferring">Watch update downloaded. Transferring...</string>
+    <string name="ota_install_failed">Install failed: %s</string>
+    <string name="ota_sending_to_watch">Sending update to watch...</string>
+
+    <!-- About Activity -->
+    <string name="about_version_format">Version %s</string>
+    <string name="about_version_unknown">Version Unknown</string>
+    <string name="about_auto_updates_title">Automatic Updates</string>
+    <string name="about_auto_updates_desc">Check for updates on app launch</string>
+    <string name="about_check_update_button">Check for Updates Now</string>
+    <string name="about_website_button">Developer Website</string>
+
+    <!-- File Observer -->
+    <string name="notif_file_observer_title">File Observer</string>
+    <string name="notif_file_observer_desc">Monitor folders for new files</string>
+
+    <!-- About Menu -->
+    <string name="menu_about">About</string>
+    <string name="menu_about_desc">Version &amp; Updates</string>
+
+    <!-- File Manager Menu -->
+    <string name="action_refresh">Refresh</string>
+
+    <!-- Main Activity -->
+    <string name="dnd_custom_duration_hint">Minutes</string>
     
     <!-- LAN Pairing Activity -->
     <string name="pairing_title">LAN Pairing</string>
@@ -976,6 +1019,135 @@
     <string name="di_cancel">Cancel</string>
     <string name="notification_phone_disconnected_title">Disconnected</string>
     <string name="notification_phone_disconnected_text">Phone is out of range or disconnected</string>
+
+    <!-- Notification Settings -->
+    <string name="notif_sim_title">Test Notification</string>
+    <string name="notif_sim_text">This is a simulated notification from RTOSify settings.</string>
+    <string name="notif_sim_sent">Simulated notification sent</string>
+    <string name="notif_sim_error">Error sending simulation: %1$s</string>
+
+    <!-- File Observer Settings -->
+    <string name="fo_delete_rule_title">Delete Rule</string>
+    <string name="fo_delete_rule_msg">Are you sure you want to delete \'%1$s\'?</string>
+    <string name="fo_btn_delete">Delete</string>
+    <string name="fo_btn_cancel">Cancel</string>
+    <string name="fo_btn_save">Save</string>
+    <string name="fo_edit_rule_title">Edit Rule</string>
+    <string name="fo_add_rule_title">Add New Rule</string>
+    <string name="fo_error_path_req">Path is required</string>
+    <string name="fo_error_type_req">Select at least one file type</string>
+    <string name="fo_pick_icon_title">Select App Icon</string>
+    <string name="fo_pick_icon_storage">Pick from Storage</string>
+    <string name="fo_pick_icon_clear">Clear Icon</string>
+    <string name="fo_error_no_picker">No image picker available</string>
+    <string name="fo_error_load_image">Failed to load image</string>
+    <string name="fo_toolbar_title">File Observer Rules</string>
+    <string name="fo_empty_state">No rules added. Tap + to add.</string>
+    <string name="fo_fab_add_rule">Add Rule</string>
+    <string name="fo_hint_directory_path">Directory Path</string>
+    <string name="fo_hint_pick_folder">Pick Folder</string>
+    <string name="fo_hint_notification_title">Custom Notification Title</string>
+    <string name="fo_icon_label">Custom Icon (Optional)</string>
+    <string name="fo_btn_choose_icon">Choose Icon</string>
+    <string name="fo_file_types_label">File Types to Watch:</string>
+    <string name="fo_type_image">Image</string>
+    <string name="fo_type_video">Video</string>
+    <string name="fo_type_audio">Audio</string>
+    <string name="fo_type_text">Text</string>
+    <string name="fo_switch_recursive">Scan Recursive</string>
+    <string name="fo_switch_send_to_watch">Send Full File to Watch (Auto)</string>
+    <string name="fo_send_to_watch_hint">If disabled, only notification text is sent.</string>
+
+    <!-- Bluetooth Service Status -->
+    <string name="status_wifi_off">Wifi Off</string>
+    <string name="status_wifi_error">Wifi Error</string>
+    <string name="error_invalid_mac">Invalid device MAC address</string>
+    <!-- File Manager Extras -->
+    <string name="file_requesting_preview">Requesting preview...</string>
+    <string name="file_queue_added">Added to queue (%d)</string>
+    <string name="file_transfer_processing">Processing %1$d/%2$d</string>
+    <string name="file_read_error">Failed to read file: %s</string>
+    <string name="file_transfer_cancelled">Transfer cancelled</string>
+    <string name="file_preview_error">Error decoding image</string>
+    <string name="file_preview_empty">Empty preview received</string>
+    <string name="file_delete_confirm_multi">Are you sure you want to delete these %d items?</string>
+    <string name="file_rename_error">Rename failed</string>
+    <string name="percent_format">%d%%</string>
+
+    <!-- Network Settings Extras -->
+    <string name="network_bt_mode_changed">Bluetooth mode: %s\nReconnect to apply changes</string>
+
+    <!-- Watch Face Extras -->
+    <string name="wf_import_failed_files">Failed to import files</string>
+    <string name="wf_transfer_failed">Transfer failed</string>
+    <string name="percent_100">100%</string>
+    
+    <!-- Permission Extras -->
+    <string name="toast_native_bypass_enabled">Native access bypass enabled</string>
+    <string name="toast_native_bypass_error">Native access bypass failed: Incompatible device</string>
+    <string name="perm_native_bypass_title">Native Access Bypass</string>
+    <string name="perm_native_bypass_desc">Allow direct access to Android/data (Experimental)</string>
+    <string name="perm_manage_storage_title">Manage All Files</string>
+    <string name="perm_manage_storage_desc">Allow access to all files for file management features</string>
+    
+    <!-- Internet Test Extras -->
+    <string name="itest_candidate_found">Found candidate: %s</string>
+    <string name="itest_timeout">Timeout waiting for candidates</string>
+    <string name="itest_stun_gathering_complete">STUN gathering complete</string>
+    <string name="itest_turn_gathering_complete">TURN gathering complete</string>
+    <string name="itest_start">Starting Internet connectivity test...</string>
+    <string name="itest_target_mac">Target Device MAC: %s</string>
+    <string name="itest_turn_skip">Skipping TURN test (not configured)</string>
+    <string name="itest_finish">Test finished.</string>
+
+
+    <string name="itest_ice_state">ICE State: %s</string>
+    <string name="itest_gathering_state">Gathering State: %s</string>
+
+
+
+    <string name="health_value_format_no_decimals">%.0f</string>
+    <string name="battery_value_zero">0</string>
+
+
+
+    <!-- Dynamic Island Background Extras -->
+    <string name="di_bg_preview_user">Preview User</string>
+    <string name="di_bg_preview_text">Sample notification text</string>
+    <string name="di_bg_toast_load_failed">Failed to load image</string>
+    <string name="di_bg_toast_select_first">Please select a background image first</string>
+    <string name="di_bg_toast_success">Background saved and syncing...</string>
+    <string name="di_bg_toast_service_disconnected">Service disconnected. Restart Bluetooth.</string>
+
+    <string name="battery_time_m">%dm</string>
+    <string name="battery_time_h_m">%dh %dm</string>
+    <string name="di_blacklist_title">Blacklisted Apps</string>
+
+    <string name="battery_history_hour_format">%dh ago</string>
+    <string name="battery_percent_format">%d%%</string>
+
+
+
+    <string name="status_na">N/A</string>
+    <string name="file_selected_count">%d Selected</string>
+    <string name="file_items_count">%d items</string>
+    <string name="file_size_0">0 B</string>
+    <string name="unit_b">B</string>
+    <string name="unit_kb">KB</string>
+    <string name="unit_mb">MB</string>
+    <string name="unit_gb">GB</string>
+    <string name="unit_tb">TB</string>
+    <string name="btn_close">Close</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_ok">OK</string>
+    <string name="wf_imported">Imported</string>
+    <string name="wf_other">Other</string>
+    <string name="wf_root">&lt;root&gt;</string>
+    <string name="symbol_forward">›</string>
+    <string name="symbol_up">↑</string>
+    <string name="symbol_slash">/</string>
+    <string name="msg_error_loading_files">Error loading files</string>
+    <string name="msg_deleted_files">Deleted %d files</string>
 </resources>
 
 

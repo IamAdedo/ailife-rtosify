@@ -99,7 +99,7 @@ class ShareToPhoneActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     override fun onUploadProgress(progress: Int) {
         runOnUiThread {
             progressBarShare.progress = progress
-            tvSharePercentage.text = "$progress%"
+            tvSharePercentage.text = getString(R.string.percent_format, progress)
             if (progress >= 100) {
                 Toast.makeText(this, getString(R.string.toast_transfer_complete), Toast.LENGTH_SHORT).show()
                 finish()

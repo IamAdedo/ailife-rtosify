@@ -204,7 +204,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
                         return if (Math.abs(diffMillis) < 5 * 60 * 1000) {
                             getString(R.string.time_just_now)
                         } else if (diffHours > 0 && diffHours % 6 == 0L) {
-                            "-${diffHours}h"
+                            getString(R.string.battery_history_hour_format, diffHours)
                         } else {
                             ""
                         }
@@ -291,7 +291,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
                 }
 
         runOnUiThread {
-            tvBatteryPercentLarge.text = "${mergedData.batteryLevel}%"
+            tvBatteryPercentLarge.text = getString(R.string.battery_percent_format, mergedData.batteryLevel)
             progressBattery.progress = mergedData.batteryLevel
 
             val statusText =
@@ -318,7 +318,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
                     val avgMillis = timeHistory.average().toLong()
                     val hours = avgMillis / (1000 * 60 * 60)
                     val mins = (avgMillis / (1000 * 60)) % 60
-                    val timeStr = if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
+                    val timeStr = if (hours > 0) getString(R.string.battery_time_h_m, hours, mins) else getString(R.string.battery_time_m, mins)
                     tvRemainingTime.text =
                             if (mergedData.isCharging) getString(R.string.battery_until_full, timeStr)
                             else getString(R.string.battery_remaining, timeStr)

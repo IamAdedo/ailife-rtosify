@@ -164,7 +164,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 val file = java.io.File(path)
                 if (file.exists()) {
                      if (bluetoothService?.isConnected == true) {
-                         Toast.makeText(context, "Sending update to watch...", Toast.LENGTH_SHORT).show()
+                         Toast.makeText(context, R.string.ota_sending_to_watch, Toast.LENGTH_SHORT).show()
                          bluetoothService?.sendFile(file, "APK")
                      } else {
                          Toast.makeText(context, R.string.toast_watch_not_connected, Toast.LENGTH_SHORT).show()
@@ -488,13 +488,13 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     ) {
         val input = EditText(this)
         input.inputType = InputType.TYPE_CLASS_NUMBER
-        input.hint = "Minutes"
+        input.hint = getString(R.string.dnd_custom_duration_hint)
 
         AlertDialog.Builder(this)
                 .setTitle(R.string.dnd_custom_duration_title)
                 .setMessage(R.string.dnd_custom_duration_message)
                 .setView(input)
-                .setPositiveButton("OK") { _, _ ->
+                .setPositiveButton(R.string.btn_ok) { _, _ ->
                     val mins = input.text.toString().toIntOrNull()
                     if (mins != null && mins > 0) {
                         bluetoothService?.updateDndSettings(
@@ -1162,12 +1162,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 R.string.perm_title
                         ),
                         MenuOption(
-                                "About",
-                                "Version & Updates",
+                                getString(R.string.menu_about),
+                                getString(R.string.menu_about_desc),
                                 android.R.drawable.ic_menu_info_details,
                                 { startActivity(Intent(this, AboutActivity::class.java)) },
                                 null,
-                                0
+                                R.string.menu_about
                         ),
                         MenuOption(
                                 getString(R.string.menu_reset_all),
@@ -1352,12 +1352,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         options.add(
               options.size - 1,
               MenuOption(
-                    "About",
-                    "Version & Updates",
+                    getString(R.string.menu_about),
+                    getString(R.string.menu_about_desc),
                     android.R.drawable.ic_menu_info_details,
                     { startActivity(Intent(this, AboutActivity::class.java)) },
                     null,
-                    0
+                    R.string.menu_about
               )
         )
 

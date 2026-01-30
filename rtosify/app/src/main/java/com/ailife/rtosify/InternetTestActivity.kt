@@ -56,7 +56,7 @@ class InternetTestActivity : AppCompatActivity() {
         tvLogs.text = ""
         resetIndicators()
 
-        log("--- Starting Internet Configuration Test ---")
+        log(getString(R.string.itest_start))
 
         val devicePrefManager = DevicePrefManager(this)
         val devicePrefs = devicePrefManager.getActiveDevicePrefs()
@@ -67,7 +67,7 @@ class InternetTestActivity : AppCompatActivity() {
         val turnUser = devicePrefs.getString("internet_turn_username", "") ?: ""
         val turnPass = devicePrefs.getString("internet_turn_password", "") ?: ""
 
-        log("Target Device MAC: ${devicePrefManager.getSelectedDeviceMac() ?: "Global"}")
+        log(getString(R.string.itest_target_mac, devicePrefManager.getSelectedDeviceMac() ?: "Global"))
         
         // 1. Signaling Test
         val signalingResult = testSignaling(signalingUrl)
@@ -82,10 +82,10 @@ class InternetTestActivity : AppCompatActivity() {
             val turnResult = testIceServer(turnUrl, turnUser, turnPass, "relay")
             updateIndicator(indicatorTurn, turnResult)
         } else {
-            log("TURN: No URL configured, skipping test.")
+            log(getString(R.string.itest_turn_skip))
         }
 
-        log("--- Test Complete ---")
+        log(getString(R.string.itest_finish))
         btnStartTest.isEnabled = true
     }
 
@@ -146,15 +146,15 @@ class InternetTestActivity : AppCompatActivity() {
             val observer = object : PeerConnection.Observer {
                 override fun onSignalingChange(p0: PeerConnection.SignalingState?) {}
                 override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {
-                    log("ICE State: $state")
+                    log(getString(R.string.itest_ice_state, state.toString()))
                 }
                 override fun onIceConnectionReceivingChange(p0: Boolean) {}
                 override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) {
-                    log("Gathering State: $state")
+                    log(getString(R.string.itest_gathering_state, state.toString()))
                     if (state == PeerConnection.IceGatheringState.COMPLETE && !finished) {
                         finished = true
-                        log(if (targetType == "srflx") "STUN: Gathering complete, no srflx candidates found."
-                            else "TURN: Gathering complete, no relay candidates found.")
+                        log(if (targetType == "srflx") getString(R.string.itest_stun_gathering_complete)
+                            else getString(R.string.itest_turn_gathering_complete))
                         cleanup(pc)
                         continuation.resume(false) {}
                     }
@@ -163,7 +163,7 @@ class InternetTestActivity : AppCompatActivity() {
                     candidate?.let {
                         val sdp = it.sdp
                         val type = parseCandidateType(sdp)
-                        log("Candidate found: type=$type, sdp=${sdp.take(40)}...")
+                        log(getString(R.string.itest_candidate_found, type, sdp.take(40)))
                         
                         if (type == targetType && !finished) {
                             finished = true
@@ -207,7 +207,7 @@ class InternetTestActivity : AppCompatActivity() {
                 delay(10000)
                 if (!finished) {
                     finished = true
-                    log("Test timeout (10s)")
+                    log(getString(R.string.itest_timeout))
                     cleanup(pc)
                     continuation.resume(false) {}
                 }

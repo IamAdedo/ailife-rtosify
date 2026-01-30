@@ -102,26 +102,6 @@
     <string name="dialog_reset_all_message">这将清除所有设置并返回开始屏幕。是否继续？</string>
     <string name="dialog_reset_all_confirm">重置所有</string>
     <string name="dialog_reset_all_cancel">取消</string>
-    <string name="menu_network_comms">网络通信</string>
-    <string name="menu_network_comms_desc">配置 WiFi 内网设置</string>
-    <string name="network_pair_desc">交换加密密钥以进行安全的 WiFi 通信</string>
-    <string name="network_encryption_info_title">安全连接</string>
-    <string name="network_encryption_info_message">所有通过 WiFi/互联网的消息均使用 AES-256-GCM 加密。\n\n您的通信是安全且私密的。</string>
-    <string name="network_encryption_finish">知道了</string>
-
-    <!-- WiFi Pairing Activity -->
-    <string name="pairing_complete">WiFi 配对成功！</string>
-    <string name="pairing_failed">WiFi 配对失败</string>
-    <string name="pairing_close">完成</string>
-    <string name="pairing_retry">重试</string>
-    <string name="pairing_found_device">在以下位置发现设备：%s</string>
-    <string name="pairing_test_success">双向加密验证通过</string>
-    <string name="pairing_error_no_key">生成加密密钥失败</string>
-    <string name="pairing_error_key_ack">设备拒绝密钥或超时</string>
-    <string name="pairing_error_discovery">在本地网络上找不到设备</string>
-    <string name="pairing_error_wifi">无法建立 WiFi 连接</string>
-    <string name="pairing_error_test">加密验证失败</string>
-    <string name="pairing_error_lost">连接已断开</string>
 
     <!-- Watch Automations -->
     <string name="watch_automations_title">手表自动化</string>
@@ -357,6 +337,7 @@
     <string name="toast_sync_failed">%s 同步失败</string>
 
     <string name="find_watch_alarm_stop">停止</string>
+    <string name="find_phone_alarm_stop">停止</string>
     <string name="find_phone_alarm_title">正在查找手机</string>
     <string name="find_phone_alarm_message">手表正在寻找这部手机！</string>
 
@@ -530,7 +511,8 @@
     <string name="battery_sort_usage_time">使用时间</string>
     <string name="battery_sort_power">电池用量 (mAh)</string>
     <string name="battery_sort_speed">耗电速度 (mA)</string>
-    <string name="battery_sort_by">按%s排序</string>
+    <string name="battery_sort_by">排序方式: %s</string>
+    <string name="default_device_name">手表</string>
     <string name="battery_label_level">电量</string>
     <string name="battery_label_current">电流 (mA)</string>
     <string name="battery_no_history">无可用历史记录</string>
@@ -714,6 +696,45 @@
 
     <string name="battery_percent_placeholder">--%</string>
     <string name="wifi">WiFi</string>
+
+    <!-- File Manager Extras -->
+    <string name="file_requesting_preview">正在请求预览…</string>
+    <string name="file_queue_added">已添加到队列 (%d)</string>
+    <string name="file_transfer_processing">正在处理 %1$d/%2$d</string>
+    <string name="file_read_error">读取文件失败：%s</string>
+    <string name="file_transfer_cancelled">传输已取消</string>
+    <string name="file_preview_error">解码图像出错</string>
+    <string name="file_preview_empty">收到空预览</string>
+    <string name="file_delete_confirm_multi">您确定要删除这 %d 项吗？</string>
+    <string name="file_rename_error">重命名失败</string>
+
+    <!-- Network Settings Extras -->
+    <string name="network_bt_mode_changed">蓝牙模式：%s\n重新连接以应用更改</string>
+
+    <!-- Watch Face Extras -->
+    <string name="wf_import_failed_files">导入文件失败</string>
+    <string name="wf_transfer_failed">传输失败</string>
+    <string name="percent_100">100%</string>
+
+    <!-- Permission Extras -->
+    <string name="toast_native_bypass_enabled">原生访问绕过已启用</string>
+    <string name="toast_native_bypass_error">原生访问绕过失败：设备不兼容</string>
+    <string name="perm_native_bypass_title">原生访问绕过</string>
+    <string name="perm_native_bypass_desc">允许直接访问 Android/data (实验性)</string>
+    <string name="perm_manage_storage_title">管理所有文件</string>
+    <string name="perm_manage_storage_desc">允许访问所有文件以使用文件管理功能</string>
+
+    <!-- Internet Test Extras -->
+    <string name="itest_candidate_found">发现候选节点：%s</string>
+    <string name="itest_timeout">等待候选节点超时</string>
+    <string name="itest_stun_gathering_complete">STUN 收集完成</string>
+    <string name="itest_turn_gathering_complete">TURN 收集完成</string>
+    <string name="itest_start">开始网络连接测试...</string>
+    <string name="itest_target_mac">目标设备 MAC: %s</string>
+    <string name="itest_turn_skip">跳过 TURN 测试 (未配置)</string>
+    <string name="itest_finish">测试完成。</string>
+
+
     <!-- Health -->
     <string name="health_use_instant_steps">使用即时步数 (主界面)</string>
 
@@ -721,7 +742,7 @@
     <string name="network_settings_title">网络通信</string>
     <string name="network_test_configuration">测试配置</string>
     <string name="internet_test_title">Internet 配置测试</string>
-    <string name="internet_test_start">始测试</string>
+    <string name="internet_test_start">开始测试</string>
     <string name="internet_test_signaling">信令</string>
     <string name="internet_test_stun">STUN</string>
     <string name="internet_test_turn">TURN</string>
@@ -751,7 +772,16 @@
     <string name="network_rule_always">始终启用</string>
     <string name="network_rule_always_desc">始终优先使用 LAN</string>
     <string name="network_status_title">连接状态</string>
-    <string name="network_pair_for_internet">配对 LAN/Internet</string>
+    <string name="network_pair_for_internet">配对局域网/互联网</string>
+    <string name="network_pair_desc">交换加密密钥以进行安全的局域网/互联网通信</string>
+    <string name="network_encryption_info_title">安全连接</string>
+    <string name="network_encryption_info_message">所有通过局域网/互联网传输的消息均采用 AES-256-GCM 加密。\n\n您的通信是安全且私密的。</string>
+    <string name="network_encryption_finish">知道了</string>
+    <string name="network_current_wifi">当前网络</string>
+    <string name="network_not_on_wifi">未连接到网络</string>
+    <string name="status_bt_wifi_connected">蓝牙+局域网已连接</string>
+    <string name="status_wifi_connected">局域网已连接</string>
+    <string name="network_encryption_keys">加密密钥通过蓝牙配对交换</string>
     <string name="network_advanced_settings_title">高级设置</string>
     <string name="network_internet_settings_title">Internet 设置</string>
     <string name="network_internet_desc">配置应用何时使用 Internet 连接到手表。需要信令服务器。</string>
@@ -759,6 +789,55 @@
     <string name="network_fixed_ip_enabled">使用固定 IP</string>
     <string name="network_fixed_ip_desc">直接连接 IP 而不使用 mDNS (适用于 VPN/Zerotier)</string>
     <string name="network_fixed_ip_hint">输入 IP 地址 (例如 10.1.1.2)</string>
+    <string name="network_stun_url_hint">STUN 服务器 URL</string>
+    <string name="network_turn_url_hint">TURN 服务器 URL (turn:host:port)</string>
+    <string name="network_turn_username_hint">TURN 用户名</string>
+    <string name="network_turn_password_hint">TURN 密码</string>
+
+    <!-- OTA Manager -->
+    <string name="ota_no_internet">无网络连接</string>
+    <string name="ota_check_failed_server">检查更新失败：服务器错误 %d</string>
+    <string name="ota_check_failed_generic">检查更新失败：%s</string>
+    <string name="ota_no_artifacts">未找到更新构件</string>
+    <string name="ota_parse_error">解析更新信息失败</string>
+    <string name="ota_up_to_date">您已是最新版本 (v%s)</string>
+    <string name="ota_update_available_title">发现新版本：v%s</string>
+    <string name="ota_btn_update">更新</string>
+    <string name="ota_btn_later">稍后</string>
+    <string name="ota_btn_dont_ask">不再询问</string>
+    <string name="ota_checks_disabled_toast">更新检查已禁用</string>
+    <string name="ota_downloading_phone_title">正在下载手机更新</string>
+    <string name="ota_downloading_watch_title">正在下载手表更新</string>
+    <string name="ota_download_started">已开始：%s</string>
+    <string name="ota_watch_downloaded_transferring">手表更新已下载。正在传输...</string>
+    <string name="ota_install_failed">安装失败：%s</string>
+    <string name="ota_sending_to_watch">正在发送更新到手表...</string>
+
+    <!-- About Activity -->
+    <string name="about_version_format">版本 %s</string>
+    <string name="about_version_unknown">版本未知</string>
+    <string name="about_auto_updates_title">自动更新</string>
+    <string name="about_auto_updates_desc">启动应用时检查更新</string>
+    <string name="about_check_update_button">立即检查更新</string>
+    <string name="about_website_button">开发者网站</string>
+
+    <!-- File Observer -->
+    <string name="notif_file_observer_title">文件监控</string>
+    <string name="notif_file_observer_desc">监控文件夹的新文件</string>
+
+    <!-- About Menu -->
+    <string name="menu_about">关于</string>
+    <string name="menu_about_desc">版本和更新</string>
+
+    <!-- File Manager Menu -->
+    <string name="action_refresh">刷新</string>
+
+    <!-- Network Communications (MainActivity Menu) -->
+    <string name="menu_network_comms">网络通信</string>
+    <string name="menu_network_comms_desc">配置局域网/互联网设置</string>
+
+    <!-- Main Activity -->
+    <string name="dnd_custom_duration_hint">分钟</string>
 
     <!-- WiFi Pairing -->
     <string name="pairing_title">LAN 配对</string>
@@ -767,7 +846,18 @@
     <string name="pairing_step_connecting">步骤 3: 通过 LAN 连接</string>
     <string name="pairing_step_testing">步骤 4: 验证安全连接</string>
     <string name="wifi_repair">重新配对</string>
-    <string name="wifi_already_paired">LAN 已配对</string>
+    <string name="pairing_complete">局域网配对成功！</string>
+    <string name="pairing_failed">局域网配对失败</string>
+    <string name="pairing_close">完成</string>
+    <string name="pairing_retry">重试</string>
+    <string name="pairing_found_device">在以下位置发现设备：%s</string>
+    <string name="pairing_test_success">双向加密已验证</string>
+    <string name="pairing_error_no_key">生成加密密钥失败</string>
+    <string name="pairing_error_key_ack">设备拒绝密钥或超时</string>
+    <string name="pairing_error_discovery">无法在本地网络发现设备</string>
+    <string name="pairing_error_wifi">无法建立局域网连接</string>
+    <string name="pairing_error_test">加密验证失败</string>
+    <string name="pairing_error_lost">连接已断开</string>
 
     <!-- Notification Settings -->
     <string name="di_text_size">文字大小</string>
@@ -829,6 +919,14 @@
     <string name="privacy_policy_content">为了提供网络通信功能，本应用会收集两台设备的 MAC 地址用于身份识别。\n\n所有用户数据均经过端到端加密，加密密钥仅存储在您的设备上，绝不会与我们的服务器共享。</string>
     <string name="privacy_policy_agree">同意</string>
     <string name="privacy_policy_decline">拒绝</string>
+
+    <!-- Bluetooth Transport Mode -->
+    <string name="bluetooth_transport_title">蓝牙传输模式</string>
+    <string name="bluetooth_transport_desc">选择手机如何通过蓝牙连接到手表</string>
+    <string name="bt_transport_classic">经典蓝牙 (RFCOMM)</string>
+    <string name="bt_transport_classic_desc">传统蓝牙。更更快的数据传输，适用于所有安卓设备。</string>
+    <string name="bt_transport_ble">低功耗蓝牙 (BLE)</string>
+    <string name="bt_transport_ble_desc">更低的功耗。与 iOS 设备兼容 (未来支持)。</string>
     
     <!-- Navigation Overlay Settings -->
     <string name="nav_settings_title">导航设置</string>
@@ -901,4 +999,201 @@
     <string name="di_manage_blacklist">管理黑名单应用</string>
     <string name="di_timeout_unit_seconds">%d 秒</string>
     <string name="di_timeout_seconds">秒</string>
+    <string name="di_close">关闭</string>
+    <string name="di_clear_all">清除全部</string>
+    <string name="di_reply_hint">输入回复…</string>
+    <string name="di_reply_to">回复 %s</string>
+    <string name="di_send">发送</string>
+    <string name="di_cancel">取消</string>
+    <string name="notification_phone_disconnected_title">已断开连接</string>
+    <string name="notification_phone_disconnected_text">手机超出范围或已断开连接</string>
+
+    <!-- Notification Settings -->
+    <string name="notif_sim_title">测试通知</string>
+    <string name="notif_sim_text">这是一条来自 RTOSify 设置的模拟通知。</string>
+    <string name="notif_sim_sent">模拟通知已发送</string>
+    <string name="notif_sim_error">发送模拟通知错误：%1$s</string>
+
+    <!-- File Observer Settings -->
+    <string name="fo_delete_rule_title">删除规则</string>
+    <string name="fo_delete_rule_msg">您确定要删除“%1$s”吗？</string>
+    <string name="fo_btn_delete">删除</string>
+    <string name="fo_btn_cancel">取消</string>
+    <string name="fo_btn_save">保存</string>
+    <string name="fo_edit_rule_title">编辑规则</string>
+    <string name="fo_add_rule_title">添加新规则</string>
+    <string name="fo_error_path_req">路径是必需的</string>
+    <string name="fo_error_type_req">请至少选择一种文件类型</string>
+    <string name="fo_pick_icon_title">选择应用图标</string>
+    <string name="fo_pick_icon_storage">从存储中选择</string>
+    <string name="fo_pick_icon_clear">清除图标</string>
+    <string name="fo_error_no_picker">没有可用的图像选择器</string>
+    <string name="fo_error_load_image">加载图像失败</string>
+    <string name="fo_toolbar_title">文件监控规则</string>
+    <string name="fo_empty_state">暂无规则，点击 + 添加。</string>
+    <string name="fo_fab_add_rule">添加规则</string>
+    <string name="fo_hint_directory_path">目录路径</string>
+    <string name="fo_hint_pick_folder">选择文件夹</string>
+    <string name="fo_hint_notification_title">自定义通知标题</string>
+    <string name="fo_icon_label">自定义图标（可选）</string>
+    <string name="fo_btn_choose_icon">选择图标</string>
+    <string name="fo_file_types_label">要监控的文件类型：</string>
+    <string name="fo_type_image">图片</string>
+    <string name="fo_type_video">视频</string>
+    <string name="fo_type_audio">音频</string>
+    <string name="fo_type_text">文本</string>
+    <string name="fo_switch_recursive">递归扫描</string>
+    <string name="fo_switch_send_to_watch">自动发送完整文件到手表</string>
+    <string name="fo_send_to_watch_hint">如果禁用，则仅发送通知文本。</string>
+    <string name="itest_ice_state">ICE 状态: %s</string>
+    <string name="itest_gathering_state">收集状态: %s</string>
+
+    <!-- Bluetooth Service Status -->
+    <string name="status_wifi_off">WiFi 已关闭</string>
+    <string name="status_wifi_error">WiFi 错误</string>
+    <string name="error_invalid_mac">设备 MAC 地址无效</string>
+
+    <string name="percent_format">%d%%</string>
+
+
+    <!-- Dynamic Island Background Extras -->
+    <string name="di_bg_preview_user">预览用户</string>
+    <string name="di_bg_preview_text">示例通知文本</string>
+    <string name="di_bg_toast_load_failed">加载图像失败</string>
+    <string name="di_bg_toast_select_first">请先选择背景图像</string>
+    <string name="di_bg_toast_success">背景已保存并正在同步...</string>
+    <string name="di_bg_toast_service_disconnected">服务已断开。请重启蓝牙。</string>
+
+
+
+    <string name="health_value_format_no_decimals">%.0f</string>
+    <string name="battery_value_zero">0</string>
+
+
+
+
+    <string name="battery_time_m">%d分</string>
+    <string name="battery_time_h_m">%d小时 %d分</string>
+    <string name="di_blacklist_title">黑名单应用</string>
+
+    <string name="battery_history_hour_format">%d小时前</string>
+    <string name="battery_percent_format">%d%%</string>
+
+
+
+    <string name="status_na">N/A</string>
+    <string name="file_selected_count">已选择 %d 个</string>
+    <string name="file_items_count">%d 项</string>
+    <string name="file_size_0">0 B</string>
+    <string name="unit_b">B</string>
+    <string name="unit_kb">KB</string>
+    <string name="unit_mb">MB</string>
+    <string name="unit_gb">GB</string>
+    <string name="unit_tb">TB</string>
+    <string name="btn_close">关闭</string>
+    <string name="btn_cancel">取消</string>
+    <string name="btn_ok">确定</string>
+    <string name="wf_imported">已导入</string>
+    <string name="wf_other">其他</string>
+    <string name="wf_root">&lt;根目录&gt;</string>
+    <string name="symbol_forward">›</string>
+    <string name="symbol_up">↑</string>
+    <string name="symbol_slash">/</string>
+    <string name="msg_error_loading_files">加载文件失败</string>
+    <string name="msg_deleted_files">已删除 %d 个文件</string>
+
+    <!-- Notification Settings - Phone Calls -->
+    <string name="notif_phone_calls_title">转发来电</string>
+    <string name="notif_phone_calls_desc">将来电提醒发送到手表</string>
+    <string name="notif_wake_screen_dnd_title">勿扰模式下唤醒屏幕</string>
+    <string name="notif_wake_screen_dnd_desc">即使启用勿扰模式也唤醒屏幕</string>
+
+    <!-- Android Style Settings -->
+    <string name="notif_android_settings">安卓样式设置</string>
+    <string name="in_app_reply_dialog_title">应用内回复对话框</string>
+    <string name="in_app_reply_dialog_desc">在手表上使用自定义对话框进行回复，而不是系统回复界面。如果原生回复不起作用，这很有用。</string>
+
+    <!-- Notification Debugging -->
+    <string name="notif_debug_title">调试</string>
+    <string name="notif_debug_simulate">模拟通知</string>
+
+    <!-- Watch Face Management -->
+    <string name="wf_button_delete">删除</string>
+    <string name="wf_upload">上传</string>
+    <string name="wf_delete_confirm_count">确定要删除 %d 个表盘吗？</string>
+
+    <!-- Dynamic Island Customization -->
+    <string name="di_follow_dnd_title">遵循勿扰模式</string>
+    <string name="di_follow_dnd_desc">勿扰模式启用时不展开通知</string>
+    <string name="di_hide_peak_title">在黑名单应用中隐藏峰值</string>
+    <string name="di_hide_peak_desc">在黑名单应用中完全隐藏灵动岛并阻止展开</string>
+    <string name="di_appearance_title">外观</string>
+    <string name="di_appearance_desc">自定义背景和不透明度</string>
+    <string name="di_background_title">背景图片</string>
+    <string name="di_background_desc">为灵动岛设置自定义背景</string>
+    <string name="di_select_image">选择图片</string>
+    <string name="di_opacity">不透明度</string>
+    <string name="di_preview">预览</string>
+    <string name="di_preview_pill">收缩状态</string>
+    <string name="di_preview_expanded">展开状态</string>
+    <string name="di_save_sync">保存并同步</string>
+    <string name="di_crop_instruction">拖动和缩放以调整图片在框内的位置。</string>
+
+    <!-- File Manager Actions -->
+    <string name="action_copy">复制</string>
+    <string name="action_move">移动</string>
+    <string name="action_download">下载</string>
+    <string name="action_delete">删除</string>
+    <string name="action_paste">粘贴到此处</string>
+    <string name="action_select_all">全选</string>
+    <string name="action_rename">重命名</string>
+    <string name="rename_title">重命名文件</string>
+    <string name="rename_message">输入 %s 的新名称：</string>
+    <string name="rename_error_empty">名称不能为空</string>
+    <string name="file_renamed">文件已重命名</string>
+    <string name="msg_copied_clipboard">已复制 %d 个文件到剪贴板</string>
+    <string name="msg_moved_clipboard">已选择 %d 个文件待移动</string>
+    <string name="msg_paste_success">文件粘贴成功</string>
+
+    <!-- ADB & Mirroring -->
+    <string name="adb_command_label">ADB 命令</string>
+
+    <!-- Notification Rules -->
+    <string name="notif_app_priority">最低优先级</string>
+    <string name="notif_app_priority_desc">仅转发此优先级或更高的通知</string>
+    <string name="notif_app_is_nav">导航应用</string>
+    <string name="notif_app_is_nav_desc">视为导航应用（影响 HUD/镜像）</string>
+    <string name="priority_any">任意（默认）</string>
+    <string name="priority_low">低+</string>
+    <string name="priority_default">默认+</string>
+    <string name="priority_high">高</string>
+
+    <!-- Error Messages -->
+    <string name="error_location_disabled">定位服务已禁用。请启用定位以使用查找设备功能。</string>
+
+    <!-- WiFi/LAN Pairing -->
+    <string name="wifi_already_paired">局域网已配对</string>
+
+    <!-- Health App -->
+    <string name="health_app_not_installed">未安装健康追踪器</string>
+    <string name="health_app_install_reminder">在智能手表上安装 Better Health Tracker 以使用健康功能。</string>
+
+    <!-- Connection Status Extended -->
+    <string name="status_connected_to_bt">已连接到 %s (蓝牙)</string>
+    <string name="status_connected_to_wifi">已连接到 %s (局域网)</string>
+    <string name="status_connected_to_ble">已连接到 %s (BLE)</string>
+    <string name="status_connected_to_internet">已连接到 %s (互联网)</string>
+
+    <!-- Automation -->
+    <string name="automation_keepalive_title">积极保活</string>
+    <string name="automation_keepalive_desc">每 5 分钟重启手表服务以确保连接可靠</string>
+
+    <!-- WiFi Status -->
+    <string name="wifi_status_error">WiFi 错误</string>
+    <string name="wifi_status_disconnected">已断开</string>
+    <string name="wifi_status_disabled">WiFi 已关闭</string>
+    <string name="wifi_status_no_permission">无权限</string>
+
+    <!-- Network Labels -->
+    <string name="network_label_ble">BLE</string>
 </resources>

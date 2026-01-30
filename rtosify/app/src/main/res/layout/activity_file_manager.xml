@@ -34,7 +34,7 @@
             android:layout_height="wrap_content"
             android:padding="8dp"
             android:background="#1AFFFFFF"
-            android:text="/"
+            android:text="@string/symbol_slash"
             android:textColor="@color/colorAccent"
             android:textSize="14sp" />
 

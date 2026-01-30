@@ -711,12 +711,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         when (progress) {
             in 0..99 -> {
                 uploadProgressBar?.progress = progress
-                uploadPercentageText?.text = "$progress%"
+                uploadPercentageText?.text = getString(R.string.percent_format, progress)
                 uploadDescriptionText?.text = getString(R.string.upload_transferring)
             }
             100 -> {
                 uploadProgressBar?.progress = 100
-                uploadPercentageText?.text = "100%"
+                uploadPercentageText?.text = getString(R.string.percent_100)
                 uploadTitleText?.text = getString(R.string.upload_complete_title)
                 uploadDescriptionText?.text = getString(R.string.upload_complete_message)
                 uploadIconView?.setImageResource(android.R.drawable.stat_sys_upload_done)
@@ -788,7 +788,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     override fun onPhoneBatteryUpdated(battery: Int, isCharging: Boolean) {
         android.util.Log.d("CHARGING_DEBUG", "WATCH onPhoneBatteryUpdated: battery=$battery, isCharging=$isCharging")
         runOnUiThread {
-            tvPhoneBattery.text = "$battery%"
+            tvPhoneBattery.text = getString(R.string.percent_format, battery)
             tvPhoneBattery.visibility = View.VISIBLE
             imgPhoneBattery.visibility = View.VISIBLE
 

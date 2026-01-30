@@ -1029,7 +1029,7 @@ class BluetoothService : Service() {
                 transportManager.startClient(device)
             } else {
                  Log.e(TAG, "Cannot get Bluetooth device for MAC: $lastMac")
-                 callback?.onError("Invalid device MAC address")
+                 callback?.onError(getString(R.string.error_invalid_mac))
             }
         } else {
             Log.e(TAG, "No device MAC configured. User must pair device in WelcomeActivity first.")
@@ -1236,7 +1236,7 @@ class BluetoothService : Service() {
                 } else {
                     lastValidWifiSsid = ""
                     wifiState = "DISABLED"
-                    displayWifi = "Wifi Off"
+                    displayWifi = getString(R.string.status_wifi_off)
                 }
             } else {
                 wifiState = "NO_PERMISSION"
@@ -1244,7 +1244,7 @@ class BluetoothService : Service() {
             }
         } catch (_: Exception) {
             wifiState = "ERROR"
-            displayWifi = "Erro Wifi"
+            displayWifi = getString(R.string.status_wifi_error)
         }
 
         return StatusUpdateData(

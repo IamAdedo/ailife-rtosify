@@ -145,8 +145,8 @@ class PermissionActivity : AppCompatActivity() {
         perms.add(
             PermissionItem(
                 "NATIVE_BYPASS",
-                "Native Access Bypass",
-                "Injects special character to bypass path restrictions (Android/data). Recommended: ON",
+                getString(R.string.perm_native_bypass_title),
+                getString(R.string.perm_native_bypass_desc),
                 isNativeBypassEnabled
             )
         )
@@ -475,10 +475,10 @@ class PermissionActivity : AppCompatActivity() {
                     if (testFile.exists() && testFile.isDirectory) {
                          prefs.edit().putBoolean("native_access_bypass", true).apply()
                          updatePermissionList()
-                         android.widget.Toast.makeText(this, "Native Bypass Enabled Compatible Kernel Detected", android.widget.Toast.LENGTH_SHORT).show()
+                         android.widget.Toast.makeText(this, getString(R.string.msg_native_bypass_enabled), android.widget.Toast.LENGTH_SHORT).show()
                     } else {
                          // Compatibility failed
-                         android.widget.Toast.makeText(this, "Error: Kernel does not support ZWJ Bypass.", android.widget.Toast.LENGTH_LONG).show()
+                          android.widget.Toast.makeText(this, getString(R.string.msg_error_zwj_bypass), android.widget.Toast.LENGTH_LONG).show()
                     }
                 } else {
                     // Disable
@@ -756,11 +756,11 @@ class PermissionActivity : AppCompatActivity() {
                         try {
                             if (userService == null && hasShizuku) {
                                 runOnUiThread {
-                                    android.widget.Toast.makeText(
-                                                    this,
-                                                    "UserService not connected. Try again.",
-                                                    android.widget.Toast.LENGTH_SHORT
-                                            )
+                                     android.widget.Toast.makeText(
+                                                     this,
+                                                     getString(R.string.msg_userservice_not_connected),
+                                                     android.widget.Toast.LENGTH_SHORT
+                                             )
                                             .show()
                                 }
                                 return@Thread
@@ -794,7 +794,7 @@ class PermissionActivity : AppCompatActivity() {
                             runOnUiThread {
                                 android.widget.Toast.makeText(
                                                 this,
-                                                "Error: ${e.message}",
+                                                getString(R.string.msg_error_format, e.message),
                                                 android.widget.Toast.LENGTH_SHORT
                                         )
                                         .show()
@@ -805,7 +805,7 @@ class PermissionActivity : AppCompatActivity() {
         } catch (e: Exception) {
             android.widget.Toast.makeText(
                             this,
-                            "Error: ${e.message}",
+                            getString(R.string.msg_error_format, e.message),
                             android.widget.Toast.LENGTH_SHORT
                     )
                     .show()

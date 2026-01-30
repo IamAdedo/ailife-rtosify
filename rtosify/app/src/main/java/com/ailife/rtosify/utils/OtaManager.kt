@@ -23,6 +23,7 @@ import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
+import com.ailife.rtosify.R
 
 /**
  * OtaManager - Handles OTA updates for both Phone (Rtosify) and Watch (Companion).
@@ -95,7 +96,7 @@ class OtaManager(private val context: Context) {
 
         // Check network
         if (!isNetworkAvailable()) {
-            if (!silent) showToast("No internet connection")
+            if (!silent) showToast(context.getString(R.string.ota_no_internet))
             return
         }
 
@@ -120,7 +121,7 @@ class OtaManager(private val context: Context) {
                 val responseCode = connection.responseCode
                 if (responseCode != HttpURLConnection.HTTP_OK) {
                     Log.e(TAG, "API request failed with code: $responseCode")
-                    if (!silent) showToast("Update check failed: Server error $responseCode")
+                    if (!silent) showToast(context.getString(R.string.ota_check_failed_server, responseCode))
                     return@thread
                 }
 
@@ -136,7 +137,7 @@ class OtaManager(private val context: Context) {
 
             } catch (e: Exception) {
                 Log.e(TAG, "API request failed: ${e.message}")
-                if (!silent) showToast("Update check failed: ${e.message}")
+                if (!silent) showToast(context.getString(R.string.ota_check_failed_generic, e.message))
             } finally {
                 connection?.disconnect()
             }
@@ -175,7 +176,7 @@ class OtaManager(private val context: Context) {
 
             if (downloadUrlPhone == null && downloadUrlWatch == null) {
                 Log.e(TAG, "No APKs found in release")
-                if (!silent) showToast("No update artifacts found")
+                if (!silent) showToast(context.getString(R.string.ota_no_artifacts))
                 return
             }
 
@@ -183,7 +184,7 @@ class OtaManager(private val context: Context) {
 
         } catch (e: JSONException) {
             Log.e(TAG, "JSON parsing error: ${e.message}")
-            if (!silent) showToast("Failed to parse update info")
+            if (!silent) showToast(context.getString(R.string.ota_parse_error))
         }
     }
 
@@ -200,7 +201,7 @@ class OtaManager(private val context: Context) {
                 if (comparison < 0) {
                     showUpdateDialog()
                 } else {
-                    if (!silent) showToast("You are up to date (v$currentVersion)")
+                    if (!silent) showToast(context.getString(R.string.ota_up_to_date, currentVersion))
                 }
             }
 
@@ -211,18 +212,18 @@ class OtaManager(private val context: Context) {
 
     private fun showUpdateDialog() {
         AlertDialog.Builder(context)
-            .setTitle("Update Available: v$latestVersion")
+            .setTitle(context.getString(R.string.ota_update_available_title, latestVersion))
             .setMessage(changelog)
             .setCancelable(true)
-            .setPositiveButton("Update") { _, _ ->
+            .setPositiveButton(context.getString(R.string.ota_btn_update)) { _, _ ->
                 initiateDownloads()
             }
-            .setNeutralButton("Later") { dialog, _ ->
+            .setNeutralButton(context.getString(R.string.ota_btn_later)) { dialog, _ ->
                 dialog.dismiss()
             }
-            .setNegativeButton("Don't ask again") { dialog, _ ->
+            .setNegativeButton(context.getString(R.string.ota_btn_dont_ask)) { dialog, _ ->
                 setUpdateCheckEnabled(false)
-                Toast.makeText(context, "Update checks disabled", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.ota_checks_disabled_toast), Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
             }
             .show()
@@ -230,10 +231,10 @@ class OtaManager(private val context: Context) {
 
     private fun initiateDownloads() {
         if (downloadUrlPhone != null) {
-            downloadFile(downloadUrlPhone!!, DOWNLOAD_FILE_PHONE, "Downloading Phone Update")
+            downloadFile(downloadUrlPhone!!, DOWNLOAD_FILE_PHONE, context.getString(R.string.ota_downloading_phone_title))
         }
         if (downloadUrlWatch != null) {
-            downloadFile(downloadUrlWatch!!, DOWNLOAD_FILE_WATCH, "Downloading Watch Update")
+            downloadFile(downloadUrlWatch!!, DOWNLOAD_FILE_WATCH, context.getString(R.string.ota_downloading_watch_title))
         }
     }
 
@@ -252,7 +253,7 @@ class OtaManager(private val context: Context) {
         dm.enqueue(request)
 
         setupDownloadCompleteReceiver(destination.absolutePath, fileName)
-        Toast.makeText(context, "Started: $title", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.ota_download_started, title), Toast.LENGTH_SHORT).show()
     }
 
     private fun setupDownloadCompleteReceiver(path: String, fileName: String) {
@@ -294,7 +295,7 @@ class OtaManager(private val context: Context) {
             context.startActivity(intent)
         } catch (e: Exception) {
             Log.e(TAG, "Install failed: ${e.message}")
-            showToast("Install failed: ${e.message}")
+            showToast(context.getString(R.string.ota_install_failed, e.message))
         }
     }
 
@@ -303,7 +304,7 @@ class OtaManager(private val context: Context) {
         intent.putExtra("file_path", file.absolutePath)
         context.sendBroadcast(intent)
         
-        showToast("Watch update downloaded. Transferring...")
+        showToast(context.getString(R.string.ota_watch_downloaded_transferring))
     }
 
     private fun compareVersions(v1: String, v2: String): Int {

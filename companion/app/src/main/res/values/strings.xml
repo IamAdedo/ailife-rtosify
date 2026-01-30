@@ -534,4 +534,31 @@
     <string name="fullscreen_downloading_progress">Downloading... %d%%</string>
     <string name="fullscreen_download_failed">Download failed</string>
 
+
+
+    <!-- Generic Formats -->
+    <string name="percent_format">%d%%</string>
+    <string name="percent_100">100%</string>
+
+    <string name="msg_requesting_download">Requesting download...</string>
+    <string name="msg_ios_notif_enabled">iOS Notifications enabled</string>
+    <string name="msg_native_bypass_enabled">Native Bypass Enabled Compatible Kernel Detected</string>
+    <string name="msg_error_zwj_bypass">Error: Kernel does not support ZWJ Bypass.</string>
+    <string name="symbol_plus">+</string>
+    <string name="digit_0">0</string>
+    <string name="digit_1">1</string>
+    <string name="digit_2">2</string>
+    <string name="digit_3">3</string>
+    <string name="digit_4">4</string>
+    <string name="digit_5">5</string>
+    <string name="digit_6">6</string>
+    <string name="digit_7">7</string>
+    <string name="digit_8">8</string>
+    <string name="digit_9">9</string>
+    <string name="perm_native_bypass_title">Native Access Bypass</string>
+    <string name="perm_native_bypass_desc">Injects special character to bypass path restrictions (Android/data). Recommended: ON</string>
+    <string name="msg_userservice_not_connected">UserService not connected. Try again.</string>
+    <string name="msg_permission_granted">Permission granted!</string>
+    <string name="msg_permission_failed">Failed (Code: %d). Try ADB.</string>
+    <string name="msg_error_format">Error: %s</string>
 </resources>

@@ -84,7 +84,7 @@ class FileObserverSettingsActivity : AppCompatActivity() {
                     onImagePicked?.invoke(base64)
                 }
             } catch (e: Exception) {
-                Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.fo_error_load_image), Toast.LENGTH_SHORT).show()
                 e.printStackTrace()
             }
         }
@@ -156,9 +156,9 @@ class FileObserverSettingsActivity : AppCompatActivity() {
 
     private fun deleteRule(rule: FileObserverRule) {
         AlertDialog.Builder(this)
-            .setTitle("Delete Rule")
-            .setMessage("Are you sure you want to delete '${rule.name}'?")
-            .setPositiveButton("Delete") { _, _ ->
+            .setTitle(getString(R.string.fo_delete_rule_title))
+            .setMessage(getString(R.string.fo_delete_rule_msg, rule.name))
+            .setPositiveButton(getString(R.string.fo_btn_delete)) { _, _ ->
                 val currentRules = adapter.getRules().toMutableList() // Hack: added getRules to adapter
                 // Actually, adapter doesn't expose list directly in previous code.
                 // Re-fetch from prefs or modify adapter.
@@ -169,7 +169,7 @@ class FileObserverSettingsActivity : AppCompatActivity() {
                 list.removeAll { it.id == rule.id }
                 saveRules(list)
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(getString(R.string.fo_btn_cancel), null)
             .show()
     }
     
@@ -285,13 +285,13 @@ class FileObserverSettingsActivity : AppCompatActivity() {
         }
 
         AlertDialog.Builder(this)
-            .setTitle(if (existingRule != null) "Edit Rule" else "Add New Rule")
+            .setTitle(if (existingRule != null) getString(R.string.fo_edit_rule_title) else getString(R.string.fo_add_rule_title))
             .setView(dialogView)
-            .setPositiveButton("Save") { _, _ ->
+            .setPositiveButton(getString(R.string.fo_btn_save)) { _, _ ->
                 val path = etPath.text.toString()
                 
                 if (path.isBlank()) {
-                    Toast.makeText(this, "Path is required", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.fo_error_path_req), Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
                 
@@ -306,7 +306,7 @@ class FileObserverSettingsActivity : AppCompatActivity() {
                 if (cbText.isChecked) types.add("text")
 
                 if (types.isEmpty()) {
-                    Toast.makeText(this, "Select at least one file type", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.fo_error_type_req), Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
                 
@@ -352,7 +352,7 @@ class FileObserverSettingsActivity : AppCompatActivity() {
                 
                 saveRules(list)
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(getString(R.string.fo_btn_cancel), null)
             .show()
     }
 
@@ -364,7 +364,7 @@ class FileObserverSettingsActivity : AppCompatActivity() {
         val items = apps.map { it.loadLabel(packageManager).toString() }.toTypedArray()
         
         AlertDialog.Builder(this)
-            .setTitle("Select App Icon")
+            .setTitle(getString(R.string.fo_pick_icon_title))
             .setItems(items) { _, which ->
                 val app = apps[which]
                 try {
@@ -375,7 +375,7 @@ class FileObserverSettingsActivity : AppCompatActivity() {
                     onIconPicked(null, null)
                 }
             }
-            .setPositiveButton("Pick from Storage") { dialog, _ ->
+            .setPositiveButton(getString(R.string.fo_pick_icon_storage)) { dialog, _ ->
                 onImagePicked = { base64 ->
                     onIconPicked(base64, "custom_image")
                 }
@@ -404,12 +404,12 @@ class FileObserverSettingsActivity : AppCompatActivity() {
                      try {
                         imagePickerLauncher.launch(safIntent)
                      } catch (e2: Exception) {
-                        Toast.makeText(this, "No image picker available", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, getString(R.string.fo_error_no_picker), Toast.LENGTH_SHORT).show()
                      }
                 }
             }
-            .setNeutralButton("Clear Icon") { _, _ -> onIconPicked(null, null) }
-            .setNegativeButton("Cancel", null)
+            .setNeutralButton(getString(R.string.fo_pick_icon_clear)) { _, _ -> onIconPicked(null, null) }
+            .setNegativeButton(getString(R.string.fo_btn_cancel), null)
             .show()
     }
     
