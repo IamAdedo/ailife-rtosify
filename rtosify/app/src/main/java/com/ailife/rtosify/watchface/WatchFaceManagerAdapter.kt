@@ -18,6 +18,7 @@ class WatchFaceManagerAdapter(
     private var allItems: List<ManagerItem>,
     private val isLocal: Boolean,
     private val onRequestPreview: (String) -> Unit,
+    private val onCancelPreview: (String) -> Unit, // New callback
     private val onAction: (Action, ManagerItem) -> Unit,
     private val onSelectionChanged: (Boolean, Int) -> Unit // isSelectionMode, selectedCount
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
@@ -56,7 +57,11 @@ class WatchFaceManagerAdapter(
     fun setPreview(path: String, bitmap: android.graphics.Bitmap?) {
         if (bitmap != null) {
             previewCache[path] = bitmap
-            notifyDataSetChanged() // Ideally, notify specific item changed
+            // Find the index of the item with this path
+            val index = displayedItems.indexOfFirst { it is ManagerItem.Face && it.fileInfo.path == path }
+            if (index != -1) {
+                notifyItemChanged(index)
+            }
         }
     }
 
@@ -97,6 +102,17 @@ class WatchFaceManagerAdapter(
 
     override fun getItemCount(): Int = displayedItems.size
 
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        super.onViewRecycled(holder)
+        if (holder is FaceViewHolder) {
+            holder.currentPath?.let { path ->
+                if (!isLocal) {
+                    onCancelPreview(path)
+                }
+            }
+        }
+    }
+
     inner class HeaderViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val tvName = view.findViewById<TextView>(R.id.tvFolderName)
         val imgExpand = view.findViewById<ImageView>(R.id.imgExpand)
@@ -127,8 +143,10 @@ class WatchFaceManagerAdapter(
         val btnSet = view.findViewById<ImageButton>(R.id.btnSet)
         val btnRename = view.findViewById<ImageButton>(R.id.btnRename)
         val btnDelete = view.findViewById<ImageButton>(R.id.btnDelete)
+        var currentPath: String? = null
 
         fun bind(item: ManagerItem.Face) {
+            currentPath = item.fileInfo.path
             tvName.text = item.fileInfo.name
             
             val cached = previewCache[item.fileInfo.path]

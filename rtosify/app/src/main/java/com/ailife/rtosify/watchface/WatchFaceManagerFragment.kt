@@ -97,6 +97,11 @@ class WatchFaceManagerFragment : Fragment() {
                     (activity as? WatchFaceActivity)?.requestPreview(path)
                 }
             },
+            onCancelPreview = { path ->
+                 if (!isLocal) {
+                     (activity as? WatchFaceActivity)?.cancelPreviewRequest(path)
+                 }
+            },
             onAction = { action, item ->
                 handleAction(action, item)
             },

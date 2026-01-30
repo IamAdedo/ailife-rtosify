@@ -281,8 +281,57 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
         tabLayout.postDelayed({ managerFragment.refresh() }, 1000)
     }
 
+    private val previewQueue = LinkedList<String>()
+    private var isFetchingPreview = false
+    private val queueLock = Any()
+
     fun requestPreview(path: String) {
-        bluetoothService?.sendMessage(com.ailife.rtosify.ProtocolHelper.createRequestPreview(path))
+        synchronized(queueLock) {
+            // If already fetching THIS path, do nothing? 
+            // Actually, we can't easily know WHICH path is fetching without storing it.
+            // But standard behaviour:
+            previewQueue.remove(path)
+            previewQueue.addFirst(path)
+        }
+        processNextPreview()
+    }
+
+    fun cancelPreviewRequest(path: String) {
+         synchronized(queueLock) {
+            previewQueue.remove(path)
+         }
+    }
+
+    private fun processNextPreview() {
+        var path: String? = null
+        
+        synchronized(queueLock) {
+            if (isFetchingPreview) return
+            if (previewQueue.isEmpty()) return
+            
+            path = previewQueue.pollFirst()
+             // Check if we already have a preview? (Optional optimization)
+            if (path != null) {
+                isFetchingPreview = true
+            }
+        }
+
+        if (path != null) {
+            android.util.Log.d("WatchFace", "Sending request for: $path")
+            bluetoothService?.sendMessage(com.ailife.rtosify.ProtocolHelper.createRequestPreview(path!!))
+            
+            // Safety timeout
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                synchronized(queueLock) {
+                    if (isFetchingPreview) {
+                        android.util.Log.w("WatchFace", "Preview timeout for $path")
+                        isFetchingPreview = false
+                    }
+                }
+                // Trigger outside lock to avoid nested if processNextPreview locks
+                processNextPreview()
+            }, 5000)
+        }
     }
 
     private fun handleImportedUris(uris: List<Uri>) {
@@ -532,14 +581,29 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
             wifiState: String?
     ) {}
     override fun onPreviewReceived(path: String, imageBase64: String?, textContent: String?) {
+        synchronized(queueLock) {
+            isFetchingPreview = false
+        }
         if (imageBase64 != null) {
             managerFragment.updatePreview(path, imageBase64)
         }
+        processNextPreview()
     }
 
     override fun onError(message: String) {
         dismissProgressDialog()
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+        
+        var wasFetching = false
+        synchronized(queueLock) {
+            if (isFetchingPreview) {
+                isFetchingPreview = false
+                wasFetching = true
+            }
+        }
+        if (wasFetching) {
+            processNextPreview()
+        }
     }
 
     override fun onDeviceInfoReceived(info: DeviceInfoData) {}
