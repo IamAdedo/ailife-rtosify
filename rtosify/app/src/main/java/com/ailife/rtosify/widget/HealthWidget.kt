@@ -36,7 +36,7 @@ class HealthWidget : AppWidgetProvider() {
         super.onReceive(context, intent)
 
         if (intent.action == ACTION_WIDGET_HEALTH_UPDATE) {
-            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val appWidgetManager = AppWidgetManager.getInstance(context) ?: return
             val thisAppWidget = ComponentName(context, HealthWidget::class.java)
             val appWidgetIds = appWidgetManager.getAppWidgetIds(thisAppWidget)
 

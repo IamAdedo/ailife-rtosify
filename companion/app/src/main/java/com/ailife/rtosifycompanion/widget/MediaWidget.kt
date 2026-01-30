@@ -43,7 +43,7 @@ class MediaWidget : AppWidgetProvider() {
             val artist = intent.getStringExtra(EXTRA_ARTIST) ?: ""
             val isPlaying = intent.getBooleanExtra(EXTRA_IS_PLAYING, false)
 
-            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val appWidgetManager = AppWidgetManager.getInstance(context) ?: return
             val ids = appWidgetManager.getAppWidgetIds(ComponentName(context, MediaWidget::class.java))
             
             for (id in ids) {

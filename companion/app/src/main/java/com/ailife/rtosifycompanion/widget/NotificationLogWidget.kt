@@ -31,7 +31,7 @@ class NotificationLogWidget : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         if (intent.action == ACTION_NOTIFICATION_LOG_UPDATE) {
-            val appWidgetManager = AppWidgetManager.getInstance(context)
+            val appWidgetManager = AppWidgetManager.getInstance(context) ?: return
             val thisAppWidget = ComponentName(context, NotificationLogWidget::class.java)
             val appWidgetIds = appWidgetManager.getAppWidgetIds(thisAppWidget)
             
