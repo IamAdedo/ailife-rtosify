@@ -2289,6 +2289,7 @@ class BluetoothService : Service() {
 
             // Show install dialog ONLY if type is "APK" (sent from app install section, not file
             // manager download)
+            // Show install dialog or silent install if type is "APK"
             if (receivingFileType == "APK") {
                 withContext(kotlinx.coroutines.Dispatchers.Main) { showInstallApkDialog(file) }
             } else if (receivingFileType == "SHARE") {
@@ -3971,4 +3972,5 @@ class BluetoothService : Service() {
             transportManager.setDiscoveredLocalMac(mac)
         }
     }
+
 }

@@ -71,7 +71,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         }
     }
 
-
+            
     private lateinit var prefs: SharedPreferences
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
@@ -581,7 +581,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         android.R.drawable.ic_menu_delete,
                         { resetApp() }
                 )
-        )
+                )
 
         menuAdapter?.updateOptions(options)
     }

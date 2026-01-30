@@ -102,6 +102,11 @@
         </activity>
 
         <activity
+            android:name=".AboutActivity"
+            android:label="About"
+            android:parentActivityName=".MainActivity" />
+
+        <activity
             android:name=".ShareToWatchActivity"
             android:exported="true"
             android:label="@string/automation_sharing_sync_title"
