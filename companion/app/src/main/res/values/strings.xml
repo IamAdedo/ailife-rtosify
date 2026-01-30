@@ -442,6 +442,8 @@
     <string name="camera_record">Record</string>
     <string name="widget_media_name">Media Control</string>
     <string name="widget_dashboard_name">Dashboard</string>
+    <string name="title_notification_history">Notification History</string>
+    <string name="text_no_notifications">No recent notifications</string>
 
     <!-- Hardcoded String Extractions -->
     <string name="find_phone_title">Finding Phone</string>

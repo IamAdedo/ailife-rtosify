@@ -70,6 +70,7 @@ object NotificationLogManager {
             }
             save(context)
         }
+        sendWidgetUpdateBroadcast(context)
     }
 
     /**
@@ -89,5 +90,12 @@ object NotificationLogManager {
             log.clear()
             save(context)
         }
+        sendWidgetUpdateBroadcast(context)
+    }
+
+    private fun sendWidgetUpdateBroadcast(context: Context) {
+        val intent = android.content.Intent("com.ailife.rtosifycompanion.widget.ACTION_NOTIFICATION_LOG_UPDATE")
+        intent.setPackage(context.packageName)
+        context.sendBroadcast(intent)
     }
 }
