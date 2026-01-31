@@ -124,18 +124,18 @@
     <string name="perm_bluetooth_desc">Required to scan and connect.</string>
     
     <string name="perm_install">Install Unknown Apps</string>
-    <string name="perm_install_desc">Required to install received APKs.</string>
+    <string name="perm_install_desc">Used to install APPs from the phone.</string>
     
     <string name="perm_shizuku">Shizuku</string>
-    <string name="perm_shizuku_desc">Provides advanced management.</string>
+    <string name="perm_shizuku_desc">Used to access all files, sync clipboard, power/reboot the device, control wifi/mobile data/bluetooth, install/uninstall APPs, etc.</string>
     
     <string name="perm_root">Root Access</string>
-    <string name="perm_root_desc">Provides full system access.</string>
+    <string name="perm_root_desc">replace shizuku in more permanent way.</string>
 
     <string name="perm_location">Location Services</string>
-    <string name="perm_location_desc">Required for scanning.</string>
+    <string name="perm_location_desc">Used for reading wifi ssid, find device.</string>
     <string name="perm_location_bg">Background Location</string>
-    <string name="perm_location_bg_desc">Allows scanning while screen is off.</string>
+    <string name="perm_location_bg_desc">Allows reading wifi ssid and find device in background.</string>
 
     <!-- Find Watch Alarm -->
     <string name="find_watch_alarm_title">Finding Watch…</string>
@@ -153,13 +153,13 @@
     <string name="reply_sender_me">Me</string>
     
     <string name="perm_storage">Storage Access</string>
-    <string name="perm_storage_desc">Required to browse and manage files.</string>
+    <string name="perm_storage_desc">Used to browse and manage files.</string>
     
     <string name="perm_post_notif">Post Notifications</string>
-    <string name="perm_post_notif_desc">Required to show alerts on the watch.</string>
+    <string name="perm_post_notif_desc">Required to show Android style notifications on the watch.</string>
     
     <string name="perm_dnd">Do Not Disturb Access</string>
-    <string name="perm_dnd_desc">Required to sync DND status between devices.</string>
+    <string name="perm_dnd_desc">Used to sync DND status between devices.</string>
 
     <string name="perm_calendar">Calendar Sync</string>
     <string name="perm_calendar_desc">Allows writing received events to the system calendar.</string>
@@ -178,17 +178,17 @@
     <string name="perm_watchface_desc">Required to manage and apply watch faces directly.</string>
 
     <string name="perm_nearby_wifi">Nearby WiFi Devices</string>
-    <string name="perm_nearby_wifi_desc">Required to scan for WiFi networks on Android 13+.</string>
+    <string name="perm_nearby_wifi_desc">Used for LAN transport.</string>
     
     <string name="perm_accessibility">Accessibility Service</string>
-    <string name="perm_accessibility_desc">Required for clipboard sync in background.</string>
-    <string name="accessibility_service_description">Allows RTOSify companion to sync clipboard with phone</string>
+    <string name="perm_accessibility_desc">Used to control watch screen from the phone.</string>
+    <string name="accessibility_service_description">Allows RTOSify companion to control watch screen from the phone</string>
 
     <string name="perm_usage_stats">Usage Access</string>
-    <string name="perm_usage_stats_desc">Required to show app battery usage.</string>
+    <string name="perm_usage_stats_desc">Used to show app battery usage.</string>
 
     <string name="perm_battery">Battery Optimization</string>
-    <string name="perm_battery_desc">Disable optimization for background stability.</string>
+    <string name="perm_battery_desc">Helps the app stay running in background.</string>
 
     <string name="perm_restricted_title">Restricted Setting</string>
     <string name="perm_restricted_desc">This setting is restricted by Android for security. You need to enable it manually using ADB.\n\nCommand copied to clipboard.</string>
@@ -218,15 +218,15 @@
 
     <!-- Permission Activity Additional Strings -->
     <string name="perm_write_settings">Write System Settings</string>
-    <string name="perm_write_settings_desc">Required for immediate WiFi connection</string>
+    <string name="perm_write_settings_desc">Used to change wifi settings.</string>
     <string name="perm_overlay">Display over other apps</string>
-    <string name="perm_overlay_desc">Required for Dynamic Island notification overlay</string>
+    <string name="perm_overlay_desc">Used for Dynamic Island notification overlay.</string>
     <string name="perm_battery_stats">Battery Stats</string>
-    <string name="perm_battery_stats_desc">Access real per-app battery consumption data (Android 12+)</string>
+    <string name="perm_battery_stats_desc">Used to Access real per-app battery consumption data (Android 12+)</string>
     <string name="perm_dump">System Dump</string>
-    <string name="perm_dump_desc">Directly access system stats for robust data (Method 2)</string>
+    <string name="perm_dump_desc">Used to Directly access system stats for robust data (Method 2)</string>
     <string name="perm_lock_screen">Show on Lock Screen</string>
-    <string name="perm_lock_screen_desc">Required for Dynamic Island on lock screen (Xiaomi/MIUI)</string>
+    <string name="perm_lock_screen_desc">Used for Dynamic Island on lock screen (Xiaomi/MIUI)</string>
     <string name="perm_toast_lock_screen_instruction">Enable \'Show on Lock screen\' in Permissions</string>
     <string name="perm_dialog_activation_method">Choose activation method:</string>
     <string name="perm_button_activate_shizuku">Activate with Shizuku</string>
@@ -556,7 +556,7 @@
     <string name="digit_8">8</string>
     <string name="digit_9">9</string>
     <string name="perm_native_bypass_title">Native Access Bypass</string>
-    <string name="perm_native_bypass_desc">Injects special character to bypass path restrictions (Android/data). Recommended: ON</string>
+    <string name="perm_native_bypass_desc">Injects special character to bypass path restrictions (Android/data).</string>
     <string name="msg_userservice_not_connected">UserService not connected. Try again.</string>
     <string name="msg_permission_granted">Permission granted!</string>
     <string name="msg_permission_failed">Failed (Code: %d). Try ADB.</string>

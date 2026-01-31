@@ -288,21 +288,21 @@
     <string name="perm_notifications_desc">将手机通知发送到手表所需。</string>
     
     <string name="perm_install">安装未知应用</string>
-    <string name="perm_install_desc">发送和安装 APK 到手表所需。</string>
+    <string name="perm_install_desc">用于应用自更新</string>
     
     <string name="perm_battery">电池优化</string>
-    <string name="perm_battery_desc">禁用优化以保持后台连接稳定。</string>
+    <string name="perm_battery_desc">有助于应用在后台运行</string>
     
     <string name="perm_shizuku">Shizuku</string>
-    <string name="perm_shizuku_desc">提供无需 Root 的高级管理。</string>
+    <string name="perm_shizuku_desc">用于剪贴板同步、访问 Android/data 文件夹</string>
     
     <string name="perm_root">Root 访问</string>
-    <string name="perm_root_desc">提供完整系统访问的高级功能。</string>
+    <string name="perm_root_desc">访问 Android/data 文件夹及其他高级功能</string>
 
     <string name="perm_location">定位服务</string>
-    <string name="perm_location_desc">蓝牙扫描所需（Android 限制）。</string>
+    <string name="perm_location_desc">用于蓝牙扫描、读取 WiFi SSID、查找设备</string>
     <string name="perm_location_bg">后台定位</string>
-    <string name="perm_location_bg_desc">允许在应用关闭或屏幕关闭时进行扫描和连接。</string>
+    <string name="perm_location_bg_desc">在后台读取 WiFi SSID 并查找设备</string>
     
     <string name="perm_post_notif">发布通知</string>
     <string name="perm_post_notif_desc">需用于在手机上显示状态和提醒。</string>
@@ -311,23 +311,23 @@
     <string name="perm_camera_desc">扫描手表二维码所需。</string>
     
     <string name="perm_dnd">勿扰访问</string>
-    <string name="perm_dnd_desc">需用于在设备间同步勿扰状态。</string>
+    <string name="perm_dnd_desc">用于在设备间同步勿扰状态。</string>
 
     <string name="perm_storage">存储访问</string>
-    <string name="perm_storage_desc">浏览和管理文件所需。</string>
+    <string name="perm_storage_desc">用于文件监控功能</string>
 
     <string name="perm_call">拨打电话</string>
-    <string name="perm_call_desc">需用于从手表发起通话。</string>
+    <string name="perm_call_desc">用于从手表发起通话。</string>
     <string name="perm_calendar">读取日历</string>
-    <string name="perm_calendar_desc">允许应用将日历事件同步到手表。</string>
+    <string name="perm_calendar_desc">用于将日历事件同步到手表。</string>
     <string name="perm_contacts">读取联系人</string>
-    <string name="perm_contacts_desc">允许应用将联系人同步到手表。</string>
+    <string name="perm_contacts_desc">用于将联系人同步到手表。</string>
     <string name="perm_phone_status">手机状态</string>
-    <string name="perm_phone_status_desc">需用于检测来电并在手表上显示。</string>
+    <string name="perm_phone_status_desc">用于检测来电并在手表上显示。</string>
     
     <string name="perm_accessibility">无障碍服务</string>
-    <string name="perm_accessibility_desc">后台剪贴板同步所需。</string>
-    <string name="accessibility_service_description">允许 RTOSify 与配对设备同步剪贴板</string>
+    <string name="perm_accessibility_desc">用于从手表控制您的手机屏幕。</string>
+    <string name="accessibility_service_description">允许 RTOSify 从手表控制您的手机屏幕</string>
     
     <string name="menu_sync_calendar">同步日历</string>
     <string name="menu_sync_calendar_desc">将您的日历事件发送到手表</string>
@@ -391,7 +391,7 @@
         <item>其他</item>
     </string-array>
     <string name="perm_nearby_wifi">附近 WiFi 设备</string>
-    <string name="perm_nearby_wifi_desc">Android 13+ 扫描 WiFi 网络所需。</string>
+    <string name="perm_nearby_wifi_desc">用于局域网传输。</string>
     <string name="wifi_scanning">正在手表上扫描 WiFi…</string>
 
     <string name="perm_restricted_title">受限设置</string>
@@ -570,8 +570,8 @@
     <string name="wf_rename_fail_with_msg">重命名失败：%s</string>
     <string name="wf_no_faces_on_watch">手表上未找到表盘</string>
 
-    <string name="label_on">开</string>
-    <string name="label_off">关</string>
+    <string name="label_on">启用</string>
+    <string name="label_off">禁用</string>
 
     <string name="alarm_no_alarms">未设置闹钟</string>
     <string name="perm_title_placeholder">权限标题</string>
@@ -722,7 +722,7 @@
     <string name="perm_native_bypass_title">原生访问绕过</string>
     <string name="perm_native_bypass_desc">允许直接访问 Android/data (实验性)</string>
     <string name="perm_manage_storage_title">管理所有文件</string>
-    <string name="perm_manage_storage_desc">允许访问所有文件以使用文件管理功能</string>
+    <string name="perm_manage_storage_desc">用于文件监控功能</string>
 
     <!-- Internet Test Extras -->
     <string name="itest_candidate_found">发现候选节点：%s</string>
@@ -924,9 +924,9 @@
     <string name="bluetooth_transport_title">蓝牙传输模式</string>
     <string name="bluetooth_transport_desc">选择手机如何通过蓝牙连接到手表</string>
     <string name="bt_transport_classic">经典蓝牙 (RFCOMM)</string>
-    <string name="bt_transport_classic_desc">传统蓝牙。更更快的数据传输，适用于所有安卓设备。</string>
+    <string name="bt_transport_classic_desc">传统蓝牙。更快的数据传输，连接更稳定。</string>
     <string name="bt_transport_ble">低功耗蓝牙 (BLE)</string>
-    <string name="bt_transport_ble_desc">更低的功耗。与 iOS 设备兼容 (未来支持)。</string>
+    <string name="bt_transport_ble_desc">更低的功耗，更广的覆盖范围。</string>
     
     <!-- Navigation Overlay Settings -->
     <string name="nav_settings_title">导航设置</string>
@@ -1057,8 +1057,8 @@
 
 
     <!-- Dynamic Island Background Extras -->
-    <string name="di_bg_preview_user">预览用户</string>
-    <string name="di_bg_preview_text">示例通知文本</string>
+    <string name="di_bg_preview_user">灵动岛</string>
+    <string name="di_bg_preview_text">演示通知文本</string>
     <string name="di_bg_toast_load_failed">加载图像失败</string>
     <string name="di_bg_toast_select_first">请先选择背景图像</string>
     <string name="di_bg_toast_success">背景已保存并正在同步...</string>

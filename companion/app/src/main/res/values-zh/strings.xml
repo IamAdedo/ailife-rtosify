@@ -124,18 +124,18 @@
     <string name="perm_bluetooth_desc">扫描和连接所需。</string>
     
     <string name="perm_install">安装未知应用</string>
-    <string name="perm_install_desc">安装接收到的 APK 所需。</string>
+    <string name="perm_install_desc">用于从手机安装应用。</string>
     
     <string name="perm_shizuku">Shizuku</string>
-    <string name="perm_shizuku_desc">提供高级管理功能。</string>
+    <string name="perm_shizuku_desc">用于访问所有文件、同步剪贴板、电源/重启设备、控制 Wi-Fi/移动数据/蓝牙、安装/卸载应用等。</string>
     
     <string name="perm_root">Root 访问</string>
-    <string name="perm_root_desc">提供完整的系统访问权限。</string>
+    <string name="perm_root_desc">以更持久的方式替代 Shizuku。</string>
 
     <string name="perm_location">定位服务</string>
-    <string name="perm_location_desc">扫描所需。</string>
+    <string name="perm_location_desc">用于读取 Wi-Fi SSID、查找设备。</string>
     <string name="perm_location_bg">后台定位</string>
-    <string name="perm_location_bg_desc">允许在屏幕关闭时进行扫描。</string>
+    <string name="perm_location_bg_desc">允许在后台读取 Wi-Fi SSID 并查找设备。</string>
 
     <!-- Find Watch Alarm -->
     <string name="find_watch_alarm_title">正在查找手表…</string>
@@ -153,14 +153,11 @@
     <string name="reply_sender_me">我</string>
     
     <string name="perm_storage">存储访问</string>
-    <string name="perm_storage_desc">浏览和管理文件所需。</string>
-    
+    <string name="perm_storage_desc">用于浏览和管理文件。</string>
     <string name="perm_post_notif">发布通知</string>
-    <string name="perm_post_notif_desc">需用于在手表上显示提醒。</string>
-    
+    <string name="perm_post_notif_desc">用于在手表上显示安卓样式通知。</string>
     <string name="perm_dnd">勿扰访问</string>
-    <string name="perm_dnd_desc">需用于在设备间同步勿扰状态。</string>
-
+    <string name="perm_dnd_desc">用于在设备间同步勿扰状态。</string>
     <string name="perm_calendar">日历同步</string>
     <string name="perm_calendar_desc">允许将接收到的事件写入系统日历。</string>
     
@@ -178,18 +175,14 @@
     <string name="perm_watchface_desc">需用于直接管理和应用表盘。</string>
 
     <string name="perm_nearby_wifi">附近 WiFi 设备</string>
-    <string name="perm_nearby_wifi_desc">Android 13+ 扫描 WiFi 网络所需。</string>
-    
+    <string name="perm_nearby_wifi_desc">用于局域网传输。</string>
     <string name="perm_accessibility">无障碍服务</string>
-    <string name="perm_accessibility_desc">后台剪贴板同步所需。</string>
-    <string name="accessibility_service_description">允许 RTOSify 伴侣与手机同步剪贴板</string>
-
+    <string name="perm_accessibility_desc">用于从手机控制手表屏幕。</string>
+    <string name="accessibility_service_description">允许 RTOSify 伴侣从手机控制手表屏幕</string>
     <string name="perm_usage_stats">使用情况访问</string>
-    <string name="perm_usage_stats_desc">需用于显示应用电池使用情况。</string>
-
+    <string name="perm_usage_stats_desc">用于显示应用电池使用情况。</string>
     <string name="perm_battery">电池优化</string>
-    <string name="perm_battery_desc">禁用优化以保证后台稳定性。</string>
-
+    <string name="perm_battery_desc">有助于应用在后台稳定运行。</string>
     <string name="perm_restricted_title">受限设置</string>
     <string name="perm_restricted_desc">此设置出于安全考虑受 Android 限制。您需要使用 ADB 手动启用。\n\n命令已复制到剪贴板。</string>
 
@@ -218,15 +211,15 @@
 
     <!-- Permission Activity Additional Strings -->
     <string name="perm_write_settings">写入系统设置</string>
-    <string name="perm_write_settings_desc">即时连接 WiFi 所需</string>
+    <string name="perm_write_settings_desc">用于更改 Wi-Fi 设置。</string>
     <string name="perm_overlay">显示在其他应用上层</string>
-    <string name="perm_overlay_desc">灵动岛通知叠加层所需</string>
+    <string name="perm_overlay_desc">用于灵动岛通知叠加层。</string>
     <string name="perm_battery_stats">电池统计</string>
-    <string name="perm_battery_stats_desc">访问真实的逐个应用电池消耗数据 (Android 12+)</string>
+    <string name="perm_battery_stats_desc">用于访问真实的逐个应用电池消耗数据 (Android 12+)</string>
     <string name="perm_dump">系统转储 (Dump)</string>
-    <string name="perm_dump_desc">直接访问系统统计信息以获取可靠数据（方法 2）</string>
+    <string name="perm_dump_desc">用于直接访问系统统计信息以获取可靠数据（方法 2）</string>
     <string name="perm_lock_screen">在锁屏上显示</string>
-    <string name="perm_lock_screen_desc">锁屏上显示灵动岛所需 (小米/MIUI)</string>
+    <string name="perm_lock_screen_desc">用于在锁屏上显示灵动岛 (小米/MIUI)</string>
     <string name="perm_toast_lock_screen_instruction">在权限中启用“在锁屏上显示”</string>
     <string name="perm_dialog_activation_method">选择激活方法：</string>
     <string name="perm_button_activate_shizuku">使用 Shizuku 激活</string>
@@ -554,7 +547,7 @@
     <string name="digit_8">8</string>
     <string name="digit_9">9</string>
     <string name="perm_native_bypass_title">原生访问绕过</string>
-    <string name="perm_native_bypass_desc">注入特殊字符以绕过路径限制 (Android/data)。建议：开启</string>
+    <string name="perm_native_bypass_desc">注入特殊字符以绕过路径限制 (Android/data)。</string>
     <string name="msg_userservice_not_connected">UserService 未连接。请重试。</string>
     <string name="msg_permission_granted">权限已授予！</string>
     <string name="msg_permission_failed">失败 (错误码: %d)。请尝试使用 ADB。</string>

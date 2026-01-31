@@ -313,21 +313,21 @@
     <string name="perm_notifications_desc">Required to send phone notifications to your watch.</string>
     
     <string name="perm_install">Install Unknown Apps</string>
-    <string name="perm_install_desc">Required to send and install APKs to the watch.</string>
+    <string name="perm_install_desc">Used to self update the app</string>
     
     <string name="perm_battery">Battery Optimization</string>
-    <string name="perm_battery_desc">Disable optimization to keep the connection stable in background.</string>
+    <string name="perm_battery_desc">helps the app stay running in background</string>
     
     <string name="perm_shizuku">Shizuku</string>
-    <string name="perm_shizuku_desc">Provides advanced management without root.</string>
+    <string name="perm_shizuku_desc">Used for clipboard sync, access android/data folder</string>
     
     <string name="perm_root">Root Access</string>
-    <string name="perm_root_desc">Provides full system access for advanced features.</string>
+    <string name="perm_root_desc">access android/data folder and other advanced features</string>
 
     <string name="perm_location">Location Services</string>
-    <string name="perm_location_desc">Required for Bluetooth scanning (Android limitation).</string>
+    <string name="perm_location_desc">Used for Bluetooth scanning, reading wifi SSID, find device</string>
     <string name="perm_location_bg">Background Location</string>
-    <string name="perm_location_bg_desc">Allows scanning and connecting while the app is closed or screen is off.</string>
+    <string name="perm_location_bg_desc">read wifi ssid and find device in background</string>
     
     <string name="perm_post_notif">Post Notifications</string>
     <string name="perm_post_notif_desc">Required to show status and alerts on your phone.</string>
@@ -336,23 +336,23 @@
     <string name="perm_camera_desc">Required to scan the watch\'s QR code.</string>
     
     <string name="perm_dnd">Do Not Disturb Access</string>
-    <string name="perm_dnd_desc">Required to sync DND status between devices.</string>
+    <string name="perm_dnd_desc">Used to sync DND status between devices.</string>
 
     <string name="perm_storage">Storage Access</string>
-    <string name="perm_storage_desc">Required to browse and manage files.</string>
+    <string name="perm_storage_desc">Used for file observer feature</string>
 
     <string name="perm_call">Make Phone Calls</string>
-    <string name="perm_call_desc">Required to initiate calls from the watch.</string>
+    <string name="perm_call_desc">Used to initiate calls from the watch.</string>
     <string name="perm_calendar">Read Calendar</string>
-    <string name="perm_calendar_desc">Allows the app to sync calendar events to the watch.</string>
+    <string name="perm_calendar_desc">Used to sync calendar events to the watch.</string>
     <string name="perm_contacts">Read Contacts</string>
-    <string name="perm_contacts_desc">Allows the app to sync contacts to the watch.</string>
+    <string name="perm_contacts_desc">Used to sync contacts to the watch.</string>
     <string name="perm_phone_status">Phone Status</string>
-    <string name="perm_phone_status_desc">Required to detect incoming calls and show them on the watch.</string>
+    <string name="perm_phone_status_desc">Used to detect incoming calls and show them on the watch.</string>
     
     <string name="perm_accessibility">Accessibility Service</string>
-    <string name="perm_accessibility_desc">Required for clipboard sync in background.</string>
-    <string name="accessibility_service_description">Allows RTOSify to sync clipboard with companion device</string>
+    <string name="perm_accessibility_desc">Used to control your phone screen from the watch.</string>
+    <string name="accessibility_service_description">Allows RTOSify to control your phone screen from the watch.</string>
     
     <string name="menu_sync_calendar">Sync Calendar</string>
     <string name="menu_sync_calendar_desc">Send your calendar events to the watch</string>
@@ -418,7 +418,7 @@
         <item>Other</item>
     </string-array>
     <string name="perm_nearby_wifi">Nearby WiFi Devices</string>
-    <string name="perm_nearby_wifi_desc">Required to scan for WiFi networks on Android 13+.</string>
+    <string name="perm_nearby_wifi_desc">Used for LAN transport.</string>
     <string name="wifi_scanning">Scanning WiFi on watch…</string>
 
     <string name="perm_restricted_title">Restricted Setting</string>
@@ -632,8 +632,8 @@
     <string name="wf_rename_fail_with_msg">Rename failed: %s</string>
     <string name="wf_no_faces_on_watch">No watch faces found on watch</string>
 
-    <string name="label_on">On</string>
-    <string name="label_off">Off</string>
+    <string name="label_on">Enable</string>
+    <string name="label_off">Disable</string>
 
     <string name="alarm_no_alarms">No alarms set</string>
     <string name="perm_title_placeholder">Permission Title</string>
@@ -941,9 +941,9 @@
     <string name="bluetooth_transport_title">Bluetooth Transport Mode</string>
     <string name="bluetooth_transport_desc">Choose how your phone connects to the watch via Bluetooth</string>
     <string name="bt_transport_classic">Bluetooth Classic (RFCOMM)</string>
-    <string name="bt_transport_classic_desc">Traditional Bluetooth. Faster data transfer, works on all Android devices.</string>
+    <string name="bt_transport_classic_desc">Traditional Bluetooth. Faster data transfer, more stable connection.</string>
     <string name="bt_transport_ble">Bluetooth Low Energy (BLE)</string>
-    <string name="bt_transport_ble_desc">Lower power consumption. Compatible with iOS devices (future support).</string>
+    <string name="bt_transport_ble_desc">Lower power consumption, higher range.</string>
     
     <!-- Navigation Overlay Settings -->
     <string name="nav_settings_title">Navigation Settings</string>
@@ -1088,7 +1088,7 @@
     <string name="perm_native_bypass_title">Native Access Bypass</string>
     <string name="perm_native_bypass_desc">Allow direct access to Android/data (Experimental)</string>
     <string name="perm_manage_storage_title">Manage All Files</string>
-    <string name="perm_manage_storage_desc">Allow access to all files for file management features</string>
+    <string name="perm_manage_storage_desc">Used for file observer feature</string>
     
     <!-- Internet Test Extras -->
     <string name="itest_candidate_found">Found candidate: %s</string>
@@ -1112,8 +1112,8 @@
 
 
     <!-- Dynamic Island Background Extras -->
-    <string name="di_bg_preview_user">Preview User</string>
-    <string name="di_bg_preview_text">Sample notification text</string>
+    <string name="di_bg_preview_user">Dynamic Island</string>
+    <string name="di_bg_preview_text">Demo notification text</string>
     <string name="di_bg_toast_load_failed">Failed to load image</string>
     <string name="di_bg_toast_select_first">Please select a background image first</string>
     <string name="di_bg_toast_success">Background saved and syncing...</string>
