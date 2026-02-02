@@ -541,9 +541,11 @@ class DynamicIslandService : Service() {
             keys.forEach { key ->
                 val notif = notificationQueue.find { it.key == key }
                 if (notif != null) {
-                    handleNotificationDismiss(notif)
+                    // Optimized batch dismissal: don't update UI for each item
+                    handleNotificationDismiss(notif, updateUi = false)
                 }
             }
+            // Explicitly collapse and update UI once after batch removal
             collapseList()
         }
 
@@ -1315,7 +1317,7 @@ class DynamicIslandService : Service() {
         dismissNotification(notif.key)
     }
 
-    private fun handleNotificationDismiss(notif: NotificationData) {
+    private fun handleNotificationDismiss(notif: NotificationData, updateUi: Boolean = true) {
         Log.d(TAG, "Notification dismissed: ${notif.key}")
 
         // Clean up downloaded file
@@ -1346,14 +1348,16 @@ class DynamicIslandService : Service() {
                 }
         sendBroadcast(intent)
 
-        // Update display
-        if (isExpanded && notificationQueue.isNotEmpty()) {
-            overlayView.expandToList(notificationQueue)
-        } else if (notificationQueue.isNotEmpty()) {
-            overlayView.collapseToIcons(notificationQueue)
-        } else {
-            isExpanded = false
-            updateState()
+        // Update display if requested
+        if (updateUi) {
+            if (isExpanded && notificationQueue.isNotEmpty()) {
+                overlayView.expandToList(notificationQueue)
+            } else if (notificationQueue.isNotEmpty()) {
+                overlayView.collapseToIcons(notificationQueue)
+            } else {
+                isExpanded = false
+                updateState()
+            }
         }
     }
 
@@ -1401,25 +1405,29 @@ class DynamicIslandService : Service() {
         }
     }
 
-    private fun dismissNotification(key: String) {
+    private fun dismissNotification(key: String, updateUi: Boolean = true) {
         val wasInQueue = notificationQueue.any { it.key == key }
         notificationQueue.removeAll { it.key == key }
 
         if (currentNotification?.key == key) {
             currentNotification = null
 
-            if (notificationQueue.isNotEmpty()) {
-                displayNotification(notificationQueue[0])
-            } else {
-                updateState()
+            if (updateUi) {
+                if (notificationQueue.isNotEmpty()) {
+                    displayNotification(notificationQueue[0])
+                } else {
+                    updateState()
+                }
             }
         } else if (wasInQueue) {
             // If it was in the queue but not current, we might need to refresh icons or expanded
             // list
-            if (isExpanded) {
-                overlayView.expandToList(notificationQueue)
-            } else {
-                updateState()
+            if (updateUi) {
+                if (isExpanded) {
+                    overlayView.expandToList(notificationQueue)
+                } else {
+                    updateState()
+                }
             }
         }
     }
