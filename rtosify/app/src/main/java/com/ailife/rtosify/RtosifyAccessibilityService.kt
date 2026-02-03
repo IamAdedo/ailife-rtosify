@@ -26,13 +26,22 @@ class RtosifyAccessibilityService : AccessibilityService() {
 
         private var instance: RtosifyAccessibilityService? = null
 
-        fun enableBluetoothTethering() {
-            instance?.performBluetoothTetheringEnable()
+        fun clickNodesWithKeywords(context: Context, keywords: List<String>, toggleOnly: Boolean = false, targetState: Boolean? = null) {
+            val intent = Intent("com.ailife.rtosify.CLICK_KEYWORDS").apply {
+                putStringArrayListExtra("keywords", ArrayList(keywords))
+                putExtra("toggleOnly", toggleOnly)
+                if (targetState != null) putExtra("targetState", targetState)
+            }
+            context.sendBroadcast(intent)
+            instance?.performKeywordClick(keywords, toggleOnly, targetState)
         }
 
-        fun dispatchRemoteInput(action: Int, xPercentage: Float, yPercentage: Float) {
-            Log.d(TAG, "dispatchRemoteInput called: action=$action, x=$xPercentage, y=$yPercentage, instance=$instance")
-            instance?.performRemoteInput(action, xPercentage, yPercentage) ?: Log.e(TAG, "Accessibility service instance is null!")
+        fun performGlobalAction(context: Context, action: Int) {
+            val intent = Intent("com.ailife.rtosify.GLOBAL_ACTION").apply {
+                putExtra("action", action)
+            }
+            context.sendBroadcast(intent)
+            instance?.performGlobalAction(action)
         }
     }
 
@@ -43,17 +52,21 @@ class RtosifyAccessibilityService : AccessibilityService() {
         instance = this
         Log.d(TAG, "Accessibility service connected")
         
-        // Register receiver for remote input commands from main process
-        val filter = IntentFilter("com.ailife.rtosify.DISPATCH_REMOTE_INPUT")
+        // Register receiver for commands from main process
+        val filter = IntentFilter().apply {
+            addAction("com.ailife.rtosify.DISPATCH_REMOTE_INPUT")
+            addAction("com.ailife.rtosify.CLICK_KEYWORDS")
+            addAction("com.ailife.rtosify.GLOBAL_ACTION")
+        }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            androidx.core.content.ContextCompat.registerReceiver(this, remoteInputReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+            androidx.core.content.ContextCompat.registerReceiver(this, commandReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
         } else {
-            registerReceiver(remoteInputReceiver, filter)
+            registerReceiver(commandReceiver, filter)
         }
     }
     
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        return
+        // Background automation removed. Actions are now triggered synchronously via CLICK_KEYWORDS broadcast.
     }
 
     override fun onInterrupt() {
@@ -62,133 +75,98 @@ class RtosifyAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         super.onDestroy()
         instance = null
-        try { unregisterReceiver(remoteInputReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(commandReceiver) } catch (_: Exception) {}
     }
 
-    private val remoteInputReceiver = object : BroadcastReceiver() {
+    private val commandReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "com.ailife.rtosify.DISPATCH_REMOTE_INPUT") {
-                val action = intent.getIntExtra("action", -1)
-                val x = intent.getFloatExtra("x", 0f)
-                val y = intent.getFloatExtra("y", 0f)
-                if (action != -1) {
-                    performRemoteInput(action, x, y)
-                }
-            }
-        }
-    }
-
-
-    
-    private fun performBluetoothTetheringEnable() {
-        try {
-            Log.d(TAG, "Attempting to enable Bluetooth Tethering (Phone hotspot)")
-
-            // Check if screen is on, wake it up if needed
-            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-            if (!powerManager.isInteractive) {
-                Log.d(TAG, "Screen is off, waking up...")
-                val wakeLock = powerManager.newWakeLock(
-                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
-                    "rtosify:BtTetheringWakeLock"
-                )
-                wakeLock.acquire(5000) // 5 seconds
-
-                // Wait for screen to wake up
-                Handler(Looper.getMainLooper()).postDelayed({
-                    wakeLock.release()
-                    openSettingsAndToggleTethering()
-                }, 1000)
-            } else {
-                openSettingsAndToggleTethering()
-            }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed: ${e.message}")
-        }
-    }
-
-    private fun openSettingsAndToggleTethering() {
-        val rootNode = rootInActiveWindow
-        val pkg = rootNode?.packageName?.toString() ?: ""
-
-        // On phone, we want "Bluetooth tethering" in Hotspot settings
-        if (pkg.contains("com.android.settings")) {
-            Log.d(TAG, "Settings open, searching for BT tethering toggle...")
-            findAndClickTetheringToggle(listOf("Bluetooth tethering", "Tethering", "Hotspot"))
-            return
-        }
-
-        // Open Tethering settings
-        Log.d(TAG, "Opening tethering settings")
-        val intent = Intent("android.settings.TETHER_SETTINGS").apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        try {
-            startActivity(intent)
-        } catch (e: Exception) {
-            val intent2 = Intent("android.settings.TETHER_SETTINGS")
-            intent2.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-            startActivity(intent2)
-        }
-
-        Handler(Looper.getMainLooper()).postDelayed({
-            findAndClickTetheringToggle(listOf("Bluetooth tethering", "Portable hotspot", "Tethering", "Hotspot"))
-        }, 2500)
-    }
-    
-    private fun findAndClickTetheringToggle(keywords: List<String>) {
-        try {
-            val rootNode = rootInActiveWindow ?: return
-            
-            var targetNode: AccessibilityNodeInfo? = null
-            for (keyword in keywords) {
-                targetNode = findNodeByText(rootNode, keyword)
-                if (targetNode != null) {
-                    Log.d(TAG, "Found target node with keyword: $keyword")
-                    break
-                }
-            }
-            
-            if (targetNode != null) {
-                val clickableNode = findClickableOrSwitch(targetNode)
-                if (clickableNode != null) {
-                    // Check current state before toggling
-                    val switchNode = findSwitchInHierarchy(targetNode.parent ?: targetNode)
-                    val isCurrentlyOn = switchNode?.isChecked ?: false
-
-                    Log.d(TAG, "Bluetooth Tethering current state: ${if (isCurrentlyOn) "ON" else "OFF"}")
-
-                    if (isCurrentlyOn) {
-                        Log.i(TAG, "✅ Bluetooth Tethering already ON, skipping toggle")
-                        // Still navigate back
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            performControlledBack()
-                        }, 500)
-                        return
+            Log.d(TAG, "Command received: ${intent?.action}")
+            when (intent?.action) {
+                "com.ailife.rtosify.DISPATCH_REMOTE_INPUT" -> {
+                    val action = intent.getIntExtra("action", -1)
+                    val x = intent.getFloatExtra("x", 0f)
+                    val y = intent.getFloatExtra("y", 0f)
+                    if (action != -1) {
+                        performRemoteInput(action, x, y)
                     }
+                }
+                "com.ailife.rtosify.CLICK_KEYWORDS" -> {
+                    val keywords = intent.getStringArrayListExtra("keywords")
+                    val toggleOnly = intent.getBooleanExtra("toggleOnly", false)
+                    val targetState = if (intent.hasExtra("targetState")) intent.getBooleanExtra("targetState", false) else null
+                    if (keywords != null) {
+                        performKeywordClick(keywords, toggleOnly, targetState)
+                    }
+                }
+                "com.ailife.rtosify.GLOBAL_ACTION" -> {
+                    val action = intent.getIntExtra("action", -1)
+                    if (action != -1) {
+                        performGlobalAction(action)
+                    }
+                }
+            }
+        }
+    }
 
-                    Log.d(TAG, "Bluetooth Tethering is OFF, toggling ON...")
-                    val clicked = clickableNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                    Log.i(TAG, if (clicked) "✅ Successfully toggled ON" else "❌ Click failed")
+    private fun performKeywordClick(keywords: List<String>, toggleOnly: Boolean, targetState: Boolean?) {
+        val startTime = System.currentTimeMillis()
+        val timeout = 5000L // 5 seconds
+        
+        fun attemptClick() {
+            try {
+                val rootNode = rootInActiveWindow ?: run {
+                    if (System.currentTimeMillis() - startTime < timeout) {
+                        Handler(Looper.getMainLooper()).postDelayed({ attemptClick() }, 500)
+                    } else {
+                        Log.e(TAG, "No root node in active window after timeout")
+                    }
+                    return
+                }
 
-                    if (clicked) {
-                        // Controlled back navigation: only if inside settings
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            performControlledBack()
-                        }, 1000)
+                var targetNode: AccessibilityNodeInfo? = null
+                for (keyword in keywords) {
+                    targetNode = findNodeByText(rootNode, keyword)
+                    if (targetNode != null) {
+                        Log.i(TAG, "Found target node with keyword: $keyword")
+                        break
+                    }
+                }
+
+                if (targetNode != null) {
+                    val clickableNode = findClickableOrSwitch(targetNode)
+                    if (clickableNode != null) {
+                        // Smart Toggle: Check state if requested
+                        if (targetState != null) {
+                            val currentState = getSwitchState(clickableNode)
+                            if (currentState == targetState) {
+                                Log.i(TAG, "Smart Toggle: Node already in target state ($targetState), skipping click")
+                                return
+                            }
+                        }
+
+                        Log.i(TAG, "Clicking node for ${targetNode.text ?: "keyword"}")
+                        val clicked = clickableNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        Log.i(TAG, if (clicked) "✅ Successfully clicked keyword-matched node" else "❌ Click failed")
+                    } else {
+                        Log.w(TAG, "Target found but no clickable node detected, retrying...")
+                        if (System.currentTimeMillis() - startTime < timeout) {
+                            Handler(Looper.getMainLooper()).postDelayed({ attemptClick() }, 500)
+                        }
                     }
                 } else {
-                    Log.w(TAG, "Target found but no clickable switch detected")
-                    logNodeHierarchy(rootNode, 0)
+                    if (System.currentTimeMillis() - startTime < timeout) {
+                        Log.v(TAG, "Keywords $keywords not found yet, retrying...")
+                        Handler(Looper.getMainLooper()).postDelayed({ attemptClick() }, 500)
+                    } else {
+                        Log.w(TAG, "Could not find any of $keywords on screen after ${timeout}ms")
+                    }
                 }
-            } else {
-                Log.w(TAG, "Keywords $keywords not found")
-                logNodeHierarchy(rootNode, 0)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in performKeywordClick: ${e.message}")
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error: ${e.message}")
         }
+
+        attemptClick()
     }
 
     private fun performControlledBack() {
@@ -281,6 +259,29 @@ class RtosifyAccessibilityService : AccessibilityService() {
                className.contains("CheckBox", ignoreCase = true) || 
                className.contains("ToggleButton", ignoreCase = true) || 
                node.isCheckable
+    }
+
+    private fun getSwitchState(node: AccessibilityNodeInfo): Boolean {
+        // Many settings switches have isChecked property
+        if (node.isCheckable) return node.isChecked
+        
+        // Sometimes the text indicates state (e.g. "On" or "Off")
+        val text = node.text?.toString()?.lowercase() ?: ""
+        if (text == "on" || text == "开启" || text == "已开启") return true
+        if (text == "off" || text == "关闭" || text == "已关闭") return false
+        
+        // Or content description
+        val desc = node.contentDescription?.toString()?.lowercase() ?: ""
+        if (desc.contains("on") || desc.contains("开启")) return true
+        if (desc.contains("off") || desc.contains("关闭")) return false
+
+        // Check children for switches if this is a row
+        val childSwitch = findSwitchInChildren(node)
+        if (childSwitch != null && childSwitch != node) {
+            return childSwitch.isChecked
+        }
+
+        return node.isChecked // Fallback
     }
 
     // Touch state tracking for swipe/drag gestures

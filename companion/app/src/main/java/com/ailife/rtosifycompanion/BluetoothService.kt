@@ -91,6 +91,7 @@ import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
 import rikka.shizuku.Shizuku
+import com.ailife.rtosifycompanion.utils.DeviceActionManager
 
 class BluetoothService : Service() {
 
@@ -112,6 +113,9 @@ class BluetoothService : Service() {
     private lateinit var deviceInfoManager: DeviceInfoManager
     private lateinit var watchAlarmManager: WatchAlarmManager
     private lateinit var fileManager: FileManager
+
+    // Device Action Manager
+    private lateinit var deviceActionManager: DeviceActionManager
 
 
     private val shizukuLock = Any()
@@ -188,46 +192,8 @@ class BluetoothService : Service() {
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         val adapter = bluetoothManager.adapter
         if (adapter != null && !adapter.isEnabled) {
-            Log.i(TAG, "Force Bluetooth Enabled is active. Attempting direct toggle...")
-            
-            // Proactively ensure UserService is bound if Shizuku is authorized
-            if (userService == null) {
-                ensureUserServiceBound()
-            }
-
-            var directSuccess = false
-            try {
-                userService?.let {
-                    Log.i(TAG, "Attempting direct Bluetooth enable via Shizuku UserService")
-                    directSuccess = it.setBluetoothEnabled(true)
-                    Log.i(TAG, "Direct Bluetooth enable result: $directSuccess")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to enable Bluetooth via Shizuku: ${e.message}")
-            }
-
-            if (!directSuccess) {
-                Log.w(TAG, "Direct enable failed or UserService not available, falling back to manual request")
-                withContext(Dispatchers.Main) {
-                    // Trigger screen wake
-                    wakeScreenForBluetooth()
-                    
-                    // Attempt to enable
-                    try {
-                        @SuppressLint("MissingPermission")
-                        val success = adapter.enable()
-                        if (!success) {
-                            Log.w(TAG, "adapter.enable() returned false, triggering REQUEST_ENABLE activity")
-                            triggerBluetoothEnableRequest()
-                        } else {
-                            Log.i(TAG, "adapter.enable() success (legacy or authorized)")
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error enabling Bluetooth: ${e.message}")
-                        triggerBluetoothEnableRequest()
-                    }
-                }
-            }
+            Log.i(TAG, "Force Bluetooth Enabled is active. Triggering enforcement...")
+            deviceActionManager.setBluetoothEnabled(true)
         }
     }
 
@@ -664,7 +630,7 @@ class BluetoothService : Service() {
             }
 
     private var userServiceConnection: Shizuku.UserServiceArgs? = null
-    private var userService: IUserService? = null
+    var userService: IUserService? = null
 
     private val userServiceArgs by lazy {
         Shizuku.UserServiceArgs(
@@ -681,12 +647,14 @@ class BluetoothService : Service() {
                 override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
                     if (binder != null && binder.pingBinder()) {
                         userService = IUserService.Stub.asInterface(binder)
+                        deviceActionManager.updateUserService(userService)
                         Log.i(TAG, "UserService connected successfully")
                     }
                 }
 
                 override fun onServiceDisconnected(name: ComponentName?) {
                     userService = null
+                    deviceActionManager.updateUserService(null)
                     Log.w(TAG, "UserService disconnected")
                 }
             }
@@ -715,6 +683,9 @@ class BluetoothService : Service() {
         super.onCreate()
         NotificationLogManager.init(this)
         prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE)
+        deviceActionManager = com.ailife.rtosifycompanion.utils.DeviceActionManager(this, userService) {
+            bindUserServiceIfNeeded()
+        }
         val btManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         // bluetoothAdapter assignment removed (property removed)
         currentStatus = getString(R.string.status_disconnected)
@@ -2312,81 +2283,26 @@ class BluetoothService : Service() {
 
     // WiFi/Data automation control
     private fun enableWifiAutomation() {
-        try {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                // Android 9 and below - standard API still works
-                val wm = getSystemService(WIFI_SERVICE) as WifiManager
-                wm.isWifiEnabled = true
-                Log.d(TAG, "Auto WiFi: Enabled via standard API")
-            } else {
-                // Android 10+ - requires privileged access via Shizuku
-                userService?.setWifiEnabled(true)
-                Log.d(TAG, "Auto WiFi: Enabled via Shizuku")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to enable WiFi: ${e.message}")
-        }
+        deviceActionManager.setWifiEnabled(true)
     }
 
     private fun disableWifiAutomation() {
-        try {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                // Android 9 and below - standard API still works
-                val wm = getSystemService(WIFI_SERVICE) as WifiManager
-                wm.isWifiEnabled = false
-                Log.d(TAG, "Auto WiFi: Disabled via standard API")
-            } else {
-                // Android 10+ - requires privileged access via Shizuku
-                userService?.setWifiEnabled(false)
-                Log.d(TAG, "Auto WiFi: Disabled via Shizuku")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to disable WiFi: ${e.message}")
-        }
+        deviceActionManager.setWifiEnabled(false)
     }
 
     private fun enableMobileDataAutomation() {
-        try {
-            // Try privileged method via Shizuku
-            userService?.setMobileDataEnabled(true)
-            Log.d(TAG, "Auto Data: Enabled via Shizuku")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to enable mobile data: ${e.message}")
-        }
+        deviceActionManager.setMobileDataEnabled(true)
     }
 
     private fun disableMobileDataAutomation() {
-        try {
-            // Try privileged method via Shizuku
-            userService?.setMobileDataEnabled(false)
-            Log.d(TAG, "Auto Data: Disabled via Shizuku")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to disable mobile data: ${e.message}")
-        }
+        deviceActionManager.setMobileDataEnabled(false)
     }
 
     private fun handleEnableBluetoothInternet(message: ProtocolMessage) {
         val enabled = ProtocolHelper.extractBooleanField(message, "enabled")
-        try {
-            if (enabled) {
-                Log.d(TAG, "🔵 Bluetooth Internet Access enable requested via accessibility...")
-                currentDevice?.let { device ->
-                    RtosifyAccessibilityService.enableBluetoothTethering(
-                            device.name ?: device.address
-                    )
-                }
-                        ?: run {
-                            RtosifyAccessibilityService.enableBluetoothTethering(currentDeviceName)
-                        }
-            } else {
-                Log.d(
-                        TAG,
-                        "🔵 Bluetooth Internet Access disable not implemented (disconnect BT to disable)"
-                )
-                // Disabling is automatic when Bluetooth disconnects
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "💥 Exception toggling Bluetooth internet: ${e.message}", e)
+        if (enabled) {
+            val deviceName = currentDevice?.name ?: currentDevice?.address ?: currentDeviceName
+            deviceActionManager.setBluetoothInternetEnabled(deviceName)
         }
     }
 
@@ -3187,22 +3103,7 @@ class BluetoothService : Service() {
         val enable = ProtocolHelper.extractBooleanField(message, "enabled")
         Log.i(TAG, "Handling SET_WIFI: $enable")
 
-        // Try UserService (Shizuku) first as it's more reliable on Android 10+
-        if (userService != null) {
-            try {
-                userService?.setWifiEnabled(enable)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error calling userService.setWifiEnabled: ${e.message}")
-            }
-        } else {
-            // Standard API fallback
-            try {
-                val wm = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
-                @Suppress("DEPRECATION") wm.isWifiEnabled = enable
-            } catch (e: Exception) {
-                Log.e(TAG, "Error setting WiFi via WifiManager: ${e.message}")
-            }
-        }
+        deviceActionManager.setWifiEnabled(enable)
 
         // Update status and notify phone
         serviceScope.launch {
@@ -3913,76 +3814,10 @@ class BluetoothService : Service() {
     private suspend fun showInstallApkDialog(tempFile: File) {
         android.util.Log.d(TAG, "showInstallApkDialog called for: ${tempFile.absolutePath}")
 
-        // 1. Try Shizuku (UserService)
-        if (isUsingShizuku()) {
-            try {
-                ensureUserServiceBound()
-                val pfd =
-                        android.os.ParcelFileDescriptor.open(
-                                tempFile,
-                                android.os.ParcelFileDescriptor.MODE_READ_ONLY
-                        )
-                if (userService?.installAppFromPfd(pfd) == true) {
-                    Log.i(TAG, "✅ Silent install via Shizuku Succeeded: ${tempFile.name}")
-                    mainHandler.post {
-                        Toast.makeText(
-                                        this,
-                                        getString(R.string.upload_complete_title) +
-                                                ": ${tempFile.name}",
-                                        Toast.LENGTH_SHORT
-                                )
-                                .show()
-                    }
-                    tempFile.delete()
-                    return
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Shizuku silent install failed: ${e.message}")
-            }
-        }
-
-        // 2. Try Root (libsu)
-        if (Shell.getShell().isRoot) {
-            val rootPath = translatePathForRoot(tempFile.absolutePath)
-            val result = Shell.cmd("pm install -r \"$rootPath\"").exec()
-            if (result.isSuccess) {
-                Log.i(TAG, "✅ Silent install via Root succeeded: ${tempFile.name}")
-                mainHandler.post {
-                    Toast.makeText(
-                                    this,
-                                    getString(R.string.upload_complete_title) +
-                                            ": ${tempFile.name}",
-                                    Toast.LENGTH_SHORT
-                            )
-                            .show()
-                }
-                tempFile.delete()
-                return
-            }
-        }
-
-        // Wake screen for manual fallback
-        wakeScreen("ApkInstall")
-
-        // Directly launch install intent instead of notification
-        try {
-            val authority = "${packageName}.fileprovider"
-            android.util.Log.d(TAG, "Using FileProvider authority: $authority")
-            val installUri = FileProvider.getUriForFile(this, authority, tempFile)
-            android.util.Log.d(TAG, "Install URI: $installUri")
-            val installIntent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(installUri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            startActivity(installIntent)
-            android.util.Log.d(TAG, "Directed to system install dialog")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "Error launching install intent: ${e.message}", e)
-            mainHandler.post {
-                Toast.makeText(this, getString(R.string.toast_install_failed, e.message), Toast.LENGTH_LONG).show()
-            }
-        }
+        val authority = "${packageName}.fileprovider"
+        val installUri = FileProvider.getUriForFile(this, authority, tempFile)
+        
+        deviceActionManager.installApk(tempFile.absolutePath, installUri)
     }
 
     private fun executeShellCommand(command: String) {
@@ -4061,49 +3896,19 @@ class BluetoothService : Service() {
     }
 
     private fun handleShutdownCommand() {
-        Log.i(TAG, "🔴 Shutdown command received")
+        Log.i(TAG, "Shutdown command received")
         mainHandler.post {
             Toast.makeText(this, getString(R.string.toast_shutdown_received), Toast.LENGTH_SHORT).show()
         }
-
-        serviceScope.launch(Dispatchers.IO) {
-            try {
-                ensureUserServiceBound()
-                val service = userService
-                if (service != null) {
-                    Log.i(TAG, "🚀 Calling UserService.shutdown()")
-                    service.shutdown()
-                } else {
-                    Log.w(TAG, "UserService not available, falling back to shell command")
-                    executeShellCommand("svc power shutdown")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error calling shutdown: ${e.message}")
-            }
-        }
+        deviceActionManager.shutdown()
     }
 
     private fun handleRebootCommand() {
-        Log.i(TAG, "🔄 Reboot command received")
+        Log.i(TAG, "Reboot command received")
         mainHandler.post {
             Toast.makeText(this, getString(R.string.toast_reboot_received), Toast.LENGTH_SHORT).show()
         }
-
-        serviceScope.launch(Dispatchers.IO) {
-            try {
-                ensureUserServiceBound()
-                val service = userService
-                if (service != null) {
-                    Log.i(TAG, "🚀 Calling UserService.reboot()")
-                    service.reboot()
-                } else {
-                    Log.w(TAG, "UserService not available, falling back to shell command")
-                    executeShellCommand("svc power reboot")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error calling reboot: ${e.message}")
-            }
-        }
+        deviceActionManager.reboot()
     }
 
     private fun handleLockDeviceCommand() {
@@ -4402,63 +4207,14 @@ class BluetoothService : Service() {
     }
 
     private suspend fun handleUninstallApp(message: ProtocolMessage) {
-        val pkg =
-                ProtocolHelper.extractStringField(message, "package")
-                        ?: run {
-                            android.util.Log.e(TAG, "Uninstall failed: package field missing")
-                            return
-                        }
-        android.util.Log.d(TAG, "Requesting uninstall for: $pkg")
-
-        // 1. Try Shizuku (UserService)
-        if (isUsingShizuku()) {
-            try {
-                ensureUserServiceBound()
-                if (userService?.uninstallApp(pkg) == true) {
-                    Log.i(TAG, "✅ Silent uninstall via Shizuku succeeded: $pkg")
-                    mainHandler.post {
-                        Toast.makeText(this, getString(R.string.toast_uninstalled, pkg), Toast.LENGTH_SHORT).show()
-                    }
+        val pkg = ProtocolHelper.extractStringField(message, "package")
+                ?: ProtocolHelper.extractStringField(message, "packageName")
+                ?: run {
+                    android.util.Log.e(TAG, "Uninstall failed: package field missing")
                     return
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Shizuku silent uninstall failed: ${e.message}")
-            }
-        }
-
-        // 2. Try Root (libsu)
-        if (Shell.getShell().isRoot) {
-            val result = Shell.cmd("pm uninstall $pkg").exec()
-            if (result.isSuccess) {
-                Log.i(TAG, "✅ Silent uninstall via Root succeeded: $pkg")
-                mainHandler.post {
-                    Toast.makeText(this, getString(R.string.toast_uninstalled, pkg), Toast.LENGTH_SHORT).show()
-                }
-                return
-            }
-        }
-
-        // Wake screen for manual fallback
-        wakeScreen("AppUninstall")
-
-        // Fallback to manual intent
-        mainHandler.post { Toast.makeText(this, getString(R.string.toast_uninstalling, pkg), Toast.LENGTH_SHORT).show() }
-
-        try {
-            // Standard intent to uninstall
-            val intent =
-                    Intent(Intent.ACTION_DELETE).apply {
-                        data = Uri.parse("package:$pkg")
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-            startActivity(intent)
-            android.util.Log.d(TAG, "Uninstall intent started for: $pkg")
-        } catch (e: Exception) {
-            android.util.Log.e(TAG, "Error starting uninstall intent: ${e.message}", e)
-            mainHandler.post {
-                Toast.makeText(this, getString(R.string.toast_error_prefix, e.message), Toast.LENGTH_LONG).show()
-            }
-        }
+        android.util.Log.d(TAG, "Requesting uninstall for: $pkg")
+        deviceActionManager.uninstallApp(pkg)
     }
 
     fun sendApkFile(uri: Uri) {

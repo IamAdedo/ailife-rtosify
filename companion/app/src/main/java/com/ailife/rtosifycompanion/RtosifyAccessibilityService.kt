@@ -28,6 +28,24 @@ class RtosifyAccessibilityService : android.accessibilityservice.AccessibilitySe
         fun dispatchRemoteInput(action: Int, xPercentage: Float, yPercentage: Float) {
             instance?.performRemoteInput(action, xPercentage, yPercentage)
         }
+
+        fun clickNodesWithKeywords(context: Context, keywords: List<String>, toggleOnly: Boolean = false, targetState: Boolean? = null) {
+            val intent = Intent("com.ailife.rtosifycompanion.CLICK_KEYWORDS").apply {
+                putStringArrayListExtra("keywords", ArrayList(keywords))
+                putExtra("toggleOnly", toggleOnly)
+                if (targetState != null) putExtra("targetState", targetState)
+            }
+            context.sendBroadcast(intent)
+            instance?.performKeywordClick(keywords, toggleOnly, targetState)
+        }
+
+        fun performGlobalAction(context: Context, action: Int) {
+            val intent = Intent("com.ailife.rtosifycompanion.GLOBAL_ACTION").apply {
+                putExtra("action", action)
+            }
+            context.sendBroadcast(intent)
+            instance?.performGlobalAction(action)
+        }
     }
     
     override fun onServiceConnected() {
@@ -35,17 +53,21 @@ class RtosifyAccessibilityService : android.accessibilityservice.AccessibilitySe
         instance = this
         Log.d(TAG, "Accessibility service connected")
         
-        // Register receiver for remote input commands from main process
-        val filter = android.content.IntentFilter("com.ailife.rtosifycompanion.DISPATCH_REMOTE_INPUT")
+        // Register receivers for remote input and commands
+        val filter = android.content.IntentFilter()
+        filter.addAction("com.ailife.rtosifycompanion.DISPATCH_REMOTE_INPUT")
+        filter.addAction("com.ailife.rtosifycompanion.CLICK_KEYWORDS")
+        filter.addAction("com.ailife.rtosifycompanion.GLOBAL_ACTION")
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            androidx.core.content.ContextCompat.registerReceiver(this, remoteInputReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+            androidx.core.content.ContextCompat.registerReceiver(this, commandReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
         } else {
-            registerReceiver(remoteInputReceiver, filter)
+            registerReceiver(commandReceiver, filter)
         }
     }
     
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        return
+        // Background automation removed. Actions are now triggered synchronously via CLICK_KEYWORDS broadcast.
     }
 
     override fun onInterrupt() {
@@ -54,17 +76,34 @@ class RtosifyAccessibilityService : android.accessibilityservice.AccessibilitySe
     override fun onDestroy() {
         super.onDestroy()
         instance = null
-        try { unregisterReceiver(remoteInputReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(commandReceiver) } catch (_: Exception) {}
     }
 
-    private val remoteInputReceiver = object : android.content.BroadcastReceiver() {
+    private val commandReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == "com.ailife.rtosifycompanion.DISPATCH_REMOTE_INPUT") {
-                val action = intent.getIntExtra("action", -1)
-                val x = intent.getFloatExtra("x", 0f)
-                val y = intent.getFloatExtra("y", 0f)
-                if (action != -1) {
-                    performRemoteInput(action, x, y)
+            Log.d(TAG, "Command received: ${intent?.action}")
+            when (intent?.action) {
+                "com.ailife.rtosifycompanion.DISPATCH_REMOTE_INPUT" -> {
+                    val action = intent.getIntExtra("action", -1)
+                    val x = intent.getFloatExtra("x", 0f)
+                    val y = intent.getFloatExtra("y", 0f)
+                    if (action != -1) {
+                        performRemoteInput(action, x, y)
+                    }
+                }
+                "com.ailife.rtosifycompanion.CLICK_KEYWORDS" -> {
+                    val keywords = intent.getStringArrayListExtra("keywords")
+                    val toggleOnly = intent.getBooleanExtra("toggleOnly", false)
+                    val targetState = if (intent.hasExtra("targetState")) intent.getBooleanExtra("targetState", false) else null
+                    if (keywords != null) {
+                        performKeywordClick(keywords, toggleOnly, targetState)
+                    }
+                }
+                "com.ailife.rtosifycompanion.GLOBAL_ACTION" -> {
+                    val action = intent.getIntExtra("action", -1)
+                    if (action != -1) {
+                        performGlobalAction(action)
+                    }
                 }
             }
         }
@@ -324,6 +363,34 @@ class RtosifyAccessibilityService : android.accessibilityservice.AccessibilitySe
                node.isCheckable
     }
 
+    private fun getSwitchState(node: AccessibilityNodeInfo): Boolean {
+        if (node.isCheckable) return node.isChecked
+        
+        val text = node.text?.toString()?.lowercase() ?: ""
+        if (text == "on" || text == "开启" || text == "已开启") return true
+        if (text == "off" || text == "关闭" || text == "已关闭") return false
+        
+        val desc = node.contentDescription?.toString()?.lowercase() ?: ""
+        if (desc.contains("on") || desc.contains("开启")) return true
+        if (desc.contains("off") || desc.contains("关闭")) return false
+
+        val childSwitch = findSwitchInChildren(node)
+        if (childSwitch != null && childSwitch != node) {
+            return childSwitch.isChecked
+        }
+        return node.isChecked
+    }
+
+    private fun findSwitchInChildren(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        for (i in 0 until node.childCount) {
+            val child = try { node.getChild(i) } catch (_: Exception) { null } ?: continue
+            if (isActuallySwitch(child)) return child
+            val result = findSwitchInChildren(child)
+            if (result != null) return result
+        }
+        return null
+    }
+
 
     private fun performControlledBackSequence() {
         // Back 1
@@ -389,5 +456,73 @@ class RtosifyAccessibilityService : android.accessibilityservice.AccessibilitySe
         }
         
         return null
+    }
+
+    private fun performKeywordClick(keywords: List<String>, toggleOnly: Boolean, targetState: Boolean?) {
+        val startTime = System.currentTimeMillis()
+        val timeout = 5000L // 5 seconds
+        
+        fun attemptClick() {
+            try {
+                val rootNode = rootInActiveWindow ?: run {
+                    if (System.currentTimeMillis() - startTime < timeout) {
+                        Handler(Looper.getMainLooper()).postDelayed({ attemptClick() }, 500)
+                    } else {
+                        Log.e(TAG, "No root node in active window after timeout")
+                    }
+                    return
+                }
+
+                var targetNode: AccessibilityNodeInfo? = null
+                for (keyword in keywords) {
+                    targetNode = findNodeByText(rootNode, keyword)
+                    if (targetNode != null) {
+                        Log.i(TAG, "Found target node with keyword: $keyword")
+                        break
+                    }
+                }
+
+                if (targetNode != null) {
+                    val clickableNode = findClickableOrSwitch(targetNode)
+                    if (clickableNode != null) {
+                        // Smart Toggle: Check state if requested
+                        if (toggleOnly || targetState != null) {
+                            val switchNode = findSwitchInHierarchy(targetNode.parent ?: targetNode) ?: clickableNode
+                            val isCurrentlyOn = getSwitchState(switchNode)
+                            
+                            if (targetState != null && isCurrentlyOn == targetState) {
+                                Log.i(TAG, "Smart Toggle: Already in target state ($targetState), skipping")
+                                return
+                            }
+                            
+                            if (toggleOnly && isCurrentlyOn && targetState == null) {
+                                Log.i(TAG, "ToggleOnly: already ON, skipping")
+                                return
+                            }
+                        }
+
+                        Log.i(TAG, "Clicking node for ${targetNode.text ?: "keyword"}")
+                        val clicked = clickableNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        Log.i(TAG, if (clicked) "✅ Click successful" else "❌ Click failed")
+                    } else {
+                        Log.w(TAG, "Node found but not clickable, retrying...")
+                        if (System.currentTimeMillis() - startTime < timeout) {
+                            Handler(Looper.getMainLooper()).postDelayed({ attemptClick() }, 500)
+                        }
+                    }
+                } else {
+                    if (System.currentTimeMillis() - startTime < timeout) {
+                        Log.v(TAG, "Keywords $keywords not found yet, retrying...")
+                        Handler(Looper.getMainLooper()).postDelayed({ attemptClick() }, 500)
+                    } else {
+                        Log.w(TAG, "Could not find any of $keywords on screen after ${timeout}ms")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in performKeywordClick: ${e.message}")
+            }
+        }
+
+        attemptClick()
     }
 }

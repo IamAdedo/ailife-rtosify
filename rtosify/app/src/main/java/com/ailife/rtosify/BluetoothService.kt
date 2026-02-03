@@ -78,6 +78,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import rikka.shizuku.Shizuku
 import com.ailife.rtosify.media.VideoCompressor
+import com.ailife.rtosify.utils.DeviceActionManager
 
 class BluetoothService : Service() {
 
@@ -116,7 +117,7 @@ class BluetoothService : Service() {
 
     // Shizuku UserService for Android 10+ clipboard access
     private var userServiceConnection: Shizuku.UserServiceArgs? = null
-    private var userService: IUserService? = null
+    var userService: IUserService? = null
     private val shizukuLock = Any()
 
     private val userServiceArgs by lazy {
@@ -134,12 +135,14 @@ class BluetoothService : Service() {
                 override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
                     if (binder != null && binder.pingBinder()) {
                         userService = IUserService.Stub.asInterface(binder)
+                        deviceActionManager.updateUserService(userService)
                         Log.i(TAG, "UserService connected successfully")
                     }
                 }
 
                 override fun onServiceDisconnected(name: ComponentName?) {
                     userService = null
+                    deviceActionManager.updateUserService(null)
                     Log.w(TAG, "UserService disconnected")
                 }
             }
@@ -158,6 +161,9 @@ class BluetoothService : Service() {
     
     // File Observer Manager
     private var fileObserverManager: FileObserverManager? = null
+
+    // Device Action Manager
+    private lateinit var deviceActionManager: DeviceActionManager
 
     @Volatile private var lastMessageTime: Long = 0L
 
@@ -200,46 +206,8 @@ class BluetoothService : Service() {
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         val adapter = bluetoothManager.adapter
         if (adapter != null && !adapter.isEnabled) {
-            Log.i(TAG, "Force Bluetooth Enabled is active. Attempting direct toggle...")
-            
-            // Proactively ensure UserService is bound if Shizuku is authorized
-            if (userService == null) {
-                ensureUserServiceBound()
-            }
-
-            var directSuccess = false
-            try {
-                userService?.let {
-                    Log.i(TAG, "Attempting direct Bluetooth enable via Shizuku UserService")
-                    directSuccess = it.setBluetoothEnabled(true)
-                    Log.i(TAG, "Direct Bluetooth enable result: $directSuccess")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to enable Bluetooth via Shizuku: ${e.message}")
-            }
-
-            if (!directSuccess) {
-                Log.w(TAG, "Direct enable failed or UserService not available, falling back to manual request")
-                withContext(Dispatchers.Main) {
-                    // Trigger screen wake
-                    wakeScreenForBluetooth()
-                    
-                    // Attempt to enable
-                    try {
-                        @SuppressLint("MissingPermission")
-                        val success = adapter.enable()
-                        if (!success) {
-                            Log.w(TAG, "adapter.enable() returned false, triggering REQUEST_ENABLE activity")
-                            triggerBluetoothEnableRequest()
-                        } else {
-                            Log.i(TAG, "adapter.enable() success (legacy or authorized)")
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error enabling Bluetooth: ${e.message}")
-                        triggerBluetoothEnableRequest()
-                    }
-                }
-            }
+            Log.i(TAG, "Force Bluetooth Enabled is active. Triggering enforcement...")
+            deviceActionManager.setBluetoothEnabled(true)
         }
     }
 
@@ -643,6 +611,9 @@ class BluetoothService : Service() {
         super.onCreate()
         devicePrefManager = DevicePrefManager(this)
         prefs = devicePrefManager.getGlobalPrefs()
+        deviceActionManager = DeviceActionManager(this, userService) {
+            bindUserServiceIfNeeded()
+        }
         createNotificationChannel()
         
         // Initialize Transport Manager
@@ -1074,6 +1045,10 @@ class BluetoothService : Service() {
             MessageType.FILE_CHUNK -> handleFileChunk(message)
             MessageType.FILE_TRANSFER_END -> handleFileTransferEnd(message)
             MessageType.SHUTDOWN -> handleShutdownCommand()
+            MessageType.REBOOT -> handleRebootCommand()
+            MessageType.SET_WIFI -> handleSetWifiCommand(message)
+            MessageType.UNINSTALL_APP -> handleUninstallApp(message)
+            MessageType.LOCK_DEVICE -> handleLockDeviceCommand()
             MessageType.STATUS_UPDATE -> handleStatusUpdateReceived(message)
             MessageType.SET_DND -> handleSetDndCommand(message)
             MessageType.FIND_PHONE -> handleFindPhoneCommand(message)
@@ -1574,13 +1549,7 @@ class BluetoothService : Service() {
         }
         // Auto BT Tether: Enable phone BT tethering + watch internet
         if (activePrefs.getBoolean("auto_bt_tether_enabled", false)) {
-            try {
-                // Use accessibility to enable tethering on phone
-                RtosifyAccessibilityService.enableBluetoothTethering()
-                Log.d(TAG, "Auto BT Tether: Requested phone-side via accessibility")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to call phone accessibility for tethering: ${e.message}")
-            }
+            deviceActionManager.setBluetoothTetheringEnabled(true)
             sendMessage(ProtocolHelper.createEnableBluetoothInternet(true))
         }
     }
@@ -2366,17 +2335,36 @@ class BluetoothService : Service() {
     }
 
     private fun handleShutdownCommand() {
-        Log.i(TAG, "Comando de shutdown recebido")
-        serviceScope.launch(Dispatchers.IO) {
-            try {
-                val process = Runtime.getRuntime().exec(arrayOf("su", "-c", "reboot -p"))
-                withTimeout(3000) { process.waitFor() }
-            } catch (_: Exception) {
-                try {
-                    Runtime.getRuntime().exec(arrayOf("su", "-c", "reboot"))
-                } catch (_: Exception) {}
-            }
+        Log.i(TAG, "Shutdown command received")
+        mainHandler.post {
+            Toast.makeText(this, getString(R.string.toast_shutdown_received), Toast.LENGTH_SHORT).show()
         }
+        deviceActionManager.shutdown()
+    }
+
+    private fun handleRebootCommand() {
+        Log.i(TAG, "Reboot command received")
+        mainHandler.post {
+            Toast.makeText(this, getString(R.string.toast_reboot_received), Toast.LENGTH_SHORT).show()
+        }
+        deviceActionManager.reboot()
+    }
+
+    private fun handleSetWifiCommand(message: ProtocolMessage) {
+        val enabled = message.data.get("enabled")?.asBoolean ?: return
+        Log.i(TAG, "Set WiFi command received: $enabled")
+        deviceActionManager.setWifiEnabled(enabled)
+    }
+
+    private suspend fun handleUninstallApp(message: ProtocolMessage) {
+        val packageName = message.data.get("package")?.asString ?: return
+        Log.i(TAG, "Uninstall app command received: $packageName")
+        deviceActionManager.uninstallApk(packageName)
+    }
+
+    private fun handleLockDeviceCommand() {
+        Log.i(TAG, "Lock device command received")
+        deviceActionManager.lockDevice()
     }
 
     fun sendShutdownCommand() {
@@ -3456,7 +3444,6 @@ class BluetoothService : Service() {
             transportManager.stopAll()
             mdnsDiscovery?.stop()
         }
-
         // Unbind Shizuku UserService
         try {
             if (userServiceConnection != null) {

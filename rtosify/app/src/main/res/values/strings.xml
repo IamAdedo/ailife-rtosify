@@ -598,6 +598,8 @@
     <string name="msg_copied_clipboard">%d files copied to clipboard</string>
     <string name="msg_moved_clipboard">%d files picked to move</string>
     <string name="msg_paste_success">Files pasted successfully</string>
+    <string name="toast_shutdown_received">Shutdown command received</string>
+    <string name="toast_reboot_received">Reboot command received</string>
 
 
     <string name="adb_command_label">ADB Command</string>

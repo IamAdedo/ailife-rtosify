@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
+import com.ailife.rtosifycompanion.utils.DeviceActionManager
 
 class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
@@ -30,12 +31,16 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
     private lateinit var prefs: SharedPreferences
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
+    private lateinit var deviceActionManager: DeviceActionManager
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
             val binder = service as BluetoothService.LocalBinder
             bluetoothService = binder.getService()
-            bluetoothService?.callback = this@MirrorSettingsActivity
+            bluetoothService?.let {
+                it.callback = this@MirrorSettingsActivity
+                deviceActionManager.updateUserService(it.userService)
+            }
             isBound = true
             updateUI(bluetoothService?.isConnected == true)
         }
@@ -43,6 +48,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
         override fun onServiceDisconnected(arg0: ComponentName) {
             isBound = false
             bluetoothService = null
+            deviceActionManager.updateUserService(null)
         }
     }
 
@@ -83,6 +89,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
         EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
         prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+        deviceActionManager = DeviceActionManager(this, null)
         initViews()
         setupListeners()
         bindToService()
@@ -171,6 +178,9 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
     private fun startWatchMirroring() {
         val projectionManager = getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager
         screenCaptureLauncher.launch(projectionManager.createScreenCaptureIntent())
+        
+        // Automate allow dialog
+        deviceActionManager.automateMirroringAllow()
     }
 
     private fun stopWatchMirroring() {

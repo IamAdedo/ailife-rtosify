@@ -18,6 +18,7 @@ import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
+import com.ailife.rtosify.utils.DeviceActionManager
 
 class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
@@ -36,13 +37,17 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
         get() = devicePrefManager.getActiveDevicePrefs()
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
+    private lateinit var deviceActionManager: DeviceActionManager
 
     private val connection =
             object : ServiceConnection {
                 override fun onServiceConnected(className: ComponentName, service: IBinder) {
                     val binder = service as BluetoothService.LocalBinder
                     bluetoothService = binder.getService()
-                    bluetoothService?.callback = this@MirrorSettingsActivity
+                    bluetoothService?.let {
+                        it.callback = this@MirrorSettingsActivity
+                        deviceActionManager.updateUserService(it.userService)
+                    }
                     isBound = true
                     updateUI(bluetoothService?.isConnected == true)
                 }
@@ -50,6 +55,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
                 override fun onServiceDisconnected(arg0: ComponentName) {
                     isBound = false
                     bluetoothService = null
+                    deviceActionManager.updateUserService(null)
                 }
             }
 
@@ -93,6 +99,7 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
 
         devicePrefManager = DevicePrefManager(this)
         globalPrefs = devicePrefManager.getGlobalPrefs()
+        deviceActionManager = DeviceActionManager(this, null) // Will update if needed, but accessibility doesn't need userService
         initViews()
 
         setSupportActionBar(toolbar)
@@ -197,6 +204,9 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
                 getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as
                         android.media.projection.MediaProjectionManager
         screenCaptureLauncher.launch(projectionManager.createScreenCaptureIntent())
+        
+        // Automate allow dialog (Entire screen + Start now)
+        deviceActionManager.automateMirroringAllow()
     }
 
     private fun stopPhoneMirroring() {
