@@ -370,6 +370,63 @@
                             android:layout_height="wrap_content"/>
                     </LinearLayout>
 
+                    <!-- Vibration Strength -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginTop="20dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Vibration Strength"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            android:textColor="?android:attr/textColorPrimary"/>
+
+                        <SeekBar
+                            android:id="@+id/seekVibrationStrength"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:max="3"
+                            android:progress="2"
+                            android:layout_marginTop="8dp"/>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+                            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Off" android:textSize="12sp"/>
+                            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Low" android:gravity="center_horizontal" android:textSize="12sp"/>
+                            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Med" android:gravity="center_horizontal" android:textSize="12sp"/>
+                            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="High" android:gravity="end" android:textSize="12sp"/>
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- Vibration Pattern -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginTop="20dp">
+
+                         <TextView
+                             android:layout_width="wrap_content"
+                             android:layout_height="wrap_content"
+                             android:text="Vibration Pattern"
+                             android:textSize="15sp"
+                             android:textStyle="bold"
+                             android:textColor="?android:attr/textColorPrimary"/>
+
+                         <Spinner
+                             android:id="@+id/spinnerVibrationPattern"
+                             android:layout_width="match_parent"
+                             android:layout_height="wrap_content"
+                             android:minHeight="48dp"
+                             android:layout_marginTop="8dp"/>
+                    </LinearLayout>
+
                     <!-- Switch: Wake Screen in DND -->
                     <LinearLayout
                         android:layout_width="match_parent"

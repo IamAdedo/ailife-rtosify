@@ -364,12 +364,39 @@ class MyNotificationListener : NotificationListenerService() {
                                 notification.vibrate == null)
         
         if (isSilent) {
-             // Check per-app setting first
-            val appSilent = activePrefs.getBoolean("app_silent_${sbn.packageName}", true)
-            if (!appSilent) {
-                 Log.d("Listener", "Skipping silent notification (app_silent disabled for ${sbn.packageName})")
+             val appSilent = activePrefs.getBoolean("app_silent_${sbn.packageName}", false)
+             if (!appSilent) {
+                  Log.d("Listener", "Skipping silent notification (app_silent disabled for ${sbn.packageName})")
+                  return
+             }
+        }
+
+        // Check "Only Chat" constraint
+        val onlyChat = activePrefs.getBoolean("app_only_chat_${sbn.packageName}", false)
+        if (onlyChat) {
+             // Check if it is a chat notification
+             var isMessage = false
+             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                 isMessage = notification.category == android.app.Notification.CATEGORY_MESSAGE ||
+                             notification.category == android.app.Notification.CATEGORY_EMAIL ||
+                             notification.category == android.app.Notification.CATEGORY_SOCIAL
+             }
+
+             // Also check for MessagingStyle
+             var isMessagingStyle = false
+             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                 val extras = notification.extras
+                 val template = extras.getString(android.app.Notification.EXTRA_TEMPLATE)
+                 isMessagingStyle = "android.app.Notification\$MessagingStyle" == template
+             }
+
+             // Or check if it has RemoteInput (replyable)
+             val hasRemoteInput = notification.actions?.any { it.remoteInputs != null } == true
+
+             if (!isMessage && !isMessagingStyle && !hasRemoteInput) {
+                 Log.d("Listener", "Skipping notification: Only Chat enabled and not a chat notification for ${sbn.packageName} (category=${notification.category})")
                  return
-            }
+             }
         }
 
         // Check application specific priority requirement

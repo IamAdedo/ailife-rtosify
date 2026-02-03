@@ -343,7 +343,7 @@ class BluetoothService : Service() {
         const val CHANNEL_ID_DISCONNECTED = "channel_status_disconnected"
         const val CHANNEL_ID_DISCONNECTION_ALERT = "channel_disconnection_alert"
 
-        const val MIRRORED_CHANNEL_ID = "mirrored_notifications"
+        const val MIRRORED_CHANNEL_ID = "mirrored_notifications_v2"
 
         const val ACTION_STOP_SERVICE = "ACTION_STOP_SERVICE"
         const val ACTION_LITE_MODE_UPDATE = "com.ailife.rtosifycompanion.ACTION_LITE_MODE_UPDATE"
@@ -2015,6 +2015,14 @@ class BluetoothService : Service() {
             settings.hqLanEnabled?.let {
                 prefs.edit().putBoolean("hq_lan_enabled", it).apply()
                 Log.d(TAG, "HQ LAN setting updated: $it")
+            }
+            settings.vibrationStrength?.let {
+                prefs.edit().putInt("vibration_strength", it).apply()
+                Log.d(TAG, "Vibration Strength setting updated: $it")
+            }
+            settings.vibrationPattern?.let {
+                prefs.edit().putInt("vibration_pattern", it).apply()
+                Log.d(TAG, "Vibration Pattern setting updated: $it")
             }
 
             // Apply updated settings to TransportManager if they changed
@@ -4808,12 +4816,16 @@ class BluetoothService : Service() {
 
                 if (isSilent && !vibrateInSilent) {
                     defaults = defaults and NotificationCompat.DEFAULT_VIBRATE.inv()
+                    builder.setVibrate(null)
                 } else {
-                    // Force vibration pattern if enabled
-                    builder.setVibrate(longArrayOf(0, 250, 250, 250))
+                    // Vibration handled by performNotificationAlert() manually
+                    // Disable default vibration on the notification itself to avoid conflict
+                    defaults = defaults and NotificationCompat.DEFAULT_VIBRATE.inv()
+                    builder.setVibrate(null)
                 }
             } else {
                 defaults = defaults and NotificationCompat.DEFAULT_VIBRATE.inv()
+                builder.setVibrate(null)
             }
             builder.setDefaults(defaults)
 
@@ -5133,17 +5145,50 @@ class BluetoothService : Service() {
 
             if (!isSilent || vibrateInSilent) {
                 try {
-                    val vibrator =
-                            ContextCompat.getSystemService(this, android.os.Vibrator::class.java)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        vibrator?.vibrate(
-                                android.os.VibrationEffect.createOneShot(
-                                        500,
-                                        android.os.VibrationEffect.DEFAULT_AMPLITUDE
-                                )
-                        )
-                    } else {
-                        @Suppress("DEPRECATION") vibrator?.vibrate(500)
+                    val vibrator = ContextCompat.getSystemService(this, android.os.Vibrator::class.java)
+                    if (vibrator?.hasVibrator() == true) {
+                        // Custom Vibration Logic
+                        val strength = prefs.getInt("vibration_strength", 2) // 0=Off, 1=Low, 2=Med, 3=High
+                        val patternIdx = prefs.getInt("vibration_pattern", 0) // 0=Default, 1=Double, 2=Long, 3=Heartbeat, 4=Tick
+
+                         Log.d(TAG, "performNotificationAlert: Vibrate enabled. Strength=$strength, Pattern=$patternIdx")
+                         if (strength > 0) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && vibrator.hasAmplitudeControl()) {
+                                // Map strength to Amplitude (1-255)
+                                val amp = when (strength) {
+                                    1 -> 80   // Low
+                                    2 -> 160  // Medium
+                                    3 -> 255  // High
+                                    else -> 128
+                                }
+
+                                val effect: android.os.VibrationEffect? = when (patternIdx) {
+                                    // 1: Double Click (Vibe-Pause-Vibe)
+                                    1 -> android.os.VibrationEffect.createWaveform(longArrayOf(120, 80, 120), intArrayOf(amp, 0, amp), -1)
+                                    // 2: Long
+                                    2 -> android.os.VibrationEffect.createOneShot(600, amp)
+                                    // 3: Heartbeat (Dub-dub)
+                                    3 -> android.os.VibrationEffect.createWaveform(longArrayOf(100, 80, 120), intArrayOf(amp, 0, (amp * 0.8).toInt()), -1)
+                                    // 4: Tick
+                                    4 -> android.os.VibrationEffect.createOneShot(30, amp)
+                                    // 0: Default (Two pulses of 250ms)
+                                    else -> android.os.VibrationEffect.createWaveform(longArrayOf(250, 250, 250), intArrayOf(amp, 0, amp), -1)
+                                }
+                                if (effect != null) {
+                                    vibrator.vibrate(effect)
+                                }
+                            } else {
+                                // Fallback for older APIs or devices without amplitude control
+                                val pattern = when (patternIdx) {
+                                    1 -> longArrayOf(0, 120, 80, 120)
+                                    2 -> longArrayOf(0, 600)
+                                    3 -> longArrayOf(0, 100, 80, 120)
+                                    4 -> longArrayOf(0, 30)
+                                    else -> longArrayOf(0, 250, 250, 250)
+                                }
+                                vibrator.vibrate(pattern, -1)
+                            }
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to vibrate: ${e.message}")
@@ -5412,7 +5457,11 @@ class BluetoothService : Service() {
                         MIRRORED_CHANNEL_ID,
                         getString(R.string.notif_channel_mirrored),
                         NotificationManager.IMPORTANCE_HIGH
-                )
+                ).apply {
+                    enableVibration(false)
+                    vibrationPattern = longArrayOf(0)
+                    setShowBadge(true)
+                }
         )
     }
 
@@ -7019,6 +7068,8 @@ class BluetoothService : Service() {
             // Check notification style preference
             val notificationStyle = prefs.getString("notification_style", "android") ?: "android"
 
+            performNotificationAlert()
+
             if (notificationStyle == "dynamic_island") {
                 // Broadcast for DynamicIsland
                 val intent = Intent(ACTION_FILE_DETECTED)
@@ -7054,6 +7105,7 @@ class BluetoothService : Service() {
             .setContentText(text)
             .setSmallIcon(getFileTypeIcon(data.type))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setVibrate(null) // Ensure builder doesn't trigger default vibration
             .setAutoCancel(true)
             .setCategory(NotificationCompat.CATEGORY_EVENT)
 
@@ -7139,7 +7191,6 @@ class BluetoothService : Service() {
             }
         }
 
-        performNotificationAlert()
         notificationManager.notify(notifId, builder.build())
         Log.d(TAG, "File notification shown: ${data.name}")
     }

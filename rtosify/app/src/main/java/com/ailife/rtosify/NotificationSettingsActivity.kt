@@ -41,6 +41,9 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var btnManageDynamicIsland: View
     private lateinit var btnSimulateNotification: android.widget.Button
 
+    private lateinit var seekVibrationStrength: SeekBar
+    private lateinit var spinnerVibrationPattern: Spinner
+
     private lateinit var spinnerNotifStyle: Spinner
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,6 +84,9 @@ class NotificationSettingsActivity : AppCompatActivity() {
         btnGrantPermission = findViewById(R.id.btnOpenSettings)
         btnManageDynamicIsland = findViewById(R.id.btnManageDynamicIsland)
         btnSimulateNotification = findViewById(R.id.btnSimulateNotification)
+
+        seekVibrationStrength = findViewById(R.id.seekVibrationStrength)
+        spinnerVibrationPattern = findViewById(R.id.spinnerVibrationPattern)
 
         spinnerNotifStyle = findViewById(R.id.spinnerNotificationStyle)
     }
@@ -177,6 +183,37 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchWakeScreenDnd.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean("wake_screen_dnd_enabled", isChecked).apply()
             sendSettingsUpdate()
+        }
+
+        // Vibration Strength
+        val strength = activePrefs.getInt("vibration_strength", 2) // Default Medium
+        seekVibrationStrength.progress = strength
+        seekVibrationStrength.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+                if (fromUser) {
+                    activePrefs.edit().putInt("vibration_strength", progress).apply()
+                    sendSettingsUpdate()
+                }
+            }
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+        })
+
+        // Vibration Pattern
+        val patterns = arrayOf("Default", "Double Click", "Long", "Heartbeat", "Tick")
+        val patternAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, patterns)
+        patternAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerVibrationPattern.adapter = patternAdapter
+        
+        val patternIdx = activePrefs.getInt("vibration_pattern", 0)
+        spinnerVibrationPattern.setSelection(patternIdx)
+        
+        spinnerVibrationPattern.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                 activePrefs.edit().putInt("vibration_pattern", position).apply()
+                 sendSettingsUpdate()
+             }
+             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
     }
 

@@ -1656,7 +1656,9 @@ class BluetoothService : Service() {
                 wakeScreenEnabled = activePrefs.getBoolean("wake_screen_enabled", false),
                 wakeScreenDndEnabled = activePrefs.getBoolean("wake_screen_dnd_enabled", false),
                 vibrateEnabled = activePrefs.getBoolean("vibrate_enabled", false),
-                vibrateInSilentEnabled = activePrefs.getBoolean("vibrate_silent_enabled", false)
+                vibrateInSilentEnabled = activePrefs.getBoolean("vibrate_silent_enabled", false),
+                vibrationStrength = activePrefs.getInt("vibration_strength", 2),
+                vibrationPattern = activePrefs.getInt("vibration_pattern", 0)
                 )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
         

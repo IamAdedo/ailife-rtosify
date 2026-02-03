@@ -29,6 +29,7 @@ class AppNotificationSettingsActivity : AppCompatActivity() {
     private lateinit var switchAllowNotifications: SwitchMaterial
     private lateinit var switchOngoing: SwitchMaterial
     private lateinit var switchSilent: SwitchMaterial
+    private lateinit var switchOnlyChat: SwitchMaterial
     private lateinit var switchNavigation: SwitchMaterial
     
     private lateinit var cardSettings: MaterialCardView
@@ -64,6 +65,7 @@ class AppNotificationSettingsActivity : AppCompatActivity() {
         switchAllowNotifications = findViewById(R.id.switchAllowNotifications)
         switchOngoing = findViewById(R.id.switchOngoing)
         switchSilent = findViewById(R.id.switchSilent)
+        switchOnlyChat = findViewById(R.id.switchOnlyChat)
         switchNavigation = findViewById(R.id.switchNavigation)
         
         cardSettings = findViewById(R.id.cardSettings)
@@ -125,6 +127,13 @@ class AppNotificationSettingsActivity : AppCompatActivity() {
         switchSilent.isChecked = activePrefs.getBoolean(silentKey, true)
         switchSilent.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean(silentKey, isChecked).apply()
+        }
+
+        // 3.5. Only Chat
+        val onlyChatKey = "app_only_chat_$pkgName"
+        switchOnlyChat.isChecked = activePrefs.getBoolean(onlyChatKey, false)
+        switchOnlyChat.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean(onlyChatKey, isChecked).apply()
         }
         
         // 4. Navigation

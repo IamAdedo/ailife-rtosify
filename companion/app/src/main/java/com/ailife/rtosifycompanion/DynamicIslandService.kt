@@ -1113,9 +1113,6 @@ class DynamicIslandService : Service() {
         // If not currently expanded and should peek, show this one as a peek
         if (!isExpanded && shouldPeek) {
             displayNotification(notif)
-            
-            // Wake and vibrate for the new peek/priority notification
-            wakeScreenAndVibrate()
         } else if (isExpanded) {
             // Already expanded to list, just update the list content
             overlayView.expandToList(notificationQueue)
