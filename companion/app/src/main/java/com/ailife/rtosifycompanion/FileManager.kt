@@ -39,7 +39,7 @@ class FileManager(
         return newPath
     }
 
-    private fun toAbsolutePath(path: String): String {
+    fun toAbsolutePath(path: String): String {
         val root = android.os.Environment.getExternalStorageDirectory()
         return when {
             path == "/" -> root.absolutePath
@@ -636,7 +636,7 @@ class FileManager(
         }
     }
 
-    private fun isUsingShizuku(): Boolean {
+    fun isUsingShizuku(): Boolean {
         // Check if Shizuku is actually available and we have permission
         return try {
             rikka.shizuku.Shizuku.pingBinder() &&
