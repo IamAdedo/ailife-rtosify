@@ -723,6 +723,8 @@
     <string name="perm_native_bypass_desc">允许直接访问 Android/data (实验性)</string>
     <string name="perm_manage_storage_title">管理所有文件</string>
     <string name="perm_manage_storage_desc">用于文件监控功能</string>
+    <string name="perm_overlay">显示在其他应用上层</string>
+    <string name="perm_overlay_desc">需要在后台启动 Activity</string>
 
     <!-- Internet Test Extras -->
     <string name="itest_candidate_found">发现候选节点：%s</string>

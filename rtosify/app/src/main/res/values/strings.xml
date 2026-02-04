@@ -1091,6 +1091,8 @@
     <string name="perm_native_bypass_desc">Allow direct access to Android/data (Experimental)</string>
     <string name="perm_manage_storage_title">Manage All Files</string>
     <string name="perm_manage_storage_desc">Used for file observer feature</string>
+    <string name="perm_overlay">Display over other apps</string>
+    <string name="perm_overlay_desc">Required to start activities from background</string>
     
     <!-- Internet Test Extras -->
     <string name="itest_candidate_found">Found candidate: %s</string>

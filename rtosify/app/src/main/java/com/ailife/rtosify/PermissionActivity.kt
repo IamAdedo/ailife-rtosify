@@ -332,6 +332,17 @@ class PermissionActivity : AppCompatActivity() {
              )
         )
 
+        // 12c. Display over other apps (Overlay)
+        val hasOverlay = Settings.canDrawOverlays(this)
+        perms.add(
+              PermissionItem(
+                  "OVERLAY",
+                  getString(R.string.perm_overlay),
+                  getString(R.string.perm_overlay_desc),
+                  hasOverlay
+              )
+        )
+
         // 13. Call Phone
         perms.add(
                 PermissionItem(
@@ -578,6 +589,11 @@ class PermissionActivity : AppCompatActivity() {
                      }
                  }
             }
+            "OVERLAY" -> {
+                 val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                 intent.data = Uri.parse("package:$packageName")
+                 startActivity(intent)
+             }
             "CALL" -> requestPermissions(arrayOf(Manifest.permission.CALL_PHONE), 108)
             "CALENDAR" -> requestPermissions(arrayOf(Manifest.permission.READ_CALENDAR), 109)
             "CONTACTS" -> requestPermissions(arrayOf(Manifest.permission.READ_CONTACTS), 110)

@@ -1708,7 +1708,12 @@ class BluetoothService : Service() {
             startActivity(intent)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start ACTION_REQUEST_ENABLE: ${e.message}")
+            // Fallback: Show toast
+            mainHandler.post {
+                Toast.makeText(this, "Please enable Bluetooth", Toast.LENGTH_SHORT).show()
+            }
         }
+
     }
 
     private fun handleSetDndCommand(message: ProtocolMessage) {
