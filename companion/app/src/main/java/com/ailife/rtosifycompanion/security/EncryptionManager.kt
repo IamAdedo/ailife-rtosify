@@ -243,7 +243,9 @@ class EncryptionManager(private val context: Context) {
     fun importKey(deviceMac: String, keyData: String): Boolean {
         val normalizedMac = deviceMac.uppercase()
         return try {
-            val keyBytes = Base64.decode(keyData, Base64.NO_WRAP)
+            Log.d(TAG, "Importing key for $normalizedMac, length: ${keyData.length}")
+            // Use DEFAULT to be more permissive with newlines/format from different devices
+            val keyBytes = Base64.decode(keyData, Base64.DEFAULT) 
             val inputStream = ByteArrayInputStream(keyBytes)
             val keysetHandle = CleartextKeysetHandle.read(JsonKeysetReader.withInputStream(inputStream))
 

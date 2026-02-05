@@ -1230,9 +1230,11 @@ class BluetoothService : Service() {
 
         if (watchMac != null) {
             Log.d(TAG, "Starting WiFi server for local=$watchMac")
-            // If we have a saved phone MAC, use it. Otherwise, start server with null/empty remote
-            // so it can accept ANY connection initially or wait for BT.
-            val remoteMac = lastPhoneMac ?: ""
+            // CRITICAL FIX: Always use 'paired_phone_mac' if available. 
+            // 'lastPhoneMac' might be a BLE address if we just connected via BLE, which mismatches the encryption key.
+            
+            val lastPhoneMac = prefs.getString("last_phone_mac", null)
+            val remoteMac = prefs.getString("paired_phone_mac", null) ?: lastPhoneMac ?: ""
             
             // WiFi Server
             transportManager.startWifiServer(deviceName, watchMac, remoteMac)
@@ -1311,8 +1313,15 @@ class BluetoothService : Service() {
                  sendMessage(ProtocolHelper.createSyncMac(mac))
              }
              // Initialize encryption if MAC is available
-             mac?.let {
-                 initializeEncryptionForDevice(it)
+             // CRITICAL FIX: Always use the paired phone MAC (Classic) for encryption, 
+             // because BLE MACs are random (RPA) and will cause "No keyset" errors.
+             val stableMac = prefs.getString("paired_phone_mac", null) ?: mac
+             if (stableMac != null) {
+                 Log.d(TAG, "Initializing encryption using stable MAC: $stableMac (Connected MAC was: $mac)")
+                 initializeEncryptionForDevice(stableMac)
+                 // Also ensure WiFi server is using this stable MAC
+                 val deviceName = android.bluetooth.BluetoothAdapter.getDefaultAdapter()?.name ?: android.os.Build.MODEL
+                 transportManager.startWifiServer(deviceName, prefs.getString("wifi_advertised_mac", "") ?: "", stableMac)
              }
         }
     }
@@ -3150,7 +3159,7 @@ class BluetoothService : Service() {
         val watchMac = ProtocolHelper.extractStringField(message, "targetMac") ?: ""
         val encryptionKey = ProtocolHelper.extractStringField(message, "encryptionKey") ?: return
         
-        Log.i(TAG, "Received WiFi key exchange request from $phoneMac for watch $watchMac")
+        Log.i(TAG, "Received WiFi key exchange request from $phoneMac for watch $watchMac. KeyLength=${encryptionKey.length}")
         // Import key using phoneMac (remote device's MAC) because WifiIntranetTransport
         // uses remoteMac for encryption/decryption key lookups
         val success = encryptionManager.importKey(phoneMac, encryptionKey)
@@ -3161,6 +3170,7 @@ class BluetoothService : Service() {
             prefs.edit().apply {
                 putString("wifi_advertised_mac", watchMac)
                 putString("paired_phone_mac", phoneMac)
+                putString("last_phone_mac", phoneMac) // CRITICAL: Save as last_phone_mac so startWatchLogic picks it up
             }.apply()
             
             // Enable pairing mode to keep WiFi server running during pairing
@@ -3170,6 +3180,8 @@ class BluetoothService : Service() {
             serviceScope.launch {
                 val deviceName = android.bluetooth.BluetoothAdapter.getDefaultAdapter()?.name ?: android.os.Build.MODEL
                 transportManager.startWifiServer(deviceName, watchMac, phoneMac)
+                // CRITICAL: Update the watchdog with the new MAC so it doesn't restart with empty MAC
+                transportManager.startWifiServerWatchdog(this@BluetoothService, deviceName, watchMac, phoneMac)
             }
         }
         
