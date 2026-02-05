@@ -291,7 +291,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         Toast.makeText(this@MainActivity, getString(R.string.toast_service_started), Toast.LENGTH_SHORT)
                                 .show()
                     } else {
-                        bluetoothService?.stopServiceCompletely()
+                            bluetoothService?.stopServiceCompletely()
                         if (isBound) {
                             unbindService(connection)
                             isBound = false

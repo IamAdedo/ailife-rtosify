@@ -189,6 +189,8 @@ class TransportManager(
     }
 
 
+    private var bluetoothServerSocket: BluetoothServerSocket? = null
+
     /**
      * Starts the Bluetooth server to accept incoming connections.
      */
@@ -210,8 +212,8 @@ class TransportManager(
                     continue
                 }
 
-                val serverSocket = try {
-                    bluetoothAdapter.listenUsingRfcommWithServiceRecord(APP_NAME, APP_UUID)
+                try {
+                    bluetoothServerSocket = bluetoothAdapter.listenUsingRfcommWithServiceRecord(APP_NAME, APP_UUID)
                 } catch (e: IOException) {
                     Log.w(TAG, "Failed to create BT server socket: ${e.message}")
                     consecutiveFailures++
@@ -225,7 +227,7 @@ class TransportManager(
                 try {
                     while (isActive) {
                         val socket = try {
-                            serverSocket.accept()
+                            bluetoothServerSocket?.accept()
                         } catch (e: IOException) {
                             Log.w(TAG, "BT accept failed: ${e.message}")
                             break
@@ -237,7 +239,8 @@ class TransportManager(
                     }
                 } finally {
                     try {
-                        serverSocket.close()
+                        bluetoothServerSocket?.close()
+                        bluetoothServerSocket = null
                     } catch (e: IOException) {
                         Log.e(TAG, "Error closing BT server socket", e)
                     }
@@ -861,13 +864,19 @@ class TransportManager(
         btServerWatchdog?.cancel()
         bleServerWatchdog?.cancel()
         internetMonitorWatchdog?.cancel()
-        scope.launch {
-            withContext(NonCancellable) {
-                bluetoothTransport?.disconnect()
-                bleTransport?.disconnect()
-                wifiTransport?.disconnect()
-                attemptingWifiTransport?.disconnect()
-                internetTransport?.disconnect()
+        // Use a detached scope for cleanup to ensure it runs even if the service scope is cancelled
+        CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    bluetoothServerSocket?.close() // Interrupt blocking accept()
+                    bluetoothServerSocket = null
+                    bluetoothTransport?.disconnect()
+                    bleTransport?.disconnect()
+                    wifiTransport?.disconnect()
+                    attemptingWifiTransport?.disconnect()
+                    internetTransport?.disconnect()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error checking disconnect during stopAll: ${e.message}")
+                }
                 bluetoothTransport = null
                 bleTransport = null
                 wifiTransport = null
@@ -875,7 +884,6 @@ class TransportManager(
                 internetTransport = null
                 updateConnectionState()
             }
-        }
     }
 
 }

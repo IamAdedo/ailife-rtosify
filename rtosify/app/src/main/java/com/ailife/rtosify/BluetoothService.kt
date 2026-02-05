@@ -3446,8 +3446,12 @@ class BluetoothService : Service() {
         mediaSessionListener = null
 
         serviceScope.launch {
-            transportManager.stopAll()
-            mdnsDiscovery?.stop()
+            try {
+                // Stop mDNS discovery explicitly if needed, though TransportManager now handles transport disconnects
+                 mdnsDiscovery?.stop()
+            } catch (e: Exception) {
+                 Log.e(TAG, "Error stopping mDNS in onDestroy: ${e.message}")
+            }
         }
         // Unbind Shizuku UserService
         try {

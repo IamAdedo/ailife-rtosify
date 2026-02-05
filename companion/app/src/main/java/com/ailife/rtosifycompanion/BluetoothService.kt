@@ -1372,8 +1372,12 @@ class BluetoothService : Service() {
         
         serviceScope.launch(Dispatchers.Main) { callback?.onDeviceDisconnected() }
         
-        // Restart servers if needed
-        startWatchLogic()
+        // Restart servers if needed (only if NOT stopping)
+        if (!isStopping) {
+            startWatchLogic()
+        } else {
+            Log.d(TAG, "Service is stopping, skipping server restart.")
+        }
     }
 
     // Old connection handling methods removed - replaced by TransportManager

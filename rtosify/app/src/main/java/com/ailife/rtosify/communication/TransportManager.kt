@@ -589,13 +589,19 @@ class TransportManager(
         btReconnectJob?.cancel()
         wifiMonitorJob?.cancel()
         internetMonitorJob?.cancel()
+        connectionHealthMonitor?.cancel()
         
-        scope.launch {
+        // Use a detached scope for cleanup to ensure it runs even if the service scope is cancelled
+        CoroutineScope(Dispatchers.IO).launch {
             withContext(NonCancellable) {
-                bluetoothTransport?.disconnect()
-                bleTransport?.disconnect()
-                wifiTransport?.disconnect()
-                internetTransport?.disconnect()
+                try {
+                    bluetoothTransport?.disconnect()
+                    bleTransport?.disconnect()
+                    wifiTransport?.disconnect()
+                    internetTransport?.disconnect()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error checking disconnect during stopAll: ${e.message}")
+                }
                 bluetoothTransport = null
                 bleTransport = null
                 wifiTransport = null
