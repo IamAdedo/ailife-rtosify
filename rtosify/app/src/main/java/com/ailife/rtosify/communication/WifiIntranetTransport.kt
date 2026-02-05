@@ -30,7 +30,7 @@ class WifiIntranetTransport(
     companion object {
         private const val TAG = "WifiTransport"
         private const val KEEPALIVE_INTERVAL = 5000L  // Reverted to 5s
-        private const val KEEPALIVE_TIMEOUT = 15000L   // Reverted to 15s
+        private const val KEEPALIVE_TIMEOUT = 30000L   // Increased to 30s to prevent random timeouts
     }
 
     private var socket: Socket? = null
