@@ -597,10 +597,17 @@ class TransportManager(
     private fun stopInternetMonitoring() {
         internetMonitorJob?.cancel()
         internetMonitorJob = null
+        
+        val transportToDisconnect = internetTransport
+        if (transportToDisconnect == null) return
+
         scope.launch {
-            internetTransport?.disconnect()
-            internetTransport = null
-            updateConnectionState()
+            transportToDisconnect.disconnect()
+            // Only nullify if it hasn't changed
+            if (internetTransport === transportToDisconnect) {
+                internetTransport = null
+                updateConnectionState()
+            }
         }
     }
 
@@ -689,12 +696,22 @@ class TransportManager(
      */
     fun stopWifiServer() {
         wifiServerJob?.cancel()
+        
+        val transportToDisconnect = wifiTransport
+        val attemptingToDisconnect = attemptingWifiTransport
+        
         scope.launch {
-            attemptingWifiTransport?.disconnect()
-            attemptingWifiTransport = null
-            wifiTransport?.disconnect()
-            wifiTransport = null
-            updateConnectionState()
+            attemptingToDisconnect?.disconnect()
+            transportToDisconnect?.disconnect()
+            
+            // Only nullify if they haven't changed (prevent race with new connection)
+            if (attemptingWifiTransport === attemptingToDisconnect) {
+                attemptingWifiTransport = null
+            }
+            if (wifiTransport === transportToDisconnect) {
+                wifiTransport = null
+                updateConnectionState()
+            }
         }
     }
 

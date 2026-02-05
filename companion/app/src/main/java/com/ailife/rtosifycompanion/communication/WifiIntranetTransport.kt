@@ -250,6 +250,7 @@ class WifiIntranetTransport(
             connected = false
             receiveJob?.cancel()
             keepaliveJob?.cancel()
+
             
             try {
                 mdnsDiscovery.stop()
