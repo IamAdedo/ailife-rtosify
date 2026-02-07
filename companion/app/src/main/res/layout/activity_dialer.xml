@@ -1,84 +1,108 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="4dp"
     android:background="@android:color/black">
 
-    <LinearLayout
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_navigation"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="4dp">
-
-        <TextView
-            android:id="@+id/tv_number"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:textSize="20sp"
-            android:textColor="@android:color/white"
-            android:gravity="center"
-            android:maxLines="1"
-            android:ellipsize="start"
-            android:text="" />
-
-        <ImageButton
-            android:id="@+id/btn_toggle_contacts"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@drawable/ic_search"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            app:tint="@android:color/white"
-            android:padding="8dp"
-            android:scaleType="fitCenter"/>
-    </LinearLayout>
+        android:layout_alignParentBottom="true"
+        android:background="@android:color/black"
+        app:menu="@menu/bottom_nav_menu"
+        app:itemIconTint="@android:color/white"
+        app:itemTextColor="@android:color/white" />
 
     <ViewFlipper
         android:id="@+id/view_flipper"
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_height="match_parent"
+        android:layout_above="@id/bottom_navigation">
 
         <!-- Keypad View (Index 0) -->
-        <GridLayout
-            android:id="@+id/gridLayoutDialer"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:columnCount="3"
-            android:rowCount="4">
+            android:orientation="vertical"
+            android:padding="4dp">
 
-            <Button android:text="@string/digit_1" style="@style/DialerButton"/>
-            <Button android:text="@string/digit_2" style="@style/DialerButton"/>
-            <Button android:text="@string/digit_3" style="@style/DialerButton"/>
+            <TextView
+                android:id="@+id/tv_number"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
+                android:textSize="32sp"
+                android:textColor="@android:color/white"
+                android:gravity="center"
+                android:maxLines="1"
+                android:ellipsize="start"
+                android:text="" />
 
-            <Button android:text="@string/digit_4" style="@style/DialerButton"/>
-            <Button android:text="@string/digit_5" style="@style/DialerButton"/>
-            <Button android:text="@string/digit_6" style="@style/DialerButton"/>
+            <GridLayout
+                android:id="@+id/gridLayoutDialer"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:columnCount="3"
+                android:rowCount="4">
 
-            <Button android:text="@string/digit_7" style="@style/DialerButton"/>
-            <Button android:text="@string/digit_8" style="@style/DialerButton"/>
-            <Button android:text="@string/digit_9" style="@style/DialerButton"/>
+                <Button android:text="@string/digit_1" style="@style/DialerButton"/>
+                <Button android:text="@string/digit_2" style="@style/DialerButton"/>
+                <Button android:text="@string/digit_3" style="@style/DialerButton"/>
 
-            <Button android:id="@+id/btn_delete" android:text="@string/dialer_delete" style="@style/DialerButton"/>
-            <Button android:text="@string/digit_0" style="@style/DialerButton"/>
-            <Button android:id="@+id/btn_call" android:text="@string/dialer_call" style="@style/DialerButton" android:textColor="@android:color/holo_green_light"/>
+                <Button android:text="@string/digit_4" style="@style/DialerButton"/>
+                <Button android:text="@string/digit_5" style="@style/DialerButton"/>
+                <Button android:text="@string/digit_6" style="@style/DialerButton"/>
 
-        </GridLayout>
+                <Button android:text="@string/digit_7" style="@style/DialerButton"/>
+                <Button android:text="@string/digit_8" style="@style/DialerButton"/>
+                <Button android:text="@string/digit_9" style="@style/DialerButton"/>
+
+                <Button android:id="@+id/btn_delete" android:text="@string/dialer_delete" style="@style/DialerButton"/>
+                <Button android:text="@string/digit_0" style="@style/DialerButton"/>
+                <Button android:id="@+id/btn_call" android:text="@string/dialer_call" style="@style/DialerButton" android:textColor="@android:color/holo_green_light"/>
+
+            </GridLayout>
+        </LinearLayout>
 
         <!-- Contacts View (Index 1) -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rv_contacts"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:scrollbars="vertical"
-            android:padding="4dp"
-            android:clipToPadding="false"/>
+            android:orientation="vertical">
+
+            <EditText
+                android:id="@+id/et_search_contacts"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/search_contacts_hint"
+                android:textColor="@android:color/white"
+                android:textColorHint="@android:color/darker_gray"
+                android:background="@null"
+                android:padding="16dp"
+                android:drawableStart="@drawable/ic_search"
+                android:drawablePadding="8dp"
+                android:drawableTint="@android:color/white"
+                android:inputType="textPersonName"
+                android:maxLines="1" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#333333" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_contacts"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scrollbars="vertical"
+                android:padding="4dp"
+                android:clipToPadding="false"/>
+        </LinearLayout>
 
     </ViewFlipper>
 
-</LinearLayout>
+</RelativeLayout>

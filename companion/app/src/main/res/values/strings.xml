@@ -173,6 +173,9 @@
     <string name="dialer_call">Call</string>
     <string name="dialer_delete">Delete</string>
     <string name="dialer_calling">Calling %s...</string>
+    <string name="nav_keypad">Keypad</string>
+    <string name="nav_contacts">Contacts</string>
+    <string name="search_contacts_hint">Search contacts...</string>
 
     <string name="perm_watchface">Watch Face Directory</string>
     <string name="perm_watchface_desc">Required to manage and apply watch faces directly.</string>
@@ -472,7 +475,7 @@
     <string name="find_device_dist_gps_km">Distance: %.2f km (GPS)</string>
     <string name="find_device_dist_gps_m">Distance: %.0f m (GPS)</string>
     <string name="find_device_dist_waiting">Distance: Waiting for location...</string>
-    <string name="find_device_signal_format">Signal: %s (%d dBm)</string>
+    <string name="find_device_signal_format">Signal: %1$s (%2$d dBm)</string>
     <string name="find_device_rssi_excellent">Excellent</string>
     <string name="find_device_rssi_good">Good</string>
     <string name="find_device_rssi_fair">Fair</string>

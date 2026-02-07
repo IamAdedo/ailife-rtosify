@@ -22,17 +22,23 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import android.text.Editable
+import android.text.TextWatcher
+import android.widget.EditText
+import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class DialerActivity : AppCompatActivity() {
 
     private lateinit var tvNumber: TextView
     private lateinit var viewFlipper: ViewFlipper
-    private lateinit var btnToggleContacts: ImageButton
     private lateinit var rvContacts: RecyclerView
+    private lateinit var bottomNavigationView: BottomNavigationView
+    private lateinit var etSearchContacts: EditText
     
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
-    private var showingContacts = false
+    private var allContacts: List<ContactEntry> = emptyList()
+    private var adapter: ContactsAdapter? = null
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
@@ -40,7 +46,7 @@ class DialerActivity : AppCompatActivity() {
                 loadContacts()
             } else {
                 Toast.makeText(this, "Permission denied to read contacts", Toast.LENGTH_SHORT).show()
-                showKeypad()
+                bottomNavigationView.selectedItemId = R.id.nav_keypad
             }
         }
 
@@ -65,10 +71,14 @@ class DialerActivity : AppCompatActivity() {
 
         tvNumber = findViewById(R.id.tv_number)
         viewFlipper = findViewById(R.id.view_flipper)
-        btnToggleContacts = findViewById(R.id.btn_toggle_contacts)
         rvContacts = findViewById(R.id.rv_contacts)
+        bottomNavigationView = findViewById(R.id.bottom_navigation)
+        etSearchContacts = findViewById(R.id.et_search_contacts)
         
         rvContacts.layoutManager = LinearLayoutManager(this)
+
+        setupBottomNavigation()
+        setupSearch()
 
         setupKeypad()
 
@@ -88,29 +98,57 @@ class DialerActivity : AppCompatActivity() {
             }
         }
 
-        btnToggleContacts.setOnClickListener {
-            if (showingContacts) {
-                showKeypad()
-            } else {
-                checkPermissionAndLoadContacts()
-            }
-        }
 
         // Bind to BluetoothService
         val intent = Intent(this, BluetoothService::class.java)
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
     }
 
+    private fun setupBottomNavigation() {
+        bottomNavigationView.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_keypad -> {
+                    showKeypad()
+                    true
+                }
+                R.id.nav_contacts -> {
+                    checkPermissionAndLoadContacts()
+                    true // Assume allowed or will be handled
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun setupSearch() {
+        etSearchContacts.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                filterContacts(s.toString())
+            }
+
+            override fun afterTextChanged(s: Editable?) {}
+        })
+    }
+
+    private fun filterContacts(query: String) {
+        val filteredList = if (query.isEmpty()) {
+            allContacts
+        } else {
+            allContacts.filter {
+                it.name.contains(query, ignoreCase = true) || it.phoneNumber.contains(query)
+            }
+        }
+        adapter?.updateList(filteredList)
+    }
+
     private fun showKeypad() {
-        showingContacts = false
         viewFlipper.displayedChild = 0
-        btnToggleContacts.setImageResource(R.drawable.ic_search) // Using ic_search as "Show Contacts"
     }
 
     private fun showContactsView() {
-        showingContacts = true
         viewFlipper.displayedChild = 1
-        btnToggleContacts.setImageResource(R.drawable.ic_back) // Back to keypad
     }
 
     private fun checkPermissionAndLoadContacts() {
@@ -145,20 +183,24 @@ class DialerActivity : AppCompatActivity() {
             }
         }
 
-        if (contactList.isEmpty()) {
+        allContacts = contactList
+        filterContacts(etSearchContacts.text.toString()) // Apply existing filter if any
+
+        if (allContacts.isEmpty()) {
             Toast.makeText(this, "No contacts found", Toast.LENGTH_SHORT).show()
         }
 
-        rvContacts.adapter = ContactsAdapter(
-            contactList,
+        adapter = ContactsAdapter(
+            allContacts,
             onContactSelected = { contact ->
                 tvNumber.text = contact.phoneNumber
-                showKeypad()
+                bottomNavigationView.selectedItemId = R.id.nav_keypad
             },
             onCallClicked = { contact ->
                 makeCall(contact.phoneNumber)
             }
         )
+        rvContacts.adapter = adapter
     }
 
     private fun setupKeypad() {

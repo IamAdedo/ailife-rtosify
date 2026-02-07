@@ -13,10 +13,15 @@ data class ContactEntry(
 )
 
 class ContactsAdapter(
-    private val contacts: List<ContactEntry>,
+    private var contacts: List<ContactEntry>,
     private val onContactSelected: (ContactEntry) -> Unit,
     private val onCallClicked: (ContactEntry) -> Unit
 ) : RecyclerView.Adapter<ContactsAdapter.ContactViewHolder>() {
+
+    fun updateList(newList: List<ContactEntry>) {
+        contacts = newList
+        notifyDataSetChanged()
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ContactViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_contact, parent, false)
