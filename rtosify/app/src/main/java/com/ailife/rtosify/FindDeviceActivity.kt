@@ -44,8 +44,8 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
     private lateinit var tvSignalStrength: TextView
     private lateinit var tvDistance: TextView
     private lateinit var tvLastUpdated: TextView
-    private lateinit var btnRingDevice: Button
-    private lateinit var btnStopFinding: Button
+    private lateinit var btnRingDevice: android.widget.ImageButton
+    private lateinit var btnShareLocation: android.widget.ImageButton
 
     private var isRinging = false
     private var handler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -196,8 +196,8 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
             toggleRingDevice()
         }
 
-        btnStopFinding.setOnClickListener {
-            stopFindingAndFinish()
+        btnShareLocation.setOnClickListener {
+            openInMaps()
         }
 
         // Start periodic tasks
@@ -211,7 +211,7 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
         tvDistance = findViewById(R.id.tvDistance)
         tvLastUpdated = findViewById(R.id.tvLastUpdated)
         btnRingDevice = findViewById(R.id.btnRingDevice)
-        btnStopFinding = findViewById(R.id.btnStopFinding)
+        btnShareLocation = findViewById(R.id.btnShareLocation)
     }
 
     private fun setupMap() {
@@ -434,12 +434,10 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
         bluetoothService?.sendFindDeviceCommand(isRinging)
         
         if (isRinging) {
-            btnRingDevice.text = getString(R.string.action_ring_stop)
             btnRingDevice.backgroundTintList = android.content.res.ColorStateList.valueOf(
                 ContextCompat.getColor(this, android.R.color.holo_orange_dark)
             )
         } else {
-            btnRingDevice.text = getString(R.string.action_ring_watch)
             btnRingDevice.backgroundTintList = android.content.res.ColorStateList.valueOf(
                 ContextCompat.getColor(this, android.R.color.holo_blue_dark)
             )
@@ -544,8 +542,28 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
         // This method is deprecated but still required for older API levels
     }
 
+    private fun openInMaps() {
+        watchLocation?.let { location ->
+            val uri = android.net.Uri.parse("geo:${location.latitude},${location.longitude}?q=${location.latitude},${location.longitude}(Watch)")
+            val intent = Intent(Intent.ACTION_VIEW, uri)
+            // intent.setPackage("com.google.android.apps.maps") // Let user choose
+            try {
+                startActivity(intent)
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(this, "No map app found", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        } ?: run {
+             android.widget.Toast.makeText(this, "Location not available yet", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        // Ensure ringing stops when activity is closed (since Stop button is removed)
+        if (isRinging) {
+             bluetoothService?.sendFindDeviceCommand(false)
+        }
+
         handler.removeCallbacks(periodicLocationTask)
         handler.removeCallbacks(uiUpdateRunnable)
 

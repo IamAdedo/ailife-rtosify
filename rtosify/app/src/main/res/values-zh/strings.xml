@@ -146,6 +146,7 @@
     <string name="dialog_find_watch_message">手表将播放响亮的声音。使用此功能定位手表。</string>
     <string name="dialog_find_watch_start">开始报警</string>
     <string name="dialog_find_watch_stop">停止报警</string>
+    <string name="action_share_location">在地图中打开</string>
 
     <!-- Dialog: Select Watch -->
     <string name="dialog_select_watch_title">选择手表</string>
@@ -1075,7 +1076,7 @@
 
 
     <string name="battery_time_m">%d分</string>
-    <string name="battery_time_h_m">%d小时 %d分</string>
+    <string name="battery_time_h_m">%1$d小时 %2$d分</string>
     <string name="di_blacklist_title">黑名单应用</string>
 
     <string name="battery_history_hour_format">%d小时前</string>

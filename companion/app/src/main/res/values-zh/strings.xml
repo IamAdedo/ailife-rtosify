@@ -474,6 +474,7 @@
     <string name="find_device_rssi_very_weak">极弱</string>
     <string name="find_device_updated_format">上次更新: %d秒前</string>
     <string name="action_ring_stop">停止响铃</string>
+    <string name="action_open_maps">在地图中打开</string>
 
     <string name="transport_bt">蓝牙</string>
     <string name="transport_ble">BLE</string>

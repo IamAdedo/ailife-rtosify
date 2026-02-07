@@ -40,8 +40,8 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
     private lateinit var tvSignalStrength: TextView
     private lateinit var tvDistance: TextView
     private lateinit var tvLastUpdated: TextView
-    private lateinit var btnRingDevice: Button
-    private lateinit var btnStopFinding: Button
+    private lateinit var btnRingDevice: android.widget.ImageButton
+    private lateinit var btnOpenMaps: android.widget.ImageButton
 
     private var isRinging = false
     private var handler = android.os.Handler(android.os.Looper.getMainLooper())
@@ -188,8 +188,8 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
             toggleRingDevice()
         }
 
-        btnStopFinding.setOnClickListener {
-            stopFindingAndFinish()
+        btnOpenMaps.setOnClickListener {
+            openInMaps()
         }
 
         // Start periodic tasks
@@ -203,7 +203,7 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
         tvDistance = findViewById(R.id.tvDistance)
         tvLastUpdated = findViewById(R.id.tvLastUpdated)
         btnRingDevice = findViewById(R.id.btnRingDevice)
-        btnStopFinding = findViewById(R.id.btnStopFinding)
+        btnOpenMaps = findViewById(R.id.btnOpenMaps)
     }
 
     private fun setupMap() {
@@ -445,12 +445,10 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
         bluetoothService?.sendFindPhoneCommand(isRinging)
         
         if (isRinging) {
-            btnRingDevice.text = getString(R.string.action_ring_stop)
             btnRingDevice.backgroundTintList = android.content.res.ColorStateList.valueOf(
                 ContextCompat.getColor(this, android.R.color.holo_orange_dark)
             )
         } else {
-            btnRingDevice.text = getString(R.string.action_ring_phone)
             btnRingDevice.backgroundTintList = android.content.res.ColorStateList.valueOf(
                 ContextCompat.getColor(this, android.R.color.holo_blue_dark)
             )
@@ -570,6 +568,21 @@ class FindDeviceActivity : AppCompatActivity(), LocationListener {
             }
         } catch (e: Exception) {
             // Receiver not registered
+        }
+    }
+
+    private fun openInMaps() {
+        phoneLocation?.let { location ->
+            val uri = android.net.Uri.parse("geo:${location.latitude},${location.longitude}?q=${location.latitude},${location.longitude}(Phone)")
+            val intent = Intent(Intent.ACTION_VIEW, uri)
+            // intent.setPackage("com.google.android.apps.maps") // Don't force Google Maps, let user choose
+            try {
+                startActivity(intent)
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(this, "No map app found", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        } ?: run {
+            android.widget.Toast.makeText(this, "Location not available yet", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 

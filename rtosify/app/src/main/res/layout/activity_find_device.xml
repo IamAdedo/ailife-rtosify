@@ -155,30 +155,33 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:orientation="vertical"
+        android:orientation="horizontal"
+        android:gravity="center"
         android:padding="8dp">
 
         <!-- Ring Device Button -->
-        <Button
+        <ImageButton
             android:id="@+id/btnRingDevice"
-            style="@style/Widget.AppCompat.Button.Colored"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_margin="8dp"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_margin="16dp"
+            android:background="@drawable/rounded_background"
             android:backgroundTint="@android:color/holo_blue_dark"
-            android:text="@string/action_ring_watch"
-            android:textColor="@android:color/white" />
+            android:src="@drawable/ic_speaker"
+            app:tint="@android:color/white"
+            android:contentDescription="@string/action_ring_watch" />
 
-        <!-- Stop Finding Button -->
-        <Button
-            android:id="@+id/btnStopFinding"
-            style="@style/Widget.AppCompat.Button.Colored"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_margin="8dp"
-            android:backgroundTint="@android:color/holo_red_dark"
-            android:text="@string/action_stop_finding"
-            android:textColor="@android:color/white" />
+        <!-- Share Location Button -->
+        <ImageButton
+            android:id="@+id/btnShareLocation"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_margin="16dp"
+            android:background="@drawable/rounded_background"
+            android:backgroundTint="@android:color/holo_green_dark"
+            android:src="@drawable/ic_share"
+            app:tint="@android:color/white"
+            android:contentDescription="@string/action_share_location" />
 
     </LinearLayout>
 

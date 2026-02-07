@@ -480,6 +480,7 @@
     <string name="find_device_rssi_very_weak">Very Weak</string>
     <string name="find_device_updated_format">Last updated: %ds ago</string>
     <string name="action_ring_stop">Stop Ringing</string>
+    <string name="action_open_maps">Open in Maps</string>
 
     <string name="transport_bt">BT</string>
     <string name="transport_ble">BLE</string>

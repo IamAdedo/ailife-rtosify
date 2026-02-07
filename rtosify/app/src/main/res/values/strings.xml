@@ -896,12 +896,14 @@
     <string name="device_phone_you">Phone (You)</string>
     <string name="action_ring_watch">Ring Watch</string>
     <string name="action_stop_finding">Stop Finding</string>
-    <string name="network_active_format">Active: %s</string>
+    <string name="action_share_location">Open in Maps</string>
+    <string name="label_transport">Transport</string>
     <string name="network_label_bluetooth">Bluetooth</string>
     <string name="network_label_lan">LAN</string>
     <string name="network_label_internet">Internet</string>
     <string name="status_standby">Standby</string>
     <string name="status_paused_rule">Paused by rule</string>
+    <string name="network_active_format">Active: %s</string>
     <string name="network_connected_via">Connected via %s</string>
     <string name="wifi_status_disconnected">Disconnected</string>
     <string name="wifi_status_disabled">Wifi Off</string>
@@ -1124,7 +1126,7 @@
     <string name="di_bg_toast_service_disconnected">Service disconnected. Restart Bluetooth.</string>
 
     <string name="battery_time_m">%dm</string>
-    <string name="battery_time_h_m">%dh %dm</string>
+    <string name="battery_time_h_m">%1$dh %2$dm</string>
     <string name="di_blacklist_title">Blacklisted Apps</string>
 
     <string name="battery_history_hour_format">%dh ago</string>
