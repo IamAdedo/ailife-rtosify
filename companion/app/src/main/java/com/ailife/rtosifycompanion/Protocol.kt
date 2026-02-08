@@ -379,6 +379,8 @@ data class SettingsUpdateData(
         val dynamicIslandFollowDnd: Boolean? = null,
         val dynamicIslandBlacklistHidePeak: Boolean? = null,
         val inAppReplyDialog: Boolean? = null,
+        val fullScreenStackingEnabled: Boolean? = null,
+        val fullScreenDismissOnScreenOff: Boolean? = null,
         val vibrationStrength: Int? = null, // 1=Low, 2=Medium, 3=High
         val vibrationPattern: Int? = null // 0=Default, 1=Double, 2=Long
 )

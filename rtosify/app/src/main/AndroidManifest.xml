@@ -205,6 +205,12 @@
             android:theme="@style/Theme.Smartwatch" />
             
         <activity
+            android:name=".FullScreenSettingsActivity"
+            android:label="@string/title_full_screen_settings"
+            android:parentActivityName=".NotificationSettingsActivity"
+            android:theme="@style/Theme.Smartwatch" />
+            
+        <activity
             android:name=".AppPickerActivity"
             android:exported="false"
             android:parentActivityName=".AppListActivity"

@@ -221,6 +221,14 @@
             android:theme="@style/Theme.AppCompat.NoActionBar" />
 
         <activity
+            android:name=".FullScreenNotificationActivity"
+            android:exported="false"
+            android:launchMode="standard"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.Smartwatch" />
+
+        <activity
             android:name=".FullScreenMediaActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize"

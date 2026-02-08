@@ -283,6 +283,18 @@
     <string name="di_message_length_limit">Limit Message Length</string>
     <string name="di_message_length_limit_desc">Truncate long messages to 2 lines</string>
 
+    <!-- Full Screen Settings -->
+    <string name="title_full_screen_settings">Full Screen Settings</string>
+    <string name="desc_full_screen_settings">Configure behavior for the full-screen notification style on the watch.</string>
+    <string name="header_behavior">Behavior</string>
+    <string name="lbl_stacking_enabled">Stack Notifications</string>
+    <string name="desc_stacking_enabled">If enabled, multiple notifications will stack. If disabled, new notifications replace the old one.</string>
+    <string name="lbl_close_on_screen_off">Close on Screen Off</string>
+    <string name="desc_close_on_screen_off">Automatically close the notification when the watch screen turns off.</string>
+    <string name="notif_style_full_screen">Full Screen</string>
+    <string name="btn_manage_full_screen">Manage Full Screen</string>
+    <string name="btn_manage_dynamic_island">Manage Dynamic Island</string>
+
     <!-- Android Style Settings -->
     <string name="notif_android_settings">Android Style Settings</string>
     <string name="in_app_reply_dialog_title">In-App Reply Dialog</string>

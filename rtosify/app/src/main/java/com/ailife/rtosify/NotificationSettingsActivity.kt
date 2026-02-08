@@ -39,6 +39,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var layoutPermissionWarning: View
     private lateinit var btnGrantPermission: View
     private lateinit var btnManageDynamicIsland: View
+    private lateinit var tvManageSettings: TextView
     private lateinit var btnSimulateNotification: android.widget.Button
 
     private lateinit var seekVibrationStrength: SeekBar
@@ -83,6 +84,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
         layoutPermissionWarning = findViewById(R.id.layoutPermissionWarning)
         btnGrantPermission = findViewById(R.id.btnOpenSettings)
         btnManageDynamicIsland = findViewById(R.id.btnManageDynamicIsland)
+        tvManageSettings = findViewById(R.id.tvManageSettings)
         btnSimulateNotification = findViewById(R.id.btnSimulateNotification)
 
         seekVibrationStrength = findViewById(R.id.seekVibrationStrength)
@@ -226,27 +228,41 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private fun setupDynamicIslandSettings() {
         // Style Spinner
         val adapterStyle = ArrayAdapter(this, android.R.layout.simple_spinner_item, 
-            arrayOf(getString(R.string.notif_style_android), getString(R.string.notif_style_dynamic_island)))
+            arrayOf(getString(R.string.notif_style_android), getString(R.string.notif_style_dynamic_island), getString(R.string.notif_style_full_screen)))
         adapterStyle.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerNotifStyle.adapter = adapterStyle
         
         val savedStyle = activePrefs.getString("notification_style", "android")
-        spinnerNotifStyle.setSelection(if (savedStyle == "dynamic_island") 1 else 0)
+        val selection = when (savedStyle) {
+            "dynamic_island" -> 1
+            "full_screen" -> 2
+            else -> 0
+        }
+        spinnerNotifStyle.setSelection(selection)
 
         spinnerNotifStyle.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val style = if (position == 1) "dynamic_island" else "android"
+                val style = when (position) {
+                    1 -> "dynamic_island"
+                    2 -> "full_screen"
+                    else -> "android"
+                }
                 activePrefs.edit().putString("notification_style", style).apply()
                 sendSettingsUpdate()
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
         
+        // Button always visible, text set in XML
+        
         btnManageDynamicIsland.setOnClickListener {
             val style = activePrefs.getString("notification_style", "android")
             if (style == "dynamic_island") {
                 startActivity(android.content.Intent(this, DynamicIslandSettingsActivity::class.java))
+            } else if (style == "full_screen") {
+                startActivity(android.content.Intent(this, FullScreenSettingsActivity::class.java))
             } else {
+                // Should not happen as button hidden, but fallback
                 startActivity(android.content.Intent(this, AndroidNotificationSettingsActivity::class.java))
             }
         }

@@ -576,18 +576,32 @@ class BluetoothService : Service() {
     private val audioNotificationReceiver =
             object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
-                    val fileKey = intent?.getStringExtra(EXTRA_FILE_KEY) ?: return
-                    val notifId = intent.getIntExtra(EXTRA_NOTIF_ID, 0)
+                    Log.d(TAG, "audioNotificationReceiver.onReceive: action=${intent?.action}")
+                    val fileKey = intent?.getStringExtra(EXTRA_FILE_KEY)
+                    val notifId = intent?.getIntExtra(EXTRA_NOTIF_ID, 0) ?: 0
+                    
+                    Log.d(TAG, "Audio action received: action=${intent?.action}, fileKey=$fileKey, notifId=$notifId")
+
+                    if (fileKey == null) {
+                        Log.w(TAG, "Audio action missing fileKey")
+                        return
+                    }
 
                     when (intent.action) {
                         ACTION_AUDIO_DOWNLOAD -> {
+                            Log.d(TAG, "Handling audio download for $fileKey")
                             handleAudioDownload(fileKey, notifId)
                         }
                         ACTION_AUDIO_PLAY_PAUSE -> {
+                            Log.d(TAG, "Handling audio play/pause for $fileKey")
                             handleAudioPlayPause(fileKey, notifId)
                         }
                         ACTION_AUDIO_STOP -> {
+                            Log.d(TAG, "Handling audio stop for $fileKey")
                             handleAudioStop(fileKey, notifId)
+                        }
+                        else -> {
+                            Log.w(TAG, "Unknown audio action: ${intent.action}")
                         }
                     }
                 }
@@ -1962,6 +1976,16 @@ class BluetoothService : Service() {
                 prefs.edit().putBoolean("in_app_reply_dialog", it).apply()
                 Log.d(TAG, "In-App Reply Dialog setting updated: $it")
             } ?: Log.d(TAG, "In-App Reply Dialog setting is NULL in update")
+
+            settings.fullScreenStackingEnabled?.let {
+                prefs.edit().putBoolean("full_screen_stacking_enabled", it).apply()
+                Log.d(TAG, "Full Screen Stacking setting updated: $it")
+            }
+
+            settings.fullScreenDismissOnScreenOff?.let {
+                prefs.edit().putBoolean("full_screen_close_on_screen_off", it).apply()
+                Log.d(TAG, "Full Screen Dismiss on Screen Off setting updated: $it")
+            }
             
             // Broadcast settings update to Dynamic Island Service if any DI setting changed
             if (settings.notificationStyle != null || settings.dynamicIslandTimeout != null ||
@@ -4518,6 +4542,22 @@ class BluetoothService : Service() {
                 sendBroadcast(intent)
                 Log.d(TAG, "Notification sent to Dynamic Island: ${notif.title}")
                 return
+            } else if (notificationStyle == "full_screen") {
+                 performNotificationAlert()
+                 NotificationCache.put(notif.key, notif)
+                 val intent = Intent(this, FullScreenNotificationActivity::class.java).apply {
+                     putExtra(EXTRA_NOTIF_KEY, notif.key)
+                     // Stacking Logic
+                     val stacking = prefs.getBoolean("full_screen_stacking_enabled", true)
+                     if (stacking) {
+                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                     } else {
+                         // If Stacking OFF, we clear top to replace existing activity
+                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                     }
+                 }
+                 startActivity(intent)
+                 return
             }
 
             // Otherwise show as Android notification (existing code)
@@ -6090,6 +6130,21 @@ class BluetoothService : Service() {
                 intent.putExtra("data", Gson().toJson(data))
                 intent.setPackage(packageName)
                 sendBroadcast(intent)
+            } else if (notificationStyle == "full_screen") {
+                 val intent = Intent(this, FullScreenNotificationActivity::class.java).apply {
+                     putExtra(EXTRA_NOTIF_JSON, Gson().toJson(data))
+                     putExtra("is_file_detected", true)
+                     putExtra("file_data_json", Gson().toJson(data))
+                     // Stacking Logic - same as regular notifications
+                     val stacking = prefs.getBoolean("full_screen_stacking_enabled", true)
+                     if (stacking) {
+                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                     } else {
+                         // If Stacking OFF, we clear top to replace existing activity with latest
+                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                     }
+                 }
+                 startActivity(intent)
             } else {
                 // Show as standard Android notification
                 showFileDetectedNotification(data)

@@ -466,7 +466,7 @@
     <string name="find_device_dist_gps_km">距离: %.2f 公里 (GPS)</string>
     <string name="find_device_dist_gps_m">距离: %.0f 米 (GPS)</string>
     <string name="find_device_dist_waiting">距离: 等待位置...</string>
-    <string name="find_device_signal_format">信号: %s (%d dBm)</string>
+    <string name="find_device_signal_format">信号: %1$s (%2$d dBm)</string>
     <string name="find_device_rssi_excellent">极好</string>
     <string name="find_device_rssi_good">良好</string>
     <string name="find_device_rssi_fair">一般</string>
