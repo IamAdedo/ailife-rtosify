@@ -138,7 +138,11 @@ class PermissionActivity : AppCompatActivity() {
 
         // 0. Native Access Bypass (Custom Option)
         val prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
-        val isNativeBypassEnabled = prefs.getBoolean("native_access_bypass", false)
+        val isNativeBypassEnabled = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+             true
+        } else {
+             prefs.getBoolean("native_access_bypass", false)
+        }
         perms.add(
             PermissionItem(
                 "NATIVE_BYPASS",
@@ -452,6 +456,7 @@ class PermissionActivity : AppCompatActivity() {
                 }
             }
             "NATIVE_BYPASS" -> {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
                 val prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
                 val current = prefs.getBoolean("native_access_bypass", false)
                 
