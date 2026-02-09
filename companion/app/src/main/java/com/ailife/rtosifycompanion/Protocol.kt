@@ -382,7 +382,12 @@ data class SettingsUpdateData(
         val fullScreenStackingEnabled: Boolean? = null,
         val fullScreenDismissOnScreenOff: Boolean? = null,
         val vibrationStrength: Int? = null, // 1=Low, 2=Medium, 3=High
-        val vibrationPattern: Int? = null // 0=Default, 1=Double, 2=Long
+        val vibrationPattern: Int? = null, // 0=Default, 1=Double, 2=Long
+        val fullScreenAppNameSize: Int? = null,
+        val fullScreenTitleSize: Int? = null,
+        val fullScreenContentSize: Int? = null,
+        val fullScreenAutoCloseEnabled: Boolean? = null,
+        val fullScreenAutoCloseTimeout: Int? = null
 )
 
 data class HealthDataUpdate(

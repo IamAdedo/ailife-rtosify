@@ -1670,7 +1670,12 @@ class BluetoothService : Service() {
                 dynamicIslandBlacklistHidePeak = activePrefs.getBoolean("di_blacklist_hide_peak", false),
                 inAppReplyDialog = activePrefs.getBoolean("in_app_reply_dialog", false),
                 fullScreenStackingEnabled = activePrefs.getBoolean("full_screen_stacking_enabled", false),
-                fullScreenDismissOnScreenOff = activePrefs.getBoolean("full_screen_close_on_screen_off", false)
+                fullScreenDismissOnScreenOff = activePrefs.getBoolean("full_screen_close_on_screen_off", false),
+                fullScreenAppNameSize = activePrefs.getInt("full_screen_app_name_size", 20),
+                fullScreenTitleSize = activePrefs.getInt("full_screen_title_size", 22),
+                fullScreenContentSize = activePrefs.getInt("full_screen_content_size", 18),
+                fullScreenAutoCloseEnabled = activePrefs.getBoolean("full_screen_auto_close_enabled", false),
+                fullScreenAutoCloseTimeout = activePrefs.getInt("full_screen_auto_close_timeout", 10)
         )
         Log.d(TAG, "syncDynamicIslandSettings: inAppReplyDialog = ${settings.inAppReplyDialog}")
         sendMessage(ProtocolHelper.createUpdateSettings(settings))

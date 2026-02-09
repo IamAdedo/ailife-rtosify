@@ -67,16 +67,20 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         processIntent(intent)
     }
 
+    private val autoCloseHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val autoCloseRunnable = Runnable { finish() }
+    private var actionTextSize: Float = 20f
+
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(screenOffReceiver)
+        autoCloseHandler.removeCallbacks(autoCloseRunnable)
     }
 
     private fun initViews() {
         tvAppName = findViewById(R.id.tvAppName)
         tvTime = findViewById(R.id.tvTime)
         tvTitle = findViewById(R.id.tvTitle)
-        tvText = findViewById(R.id.tvText)
         tvText = findViewById(R.id.tvText)
         imgAppIcon = findViewById(R.id.imgAppIcon)
         imgSmallIcon = findViewById(R.id.imgSmallIcon)
@@ -89,12 +93,49 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         btnClose.setOnClickListener {
             finish()
         }
+        
+        applySettings()
+    }
+
+    private fun applySettings() {
+        val prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+        
+        // Text Sizes
+        val appNameSize = prefs.getInt("full_screen_app_name_size", 20).toFloat()
+        val titleSize = prefs.getInt("full_screen_title_size", 22).toFloat()
+        val contentSize = prefs.getInt("full_screen_content_size", 18).toFloat()
+        
+        actionTextSize = appNameSize // Actions use same size as App Name
+        
+        tvAppName.textSize = appNameSize
+        tvTitle.textSize = titleSize
+        tvText.textSize = contentSize
+        
+        btnReply.textSize = actionTextSize
+        btnDismiss.textSize = actionTextSize
+        
+        // Auto Close
+        val autoCloseEnabled = prefs.getBoolean("full_screen_auto_close_enabled", false)
+        if (autoCloseEnabled) {
+            val timeout = prefs.getInt("full_screen_auto_close_timeout", 10)
+            autoCloseHandler.removeCallbacks(autoCloseRunnable)
+            autoCloseHandler.postDelayed(autoCloseRunnable, timeout * 1000L)
+        }
     }
 
     private fun processIntent(intent: Intent?) {
         if (intent == null) {
             finish()
             return
+        }
+        
+        // Reset auto-close timer on new intent/update
+        val prefs = getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+        val autoCloseEnabled = prefs.getBoolean("full_screen_auto_close_enabled", false)
+        if (autoCloseEnabled) {
+            val timeout = prefs.getInt("full_screen_auto_close_timeout", 10)
+            autoCloseHandler.removeCallbacks(autoCloseRunnable)
+            autoCloseHandler.postDelayed(autoCloseRunnable, timeout * 1000L)
         }
 
         val gson = Gson()
@@ -274,6 +315,7 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         if (isAudio) {
              val btnPlay = Button(this).apply {
                 text = getString(R.string.notification_file_play_audio)
+                textSize = actionTextSize
                 background = ContextCompat.getDrawable(this@FullScreenNotificationActivity, R.drawable.bg_action_button)
                 setTextColor(0xFFFFFFFF.toInt())
                 layoutParams = LinearLayout.LayoutParams(
@@ -295,6 +337,7 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         if (isImage || isVideo) {
              val btnView = Button(this).apply {
                 text = getString(R.string.notification_file_view)
+                textSize = actionTextSize
                 background = ContextCompat.getDrawable(this@FullScreenNotificationActivity, R.drawable.bg_action_button)
                 setTextColor(0xFFFFFFFF.toInt())
                 layoutParams = LinearLayout.LayoutParams(
@@ -373,6 +416,7 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         data.actions.filter { !it.isReplyAction }.forEach { action ->
             val btn = Button(this)
             btn.text = action.title
+            btn.textSize = actionTextSize
             
             // Apply rounded background
             btn.background = ContextCompat.getDrawable(this, R.drawable.bg_action_button)
@@ -415,3 +459,5 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         private const val TAG = "FullScreenNotif"
     }
 }
+
+

@@ -294,6 +294,12 @@
     <string name="notif_style_full_screen">Full Screen</string>
     <string name="btn_manage_full_screen">Manage Full Screen</string>
     <string name="btn_manage_dynamic_island">Manage Dynamic Island</string>
+    <string name="lbl_app_name_size">App Name &amp; Actions Size</string>
+    <string name="lbl_title_size">Title Text Size</string>
+    <string name="lbl_content_size">Content Text Size</string>
+    <string name="lbl_auto_close">Auto-Close Notification</string>
+    <string name="lbl_auto_close_timeout">Timeout: %d seconds</string>
+    <string name="lbl_text_size_value">%d sp</string>
 
     <!-- Android Style Settings -->
     <string name="notif_android_settings">Android Style Settings</string>

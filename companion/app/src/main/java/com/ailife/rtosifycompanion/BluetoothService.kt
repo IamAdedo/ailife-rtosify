@@ -1986,6 +1986,21 @@ class BluetoothService : Service() {
                 prefs.edit().putBoolean("full_screen_close_on_screen_off", it).apply()
                 Log.d(TAG, "Full Screen Dismiss on Screen Off setting updated: $it")
             }
+            settings.fullScreenAppNameSize?.let {
+                prefs.edit().putInt("full_screen_app_name_size", it).apply()
+            }
+            settings.fullScreenTitleSize?.let {
+                prefs.edit().putInt("full_screen_title_size", it).apply()
+            }
+            settings.fullScreenContentSize?.let {
+                prefs.edit().putInt("full_screen_content_size", it).apply()
+            }
+            settings.fullScreenAutoCloseEnabled?.let {
+                prefs.edit().putBoolean("full_screen_auto_close_enabled", it).apply()
+            }
+            settings.fullScreenAutoCloseTimeout?.let {
+                prefs.edit().putInt("full_screen_auto_close_timeout", it).apply()
+            }
             
             // Broadcast settings update to Dynamic Island Service if any DI setting changed
             if (settings.notificationStyle != null || settings.dynamicIslandTimeout != null ||
