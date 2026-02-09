@@ -217,6 +217,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
                     addView(closeText)
                     addView(arrow)
+
+                    setOnClickListener {
+                        onPillClick?.invoke()
+                    }
                 }
 
         // Expanded list container

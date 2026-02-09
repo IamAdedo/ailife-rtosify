@@ -61,6 +61,7 @@ class DynamicIslandService : Service() {
     private var transientStateRunnable: Runnable? = null
     private val handler = Handler(Looper.getMainLooper())
     private var foregroundCheckRunnable: Runnable? = null
+    private var transientCollapseRunnable: Runnable? = null
 
     private var isConnected = false
     private var isCharging = false
@@ -179,14 +180,17 @@ class DynamicIslandService : Service() {
                         BluetoothService.ACTION_CONNECTION_STATE_CHANGED -> {
                             val connected = intent.getBooleanExtra("connected", false)
                             val transport = intent.getStringExtra("transport") ?: ""
-                            // ALWAYS update state on broadcast to ensure UI is in sync
-                            isConnected = connected
-                            currentTransport = transport
-                            if (showDisconnect || connected) {
-                                showTransientConnectionState(connected, transport)
-                            } else {
-                                // Post standard Android notification when toggle is off
-                                // TODO: Implement standard notification fallback
+                            
+                            // Only update if state actually changed to prevent timer resets
+                            if (isConnected != connected || currentTransport != transport) {
+                                isConnected = connected
+                                currentTransport = transport
+                                if (showDisconnect || connected) {
+                                    showTransientConnectionState(connected, transport)
+                                } else {
+                                    // Post standard Android notification when toggle is off
+                                    // TODO: Implement standard notification fallback
+                                }
                             }
                         }
                         "com.ailife.rtosifycompanion.INCOMING_CALL" -> {
@@ -705,13 +709,17 @@ class DynamicIslandService : Service() {
             )
             activeState = stateInstance
             
+            // Cancel any pending collapse
+            transientCollapseRunnable?.let { handler.removeCallbacks(it) }
+            
             // Schedule state update when active state expires
-            handler.postDelayed({
+            transientCollapseRunnable = Runnable {
                 if (activeState === stateInstance) {
                     activeState = null
                     updateState()
                 }
-            }, timeout)
+            }
+            handler.postDelayed(transientCollapseRunnable!!, timeout)
         }
         
         updateState()
@@ -722,9 +730,12 @@ class DynamicIslandService : Service() {
         if (!connected && showDisconnect) {
             wakeScreenAndVibrate()
             
-            // Trigger expanded disconnect alert
+            // Trigger expanded disconnect alert directly (like notification)
             overlayView.showExpandedDisconnected()
         }
+        
+        // Force collapse other states (like notification logic)
+        isExpanded = false
         
         // Set active state with timeout
         val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
@@ -734,14 +745,26 @@ class DynamicIslandService : Service() {
         )
         activeState = stateInstance
         
+        // Cancel any pending collapse (Reuse same runnable variable or separate? 
+        // Notification uses collapseRunnable. We should use a separate one for transient states to avoid conflict with notifications.)
+        transientCollapseRunnable?.let { handler.removeCallbacks(it) }
+        
         // Schedule state update when active state expires
-        handler.postDelayed({
+        transientCollapseRunnable = Runnable {
             if (activeState === stateInstance) {
                 activeState = null
-                updateState()
+                collapseTransientState()
             }
-        }, timeout)
+        }
+        handler.postDelayed(transientCollapseRunnable!!, timeout)
         
+        updateState()
+    }
+
+    private fun collapseTransientState() {
+        if (isExpanded) return // Don't auto-collapse if user opened the list
+
+        activeState = null
         updateState()
     }
     
@@ -882,6 +905,17 @@ class DynamicIslandService : Service() {
 
     private fun updateState() {
         handler.post {
+            // Sanity check: If expanded but no content, force collapse
+            if (isExpanded && notificationQueue.isEmpty() && currentMedia == null) {
+                Log.w(TAG, "State mismatch detected: Expanded but no content. Auto-collapsing.")
+                isExpanded = false
+            }
+
+            // Check if active transient state has expired
+            if (activeState != null && System.currentTimeMillis() >= activeState!!.expiresAt) {
+                activeState = null
+            }
+
             // Update blacklist state if needed
             if (autoHideMode == AUTO_HIDE_IN_BLACKLIST && blacklistedApps.isNotEmpty()) {
                 isInBlacklistedApp()  // Updates isCurrentlyInBlacklistedApp
@@ -899,15 +933,9 @@ class DynamicIslandService : Service() {
                 // If activeState is expired, we need to let it fall through, but we should also null it out to prevent logic issues
                 activeState != null && System.currentTimeMillis() >= activeState!!.expiresAt -> {
                     activeState = null // Clear expired state
-                    // Re-evaluate
-                    if (currentNotification != null) "active_notification"
-                    else if (currentCall != null) "call" 
-                    else if (currentAlarm != null) "alarm"
-                    else if (currentMedia != null && !overlayView.isMediaSuppressed(currentMedia?.title, currentMedia?.artist)) "media"
-                    else if (notificationQueue.isNotEmpty()) "notification_icons"
-                    else if (isCharging) "charging"
-                    else if (!isConnected) "disconnected"
-                    else "idle"
+                    // Re-evaluate (recursive call to ensure clean state check)
+                    updateState()
+                    return@post
                 }
                 
                 // Active notification (5 second display)
