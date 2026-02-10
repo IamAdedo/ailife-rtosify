@@ -3,7 +3,7 @@
     android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000">
+    android:background="?android:attr/colorBackground">
 
     <ImageView
         android:id="@+id/img_viewfinder"
@@ -19,18 +19,18 @@
         android:layout_marginBottom="8dp"
         android:orientation="horizontal">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_record"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_marginEnd="16dp"
-            android:backgroundTint="#FF0000" />
+            android:backgroundTint="?attr/colorError" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_shutter"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:backgroundTint="#FFFFFF" />
+            android:backgroundTint="?attr/colorOnSurface" />
 
     </LinearLayout>
 
@@ -41,7 +41,7 @@
         android:layout_gravity="top|center_horizontal"
         android:layout_marginTop="8dp"
         android:text="00:00"
-        android:textColor="#FF0000"
+        android:textColor="?attr/colorError"
         android:textSize="14sp"
         android:visibility="gone" />
     
@@ -51,7 +51,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:text="@string/camera_waiting_video"
-        android:textColor="#FFFFFF"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="12sp" />
 
 </FrameLayout>

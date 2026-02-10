@@ -30,9 +30,8 @@
         android:textSize="16sp"
         android:layout_marginBottom="16dp" />
 
-    <ProgressBar
+    <com.google.android.material.progressindicator.LinearProgressIndicator
         android:id="@+id/progressBarUpload"
-        style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:max="100" />
@@ -54,14 +53,14 @@
             android:layout_height="match_parent"
             android:layout_weight="1" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnViewFile"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/view_file"
             android:visibility="gone" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnUploadCancel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -69,7 +68,7 @@
             android:textColor="#FF5252"
             style="?android:attr/borderlessButtonStyle" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnUploadOk"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

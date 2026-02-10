@@ -190,7 +190,7 @@
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchFollowDnd"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
@@ -244,7 +244,7 @@
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchShowPhoneCalls"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
@@ -280,7 +280,7 @@
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchShowAlarms"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
@@ -316,7 +316,7 @@
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchShowDisconnect"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
@@ -351,7 +351,7 @@
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchShowMedia"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
@@ -445,7 +445,7 @@
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchHideWithActiveNotifs"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
@@ -483,7 +483,7 @@
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchBlacklistHidePeak"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
@@ -590,12 +590,14 @@
                                 android:textColor="?android:attr/textColorPrimary"/>
                         </LinearLayout>
 
-                        <SeekBar
+                        <com.google.android.material.slider.Slider
                             android:id="@+id/seekBarTimeout"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:max="8"
-                            android:progress="3"/>
+                            android:valueFrom="0"
+                            android:valueTo="8"
+                            android:stepSize="1"
+                            android:value="3"/>
                     </LinearLayout>
 
                     <!-- Y Position -->
@@ -629,12 +631,14 @@
                                 android:textColor="?android:attr/textColorPrimary"/>
                         </LinearLayout>
 
-                        <SeekBar
+                        <com.google.android.material.slider.Slider
                             android:id="@+id/seekBarY"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:max="100"
-                            android:progress="8"/>
+                            android:valueFrom="0"
+                            android:valueTo="100"
+                            android:stepSize="1"
+                            android:value="8"/>
                     </LinearLayout>
 
                     <!-- Width -->
@@ -668,12 +672,14 @@
                                 android:textColor="?android:attr/textColorPrimary"/>
                         </LinearLayout>
 
-                        <SeekBar
+                        <com.google.android.material.slider.Slider
                             android:id="@+id/seekBarWidth"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:max="250"
-                            android:progress="100"/>
+                            android:valueFrom="0"
+                            android:valueTo="250"
+                            android:stepSize="1"
+                            android:value="100"/>
                     </LinearLayout>
 
                     <!-- Height -->
@@ -706,12 +712,14 @@
                                 android:textColor="?android:attr/textColorPrimary"/>
                         </LinearLayout>
 
-                        <SeekBar
+                        <com.google.android.material.slider.Slider
                             android:id="@+id/seekBarHeight"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:max="80"
-                            android:progress="20"/>
+                            android:valueFrom="0"
+                            android:valueTo="80"
+                            android:stepSize="1"
+                            android:value="20"/>
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -774,12 +782,14 @@
                                 android:textColor="?android:attr/textColorPrimary"/>
                         </LinearLayout>
 
-                        <SeekBar
+                        <com.google.android.material.slider.Slider
                             android:id="@+id/seekBarTextSize"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:max="15"
-                            android:progress="5"/>
+                            android:valueFrom="0"
+                            android:valueTo="15"
+                            android:stepSize="1"
+                            android:value="5"/>
                     </LinearLayout>
 
                     <!-- Limit Message Length -->
@@ -811,7 +821,7 @@
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchLimitMessageLength"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>

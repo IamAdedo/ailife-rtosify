@@ -3,7 +3,7 @@
     android:id="@+id/widgetHealthRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#212121"
+    android:background="@color/widget_background"
     android:orientation="vertical"
     android:padding="12dp">
 
@@ -20,13 +20,14 @@
             android:layout_height="20dp"
             android:src="@drawable/ic_heart"
             android:layout_marginEnd="6dp"
+            android:tint="@color/widget_text_primary"
             android:contentDescription="@string/health_label_short" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/health_title"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/widget_text_primary"
             android:textSize="14sp"
             android:textStyle="bold" />
     </LinearLayout>
@@ -34,7 +35,7 @@
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#44FFFFFF"
+        android:background="@color/widget_divider"
         android:layout_marginBottom="8dp"/>
 
     <!-- Health Data Row (Horizontal compact) -->
@@ -58,6 +59,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_steps"
+                android:tint="@color/widget_text_primary"
                 android:importantForAccessibility="no" />
 
             <TextView
@@ -66,7 +68,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/placeholder_dash_3"
                 android:layout_marginTop="4dp"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/widget_text_primary"
                 android:textSize="16sp"
                 android:textStyle="bold"/>
 
@@ -74,7 +76,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/health_steps"
-                android:textColor="#AAAAAA"
+                android:textColor="@color/widget_text_secondary"
                 android:textSize="10sp"
                 android:gravity="center"/>
         </LinearLayout>
@@ -93,6 +95,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_heart"
+                android:tint="@color/widget_text_primary"
                 android:importantForAccessibility="no" />
 
             <TextView
@@ -101,7 +104,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/placeholder_dash_2"
                 android:layout_marginTop="4dp"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/widget_text_primary"
                 android:textSize="16sp"
                 android:textStyle="bold"/>
 
@@ -109,7 +112,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/health_hr_unit"
-                android:textColor="#AAAAAA"
+                android:textColor="@color/widget_text_secondary"
                 android:textSize="10sp"/>
         </LinearLayout>
 
@@ -127,6 +130,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_oxygen"
+                android:tint="@color/widget_text_primary"
                 android:importantForAccessibility="no" />
 
             <TextView
@@ -135,7 +139,7 @@
                 android:layout_height="wrap_content"
                 android:text="@string/placeholder_dash_2"
                 android:layout_marginTop="4dp"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/widget_text_primary"
                 android:textSize="16sp"
                 android:textStyle="bold"/>
 
@@ -143,7 +147,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/health_oxygen_unit"
-                android:textColor="#AAAAAA"
+                android:textColor="@color/widget_text_secondary"
                 android:textSize="10sp"/>
         </LinearLayout>
     </LinearLayout>

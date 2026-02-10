@@ -43,7 +43,7 @@
                 android:visibility="gone" />
         </LinearLayout>
 
-        <androidx.appcompat.widget.SwitchCompat
+        <com.google.android.material.materialswitch.MaterialSwitch
             android:id="@+id/switchAlarmEnabled"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -64,6 +64,6 @@
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_marginTop="8dp"
-        android:background="#33FFFFFF" />
+        android:background="?attr/colorSurfaceVariant" />
 
 </LinearLayout>

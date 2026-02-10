@@ -3,7 +3,7 @@
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#212121"
+    android:background="@color/widget_background"
     android:orientation="vertical"
     android:padding="12dp"
     android:gravity="center">
@@ -22,6 +22,7 @@
             android:layout_height="28dp"
             android:src="@drawable/ic_bluetooth"
             android:layout_marginEnd="10dp"
+            android:tint="@color/widget_text_primary"
             android:contentDescription="Connection"/>
 
         <LinearLayout
@@ -33,7 +34,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/device_phone"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/widget_text_primary"
                 android:textSize="14sp"
                 android:textStyle="bold"/>
 
@@ -42,7 +43,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/status_disconnected"
-                android:textColor="#AAAAAA"
+                android:textColor="@color/widget_text_secondary"
                 android:textSize="11sp"/>
         </LinearLayout>
     </LinearLayout>
@@ -51,7 +52,7 @@
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#44FFFFFF"
+        android:background="@color/widget_divider"
         android:layout_marginBottom="8dp"/>
 
     <!-- Battery Info -->
@@ -74,6 +75,7 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_smartphone"
+                android:tint="@color/widget_text_primary"
                 android:contentDescription="Phone"/>
 
             <TextView
@@ -81,7 +83,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/battery_percent_placeholder"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/widget_text_primary"
                 android:textSize="12sp"
                 android:layout_marginTop="2dp"/>
 
@@ -89,7 +91,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/device_phone"
-                android:textColor="#888888"
+                android:textColor="@color/widget_text_secondary"
                 android:textSize="9sp"/>
         </LinearLayout>
 
@@ -105,6 +107,7 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_watch"
+                android:tint="@color/widget_text_primary"
                 android:contentDescription="Watch"/>
 
             <TextView
@@ -112,7 +115,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/battery_percent_placeholder"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/widget_text_primary"
                 android:textSize="12sp"
                 android:layout_marginTop="2dp"/>
 
@@ -120,7 +123,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/device_watch"
-                android:textColor="#888888"
+                android:textColor="@color/widget_text_secondary"
                 android:textSize="9sp"/>
         </LinearLayout>
 
@@ -137,6 +140,7 @@
                 android:layout_width="20dp"
                 android:layout_height="20dp"
                 android:src="@drawable/ic_bluetooth"
+                android:tint="@color/widget_text_primary"
                 android:contentDescription="@string/label_transport"/>
 
             <TextView
@@ -144,7 +148,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/label_transport_bt"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/widget_text_primary"
                 android:textSize="12sp"
                 android:layout_marginTop="2dp"/>
 
@@ -152,7 +156,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/label_link"
-                android:textColor="#888888"
+                android:textColor="@color/widget_text_secondary"
                 android:textSize="9sp"/>
         </LinearLayout>
     </LinearLayout>
@@ -161,7 +165,7 @@
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#44FFFFFF"
+        android:background="@color/widget_divider"
         android:layout_marginBottom="8dp"/>
 
     <!-- Action Buttons -->
@@ -186,13 +190,14 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_cast"
+                android:tint="@color/widget_text_primary"
                 android:contentDescription="Mirror"/>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/label_mirror"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/widget_text_primary"
                 android:textSize="9sp"
                 android:layout_marginTop="2dp"/>
         </LinearLayout>
@@ -212,13 +217,14 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_camera"
+                android:tint="@color/widget_text_primary"
                 android:contentDescription="Camera"/>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/menu_camera"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/widget_text_primary"
                 android:textSize="9sp"
                 android:layout_marginTop="2dp"/>
         </LinearLayout>
@@ -238,13 +244,14 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_phone"
+                android:tint="@color/widget_text_primary"
                 android:contentDescription="Dialer"/>
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/menu_dialer"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/widget_text_primary"
                 android:textSize="9sp"
                 android:layout_marginTop="2dp"/>
         </LinearLayout>

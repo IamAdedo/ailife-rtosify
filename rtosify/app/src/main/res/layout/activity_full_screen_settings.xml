@@ -1,23 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="?android:attr/colorBackground">
+    android:background="?android:attr/colorBackground"
+    tools:context=".FullScreenSettingsActivity">
 
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/toolbar"
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"
-        android:elevation="4dp"
-        app:title="@string/title_full_screen_settings"
-        app:titleTextColor="?attr/colorOnPrimary" />
+        android:layout_height="wrap_content"
+        android:background="?android:attr/colorBackground">
 
-    <ScrollView
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:navigationIcon="@drawable/ic_arrow_back"
+            app:navigationIconTint="?attr/colorOnSurface"
+            app:title="@string/title_full_screen_settings" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -28,68 +38,111 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:paddingBottom="16dp"
                 android:text="@string/desc_full_screen_settings"
-                android:paddingBottom="16dp" />
+                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:textColor="?android:attr/textColorSecondary" />
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
-                android:layout_marginBottom="16dp">
+                android:layout_marginBottom="16dp"
+                app:cardBackgroundColor="?attr/colorSurfaceContainer"
+                app:cardCornerRadius="16dp"
+                app:strokeWidth="0dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:padding="16dp">
-                    
+
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:paddingBottom="8dp"
                         android:text="@string/header_behavior"
-                        android:textStyle="bold"
-                        android:paddingBottom="8dp" />
+                        android:textAppearance="?attr/textAppearanceTitleMedium"
+                        android:textStyle="bold" />
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switchStacking"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/lbl_stacking_enabled"
-                        android:minHeight="48dp" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-                    <TextView
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/lbl_stacking_enabled"
+                                android:textAppearance="?attr/textAppearanceBodyLarge" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/desc_stacking_enabled"
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textColor="?android:attr/textColorSecondary" />
+                        </LinearLayout>
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switchStacking"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
+
+                    <com.google.android.material.divider.MaterialDivider
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/desc_stacking_enabled"
-                        android:textSize="12sp"
-                        android:paddingStart="8dp"
-                        android:paddingBottom="16dp" />
+                        android:layout_marginVertical="12dp" />
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switchCloseOnScreenOff"
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/lbl_close_on_screen_off"
-                        android:minHeight="48dp" />
-                        
-                    <TextView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/desc_close_on_screen_off"
-                        android:textSize="12sp"
-                        android:paddingStart="8dp" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/lbl_close_on_screen_off"
+                                android:textAppearance="?attr/textAppearanceBodyLarge" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/desc_close_on_screen_off"
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textColor="?android:attr/textColorSecondary" />
+                        </LinearLayout>
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switchCloseOnScreenOff"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
                 </LinearLayout>
-
             </com.google.android.material.card.MaterialCardView>
 
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardCornerRadius="8dp"
-                app:cardElevation="2dp"
-                android:layout_marginBottom="16dp">
+                android:layout_marginBottom="16dp"
+                app:cardBackgroundColor="?attr/colorSurfaceContainer"
+                app:cardCornerRadius="16dp"
+                app:strokeWidth="0dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -100,65 +153,85 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:paddingBottom="16dp"
                         android:text="Text Size &amp; Timeout"
-                        android:textStyle="bold"
-                        android:paddingBottom="16dp" />
+                        android:textAppearance="?attr/textAppearanceTitleMedium"
+                        android:textStyle="bold" />
 
                     <!-- App Name Size -->
                     <TextView
                         android:id="@+id/lblAppNameSize"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/lbl_app_name_size" />
+                        android:text="@string/lbl_app_name_size"
+                        android:textAppearance="?attr/textAppearanceBodyMedium" />
 
                     <com.google.android.material.slider.Slider
                         android:id="@+id/sliderAppNameSize"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:stepSize="1.0"
                         android:valueFrom="14.0"
-                        android:valueTo="32.0"
-                        android:stepSize="1.0" />
+                        android:valueTo="32.0" />
 
                     <!-- Title Size -->
                     <TextView
                         android:id="@+id/lblTitleSize"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
                         android:text="@string/lbl_title_size"
-                        android:layout_marginTop="8dp" />
+                        android:textAppearance="?attr/textAppearanceBodyMedium" />
 
                     <com.google.android.material.slider.Slider
                         android:id="@+id/sliderTitleSize"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:stepSize="1.0"
                         android:valueFrom="14.0"
-                        android:valueTo="32.0"
-                        android:stepSize="1.0" />
+                        android:valueTo="32.0" />
 
                     <!-- Content Size -->
                     <TextView
                         android:id="@+id/lblContentSize"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
                         android:text="@string/lbl_content_size"
-                        android:layout_marginTop="8dp" />
+                        android:textAppearance="?attr/textAppearanceBodyMedium" />
 
                     <com.google.android.material.slider.Slider
                         android:id="@+id/sliderContentSize"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:stepSize="1.0"
                         android:valueFrom="12.0"
-                        android:valueTo="30.0"
-                        android:stepSize="1.0" />
+                        android:valueTo="30.0" />
 
-                    <!-- Auto Close -->
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/switchAutoClose"
+                    <com.google.android.material.divider.MaterialDivider
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="@string/lbl_auto_close"
-                        android:minHeight="48dp"
-                        android:layout_marginTop="8dp" />
+                        android:layout_marginVertical="12dp" />
+
+                    <!-- Auto Close -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/lbl_auto_close"
+                            android:textAppearance="?attr/textAppearanceBodyLarge" />
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/switchAutoClose"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" />
+                    </LinearLayout>
 
                     <!-- Timeout Slider (Container for visibility) -->
                     <LinearLayout
@@ -172,21 +245,21 @@
                             android:id="@+id/lblTimeout"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
                             android:text="@string/lbl_auto_close_timeout"
-                            android:layout_marginTop="8dp" />
+                            android:textAppearance="?attr/textAppearanceBodyMedium" />
 
                         <com.google.android.material.slider.Slider
                             android:id="@+id/sliderTimeout"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:stepSize="5.0"
                             android:valueFrom="5.0"
-                            android:valueTo="60.0"
-                            android:stepSize="5.0" />
+                            android:valueTo="60.0" />
                     </LinearLayout>
-
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
-    </ScrollView>
-</LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

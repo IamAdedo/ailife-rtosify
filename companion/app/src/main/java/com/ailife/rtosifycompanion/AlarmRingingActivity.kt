@@ -5,7 +5,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 
@@ -48,8 +48,8 @@ class AlarmRingingActivity : AppCompatActivity() {
 
         val tvTime = findViewById<TextView>(R.id.tvAlarmTime)
         val tvLabel = findViewById<TextView>(R.id.tvAlarmLabel)
-        val btnDismiss = findViewById<Button>(R.id.btnDismiss)
-        val btnSnooze = findViewById<Button>(R.id.btnSnooze)
+        val btnDismiss = findViewById<MaterialButton>(R.id.btnDismiss)
+        val btnSnooze = findViewById<MaterialButton>(R.id.btnSnooze)
 
         tvTime.text = String.format("%02d:%02d", hour, minute)
         

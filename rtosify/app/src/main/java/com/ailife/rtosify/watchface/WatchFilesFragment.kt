@@ -4,7 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -94,8 +94,8 @@ class WatchFilesAdapter(private val onDelete: (String) -> Unit) : RecyclerView.A
 
     class ViewHolder(itemView: View, private val onDelete: (String) -> Unit) : RecyclerView.ViewHolder(itemView) {
         private val tvName: TextView = itemView.findViewById(R.id.tvFileName)
-        private val btnApply: Button = itemView.findViewById(R.id.btnApply)
-        private val btnDelete: Button? = itemView.findViewById(R.id.btnDelete)
+        private val btnApply: MaterialButton = itemView.findViewById(R.id.btnApply)
+        private val btnDelete: MaterialButton? = itemView.findViewById(R.id.btnDelete)
 
         fun bind(fileName: String) {
             tvName.text = fileName

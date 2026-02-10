@@ -3,7 +3,7 @@ package com.ailife.rtosify
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.CheckBox
+import com.google.android.material.checkbox.MaterialCheckBox
 import android.widget.ImageView
 import android.widget.TextView
 import android.graphics.BitmapFactory
@@ -38,7 +38,7 @@ class DIBlacklistAdapter(
         private val appName: TextView = itemView.findViewById(R.id.tvAppName)
         private val packageName: TextView = itemView.findViewById(R.id.tvPackageName)
         private val appIcon: ImageView = itemView.findViewById(R.id.ivAppIcon)
-        private val checkbox: CheckBox = itemView.findViewById(R.id.checkboxBlacklist)
+        private val checkbox: MaterialCheckBox = itemView.findViewById(R.id.checkboxBlacklist)
 
         fun bind(app: DIBlacklistActivity.AppInfo) {
             appName.text = app.name

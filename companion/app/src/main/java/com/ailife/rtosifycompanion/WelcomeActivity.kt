@@ -21,6 +21,7 @@ import android.provider.Settings
 import android.widget.ImageView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
@@ -116,7 +117,7 @@ class WelcomeActivity : AppCompatActivity() {
     }
 
     private fun showRoundScreenWarning() {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(R.string.round_screen_warning_title)
             .setMessage(R.string.round_screen_warning_message)
             .setCancelable(false)

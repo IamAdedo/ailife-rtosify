@@ -7,12 +7,12 @@ import android.util.Log
 import android.view.MenuItem
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.materialswitch.MaterialSwitch
 
 class AndroidNotificationSettingsActivity : AppCompatActivity() {
 
-    private lateinit var switchInAppReplyDialog: SwitchMaterial
+    private lateinit var switchInAppReplyDialog: MaterialSwitch
     private lateinit var devicePrefManager: DevicePrefManager
     private val activePrefs: SharedPreferences
         get() = devicePrefManager.getActiveDevicePrefs()
@@ -30,7 +30,7 @@ class AndroidNotificationSettingsActivity : AppCompatActivity() {
         val scrollView = findViewById<View>(R.id.nestedScrollView)
         EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, scrollView)
 
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
+        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = getString(R.string.notif_android_settings)

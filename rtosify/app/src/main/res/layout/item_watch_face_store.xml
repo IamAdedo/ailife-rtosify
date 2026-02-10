@@ -28,9 +28,9 @@
             android:maxLines="1"
             android:ellipsize="end" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDownload"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
+            style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/wf_download" />

@@ -97,20 +97,17 @@ class StatusWidget : AppWidgetProvider() {
         if (status.equals("Connected", ignoreCase = true) || status.contains("Connected")) {
             views.setTextColor(R.id.tvWidgetStatus, context.getColor(android.R.color.holo_green_light))
         } else {
-            views.setTextColor(R.id.tvWidgetStatus, context.getColor(android.R.color.darker_gray))
+            views.setTextColor(R.id.tvWidgetStatus, context.getColor(R.color.widget_text_secondary))
         }
         
-        // Set white color to all icons for visibility
-        views.setInt(R.id.imgDeviceIcon, "setColorFilter", context.getColor(android.R.color.white))
-        views.setInt(R.id.imgWidgetBattery, "setColorFilter", context.getColor(android.R.color.white))
-        views.setInt(R.id.imgWidgetWifi, "setColorFilter", context.getColor(android.R.color.white))
-        views.setInt(R.id.imgWidgetMirror, "setColorFilter", context.getColor(android.R.color.white))
+        // Icon colors are now handled in XML via android:tint="@color/widget_text_primary"
         
-        // DND Icon Color
+        // DND Icon Color override when enabled
         if (dndEnabled) {
             views.setInt(R.id.imgWidgetDnd, "setColorFilter", context.getColor(android.R.color.holo_blue_light))
         } else {
-             views.setInt(R.id.imgWidgetDnd, "setColorFilter", context.getColor(android.R.color.white))
+            // Remove filter to let XML tint apply
+            views.setInt(R.id.imgWidgetDnd, "setColorFilter", 0)
         }
 
 

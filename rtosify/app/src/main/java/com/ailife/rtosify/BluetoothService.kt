@@ -1963,6 +1963,11 @@ class BluetoothService : Service() {
                             AudioManager.FLAG_SHOW_UI
                     )
                 }
+                MediaControlData.CMD_SEEK -> {
+                    controlData.seekPosition?.let { pos ->
+                        mediaSessionListener?.seekTo(pos)
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling media control: ${e.message}")

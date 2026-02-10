@@ -4,7 +4,7 @@
     android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000"
+    android:background="?android:attr/colorBackground"
     android:keepScreenOn="true">
 
     <SurfaceView
@@ -30,7 +30,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Remote Back"
             android:src="@drawable/ic_back"
-            app:tint="#FFFFFF" />
+            app:tint="?attr/colorOnSurface" />
 
         <View
             android:layout_width="24dp"
@@ -43,7 +43,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Remote Home"
             android:src="@drawable/ic_home"
-            app:tint="#FFFFFF" />
+            app:tint="?attr/colorOnSurface" />
 
     </LinearLayout>
 

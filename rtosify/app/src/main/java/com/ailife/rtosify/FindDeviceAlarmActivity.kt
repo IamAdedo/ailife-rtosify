@@ -16,7 +16,7 @@ import android.os.Vibrator
 import android.util.Log
 import android.view.View
 import android.view.WindowManager
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import androidx.appcompat.app.AppCompatActivity
 
 class FindDeviceAlarmActivity : AppCompatActivity() {
@@ -61,7 +61,7 @@ class FindDeviceAlarmActivity : AppCompatActivity() {
         val rootLayout = findViewById<View>(R.id.rootLayout)
         EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
-        val btnStopAlarm = findViewById<Button>(R.id.btnStopAlarm)
+        val btnStopAlarm = findViewById<MaterialButton>(R.id.btnStopAlarm)
         btnStopAlarm.setOnClickListener {
             stopAlarmAndNotify()
         }

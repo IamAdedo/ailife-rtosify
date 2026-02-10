@@ -20,7 +20,7 @@
             android:textSize="18sp"
             android:textStyle="bold" />
 
-        <androidx.appcompat.widget.SwitchCompat
+        <com.google.android.material.materialswitch.MaterialSwitch
             android:id="@+id/swWifiToggle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
@@ -87,9 +87,10 @@
             android:gravity="center"
             android:orientation="vertical">
 
-            <ProgressBar
+            <com.google.android.material.progressindicator.CircularProgressIndicator
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:indeterminate="true" />
 
             <TextView
                 android:layout_width="wrap_content"

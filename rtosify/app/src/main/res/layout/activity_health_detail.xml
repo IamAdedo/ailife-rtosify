@@ -16,7 +16,7 @@
         android:background="?android:attr/colorBackground"
         app:liftOnScroll="true">
 
-        <androidx.appcompat.widget.Toolbar
+        <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
@@ -57,7 +57,7 @@
                         app:singleSelection="true"
                         app:selectionRequired="true">
 
-                        <Button
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnDay"
                             style="?attr/materialButtonOutlinedStyle"
                             android:layout_width="0dp"
@@ -65,7 +65,7 @@
                             android:layout_weight="1"
                             android:text="@string/health_period_day" />
 
-                        <Button
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnWeek"
                             style="?attr/materialButtonOutlinedStyle"
                             android:layout_width="0dp"
@@ -73,7 +73,7 @@
                             android:layout_weight="1"
                             android:text="@string/health_period_week" />
 
-                        <Button
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnMonth"
                             style="?attr/materialButtonOutlinedStyle"
                             android:layout_width="0dp"
@@ -168,7 +168,7 @@
                                     tools:text="5 minutes ago" />
                             </LinearLayout>
 
-                            <Button
+                            <com.google.android.material.button.MaterialButton
                                 android:id="@+id/btnMeasureNow"
                                 style="?attr/materialButtonStyle"
                                 android:layout_width="wrap_content"
@@ -302,14 +302,14 @@
                                 android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
                                 android:layout_marginBottom="8dp" />
 
-                            <ProgressBar
+                            <com.google.android.material.progressindicator.LinearProgressIndicator
                                 android:id="@+id/progressGoal"
-                                style="?android:attr/progressBarStyleHorizontal"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:max="100"
                                 android:progress="75"
                                 android:layout_marginBottom="8dp"
+                                app:trackCornerRadius="4dp"
                                 tools:progress="75" />
 
                             <TextView

@@ -31,19 +31,24 @@
         android:textSize="12sp"
         android:layout_marginBottom="16dp"/>
 
-    <EditText
-        android:id="@+id/etUpdateInterval"
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#333333"
-        android:hint="30"
-        android:inputType="number"
-        android:padding="12dp"
-        android:textColor="#FFFFFF"
-        android:textColorHint="#888888"
-        android:layout_marginBottom="32dp"/>
+        android:layout_marginBottom="32dp"
+        android:hint="30">
 
-    <Button
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etUpdateInterval"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#333333"
+            android:inputType="number"
+            android:padding="12dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#888888"/>
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnSaveConfig"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

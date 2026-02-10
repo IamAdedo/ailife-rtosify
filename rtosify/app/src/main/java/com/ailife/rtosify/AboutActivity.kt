@@ -4,10 +4,10 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Button
-import android.widget.Switch
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.ailife.rtosify.utils.OtaManager
+import com.google.android.material.materialswitch.MaterialSwitch
 
 class AboutActivity : AppCompatActivity() {
 
@@ -19,9 +19,13 @@ class AboutActivity : AppCompatActivity() {
 
         otaManager = OtaManager(this)
 
+        val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        toolbar.setNavigationOnClickListener { finish() }
+
         val tvAppName = findViewById<TextView>(R.id.tvAppName)
         val tvVersion = findViewById<TextView>(R.id.tvVersion)
-        val switchAutoUpdate = findViewById<Switch>(R.id.switchAutoUpdate)
+        val switchAutoUpdate = findViewById<MaterialSwitch>(R.id.switchAutoUpdate)
         val btnCheckUpdate = findViewById<Button>(R.id.btnCheckUpdate)
         val btnWebsite = findViewById<Button>(R.id.btnWebsite)
 

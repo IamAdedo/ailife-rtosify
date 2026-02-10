@@ -9,9 +9,11 @@ import android.os.Bundle
 import android.os.IBinder
 import android.view.View
 import android.widget.ImageButton
-import android.widget.ProgressBar
-import android.widget.SeekBar
 import android.widget.TextView
+import com.google.android.material.slider.Slider
+import com.google.android.material.progressindicator.CircularProgressIndicator
+import com.google.android.material.color.MaterialColors
+import android.graphics.Color
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.edit
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -21,7 +23,7 @@ import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.materialswitch.MaterialSwitch
 
 class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
@@ -32,19 +34,19 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
     // UI
     private lateinit var tvBatteryPercentLarge: TextView
     private lateinit var tvChargingStatus: TextView
-    private lateinit var progressBattery: ProgressBar
+    private lateinit var progressBattery: CircularProgressIndicator
     private lateinit var tvCurrentNow: TextView
     private lateinit var tvVoltage: TextView
     private lateinit var tvTemperature: TextView
     private lateinit var tvCapacity: TextView
     private lateinit var tvRemainingTime: TextView
     private lateinit var chartBattery: LineChart
-    private lateinit var switchNotifyFull: SwitchMaterial
-    private lateinit var switchNotifyLow: SwitchMaterial
-    private lateinit var switchDetailedLog: SwitchMaterial // New Switch
+    private lateinit var switchNotifyFull: MaterialSwitch
+    private lateinit var switchNotifyLow: MaterialSwitch
+    private lateinit var switchDetailedLog: MaterialSwitch // New Switch
     private lateinit var chartCurrent: LineChart // New Chart
     private lateinit var tvLowThresholdTitle: TextView
-    private lateinit var seekbarLowThreshold: SeekBar
+    private lateinit var seekbarLowThreshold: Slider
     private lateinit var tvUsageEmpty: TextView
     private lateinit var rvAppUsage: RecyclerView
     private lateinit var btnSortUsage: TextView
@@ -139,7 +141,9 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
     }
 
     private fun initViews() {
-        findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
+        val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        toolbar.setNavigationOnClickListener { finish() }
 
         tvBatteryPercentLarge = findViewById(R.id.tvBatteryPercentLarge)
         tvChargingStatus = findViewById(R.id.tvChargingStatus)
@@ -182,8 +186,8 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         chart.setNoDataText(getString(R.string.battery_no_history))
         chart.setNoDataTextColor(android.graphics.Color.GRAY)
 
-        val textColor = android.graphics.Color.WHITE
-        val gridColor = android.graphics.Color.parseColor("#333333")
+        val textColor = MaterialColors.getColor(this, android.R.attr.textColorPrimary, Color.BLACK)
+        val gridColor = MaterialColors.getColor(this, com.google.android.material.R.attr.colorOutlineVariant, Color.LTGRAY)
 
         chart.axisLeft.textColor = textColor
         chart.axisLeft.gridColor = gridColor
@@ -221,26 +225,14 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
 
         switchDetailedLog.setOnCheckedChangeListener { _, _ -> saveAndSendSettings() }
 
-        seekbarLowThreshold.setOnSeekBarChangeListener(
-                object : SeekBar.OnSeekBarChangeListener {
-                    override fun onProgressChanged(
-                            seekBar: SeekBar?,
-                            progress: Int,
-                            fromUser: Boolean
-                    ) {
-                        if (fromUser) {
-                            val value = if (progress < 5) 5 else progress
-                            tvLowThresholdTitle.text = getString(R.string.battery_notify_below, value)
-                        }
-                    }
-
-                    override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-
-                    override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                        saveAndSendSettings()
-                    }
-                }
-        )
+        seekbarLowThreshold.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                val progress = value.toInt()
+                val actualValue = if (progress < 5) 5 else progress
+                tvLowThresholdTitle.text = getString(R.string.battery_notify_below, actualValue)
+                saveAndSendSettings()
+            }
+        }
     }
 
     private fun loadSettings() {
@@ -252,7 +244,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         switchNotifyFull.isChecked = notifyFull
         switchNotifyLow.isChecked = notifyLow
         switchDetailedLog.isChecked = detailedLog
-        seekbarLowThreshold.progress = lowThreshold
+        seekbarLowThreshold.value = lowThreshold.toFloat()
         tvLowThresholdTitle.text = getString(R.string.battery_notify_below, lowThreshold)
     }
 
@@ -260,7 +252,7 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         val notifyFull = switchNotifyFull.isChecked
         val notifyLow = switchNotifyLow.isChecked
         val detailedLog = switchDetailedLog.isChecked
-        var lowThreshold = seekbarLowThreshold.progress
+        var lowThreshold = seekbarLowThreshold.value.toInt()
         if (lowThreshold < 5) lowThreshold = 5
 
         activePrefs.edit {
@@ -420,13 +412,14 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         }
 
         val dataSet = LineDataSet(entries, getString(R.string.battery_label_level))
-        dataSet.color = android.graphics.Color.parseColor("#00E676")
+        val primaryColor = MaterialColors.getColor(this, android.R.attr.colorPrimary, Color.GREEN)
+        dataSet.color = primaryColor
         dataSet.setDrawCircles(false)
         dataSet.setDrawValues(false)
         dataSet.lineWidth = 2f
         dataSet.mode = LineDataSet.Mode.CUBIC_BEZIER
         dataSet.setDrawFilled(true)
-        dataSet.fillColor = android.graphics.Color.parseColor("#00E676")
+        dataSet.fillColor = primaryColor
         dataSet.fillAlpha = 50
 
         // Configure Axis
@@ -457,13 +450,14 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         }
 
         val dataSet = LineDataSet(entries, getString(R.string.battery_label_current))
-        dataSet.color = android.graphics.Color.parseColor("#2196F3") // Blue
+        val secondaryColor = MaterialColors.getColor(this, android.R.attr.colorSecondary, Color.BLUE)
+        dataSet.color = secondaryColor
         dataSet.setDrawCircles(false)
         dataSet.setDrawValues(false)
         dataSet.lineWidth = 2f
         dataSet.mode = LineDataSet.Mode.CUBIC_BEZIER
         dataSet.setDrawFilled(true)
-        dataSet.fillColor = android.graphics.Color.parseColor("#2196F3")
+        dataSet.fillColor = secondaryColor
         dataSet.fillAlpha = 50
 
         // Configure Axis

@@ -3,7 +3,7 @@
     android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#1a1a1a"
+    android:background="?android:attr/colorBackground"
     android:padding="16dp">
 
     <TextView
@@ -15,7 +15,7 @@
         android:text="08:00"
         android:textSize="72sp"
         android:textStyle="bold"
-        android:textColor="#FFFFFF" />
+        android:textColor="?attr/colorOnSurface" />
 
     <TextView
         android:id="@+id/tvAlarmLabel"
@@ -26,7 +26,7 @@
         android:layout_marginTop="8dp"
         android:text="@string/alarm_default_label"
         android:textSize="20sp"
-        android:textColor="#CCCCCC"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:visibility="gone" />
 
     <LinearLayout
@@ -37,24 +37,24 @@
         android:orientation="vertical"
         android:gravity="center">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDismiss"
             android:layout_width="200dp"
             android:layout_height="56dp"
             android:text="@string/alarm_dismiss"
             android:textSize="18sp"
-            android:textColor="#FFFFFF"
-            android:background="@android:color/holo_red_dark" />
+            android:textColor="?attr/colorOnError"
+            android:backgroundTint="?attr/colorError" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSnooze"
             android:layout_width="200dp"
             android:layout_height="56dp"
             android:layout_marginTop="16dp"
             android:text="@string/alarm_snooze_10min"
             android:textSize="16sp"
-            android:textColor="#FFFFFF"
-            android:background="@android:color/holo_orange_dark" />
+            android:textColor="?attr/colorOnTertiary"
+            android:backgroundTint="?attr/colorTertiary" />
     </LinearLayout>
 
 </RelativeLayout>

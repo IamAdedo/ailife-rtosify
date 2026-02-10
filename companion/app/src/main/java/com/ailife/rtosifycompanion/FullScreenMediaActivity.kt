@@ -23,11 +23,16 @@ import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ProgressBar
-import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.VideoView
 import androidx.activity.ComponentActivity
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.platform.ComposeView
+import com.ailife.rtosifycompanion.ui.MediaWaveSlider
+import com.google.android.material.progressindicator.LinearProgressIndicator
+import com.google.android.material.color.MaterialColors
+import android.util.TypedValue
+import androidx.compose.runtime.*
 import com.google.gson.Gson
 import java.io.File
 
@@ -56,7 +61,7 @@ class FullScreenMediaActivity : ComponentActivity() {
     // UI Components
     private lateinit var rootContainer: FrameLayout
     private lateinit var loadingContainer: LinearLayout
-    private lateinit var loadingProgress: ProgressBar
+    private lateinit var loadingProgress: LinearProgressIndicator
     private lateinit var loadingText: TextView
     private lateinit var closeButton: ImageButton
 
@@ -70,11 +75,19 @@ class FullScreenMediaActivity : ComponentActivity() {
     // Audio player
     private var audioPlayer: MediaPlayer? = null
     private var audioControlsContainer: LinearLayout? = null
-    private var audioSeekBar: SeekBar? = null
+    private var audioComposeSlider: ComposeView? = null
+    private var sliderValue = mutableFloatStateOf(0f)
+    private var isPlayingState = mutableStateOf(false)
     private var audioPlayPauseBtn: ImageButton? = null
     private var audioCurrentTime: TextView? = null
     private var audioDurationText: TextView? = null
     private val audioHandler = Handler(Looper.getMainLooper())
+
+    // Theme colors
+    private var uiBgColor: Int = Color.BLACK
+    private var uiTextColor: Int = Color.WHITE
+    private var uiTextColorSecondary: Int = Color.GRAY
+    private var uiPrimaryColor: Int = Color.BLUE
 
     // Service connection
     private var bluetoothService: BluetoothService? = null
@@ -159,8 +172,15 @@ class FullScreenMediaActivity : ComponentActivity() {
     }
 
     private fun setupUI() {
+        uiBgColor = MaterialColors.getColor(this, android.R.attr.colorBackground, Color.BLACK)
+        uiTextColor = MaterialColors.getColor(this, android.R.attr.textColorPrimary, Color.WHITE)
+        uiTextColorSecondary = MaterialColors.getColor(this, android.R.attr.textColorSecondary, Color.GRAY)
+        
+        val primaryAttr = resources.getIdentifier("colorPrimary", "attr", packageName)
+        uiPrimaryColor = if (primaryAttr != 0) MaterialColors.getColor(this, primaryAttr, Color.BLUE) else Color.BLUE
+ 
         rootContainer = FrameLayout(this).apply {
-            setBackgroundColor(Color.BLACK)
+            setBackgroundColor(uiBgColor)
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
@@ -173,7 +193,10 @@ class FullScreenMediaActivity : ComponentActivity() {
             orientation = LinearLayout.VERTICAL
             gravity = android.view.Gravity.CENTER
             visibility = View.GONE
-            setBackgroundColor(Color.parseColor("#CC000000"))
+            val surfaceAttr = resources.getIdentifier("colorSurface", "attr", packageName)
+            val surfaceColor = if (surfaceAttr != 0) MaterialColors.getColor(this@FullScreenMediaActivity, surfaceAttr, uiBgColor) else uiBgColor
+            setBackgroundColor(surfaceColor)
+            alpha = 0.9f
             setPadding(dpToPx(32), dpToPx(32), dpToPx(32), dpToPx(32))
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -184,7 +207,7 @@ class FullScreenMediaActivity : ComponentActivity() {
         // Download icon
         val downloadIcon = ImageView(this).apply {
             setImageResource(android.R.drawable.stat_sys_download)
-            setColorFilter(Color.WHITE)
+            setColorFilter(uiTextColor)
             layoutParams = LinearLayout.LayoutParams(dpToPx(64), dpToPx(64)).apply {
                 bottomMargin = dpToPx(24)
             }
@@ -194,7 +217,7 @@ class FullScreenMediaActivity : ComponentActivity() {
         // Loading text - larger and bold
         loadingText = TextView(this).apply {
             text = getString(R.string.fullscreen_downloading)
-            setTextColor(Color.WHITE)
+            setTextColor(uiTextColor)
             textSize = 20f
             setTypeface(null, android.graphics.Typeface.BOLD)
             gravity = android.view.Gravity.CENTER
@@ -202,14 +225,16 @@ class FullScreenMediaActivity : ComponentActivity() {
         loadingContainer.addView(loadingText)
 
         // Progress bar - wider and more visible
-        loadingProgress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+        loadingProgress = LinearProgressIndicator(this).apply {
             layoutParams = LinearLayout.LayoutParams(dpToPx(280), dpToPx(12)).apply {
                 topMargin = dpToPx(20)
                 bottomMargin = dpToPx(8)
             }
             max = 100
             progress = 0
-            progressDrawable.setColorFilter(Color.parseColor("#4CAF50"), android.graphics.PorterDuff.Mode.SRC_IN)
+            setIndicatorColor(uiPrimaryColor)
+            val trackAttr = resources.getIdentifier("colorSurfaceVariant", "attr", packageName)
+            trackColor = if (trackAttr != 0) MaterialColors.getColor(this@FullScreenMediaActivity, trackAttr, Color.DKGRAY) else Color.DKGRAY
         }
         loadingContainer.addView(loadingProgress)
 
@@ -217,7 +242,7 @@ class FullScreenMediaActivity : ComponentActivity() {
         val percentText = TextView(this).apply {
             tag = "percent_text"
             text = "0%"
-            setTextColor(Color.parseColor("#AAAAAA"))
+            setTextColor(uiTextColorSecondary)
             textSize = 16f
             gravity = android.view.Gravity.CENTER
         }
@@ -228,7 +253,11 @@ class FullScreenMediaActivity : ComponentActivity() {
         // Close button
         closeButton = ImageButton(this).apply {
             setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
-            setBackgroundColor(Color.parseColor("#80000000"))
+            val containerAttr = resources.getIdentifier("colorSurfaceContainerHigh", "attr", packageName)
+            val btnBg = if (containerAttr != 0) MaterialColors.getColor(this@FullScreenMediaActivity, containerAttr, uiBgColor) else uiBgColor
+            setBackgroundColor(btnBg)
+            alpha = 0.8f
+            setColorFilter(uiTextColor)
             setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12))
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT,
@@ -357,7 +386,7 @@ class FullScreenMediaActivity : ComponentActivity() {
                 setImageBitmap(artBitmap)
             } else {
                 setImageResource(android.R.drawable.ic_lock_silent_mode_off)
-                setColorFilter(Color.WHITE)
+                setColorFilter(uiTextColor)
             }
         }
         rootContainer.addView(artView, 0)
@@ -365,7 +394,7 @@ class FullScreenMediaActivity : ComponentActivity() {
         // File name
         val nameText = TextView(this).apply {
             text = fileData?.name ?: "Audio"
-            setTextColor(Color.WHITE)
+            setTextColor(uiTextColor)
             textSize = 18f
             gravity = android.view.Gravity.CENTER
             layoutParams = FrameLayout.LayoutParams(
@@ -410,7 +439,7 @@ class FullScreenMediaActivity : ComponentActivity() {
                 )
                 scaleType = ImageView.ScaleType.CENTER
                 setImageResource(android.R.drawable.ic_menu_gallery)
-                setColorFilter(Color.GRAY)
+                setColorFilter(uiTextColorSecondary)
             }
             rootContainer.addView(placeholder, 0)
         }
@@ -513,7 +542,7 @@ class FullScreenMediaActivity : ComponentActivity() {
             // Add media controller
             val controller = android.widget.MediaController(this@FullScreenMediaActivity)
             controller.setAnchorView(this)
-            setMediaController(controller)
+            this.setMediaController(controller)
         }
         rootContainer.addView(videoView, 0)
     }
@@ -527,8 +556,8 @@ class FullScreenMediaActivity : ComponentActivity() {
                 startAudioProgressUpdater()
             }
             setOnCompletionListener {
-                audioPlayPauseBtn?.setImageResource(android.R.drawable.ic_media_play)
-                audioSeekBar?.progress = 0
+                isPlayingState.value = false
+                sliderValue.floatValue = 0f
                 audioCurrentTime?.text = formatDuration(0)
             }
             prepareAsync()
@@ -550,28 +579,30 @@ class FullScreenMediaActivity : ComponentActivity() {
             }
         }
 
-        // SeekBar
-        audioSeekBar = SeekBar(this).apply {
-            max = durationMs
-            progress = 0
+        // Wavy Slider (Compose)
+        audioComposeSlider = ComposeView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
+                dpToPx(48)
             ).apply {
                 bottomMargin = dpToPx(8)
             }
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    if (fromUser) {
-                        audioPlayer?.seekTo(progress)
-                        audioCurrentTime?.text = formatDuration(progress.toLong())
+            setContent {
+                MediaWaveSlider(
+                    value = sliderValue.floatValue,
+                    onValueChange = { newValue ->
+                        sliderValue.floatValue = newValue
+                        audioCurrentTime?.text = formatDuration(newValue.toLong())
+                    },
+                    isPlaying = isPlayingState.value,
+                    valueRange = 0f..durationMs.toFloat(),
+                    onValueChangeFinished = {
+                        audioPlayer?.seekTo(sliderValue.floatValue.toInt())
                     }
-                }
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-            })
+                )
+            }
         }
-        audioControlsContainer!!.addView(audioSeekBar)
+        audioControlsContainer!!.addView(audioComposeSlider)
 
         // Time display
         val timeContainer = LinearLayout(this).apply {
@@ -586,7 +617,7 @@ class FullScreenMediaActivity : ComponentActivity() {
 
         audioCurrentTime = TextView(this).apply {
             text = "0:00"
-            setTextColor(Color.WHITE)
+            setTextColor(uiTextColor)
             textSize = 12f
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
@@ -594,7 +625,7 @@ class FullScreenMediaActivity : ComponentActivity() {
 
         audioDurationText = TextView(this).apply {
             text = formatDuration(durationMs.toLong())
-            setTextColor(Color.WHITE)
+            setTextColor(uiTextColor)
             textSize = 12f
             gravity = android.view.Gravity.END
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -617,6 +648,7 @@ class FullScreenMediaActivity : ComponentActivity() {
         val rewindBtn = ImageButton(this).apply {
             setImageResource(android.R.drawable.ic_media_rew)
             setBackgroundColor(Color.TRANSPARENT)
+            setColorFilter(uiTextColor)
             setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16))
             setOnClickListener {
                 audioPlayer?.let { player ->
@@ -631,26 +663,31 @@ class FullScreenMediaActivity : ComponentActivity() {
         audioPlayPauseBtn = ImageButton(this).apply {
             setImageResource(android.R.drawable.ic_media_pause)
             setBackgroundColor(Color.TRANSPARENT)
+            setColorFilter(uiTextColor)
             setPadding(dpToPx(24), dpToPx(16), dpToPx(24), dpToPx(16))
             setOnClickListener {
                 audioPlayer?.let { player ->
                     if (player.isPlaying) {
                         player.pause()
                         setImageResource(android.R.drawable.ic_media_play)
+                        isPlayingState.value = false
                     } else {
                         player.start()
                         setImageResource(android.R.drawable.ic_media_pause)
+                        isPlayingState.value = true
                         startAudioProgressUpdater()
                     }
                 }
             }
         }
+        isPlayingState.value = true // Initial state when prepared
         controlsRow.addView(audioPlayPauseBtn)
 
         // Forward button
         val forwardBtn = ImageButton(this).apply {
             setImageResource(android.R.drawable.ic_media_ff)
             setBackgroundColor(Color.TRANSPARENT)
+            setColorFilter(uiTextColor)
             setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16))
             setOnClickListener {
                 audioPlayer?.let { player ->
@@ -672,9 +709,11 @@ class FullScreenMediaActivity : ComponentActivity() {
                     audioPlayer?.let { player ->
                         if (player.isPlaying) {
                             val pos = player.currentPosition
-                            audioSeekBar?.progress = pos
+                            sliderValue.floatValue = pos.toFloat()
                             audioCurrentTime?.text = formatDuration(pos.toLong())
                             audioHandler.postDelayed(this, 500)
+                        } else {
+                            isPlayingState.value = false
                         }
                     }
                 } catch (e: Exception) {
@@ -689,7 +728,7 @@ class FullScreenMediaActivity : ComponentActivity() {
             text = fileData?.let { data ->
                 "${data.name}\n${android.text.format.Formatter.formatShortFileSize(this@FullScreenMediaActivity, data.size)}"
             } ?: "File"
-            setTextColor(Color.WHITE)
+            setTextColor(uiTextColor)
             textSize = 16f
             gravity = android.view.Gravity.CENTER
             layoutParams = FrameLayout.LayoutParams(

@@ -8,4 +8,12 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="upload">#FBC600</color>
+ 
+    <!-- Widget Adaptive Colors -->
+    <color name="widget_background">#F5F5F5</color>
+    <color name="widget_background_media">#CCFFFFFF</color>
+    <color name="widget_text_primary">#212121</color>
+    <color name="widget_text_secondary">#757575</color>
+    <color name="widget_divider">#1F000000</color>
+    <color name="widget_button_background">#E0E0E0</color>
 </resources>

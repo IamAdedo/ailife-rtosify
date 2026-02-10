@@ -16,7 +16,19 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.ailife.rtosifycompanion.MessageType
 
-class DynamicIslandService : Service() {
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+
+class DynamicIslandService : Service(), LifecycleOwner, ViewModelStoreOwner, SavedStateRegistryOwner {
 
     companion object {
         private const val TAG = "DynamicIslandService"
@@ -38,6 +50,22 @@ class DynamicIslandService : Service() {
     private lateinit var prefs: SharedPreferences
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
+    
+    // Lifecycle components for ComposeView support in WindowManager
+    private val lifecycleRegistry = LifecycleRegistry(this)
+    private val store = ViewModelStore()
+    private val savedStateRegistryController = SavedStateRegistryController.create(this)
+
+    override val lifecycle: Lifecycle
+        get() = lifecycleRegistry
+
+    override val viewModelStore: ViewModelStore
+        get() = store
+
+    override val savedStateRegistry: SavedStateRegistry
+        get() = savedStateRegistryController.savedStateRegistry
+
+
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -236,6 +264,11 @@ class DynamicIslandService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        savedStateRegistryController.performRestore(null)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+        
         Log.d(TAG, "DynamicIslandService onCreate")
 
         // Bind to BluetoothService
@@ -268,6 +301,12 @@ class DynamicIslandService : Service() {
         }
 
         createOverlayView()
+        
+        // Attach lifecycle owners to the view
+        overlayView.setViewTreeLifecycleOwner(this)
+        overlayView.setViewTreeViewModelStoreOwner(this)
+        overlayView.setViewTreeSavedStateRegistryOwner(this)
+        
         registerReceivers()
 
         // Load initial settings
@@ -598,13 +637,17 @@ class DynamicIslandService : Service() {
             updateState()
         }
         
-        overlayView.onMediaAction = { action ->
-            Log.d(TAG, "Media action: $action")
+        overlayView.onMediaAction = { action, position ->
+            Log.d(TAG, "Media action: $action, position: $position")
             // Send media action to BluetoothService
-            val intent = Intent("com.ailife.rtosifycompanion.MEDIA_ACTION")
-            intent.setPackage(packageName)
-            intent.putExtra("action", action)
-            sendBroadcast(intent)
+            if (action == "seek") {
+                bluetoothService?.sendMediaCommand(MediaControlData.CMD_SEEK, seekPosition = position)
+            } else {
+                val intent = Intent("com.ailife.rtosifycompanion.MEDIA_ACTION")
+                intent.setPackage(packageName)
+                intent.putExtra("action", action)
+                sendBroadcast(intent)
+            }
         }
 
         overlayView.onCollapse = {
@@ -1607,6 +1650,9 @@ class DynamicIslandService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        store.clear()
+        
         if (isBound) {
             unbindService(serviceConnection)
             isBound = false

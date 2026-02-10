@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000"
+    android:background="?android:attr/colorBackground"
     android:keepScreenOn="true">
 
     <ScrollView
@@ -59,7 +59,7 @@
                     android:layout_weight="1"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:textColor="#AAAAAA"
+                    android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="14sp"
                     tools:text="WhatsApp" />
 
@@ -67,7 +67,7 @@
                     android:id="@+id/tvTime"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="#AAAAAA"
+                    android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="12sp"
                     tools:text="10:30" />
                 
@@ -77,7 +77,7 @@
                     android:layout_height="32dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@android:drawable/ic_menu_close_clear_cancel"
-                    app:tint="#FFFFFF"
+                    app:tint="?attr/colorOnSurface"
                     android:layout_marginStart="8dp"/>
             </LinearLayout>
 
@@ -87,7 +87,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:textColor="#FFFFFF"
+                android:textColor="?attr/colorOnSurface"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 tools:text="Message Title" />
@@ -97,7 +97,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:textColor="#DDDDDD"
+                android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="16sp"
                 tools:text="This is the content of the message. It might be long and wrap multiple lines." />
 
@@ -128,7 +128,7 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical" />
                     
-                <androidx.appcompat.widget.AppCompatButton
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnReply"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -138,7 +138,7 @@
                     android:textColor="#FFFFFF"
                     android:textAllCaps="false"/>
 
-                <androidx.appcompat.widget.AppCompatButton
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnDismiss"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"

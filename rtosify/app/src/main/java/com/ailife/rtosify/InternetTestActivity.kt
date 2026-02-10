@@ -3,7 +3,7 @@ package com.ailife.rtosify
 import android.os.Bundle
 import android.util.Log
 import android.view.View
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -25,7 +25,7 @@ class InternetTestActivity : AppCompatActivity() {
     private lateinit var indicatorSignaling: View
     private lateinit var indicatorStun: View
     private lateinit var indicatorTurn: View
-    private lateinit var btnStartTest: Button
+    private lateinit var btnStartTest: MaterialButton
 
     private var factory: PeerConnectionFactory? = null
     private val logDateFormat = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
@@ -33,16 +33,17 @@ class InternetTestActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_internet_test)
-        EdgeToEdgeUtils.applyEdgeToEdge(this, findViewById(android.R.id.content))
-
         tvLogs = findViewById(R.id.tvLogs)
         scrollLog = findViewById(R.id.scrollLog)
+        
+        val appBarLayout = findViewById<android.view.View>(R.id.appBarLayout)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, scrollLog)
         indicatorSignaling = findViewById(R.id.indicatorSignaling)
         indicatorStun = findViewById(R.id.indicatorStun)
         indicatorTurn = findViewById(R.id.indicatorTurn)
         btnStartTest = findViewById(R.id.btnStartTest)
 
-        findViewById<View>(R.id.btnBack).setOnClickListener { finish() }
+        btnStartTest = findViewById(R.id.btnStartTest)
 
         btnStartTest.setOnClickListener {
             lifecycleScope.launch {

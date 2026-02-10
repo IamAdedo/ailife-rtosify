@@ -9,44 +9,45 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.slider.Slider
+// No subpackage imports needed as they are in the same package
 
 class DynamicIslandSettingsActivity : AppCompatActivity() {
 
     // Feature toggles
-    private lateinit var switchShowPhoneCalls: SwitchMaterial
-    private lateinit var switchShowAlarms: SwitchMaterial
-    private lateinit var switchShowDisconnect: SwitchMaterial
-    private lateinit var switchShowMedia: SwitchMaterial
-    private lateinit var switchFollowDnd: SwitchMaterial
+    private lateinit var switchShowPhoneCalls: MaterialSwitch
+    private lateinit var switchShowAlarms: MaterialSwitch
+    private lateinit var switchShowDisconnect: MaterialSwitch
+    private lateinit var switchShowMedia: MaterialSwitch
+    private lateinit var switchFollowDnd: MaterialSwitch
 
     // Auto-hide settings
     private lateinit var spinnerAutoHideMode: Spinner
-    private lateinit var switchHideWithActiveNotifs: SwitchMaterial
+    private lateinit var switchHideWithActiveNotifs: MaterialSwitch
     private lateinit var layoutHideWithActiveNotifs: LinearLayout
-    private lateinit var switchBlacklistHidePeak: SwitchMaterial
+    private lateinit var switchBlacklistHidePeak: MaterialSwitch
     private lateinit var layoutBlacklistHidePeak: LinearLayout
     private lateinit var cardBlacklist: View
 
     // Display settings
-    private lateinit var seekBarTimeout: SeekBar
+    private lateinit var seekBarTimeout: Slider
     private lateinit var tvTimeoutValue: TextView
-    private lateinit var seekBarY: SeekBar
+    private lateinit var seekBarY: Slider
     private lateinit var tvYValue: TextView
-    private lateinit var seekBarWidth: SeekBar
+    private lateinit var seekBarWidth: Slider
     private lateinit var tvWidthValue: TextView
-    private lateinit var seekBarHeight: SeekBar
+    private lateinit var seekBarHeight: Slider
     private lateinit var tvHeightValue: TextView
 
     // Text settings
-    private lateinit var seekBarTextSize: SeekBar
+    private lateinit var seekBarTextSize: Slider
     private lateinit var tvTextSizeValue: TextView
-    private lateinit var switchLimitMessageLength: SwitchMaterial
+    private lateinit var switchLimitMessageLength: MaterialSwitch
 
     private lateinit var devicePrefManager: DevicePrefManager
     private val activePrefs: SharedPreferences
@@ -215,101 +216,72 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
     }
 
     private fun setupDisplaySettings() {
-        // Timeout SeekBar
+        // Timeout Slider
         val timeout = activePrefs.getInt("dynamic_island_timeout", 5)
-        seekBarTimeout.progress = timeout - 2 // Range 2-10
+        seekBarTimeout.value = (timeout - 2).toFloat() // Range 2-10, mapped to 0-8 in layout
         tvTimeoutValue.text = getString(R.string.notif_unit_seconds, timeout)
-        seekBarTimeout.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val value = progress + 2
-                tvTimeoutValue.text = getString(R.string.notif_unit_seconds, value)
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                val value = (seekBar?.progress ?: 0) + 2
-                activePrefs.edit().putInt("dynamic_island_timeout", value).apply()
+        seekBarTimeout.addOnChangeListener { _, value, fromUser ->
+            val actualValue = value.toInt() + 2
+            tvTimeoutValue.text = getString(R.string.notif_unit_seconds, actualValue)
+            if (fromUser) {
+                activePrefs.edit().putInt("dynamic_island_timeout", actualValue).apply()
                 syncSettings()
             }
-        })
+        }
 
-        // Y position SeekBar
+        // Y position Slider
         val y = activePrefs.getInt("dynamic_island_y", 8)
-        seekBarY.progress = y
+        seekBarY.value = y.toFloat()
         tvYValue.text = getString(R.string.notif_unit_dp, y)
-        seekBarY.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                tvYValue.text = getString(R.string.notif_unit_dp, progress)
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                val value = seekBar?.progress ?: 8
-                activePrefs.edit().putInt("dynamic_island_y", value).apply()
+        seekBarY.addOnChangeListener { _, value, fromUser ->
+            val actualValue = value.toInt()
+            tvYValue.text = getString(R.string.notif_unit_dp, actualValue)
+            if (fromUser) {
+                activePrefs.edit().putInt("dynamic_island_y", actualValue).apply()
                 syncSettings()
             }
-        })
+        }
 
-        // Width SeekBar
+        // Width Slider
         val width = activePrefs.getInt("dynamic_island_width", 150)
-        seekBarWidth.progress = width - 50 // Range 50-300
+        seekBarWidth.value = (width - 50).toFloat() // Range 50-300, mapped to 0-250 in layout
         tvWidthValue.text = getString(R.string.notif_unit_dp, width)
-        seekBarWidth.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val value = progress + 50
-                tvWidthValue.text = getString(R.string.notif_unit_dp, value)
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                val value = (seekBar?.progress ?: 100) + 50
-               activePrefs.edit().putInt("dynamic_island_width", value).apply()
+        seekBarWidth.addOnChangeListener { _, value, fromUser ->
+            val actualValue = value.toInt() + 50
+            tvWidthValue.text = getString(R.string.notif_unit_dp, actualValue)
+            if (fromUser) {
+                activePrefs.edit().putInt("dynamic_island_width", actualValue).apply()
                 syncSettings()
             }
-        })
+        }
 
-        // Height SeekBar
+        // Height Slider
         val height = activePrefs.getInt("dynamic_island_height", 40)
-        seekBarHeight.progress = height - 20 // Range 20-100
+        seekBarHeight.value = (height - 20).toFloat() // Range 20-100, mapped to 0-80 in layout
         tvHeightValue.text = getString(R.string.notif_unit_dp, height)
-        seekBarHeight.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val value = progress + 20
-                tvHeightValue.text = getString(R.string.notif_unit_dp, value)
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                val value = (seekBar?.progress ?: 20) + 20
-                activePrefs.edit().putInt("dynamic_island_height", value).apply()
+        seekBarHeight.addOnChangeListener { _, value, fromUser ->
+            val actualValue = value.toInt() + 20
+            tvHeightValue.text = getString(R.string.notif_unit_dp, actualValue)
+            if (fromUser) {
+                activePrefs.edit().putInt("dynamic_island_height", actualValue).apply()
                 syncSettings()
             }
-        })
+        }
     }
 
     private fun setupTextSettings() {
-        // Text size multiplier SeekBar
+        // Text size multiplier Slider
         val textMultiplier = activePrefs.getFloat("dynamic_island_text_multiplier", 1.0f)
-        seekBarTextSize.progress = ((textMultiplier - 0.5f) * 10).toInt() // Range 0.5-2.0
+        seekBarTextSize.value = ((textMultiplier - 0.5f) * 10).coerceIn(0f, 15f) // Range 0.5-2.0, mapped to 0-15 in layout
         tvTextSizeValue.text = String.format("%.1fx", textMultiplier)
-        seekBarTextSize.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val value = 0.5f + (progress / 10f)
-                tvTextSizeValue.text = String.format("%.1fx", value)
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {
-                val value = 0.5f + ((seekBar?.progress ?: 5) / 10f)
-                activePrefs.edit().putFloat("dynamic_island_text_multiplier", value).apply()
+        seekBarTextSize.addOnChangeListener { _, value, fromUser ->
+            val actualValue = 0.5f + (value / 10f)
+            tvTextSizeValue.text = String.format("%.1fx", actualValue)
+            if (fromUser) {
+                activePrefs.edit().putFloat("dynamic_island_text_multiplier", actualValue).apply()
                 syncSettings()
             }
-        })
+        }
 
         // Limit message length toggle
         switchLimitMessageLength.isChecked = activePrefs.getBoolean("dynamic_island_limit_message_length", true)

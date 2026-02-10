@@ -1,7 +1,8 @@
 
 package com.ailife.rtosify.watchface
 
-import android.app.AlertDialog
+import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.os.Bundle
 import android.os.Environment
 import android.view.LayoutInflater
@@ -148,7 +149,7 @@ class WatchFaceManagerFragment : Fragment() {
         val input = EditText(context).apply {
             hint = getString(R.string.wf_folder_name_hint)
         }
-        AlertDialog.Builder(context)
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.wf_create_folder_title)
             .setView(input)
             .setPositiveButton(R.string.wf_button_create) { _, _ ->
@@ -270,7 +271,7 @@ class WatchFaceManagerFragment : Fragment() {
         val selected = adapter.getSelectedItems()
         if (selected.isEmpty()) return
         
-        AlertDialog.Builder(context)
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.wf_delete)
             .setMessage(getString(R.string.wf_delete_confirm_count, selected.size))
             .setPositiveButton(R.string.wf_button_delete) { _, _ ->
@@ -465,7 +466,7 @@ class WatchFaceManagerFragment : Fragment() {
             setText(oldName)
             hint = getString(R.string.wf_folder_name_hint)
         }
-        AlertDialog.Builder(context)
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.wf_rename_folder_title)
             .setView(input)
             .setPositiveButton(R.string.btn_ok) { _, _ ->
@@ -486,7 +487,7 @@ class WatchFaceManagerFragment : Fragment() {
 
     private fun showRenameDialog(fileInfo: WatchFaceFileInfo) {
         val input = EditText(context).apply { setText(fileInfo.name) }
-        AlertDialog.Builder(context)
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.wf_rename_title)
             .setView(input)
             .setPositiveButton(R.string.btn_ok) { _, _ ->

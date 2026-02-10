@@ -5,7 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -39,7 +39,7 @@ class WidgetConfigActivity : AppCompatActivity() {
         }
 
         etUpdateInterval = findViewById(R.id.etUpdateInterval)
-        val btnSave = findViewById<Button>(R.id.btnSaveConfig)
+        val btnSave = findViewById<MaterialButton>(R.id.btnSaveConfig)
 
         // Load existing preference
         val prefs = DevicePrefManager(this).getGlobalPrefs()

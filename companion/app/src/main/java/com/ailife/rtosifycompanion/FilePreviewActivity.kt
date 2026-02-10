@@ -7,7 +7,7 @@ import android.content.IntentFilter
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.util.Base64
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -20,8 +20,8 @@ class FilePreviewActivity : ComponentActivity() {
     private lateinit var tvFileName: TextView
     private lateinit var tvFileSize: TextView
     private lateinit var ivPreview: ImageView
-    private lateinit var btnDownload: Button
-    private lateinit var btnDismiss: Button
+    private lateinit var btnDownload: MaterialButton
+    private lateinit var btnDismiss: MaterialButton
 
     private var currentData: FileDetectedData? = null
 

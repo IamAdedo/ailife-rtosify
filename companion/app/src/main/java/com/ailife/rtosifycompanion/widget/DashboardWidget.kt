@@ -90,12 +90,8 @@ class DashboardWidget : AppWidgetProvider() {
         }
         views.setImageViewResource(R.id.img_transport_icon, transportIcon)
         
-        // Set white color to all icons for visibility
-        views.setInt(R.id.img_connection_icon, "setColorFilter", android.graphics.Color.WHITE)
-        views.setInt(R.id.img_transport_icon, "setColorFilter", android.graphics.Color.WHITE)
-        views.setInt(R.id.imgBtnMirror, "setColorFilter", android.graphics.Color.WHITE)
-        views.setInt(R.id.imgBtnCamera, "setColorFilter", android.graphics.Color.WHITE)
-        views.setInt(R.id.imgBtnDialer, "setColorFilter", android.graphics.Color.WHITE)
+        // Actions are now tinted in XML via android:tint="@color/widget_text_primary"
+        // so we don't need to force white here, allowing adaptive theme colors.
         
         // Setup action button clicks
         val mirrorIntent = Intent(context, MirrorSettingsActivity::class.java)

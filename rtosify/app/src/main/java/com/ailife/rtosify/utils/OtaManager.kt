@@ -1,6 +1,7 @@
 package com.ailife.rtosify.utils
 
-import android.app.AlertDialog
+import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.app.DownloadManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -211,7 +212,7 @@ class OtaManager(private val context: Context) {
     }
 
     private fun showUpdateDialog() {
-        AlertDialog.Builder(context)
+        MaterialAlertDialogBuilder(context)
             .setTitle(context.getString(R.string.ota_update_available_title, latestVersion))
             .setMessage(changelog)
             .setCancelable(true)

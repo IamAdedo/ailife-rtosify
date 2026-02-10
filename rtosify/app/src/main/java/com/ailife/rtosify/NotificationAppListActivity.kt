@@ -6,11 +6,11 @@ import android.os.Bundle
 import android.view.MenuItem
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
+import com.google.android.material.appbar.MaterialToolbar
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.materialswitch.MaterialSwitch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -22,7 +22,7 @@ class NotificationAppListActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var editTextSearch: com.google.android.material.textfield.TextInputEditText
-    private lateinit var switchShowSystemApps: SwitchMaterial
+    private lateinit var switchShowSystemApps: MaterialSwitch
     private lateinit var layoutLoadingApps: View
 
     private lateinit var devicePrefManager: DevicePrefManager
@@ -41,7 +41,7 @@ class NotificationAppListActivity : AppCompatActivity() {
         val appBarLayout = findViewById<View>(R.id.appBarLayout)
         EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, findViewById(R.id.recyclerViewApps))
 
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
+        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = getString(R.string.notif_apps_title)

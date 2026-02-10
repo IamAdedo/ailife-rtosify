@@ -5,7 +5,7 @@ import android.os.Environment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -36,7 +36,7 @@ class LocalWatchFaceFragment : Fragment() {
         recyclerView.adapter = adapter
         
         // Hide the import button, use FAB instead
-        view.findViewById<Button>(R.id.btnImport).visibility = View.GONE
+        view.findViewById<MaterialButton>(R.id.btnImport).visibility = View.GONE
         
         // Setup FAB for importing files
         val fab = view.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabCreateFolder)

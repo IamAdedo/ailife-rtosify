@@ -1,13 +1,11 @@
 package com.ailife.rtosifycompanion
 
-import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
@@ -16,18 +14,19 @@ import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.util.Base64
+import android.view.View
+import android.view.animation.ScaleAnimation
 import android.widget.ImageButton
 import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import android.view.animation.AnimationUtils
-import android.view.animation.ScaleAnimation
-
 import androidx.appcompat.app.AppCompatActivity
-import android.view.View
 import androidx.core.content.ContextCompat
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.ComposeView
+import com.ailife.rtosifycompanion.ui.MediaWaveSlider
+import androidx.compose.material3.MaterialTheme
+import com.ailife.rtosifycompanion.EdgeToEdgeUtils
 
 class MediaControlActivity : AppCompatActivity() {
 
@@ -39,16 +38,20 @@ class MediaControlActivity : AppCompatActivity() {
     private lateinit var albumArt: ImageView
     private lateinit var trackTitle: TextView
     private lateinit var trackArtist: TextView
-    private lateinit var progressBar: ProgressBar
+    private lateinit var composeSlider: ComposeView
     private lateinit var currentTime: TextView
     private lateinit var totalTime: TextView
     private lateinit var volumeLevel: TextView
+    
+    private var sliderValue = mutableStateOf(0f)
+    private var isMediaPlaying = mutableStateOf(false)
     
     private var currentMediaState: MediaStateData? = null
     private val progressHandler = Handler(Looper.getMainLooper())
     private var isProgressRunning = false
     private var localPosition = 0L
     private var localDuration = 0L
+    private var isUserSeeking = false
 
     private val mediaStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -96,18 +99,25 @@ class MediaControlActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_media_control)
-        val rootLayout = findViewById<View>(R.id.rootLayout)
-        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
+        val appBarLayout = findViewById<View>(R.id.appBarLayout)
+        val container = findViewById<View>(R.id.container)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, container)
+        
+        val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        toolbar.setNavigationOnClickListener { finish() }
 
         vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
         btnPlayPause = findViewById(R.id.btn_play_pause)
         albumArt = findViewById(R.id.albumArt)
         trackTitle = findViewById(R.id.trackTitle)
         trackArtist = findViewById(R.id.trackArtist)
-        progressBar = findViewById(R.id.progressBar)
+        composeSlider = findViewById(R.id.composeSlider)
         currentTime = findViewById(R.id.currentTime)
         totalTime = findViewById(R.id.totalTime)
         volumeLevel = findViewById(R.id.volumeLevel)
+
+        setupComposeSlider()
 
         // Bind to BluetoothService
         val intent = Intent(this, BluetoothService::class.java)
@@ -124,6 +134,7 @@ class MediaControlActivity : AppCompatActivity() {
         setupListeners()
         
         // Add fade-in animation
+        val rootLayout = findViewById<View>(R.id.rootLayout)
         rootLayout.alpha = 0f
         rootLayout.animate()
             .alpha(1f)
@@ -211,6 +222,7 @@ class MediaControlActivity : AppCompatActivity() {
         btnPlayPause.setImageResource(
             if (state.isPlaying) R.drawable.ic_media_pause else R.drawable.ic_media_play
         )
+        isMediaPlaying.value = state.isPlaying
         
         // Update track info
         trackTitle.text = state.title ?: getString(R.string.media_no_media)
@@ -280,14 +292,41 @@ class MediaControlActivity : AppCompatActivity() {
     
     private fun updateProgressUI() {
         if (localDuration > 0) {
-            val progress = ((localPosition.toFloat() / localDuration.toFloat()) * 100).toInt()
-            progressBar.progress = progress
-            currentTime.text = formatTime(localPosition)
+            val progress = ((localPosition.toFloat() / localDuration.toFloat()) * 100)
+            if (!isUserSeeking) {
+                sliderValue.value = progress
+                currentTime.text = formatTime(localPosition)
+            }
             totalTime.text = formatTime(localDuration)
         } else {
-            progressBar.progress = 0
-            currentTime.text = getString(R.string.media_time_placeholder)
+            if (!isUserSeeking) {
+                sliderValue.value = 0f
+                currentTime.text = getString(R.string.media_time_placeholder)
+            }
             totalTime.text = getString(R.string.media_time_placeholder)
+        }
+    }
+
+    private fun setupComposeSlider() {
+        composeSlider.setContent {
+            MaterialTheme {
+                MediaWaveSlider(
+                    value = sliderValue.value,
+                    onValueChange = { newValue ->
+                        isUserSeeking = true
+                        sliderValue.value = newValue
+                        // Update current time locally while seeking
+                        currentTime.text = formatTime((newValue / 100 * localDuration).toLong())
+                    },
+                    isPlaying = isMediaPlaying.value,
+                    onValueChangeFinished = {
+                        isUserSeeking = false
+                        // Handle seek
+                        val newPos = (sliderValue.value / 100 * localDuration).toLong()
+                        bluetoothService?.sendMediaCommand(MediaControlData.CMD_SEEK, seekPosition = newPos)
+                    }
+                )
+            }
         }
     }
     

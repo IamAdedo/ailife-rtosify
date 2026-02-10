@@ -62,9 +62,9 @@
             android:text="@string/fo_icon_label"
             android:layout_marginStart="8dp"/>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnPickIcon"
-            style="@style/Widget.MaterialComponents.Button.TextButton"
+            style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/fo_btn_choose_icon"/>
@@ -82,13 +82,13 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal">
         
-        <CheckBox
+        <com.google.android.material.checkbox.MaterialCheckBox
             android:id="@+id/cbTypeImage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/fo_type_image"
             android:layout_weight="1"/>
-        <CheckBox
+        <com.google.android.material.checkbox.MaterialCheckBox
             android:id="@+id/cbTypeVideo"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -100,13 +100,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal">
-        <CheckBox
+        <com.google.android.material.checkbox.MaterialCheckBox
             android:id="@+id/cbTypeAudio"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/fo_type_audio"
             android:layout_weight="1"/>
-        <CheckBox
+        <com.google.android.material.checkbox.MaterialCheckBox
             android:id="@+id/cbTypeText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -114,16 +114,16 @@
             android:layout_weight="1"/>
     </LinearLayout>
 
-    <com.google.android.material.switchmaterial.SwitchMaterial
+    <com.google.android.material.materialswitch.MaterialSwitch
         android:id="@+id/switchRecursive"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:text="@string/fo_switch_recursive"/>
 
-    <com.google.android.material.switchmaterial.SwitchMaterial
+    <com.google.android.material.materialswitch.MaterialSwitch
         android:id="@+id/switchSendToWatch"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:text="@string/fo_switch_send_to_watch"/>

@@ -9,7 +9,7 @@
         android:layout_height="match_parent"
         android:orientation="vertical">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnImport"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -36,14 +36,14 @@
         android:visibility="gone"
         android:orientation="horizontal">
         
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnDeleteSelected"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="16dp"
             android:text="@string/wf_delete" />
             
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnUploadSelected"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

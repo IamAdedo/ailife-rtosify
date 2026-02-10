@@ -50,6 +50,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.activity.ktx)
     implementation(libs.material)
+    implementation(libs.material3)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.zxing.embedded)
     implementation(libs.gson)

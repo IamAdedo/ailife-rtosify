@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
 }
 
 android {
@@ -9,6 +10,7 @@ android {
     buildFeatures {
         buildConfig = true
         aidl = true
+        compose = true
     }
     defaultConfig {
         applicationId = "com.ailife.rtosifycompanion"
@@ -69,4 +71,15 @@ dependencies {
     // WebRTC & WebSocket for Internet Transport
     implementation("io.github.webrtc-sdk:android:114.5735.02")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.activity.compose)
+    implementation("androidx.compose.material3:material3:1.3.1")
+    implementation("androidx.compose.material3:material3-android:1.3.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    implementation("androidx.savedstate:savedstate-ktx:1.2.1")
 }

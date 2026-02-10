@@ -11,13 +11,15 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.ProgressBar
+import com.google.android.material.progressindicator.CircularProgressIndicator
+import com.google.android.material.progressindicator.LinearProgressIndicator
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
+import com.google.android.material.appbar.MaterialToolbar
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -32,11 +34,11 @@ import android.view.MenuItem
 
 class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
-    private lateinit var toolbar: Toolbar
+    private lateinit var toolbar: MaterialToolbar
     private lateinit var tvCurrentPath: TextView
     private lateinit var recyclerViewFiles: RecyclerView
     private lateinit var fabUpload: FloatingActionButton
-    private lateinit var progressBarFiles: ProgressBar
+    private lateinit var progressBarFiles: CircularProgressIndicator
 
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
@@ -60,7 +62,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
     // Dialog References (similar to AppListActivity)
     private var transferDialog: AlertDialog? = null
 
-    private var transferProgressBar: ProgressBar? = null
+    private var transferProgressBar: LinearProgressIndicator? = null
     private var transferPercentageText: TextView? = null
     private var transferDescriptionText: TextView? = null
     private var transferTitleText: TextView? = null
@@ -154,13 +156,8 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
             }
         }
         
-        // Ensure popup menu is themed correctly or use white icons
-        // Since we can't easily change popup theme dynamically in code without ContextThemeWrapper in layout,
-        // we'll at least fix the overflow icon tint.
-        toolbar.post { 
-             toolbar.overflowIcon?.setTint(Color.WHITE)
-        }
-
+        // toolbar menu and popup are now themed via M3 AppBarLayout/Toolbar properties
+        
         tvCurrentPath = findViewById(R.id.tvCurrentPath)
         recyclerViewFiles = findViewById(R.id.recyclerViewFiles)
         fabUpload = findViewById(R.id.fabUpload)
@@ -226,7 +223,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
 
     private fun confirmUpload(uris: List<Uri>) {
         val currentPath = if (pathStack.isEmpty()) "/" else pathStack.peek()
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.file_upload_confirm_title)
                 .setMessage(getString(R.string.file_upload_confirm_desc) + "\n(${uris.size} files)")
                 .setPositiveButton(R.string.file_button_upload) { _, _ ->
@@ -328,7 +325,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         transferViewFileButton = dialogView.findViewById(R.id.btnViewFile)
         transferViewFileButton?.setOnClickListener { viewDownloadedFile() }
 
-        transferDialog = AlertDialog.Builder(this).setView(dialogView).setCancelable(false).create()
+        transferDialog = MaterialAlertDialogBuilder(this).setView(dialogView).setCancelable(false).create()
         transferDialog?.show()
     }
 
@@ -478,7 +475,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
     }
 
     private fun confirmDelete(fileInfo: FileInfo) {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.file_delete_confirm_title, fileInfo.name))
                 .setMessage(
                         getString(R.string.file_delete_confirm_desc, if (fileInfo.isDirectory) getString(R.string.file_type_directory) else getString(R.string.file_type_regular))
@@ -618,7 +615,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
                  return@runOnUiThread
              }
              
-             AlertDialog.Builder(this)
+             MaterialAlertDialogBuilder(this)
                  .setView(dialogView)
                  .setPositiveButton(R.string.btn_close, null)
                  .show()
@@ -652,11 +649,6 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
             supportActionBar?.setHomeAsUpIndicator(android.R.drawable.ic_menu_close_clear_cancel)
             supportActionBar?.setDisplayHomeAsUpEnabled(true)
             
-            // Tint menu items white
-            for (i in 0 until toolbar.menu.size()) {
-                toolbar.menu.getItem(i).icon?.setTint(Color.WHITE)
-            }
-            
             // Rename only allowed for single selection
             val renameItem = toolbar.menu.findItem(R.id.action_rename)
             renameItem?.isVisible = count == 1
@@ -669,11 +661,6 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
             
             val pasteItem = toolbar.menu.findItem(R.id.action_paste)
             pasteItem.isVisible = clipboardFiles.isNotEmpty()
-            
-            // Tint menu items white
-            for (i in 0 until toolbar.menu.size()) {
-                toolbar.menu.getItem(i).icon?.setTint(Color.WHITE)
-            }
         }
     }
     
@@ -687,7 +674,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
         input.setText(fileInfo.name)
         input.setSelection(fileInfo.name.length)
         
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.rename_title))
             .setMessage(getString(R.string.rename_message, fileInfo.name))
             .setView(input)
@@ -757,7 +744,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
          val selected = fileAdapter?.selectedItems?.toList() ?: return
          if (selected.isEmpty()) return
 
-         AlertDialog.Builder(this)
+         MaterialAlertDialogBuilder(this)
              .setTitle(getString(R.string.file_delete_confirm_title, getString(R.string.file_items_count, selected.size)))
              .setMessage(getString(R.string.file_delete_confirm_multi, selected.size))
              .setPositiveButton(R.string.file_button_delete) { _, _ ->
@@ -859,12 +846,12 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
             val dateStr = sdf.format(Date(file.lastModified))
 
             if (file.isDirectory) {
-                holder.imgIcon.setImageResource(android.R.drawable.ic_menu_save) // Folder icon
+                holder.imgIcon.setImageResource(R.drawable.ic_folder)
                 holder.imgIcon.setColorFilter(Color.parseColor("#FFCA28")) // Yellow
                 holder.tvInfo.text = holder.itemView.context.getString(R.string.file_info_dir, dateStr)
                 holder.btnDownload.visibility = View.GONE
             } else {
-                holder.imgIcon.setImageResource(android.R.drawable.ic_menu_gallery) // File icon
+                holder.imgIcon.setImageResource(R.drawable.ic_file)
                 holder.imgIcon.setColorFilter(Color.parseColor("#42A5F5")) // Blue
                 holder.tvInfo.text = holder.itemView.context.getString(R.string.file_info_regular, formatSize(holder.itemView.context, file.size), dateStr)
                 holder.btnDownload.visibility = if (selectionMode) View.GONE else View.VISIBLE
@@ -875,8 +862,8 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
                 holder.btnDelete.visibility = View.GONE
                 holder.btnDownload.visibility = View.GONE
                 if (selectedItems.contains(file)) {
-                    // Darker highlight #339E9E9E
-                    holder.itemView.setBackgroundColor(Color.parseColor("#339E9E9E")) 
+                    val color = com.google.android.material.color.MaterialColors.getColor(holder.itemView, com.google.android.material.R.attr.colorSecondaryContainer)
+                    holder.itemView.setBackgroundColor(color)
                 } else {
                     holder.itemView.setBackgroundColor(Color.TRANSPARENT)
                 }

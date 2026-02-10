@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
@@ -30,146 +31,57 @@
             android:textStyle="bold"
             android:layout_marginTop="8dp" />
 
-        <!-- Compact day selector with labels above -->
-        <LinearLayout
+        <!-- Modern circular day selector -->
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/dayToggleGroup"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center">
+            app:singleSelection="false"
+            android:gravity="center"
+            android:layout_marginTop="4dp">
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/alarm_day_monday_short"
-                    android:textSize="10sp" />
-                <CheckBox
-                    android:id="@+id/cbMonday"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:scaleX="0.8"
-                    android:scaleY="0.8" />
-            </LinearLayout>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnMonday"
+                style="@style/DayToggleButton"
+                android:text="@string/alarm_day_monday_short"
+                android:layout_margin="2dp" />
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/alarm_day_tuesday_short"
-                    android:textSize="10sp" />
-                <CheckBox
-                    android:id="@+id/cbTuesday"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:scaleX="0.8"
-                    android:scaleY="0.8" />
-            </LinearLayout>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTuesday"
+                style="@style/DayToggleButton"
+                android:text="@string/alarm_day_tuesday_short"
+                android:layout_margin="2dp" />
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/alarm_day_wednesday_short"
-                    android:textSize="10sp" />
-                <CheckBox
-                    android:id="@+id/cbWednesday"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:scaleX="0.8"
-                    android:scaleY="0.8" />
-            </LinearLayout>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnWednesday"
+                style="@style/DayToggleButton"
+                android:text="@string/alarm_day_wednesday_short"
+                android:layout_margin="2dp" />
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/alarm_day_thursday_short"
-                    android:textSize="10sp" />
-                <CheckBox
-                    android:id="@+id/cbThursday"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:scaleX="0.8"
-                    android:scaleY="0.8" />
-            </LinearLayout>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnThursday"
+                style="@style/DayToggleButton"
+                android:text="@string/alarm_day_thursday_short"
+                android:layout_margin="2dp" />
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/alarm_day_friday_short"
-                    android:textSize="10sp" />
-                <CheckBox
-                    android:id="@+id/cbFriday"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:scaleX="0.8"
-                    android:scaleY="0.8" />
-            </LinearLayout>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnFriday"
+                style="@style/DayToggleButton"
+                android:text="@string/alarm_day_friday_short"
+                android:layout_margin="2dp" />
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/alarm_day_saturday_short"
-                    android:textSize="10sp" />
-                <CheckBox
-                    android:id="@+id/cbSaturday"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:scaleX="0.8"
-                    android:scaleY="0.8" />
-            </LinearLayout>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSaturday"
+                style="@style/DayToggleButton"
+                android:text="@string/alarm_day_saturday_short"
+                android:layout_margin="2dp" />
 
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:orientation="vertical"
-                android:gravity="center">
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/alarm_day_sunday_short"
-                    android:textSize="10sp" />
-                <CheckBox
-                    android:id="@+id/cbSunday"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:scaleX="0.8"
-                    android:scaleY="0.8" />
-            </LinearLayout>
-        </LinearLayout>
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSunday"
+                style="@style/DayToggleButton"
+                android:text="@string/alarm_day_sunday_short"
+                android:layout_margin="2dp" />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
 
         <TextView
             android:layout_width="wrap_content"
@@ -179,13 +91,18 @@
             android:textStyle="bold"
             android:layout_marginTop="8dp" />
 
-        <EditText
-            android:id="@+id/etAlarmLabel"
+        <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="@string/alarm_name_hint"
-            android:inputType="text"
-            android:maxLines="1" />
+            android:hint="@string/alarm_name_hint">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etAlarmLabel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:maxLines="1" />
+        </com.google.android.material.textfield.TextInputLayout>
 
     </LinearLayout>
 </ScrollView>

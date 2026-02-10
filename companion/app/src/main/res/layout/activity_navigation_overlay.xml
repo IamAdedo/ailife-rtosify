@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/black"
+    android:background="?android:attr/colorBackground"
     android:keepScreenOn="true">
 
     <ImageView
@@ -24,7 +24,8 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="12dp"
-        android:background="#80000000"
+        android:background="?attr/colorSurfaceContainerHigh"
+        android:alpha="0.8"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
@@ -33,7 +34,7 @@
             android:id="@+id/txtNavTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/white"
+            android:textColor="?attr/colorOnSurface"
             android:textSize="24sp"
             android:textStyle="bold"
             android:gravity="center"
@@ -45,7 +46,7 @@
             android:id="@+id/txtNavContent"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/white"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="18sp"
             android:gravity="center"
             android:maxLines="3"
@@ -62,7 +63,7 @@
         android:layout_margin="16dp"
         android:background="@android:color/transparent"
         android:src="@android:drawable/ic_menu_close_clear_cancel"
-        android:tint="@android:color/white"
+        android:tint="?attr/colorOnSurface"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 

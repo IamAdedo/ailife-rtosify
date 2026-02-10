@@ -118,7 +118,7 @@
             android:paddingHorizontal="8dp"
             android:paddingTop="4dp">
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnHistoryUp"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
@@ -127,9 +127,9 @@
                 android:textColor="@android:color/white"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                style="@style/Widget.AppCompat.Button.Borderless" />
+                style="@style/Widget.Material3.Button.TextButton" />
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnCtrlC"
                 android:layout_width="wrap_content"
                 android:layout_height="40dp"
@@ -141,7 +141,7 @@
                 android:textStyle="bold"
                 android:minWidth="0dp"
                 android:minHeight="0dp"
-                style="@style/Widget.AppCompat.Button.Borderless" />
+                style="@style/Widget.Material3.Button.TextButton" />
 
             <View
                 android:layout_width="0dp"
@@ -179,19 +179,26 @@
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
-            <EditText
-                android:id="@+id/etCommand"
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:background="@android:color/transparent"
-                android:fontFamily="monospace"
-                android:hint="@string/terminal_input_hint"
-                android:imeOptions="actionDone"
-                android:inputType="text"
-                android:textColor="@android:color/white"
-                android:textColorHint="#666666"
-                android:textSize="14sp" />
+                app:boxBackgroundMode="none"
+                app:hintEnabled="false">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etCommand"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:fontFamily="monospace"
+                    android:hint="@string/terminal_input_hint"
+                    android:imeOptions="actionDone"
+                    android:inputType="text"
+                    android:textColor="@android:color/white"
+                    android:textColorHint="#666666"
+                    android:textSize="14sp" />
+            </com.google.android.material.textfield.TextInputLayout>
 
             <ImageButton
                 android:id="@+id/btnSend"

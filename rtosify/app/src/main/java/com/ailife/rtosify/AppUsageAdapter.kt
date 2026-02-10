@@ -4,7 +4,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.ProgressBar
+import com.google.android.material.progressindicator.LinearProgressIndicator
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import android.graphics.BitmapFactory
@@ -51,7 +51,7 @@ class AppUsageAdapter : RecyclerView.Adapter<AppUsageAdapter.ViewHolder>() {
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val imgAppIcon: ImageView = itemView.findViewById(R.id.imgAppIcon)
         private val tvAppName: TextView = itemView.findViewById(R.id.tvAppName)
-        private val pbUsage: ProgressBar = itemView.findViewById(R.id.pbUsage)
+        private val pbUsage: LinearProgressIndicator = itemView.findViewById(R.id.pbUsage)
         private val tvUsageDetail: TextView = itemView.findViewById(R.id.tvUsageDetail)
 
         fun bind(item: AppUsageData, maxUsage: Double, sortOrder: SortOrder) {

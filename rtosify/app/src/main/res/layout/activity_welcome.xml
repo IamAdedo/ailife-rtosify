@@ -42,15 +42,15 @@
             android:layout_marginBottom="32dp"
             android:textAlignment="center"/>
 
-        <ProgressBar
+        <com.google.android.material.progressindicator.CircularProgressIndicator
             android:id="@+id/progressBarSetup"
-            style="?android:attr/progressBarStyleLarge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="24dp"
+            android:indeterminate="true"
             android:visibility="visible"/>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRetry"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -58,7 +58,7 @@
             android:layout_marginBottom="8dp"
             android:visibility="gone" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnScanQr"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

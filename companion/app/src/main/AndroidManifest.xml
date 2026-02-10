@@ -218,7 +218,7 @@
             android:name=".FilePreviewActivity"
             android:enabled="true"
             android:exported="false"
-            android:theme="@style/Theme.AppCompat.NoActionBar" />
+            android:theme="@style/Theme.Smartwatch" />
 
         <activity
             android:name=".FullScreenNotificationActivity"
@@ -232,7 +232,7 @@
             android:name=".FullScreenMediaActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize"
-            android:theme="@style/Theme.AppCompat.NoActionBar" />
+            android:theme="@style/Theme.Smartwatch" />
 
         <activity
             android:name=".MediaControlActivity"

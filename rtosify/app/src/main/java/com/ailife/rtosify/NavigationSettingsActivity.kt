@@ -8,8 +8,8 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Spinner
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.materialswitch.MaterialSwitch
 
 class NavigationSettingsActivity : AppCompatActivity() {
 
@@ -19,13 +19,13 @@ class NavigationSettingsActivity : AppCompatActivity() {
 
     private lateinit var spinnerImageType: Spinner
     private lateinit var spinnerTextType: Spinner
-    private lateinit var switchKeepScreenOn: SwitchMaterial
+    private lateinit var switchKeepScreenOn: MaterialSwitch
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_navigation_settings)
 
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
+        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 

@@ -3,7 +3,7 @@ package com.ailife.rtosify
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
@@ -46,8 +46,8 @@ class NotificationRulesAdapter(
         private val tvPackageName: TextView = itemView.findViewById(R.id.tvPackageName)
         private val tvMode: TextView = itemView.findViewById(R.id.tvMode)
         private val tvPatterns: TextView = itemView.findViewById(R.id.tvPatterns)
-        private val btnEdit: Button = itemView.findViewById(R.id.btnEdit)
-        private val btnDelete: Button = itemView.findViewById(R.id.btnDelete)
+        private val btnEdit: MaterialButton = itemView.findViewById(R.id.btnEdit)
+        private val btnDelete: MaterialButton = itemView.findViewById(R.id.btnDelete)
 
         fun bind(rule: NotificationRule) {
             tvPackageName.text = rule.packageName

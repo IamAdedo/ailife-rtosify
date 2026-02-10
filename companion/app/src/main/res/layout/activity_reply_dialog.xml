@@ -32,18 +32,23 @@
                 android:textStyle="bold"
                 android:layout_marginBottom="8dp"/>
 
-            <EditText
-                android:id="@+id/etReply"
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:minHeight="48dp"
-                android:background="@drawable/bg_reply_input"
-                android:textColor="@color/white"
-                android:textSize="14sp"
-                android:padding="8dp"
-                android:hint="Type reply..."
-                android:textColorHint="#80FFFFFF"
-                android:inputType="textShortMessage|textAutoCorrect"/>
+                android:hint="Type reply...">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etReply"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:background="@drawable/bg_reply_input"
+                    android:textColor="@color/white"
+                    android:textSize="14sp"
+                    android:padding="8dp"
+                    android:textColorHint="#80FFFFFF"
+                    android:inputType="textShortMessage|textAutoCorrect"/>
+            </com.google.android.material.textfield.TextInputLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -54,7 +59,7 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnCancel"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Cancel"

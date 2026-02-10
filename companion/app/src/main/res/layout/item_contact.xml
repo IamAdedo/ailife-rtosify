@@ -17,7 +17,7 @@
             android:id="@+id/tvContactName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/white"
+            android:textColor="?attr/colorOnSurface"
             android:textSize="16sp"
             android:textStyle="bold"
             android:maxLines="1"
@@ -27,7 +27,7 @@
             android:id="@+id/tvContactNumber"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="@android:color/darker_gray"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="12sp"
             android:maxLines="1"
             android:ellipsize="end" />

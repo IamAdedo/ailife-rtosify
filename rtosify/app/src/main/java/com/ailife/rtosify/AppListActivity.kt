@@ -14,16 +14,19 @@ import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import android.widget.ImageButton
 import android.widget.ImageView
-import android.widget.ProgressBar
+import com.google.android.material.progressindicator.CircularProgressIndicator
+
+import com.google.android.material.progressindicator.LinearProgressIndicator
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
+import com.google.android.material.appbar.MaterialToolbar
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -36,21 +39,21 @@ import org.json.JSONArray
 
 class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
-    private lateinit var progressBar: ProgressBar
+    private lateinit var progressBar: CircularProgressIndicator
     private lateinit var tvEmptyList: TextView
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: AppAdapter
-    private lateinit var toolbar: Toolbar
+    private lateinit var toolbar: MaterialToolbar
     private lateinit var fabInstall: FloatingActionButton
 
     // Upload Dialog (moved from MainActivity)
     private var uploadDialog: AlertDialog? = null
-    private var uploadProgressBar: ProgressBar? = null
+    private var uploadProgressBar: LinearProgressIndicator? = null
     private var uploadPercentageText: TextView? = null
     private var uploadDescriptionText: TextView? = null
     private var uploadTitleText: TextView? = null
     private var uploadIconView: ImageView? = null
-    private var uploadOkButton: Button? = null
+    private var uploadOkButton: MaterialButton? = null
 
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
@@ -239,7 +242,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         getString(R.string.dialog_install_option_apk),
                         getString(R.string.dialog_install_option_extract)
                 )
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.dialog_install_option_title))
                 .setItems(options) { _, which ->
                     when (which) {
@@ -255,7 +258,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun confirmApkUpload(uri: Uri) {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.dialog_upload_apk_title))
                 .setMessage(getString(R.string.dialog_upload_apk_message))
                 .setPositiveButton(getString(R.string.dialog_upload_apk_send)) { _, _ ->
@@ -276,7 +279,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         uploadOkButton = dialogView.findViewById(R.id.btnUploadOk)
 
         uploadOkButton?.setOnClickListener { dismissUploadDialog() }
-        uploadDialog = AlertDialog.Builder(this).setView(dialogView).setCancelable(false).create()
+        uploadDialog = MaterialAlertDialogBuilder(this).setView(dialogView).setCancelable(false).create()
         uploadDialog?.show()
     }
 
@@ -324,7 +327,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun showUninstallDialog(app: AppItem) {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.dialog_uninstall_title))
                 .setMessage(getString(R.string.dialog_uninstall_message, app.name))
                 .setPositiveButton(getString(R.string.menu_uninstall_app)) { _, _ ->

@@ -219,7 +219,7 @@ data class ShareData(
 // Data classes for specific message types
 data class CameraFrameData(val imageBase64: String)
 
-data class MediaControlData(val command: String, val volume: Int? = null) {
+data class MediaControlData(val command: String, val volume: Int? = null, val seekPosition: Long? = null) {
     companion object {
         const val CMD_PLAY = "PLAY"
         const val CMD_PAUSE =
@@ -229,6 +229,7 @@ data class MediaControlData(val command: String, val volume: Int? = null) {
         const val CMD_PREVIOUS = "PREVIOUS"
         const val CMD_VOL_UP = "VOL_UP"
         const val CMD_VOL_DOWN = "VOL_DOWN"
+        const val CMD_SEEK = "SEEK"
     }
 }
 
@@ -823,10 +824,8 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.COPY_FILES, data = data)
     }
 
-    fun createMediaControl(command: String, volume: Int? = null): ProtocolMessage {
-        val data = JsonObject()
-        data.addProperty("command", command)
-        if (volume != null) data.addProperty("volume", volume)
+    fun createMediaControl(mediaControlData: MediaControlData): ProtocolMessage {
+        val data = gson.toJsonTree(mediaControlData).asJsonObject
         return ProtocolMessage(type = MessageType.MEDIA_CONTROL, data = data)
     }
 

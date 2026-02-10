@@ -20,7 +20,8 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -35,7 +36,7 @@ class PermissionActivity : AppCompatActivity() {
 
     private lateinit var permRecyclerView: RecyclerView
     private lateinit var permAdapter: PermissionAdapter
-    private lateinit var toolbar: Toolbar
+    private lateinit var toolbar: MaterialToolbar
     private lateinit var btnFinish: View
     private var fromSetup = false
 
@@ -676,7 +677,7 @@ class PermissionActivity : AppCompatActivity() {
     private fun showRestrictedSettingsDialog(intent: Intent) {
         val adbCommand = "appops set $packageName ACCESS_RESTRICTED_SETTINGS allow"
 
-        android.app.AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.perm_restricted_title)
                 .setMessage(R.string.perm_restricted_desc)
                 .setPositiveButton(R.string.perm_button_copy_adb) { _, _ ->
@@ -899,7 +900,7 @@ class PermissionActivity : AppCompatActivity() {
     }
 
     private fun showGoRestrictionDialog(intent: Intent, adbCommand: String, permName: String) {
-        android.app.AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.perm_go_restricted_title)
                 .setMessage(getString(R.string.perm_go_restricted_desc))
                 .setPositiveButton(R.string.perm_button_try_anyways) {

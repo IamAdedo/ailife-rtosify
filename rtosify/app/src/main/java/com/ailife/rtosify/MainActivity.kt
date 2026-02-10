@@ -22,18 +22,20 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ProgressBar
+import com.google.android.material.progressindicator.LinearProgressIndicator
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.materialswitch.MaterialSwitch
 import androidx.core.content.ContextCompat
 import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -50,9 +52,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     // UI References
     private lateinit var tvHeaderDeviceName: TextView
     private lateinit var tvHeaderStatus: TextView
-    private lateinit var progressBarMain: ProgressBar
+    private lateinit var progressBarMain: LinearProgressIndicator
     private lateinit var recyclerViewMenu: RecyclerView
-    private lateinit var toolbar: Toolbar
+    private lateinit var toolbar: MaterialToolbar
     private lateinit var appBarLayout: AppBarLayout
     private lateinit var mainContentScrollView: NestedScrollView
     private lateinit var switchService: com.google.android.material.materialswitch.MaterialSwitch
@@ -112,19 +114,19 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     // Diálogo Upload
     private var uploadDialog: AlertDialog? = null
-    private var uploadProgressBar: ProgressBar? = null
+    private var uploadProgressBar: LinearProgressIndicator? = null
     private var uploadPercentageText: TextView? = null
     private var uploadDescriptionText: TextView? = null
     private var uploadTitleText: TextView? = null
     private var uploadIconView: ImageView? = null
-    private var uploadOkButton: Button? = null
+    private var uploadOkButton: MaterialButton? = null
 
     // WiFi Dialog UI References
     private var layoutCurrentWifi: LinearLayout? = null
     private var containerCurrentWifi: FrameLayout? = null
     private var dividerWifi: View? = null
     private var tvAvailableTitle: TextView? = null
-    private var swWifiToggle: androidx.appcompat.widget.SwitchCompat? = null
+    private var swWifiToggle: MaterialSwitch? = null
     private var swipeRefreshWifi: androidx.swiperefreshlayout.widget.SwipeRefreshLayout? = null
 
     private val connection =
@@ -371,9 +373,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         val tvEndTime = dialogView.findViewById<TextView>(R.id.tvEndTime)
         val btnStartTime = dialogView.findViewById<LinearLayout>(R.id.btnStartTime)
         val btnEndTime = dialogView.findViewById<LinearLayout>(R.id.btnEndTime)
-        val btn1h = dialogView.findViewById<Button>(R.id.btnQuick1h)
-        val btn2h = dialogView.findViewById<Button>(R.id.btnQuick2h)
-        val btnCustom = dialogView.findViewById<Button>(R.id.btnQuickCustom)
+        val btn1h = dialogView.findViewById<MaterialButton>(R.id.btnQuick1h)
+        val btn2h = dialogView.findViewById<MaterialButton>(R.id.btnQuick2h)
+        val btnCustom = dialogView.findViewById<MaterialButton>(R.id.btnQuickCustom)
 
         // Load existing settings if any (could be from SharedPreferences)
         val scheduleEnabled = prefs.getBoolean("dnd_schedule_enabled", false)
@@ -415,7 +417,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         }
 
         val dialog =
-                AlertDialog.Builder(this)
+                MaterialAlertDialogBuilder(this)
                         .setTitle(R.string.dnd_dialog_title)
                         .setView(dialogView)
                         .setPositiveButton(R.string.dnd_save_settings) { _, _ ->
@@ -490,7 +492,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         input.inputType = InputType.TYPE_CLASS_NUMBER
         input.hint = getString(R.string.dnd_custom_duration_hint)
 
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.dnd_custom_duration_title)
                 .setMessage(R.string.dnd_custom_duration_message)
                 .setView(input)
@@ -541,7 +543,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         dividerWifi = dialogView.findViewById<View>(R.id.dividerWifi)
         tvAvailableTitle = dialogView.findViewById<TextView>(R.id.tvAvailableTitle)
         swWifiToggle =
-                dialogView.findViewById<androidx.appcompat.widget.SwitchCompat>(R.id.swWifiToggle)
+                dialogView.findViewById<MaterialSwitch>(R.id.swWifiToggle)
         swipeRefreshWifi =
                 dialogView.findViewById<androidx.swiperefreshlayout.widget.SwipeRefreshLayout>(
                         R.id.swipeRefreshWifi
@@ -595,7 +597,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         rvWifiList.adapter = wifiAdapter
 
         wifiSelectionDialog =
-                AlertDialog.Builder(this)
+                MaterialAlertDialogBuilder(this)
                         .setTitle(R.string.wifi_dialog_title)
                         .setView(dialogView)
                         .setNegativeButton(R.string.wifi_cancel) { _, _ ->
@@ -693,7 +695,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         input.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
         input.hint = getString(R.string.wifi_password_hint)
 
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.wifi_password_dialog_title, ssid))
                 .setMessage(R.string.wifi_password_message)
                 .setView(input)
@@ -923,10 +925,10 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         val dialogView = layoutInflater.inflate(R.layout.dialog_device_picker, null)
         val container = dialogView.findViewById<LinearLayout>(R.id.containerDevices)
-        val btnPairNew = dialogView.findViewById<Button>(R.id.btnPairNewDevice)
+        val btnPairNew = dialogView.findViewById<MaterialButton>(R.id.btnPairNewDevice)
 
         val dialog =
-                AlertDialog.Builder(this)
+                MaterialAlertDialogBuilder(this)
                         .setTitle(R.string.device_picker_title)
                         .setView(dialogView)
                         .setNegativeButton(R.string.wifi_cancel, null)
@@ -967,7 +969,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 }
 
                 itemView.setOnLongClickListener {
-                    val builder = AlertDialog.Builder(this@MainActivity)
+                    val builder = MaterialAlertDialogBuilder(this@MainActivity)
                     builder.setTitle(R.string.dialog_remove_device_title)
                     builder.setMessage(getString(R.string.dialog_remove_device_message, device.name))
                     builder.setPositiveButton(R.string.dialog_remove_device_confirm, object : DialogInterface.OnClickListener {
@@ -1452,7 +1454,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun resetApp() {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.dialog_reset_all_title))
                 .setMessage(getString(R.string.dialog_reset_all_message))
                 .setPositiveButton(getString(R.string.dialog_reset_all_confirm)) { _, _ ->
@@ -1474,7 +1476,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun confirmApkUpload(uri: Uri) {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.dialog_upload_apk_title))
                 .setMessage(getString(R.string.dialog_upload_apk_message))
                 .setPositiveButton(getString(R.string.dialog_upload_apk_send)) { _, _ ->
@@ -1500,7 +1502,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         getString(R.string.menu_find_watch)
                 )
 
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.dialog_device_mgmt_title))
                 .setItems(options) { _, which ->
                     when (which) {
@@ -1514,7 +1516,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun confirmShutdownWatch() {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.dialog_shutdown_title))
                 .setMessage(getString(R.string.dialog_shutdown_message))
                 .setIcon(android.R.drawable.ic_dialog_alert)
@@ -1528,7 +1530,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun confirmRebootWatch() {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.dialog_reboot_title))
                 .setMessage(getString(R.string.dialog_reboot_message))
                 .setPositiveButton(getString(R.string.dialog_reboot_confirm)) { _, _ ->
@@ -1549,7 +1551,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     private fun showUploadDialog() {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_upload_progress, null)
-        uploadProgressBar = dialogView.findViewById(R.id.progressBarUpload)
+        uploadProgressBar = dialogView.findViewById<LinearProgressIndicator>(R.id.progressBarUpload)
         uploadPercentageText = dialogView.findViewById(R.id.tvUploadPercentage)
         uploadDescriptionText = dialogView.findViewById(R.id.tvUploadDescription)
         uploadTitleText = dialogView.findViewById(R.id.tvUploadTitle)
@@ -1557,7 +1559,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         uploadOkButton = dialogView.findViewById(R.id.btnUploadOk)
 
         uploadOkButton?.setOnClickListener { dismissUploadDialog() }
-        uploadDialog = AlertDialog.Builder(this).setView(dialogView).setCancelable(false).create()
+        uploadDialog = MaterialAlertDialogBuilder(this).setView(dialogView).setCancelable(false).create()
         uploadDialog?.show()
     }
 
@@ -1652,7 +1654,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                     "${it.name ?: getString(R.string.device_no_name)} (${it.address})"
                                 }
                                 .toTypedArray()
-                AlertDialog.Builder(this)
+                MaterialAlertDialogBuilder(this)
                         .setTitle(getString(R.string.dialog_select_watch_title))
                         .setItems(names) { _, which ->
                             bluetoothService?.connectToDevice(devices[which])

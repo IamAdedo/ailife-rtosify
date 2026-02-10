@@ -40,9 +40,8 @@
         android:layout_marginBottom="24dp"/>
 
     <!-- Barra de Progresso -->
-    <ProgressBar
+    <com.google.android.material.progressindicator.LinearProgressIndicator
         android:id="@+id/progressBarUpload"
-        style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:max="100"
@@ -61,7 +60,7 @@
         android:layout_gravity="center_horizontal"/>
 
     <!-- Botão OK (invisível inicialmente) -->
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnUploadOk"
         style="@style/Widget.Material3.Button.TextButton"
         android:layout_width="wrap_content"

@@ -5,7 +5,7 @@ import android.os.Bundle
 import android.os.Vibrator
 import android.view.View
 import android.view.WindowManager
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import androidx.appcompat.app.AppCompatActivity
 
 class FindPhoneActivity : AppCompatActivity() {
@@ -22,7 +22,7 @@ class FindPhoneActivity : AppCompatActivity() {
         val rootLayout = findViewById<View>(R.id.rootLayout)
         EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
 
-        findViewById<Button>(R.id.btnStopAlarm).setOnClickListener {
+        findViewById<MaterialButton>(R.id.btnStopAlarm).setOnClickListener {
             // Stop alarm via service
             val intent = Intent(this, BluetoothService::class.java).apply {
                 action = "STOP_ALARM"

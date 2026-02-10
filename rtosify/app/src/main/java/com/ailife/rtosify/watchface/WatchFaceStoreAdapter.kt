@@ -3,7 +3,7 @@ package com.ailife.rtosify.watchface
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
@@ -23,7 +23,7 @@ class WatchFaceStoreAdapter(
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val imgPreview: ImageView = view.findViewById(R.id.imgPreview)
         val tvTitle: TextView = view.findViewById(R.id.tvTitle)
-        val btnDownload: Button = view.findViewById(R.id.btnDownload)
+        val btnDownload: MaterialButton = view.findViewById(R.id.btnDownload)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {

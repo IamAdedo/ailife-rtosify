@@ -91,10 +91,7 @@ class HealthWidget : AppWidgetProvider() {
              views.setTextViewText(R.id.tvWidgetSpo2, "--")
         }
         
-        // Set white color to icons for visibility
-        views.setInt(R.id.imgWidgetSteps, "setColorFilter", context.getColor(android.R.color.white))
-        views.setInt(R.id.imgWidgetHeart, "setColorFilter", context.getColor(android.R.color.white))
-        views.setInt(R.id.imgWidgetSpo2, "setColorFilter", context.getColor(android.R.color.white))
+        // Icon colors are now handled in XML via android:tint="@color/widget_text_primary"
 
         // Click Handler -> Open MainActivity
         val appIntent = Intent(context, MainActivity::class.java)

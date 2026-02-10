@@ -16,4 +16,10 @@
     <color name="colorCardBackground">#1E1E1E</color>
     <color name="colorTextPrimary">#FFFFFF</color>
     <color name="colorTextSecondary">#B0B0B0</color>
+ 
+    <!-- Widget Adaptive Colors -->
+    <color name="widget_background">#F5F5F5</color>
+    <color name="widget_text_primary">#212121</color>
+    <color name="widget_text_secondary">#757575</color>
+    <color name="widget_divider">#1F000000</color>
 </resources>

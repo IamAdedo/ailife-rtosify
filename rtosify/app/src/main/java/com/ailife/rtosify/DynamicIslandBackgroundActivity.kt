@@ -9,9 +9,9 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.view.MenuItem
 import android.view.View
-import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
+import com.google.android.material.slider.Slider
 import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
@@ -30,7 +30,7 @@ class DynamicIslandBackgroundActivity : AppCompatActivity() {
     private lateinit var dynamicIslandPreview: DynamicIslandView
     private lateinit var btnSelectImage: MaterialButton
     private lateinit var btnSave: MaterialButton
-    private lateinit var seekBarOpacity: SeekBar
+    private lateinit var seekBarOpacity: Slider
     private lateinit var tvOpacityValue: TextView
     private lateinit var toggleMode: MaterialButtonToggleGroup
 
@@ -98,7 +98,7 @@ class DynamicIslandBackgroundActivity : AppCompatActivity() {
 
         // Load persisted opacity
         val opacity = loadOpacity()
-        seekBarOpacity.progress = opacity
+        seekBarOpacity.value = opacity.toFloat()
         tvOpacityValue.text = "$opacity%"
         dynamicIslandPreview.setPreviewOpacity((opacity * 255) / 100)
     }
@@ -108,15 +108,12 @@ class DynamicIslandBackgroundActivity : AppCompatActivity() {
             pickImage.launch("image/*")
         }
 
-        seekBarOpacity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                val alpha = (progress * 255) / 100
-                dynamicIslandPreview.setPreviewOpacity(alpha)
-                tvOpacityValue.text = "$progress%"
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
+        seekBarOpacity.addOnChangeListener { _, value, fromUser ->
+            val progress = value.toInt()
+            val alpha = (progress * 255) / 100
+            dynamicIslandPreview.setPreviewOpacity(alpha)
+            tvOpacityValue.text = "$progress%"
+        }
 
         toggleMode.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (isChecked) {
@@ -184,7 +181,7 @@ class DynamicIslandBackgroundActivity : AppCompatActivity() {
         val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
         
         if (bluetoothService != null) {
-            val progress = seekBarOpacity.progress
+            val progress = seekBarOpacity.value.toInt()
             val alpha = (progress * 255) / 100
             
             // Persist Matrix and Opacity

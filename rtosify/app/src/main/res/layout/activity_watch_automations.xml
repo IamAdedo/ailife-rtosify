@@ -18,12 +18,12 @@
             android:layout_height="120dp"
             app:layout_scrollFlags="scroll|exitUntilCollapsed"
             app:title="@string/watch_automations_title"
-            app:collapsedTitleTextAppearance="@style/TextAppearance.AppCompat.Title"
-            app:expandedTitleTextAppearance="@style/TextAppearance.AppCompat.Display1"
+            app:collapsedTitleTextAppearance="@style/TextAppearance.Material3.TitleMedium"
+            app:expandedTitleTextAppearance="@style/TextAppearance.Material3.DisplaySmall"
             app:expandedTitleMarginStart="20dp"
             app:expandedTitleMarginBottom="20dp">
 
-            <androidx.appcompat.widget.Toolbar
+            <com.google.android.material.appbar.MaterialToolbar
                 android:id="@+id/toolbar"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
@@ -88,7 +88,7 @@
                             android:textColor="?android:attr/textColorSecondary"/>
                     </LinearLayout>
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
+                    <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchBootService"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -138,7 +138,7 @@
                             android:textColor="?android:attr/textColorSecondary"/>
                     </LinearLayout>
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
+                    <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchClipboard"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -188,7 +188,7 @@
                             android:textColor="?android:attr/textColorSecondary"/>
                     </LinearLayout>
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
+                    <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchAutoWifi"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -238,7 +238,7 @@
                             android:textColor="?android:attr/textColorSecondary"/>
                     </LinearLayout>
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
+                    <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchAutoData"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -288,7 +288,7 @@
                             android:textColor="?android:attr/textColorSecondary"/>
                     </LinearLayout>
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
+                    <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchAutoBtTether"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -338,7 +338,7 @@
                             android:textColor="?android:attr/textColorSecondary"/>
                     </LinearLayout>
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
+                    <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchForceBt"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -388,7 +388,7 @@
                             android:textColor="?android:attr/textColorSecondary"/>
                     </LinearLayout>
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
+                    <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchSharingSync"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -438,7 +438,7 @@
                             android:textColor="?android:attr/textColorSecondary"/>
                     </LinearLayout>
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
+                    <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchAggressiveKeepalive"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"

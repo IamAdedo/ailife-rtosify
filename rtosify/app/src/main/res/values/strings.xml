@@ -1172,6 +1172,12 @@
     <string name="symbol_slash">/</string>
     <string name="msg_error_loading_files">Error loading files</string>
     <string name="msg_deleted_files">Deleted %d files</string>
+
+    <!-- About Activity Extras -->
+    <string name="about_title">About RTOSify</string>
+
+    <!-- WiFi Pairing Extras -->
+    <string name="title_activity_wifi_pairing">WiFi Pairing</string>
 </resources>
 
 

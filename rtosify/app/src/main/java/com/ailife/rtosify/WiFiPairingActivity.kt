@@ -8,9 +8,9 @@ import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
 import android.view.View
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import android.widget.ImageView
-import android.widget.ProgressBar
+import com.google.android.material.progressindicator.LinearProgressIndicator
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -28,9 +28,9 @@ class WiFiPairingActivity : AppCompatActivity() {
     }
 
     private lateinit var tvStatus: TextView
-    private lateinit var progressBar: ProgressBar
-    private lateinit var btnRetry: Button
-    private lateinit var btnClose: Button
+    private lateinit var progressBar: LinearProgressIndicator
+    private lateinit var btnRetry: MaterialButton
+    private lateinit var btnClose: MaterialButton
 
     private lateinit var layoutStep1: View
     private lateinit var layoutStep2: View

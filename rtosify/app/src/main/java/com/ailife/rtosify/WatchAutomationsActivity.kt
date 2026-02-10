@@ -5,19 +5,19 @@ import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.materialswitch.MaterialSwitch
 
 class WatchAutomationsActivity : AppCompatActivity() {
 
-    private lateinit var switchBootService: SwitchMaterial
-    private lateinit var switchClipboard: SwitchMaterial
-    private lateinit var switchAutoWifi: SwitchMaterial
-    private lateinit var switchAutoData: SwitchMaterial
-    private lateinit var switchAutoBtTether: SwitchMaterial
-    private lateinit var switchForceBt: SwitchMaterial
-    private lateinit var switchSharingSync: SwitchMaterial
-    private lateinit var switchAggressiveKeepalive: SwitchMaterial
+    private lateinit var switchBootService: MaterialSwitch
+    private lateinit var switchClipboard: MaterialSwitch
+    private lateinit var switchAutoWifi: MaterialSwitch
+    private lateinit var switchAutoData: MaterialSwitch
+    private lateinit var switchAutoBtTether: MaterialSwitch
+    private lateinit var switchForceBt: MaterialSwitch
+    private lateinit var switchSharingSync: MaterialSwitch
+    private lateinit var switchAggressiveKeepalive: MaterialSwitch
 
     private lateinit var devicePrefManager: DevicePrefManager
     private lateinit var globalPrefs: SharedPreferences
@@ -31,7 +31,7 @@ class WatchAutomationsActivity : AppCompatActivity() {
         val scrollView = findViewById<android.view.View>(R.id.nestedScrollView)
         EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, scrollView)
 
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
+        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = ""

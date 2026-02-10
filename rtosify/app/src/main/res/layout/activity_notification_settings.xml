@@ -19,12 +19,12 @@
             android:layout_height="120dp"
             app:layout_scrollFlags="scroll|exitUntilCollapsed"
             app:title="@string/notif_settings_title"
-            app:collapsedTitleTextAppearance="@style/TextAppearance.AppCompat.Title"
-            app:expandedTitleTextAppearance="@style/TextAppearance.AppCompat.Display1"
+            app:collapsedTitleTextAppearance="@style/TextAppearance.Material3.TitleMedium"
+            app:expandedTitleTextAppearance="@style/TextAppearance.Material3.DisplaySmall"
             app:expandedTitleMarginStart="20dp"
             app:expandedTitleMarginBottom="20dp">
 
-            <androidx.appcompat.widget.Toolbar
+            <com.google.android.material.appbar.MaterialToolbar
                 android:id="@+id/toolbar"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
@@ -90,7 +90,7 @@
                             android:textColor="?android:attr/textColorSecondary"/>
                     </LinearLayout>
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
+                    <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchEnableMirroring"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"/>
@@ -154,7 +154,7 @@
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchSkipScreenOn"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
@@ -190,7 +190,7 @@
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchPhoneCalls"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
@@ -226,7 +226,7 @@
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchNotifyDisconnect"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
@@ -292,7 +292,7 @@
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchWakeScreen"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
@@ -328,7 +328,7 @@
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchVibrate"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
@@ -364,7 +364,7 @@
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchVibrateSilent"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
@@ -385,12 +385,14 @@
                             android:textStyle="bold"
                             android:textColor="?android:attr/textColorPrimary"/>
 
-                        <SeekBar
+                        <com.google.android.material.slider.Slider
                             android:id="@+id/seekVibrationStrength"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:max="3"
-                            android:progress="2"
+                            android:valueFrom="0.0"
+                            android:valueTo="3.0"
+                            android:stepSize="1.0"
+                            android:value="2.0"
                             android:layout_marginTop="8dp"/>
 
                         <LinearLayout
@@ -457,7 +459,7 @@
                                 android:textColor="?android:attr/textColorSecondary"/>
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
+                        <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchWakeScreenDnd"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"/>
@@ -605,7 +607,7 @@
                     android:textColor="?android:attr/textColorPrimary"
                     android:layout_marginTop="8dp"/>
 
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnOpenSettings"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -613,7 +615,7 @@
                     android:textColor="?android:attr/colorError"
                     android:layout_marginTop="12dp"
                     android:layout_gravity="end"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"/>
+                    style="@style/Widget.Material3.Button.TextButton"/>
             </LinearLayout>
 
             <!-- Card: Manage Navigation Button -->
@@ -770,7 +772,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/notif_debug_simulate"
-                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+                        style="@style/Widget.Material3.Button.OutlinedButton"/>
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

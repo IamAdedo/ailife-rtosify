@@ -3133,8 +3133,9 @@ class BluetoothService : Service() {
         sendMessage(ProtocolHelper.createAnswerCall())
     }
 
-    fun sendMediaCommand(command: String, volume: Int? = null) {
-        sendMessage(ProtocolHelper.createMediaControl(command, volume))
+    fun sendMediaCommand(command: String, volume: Int? = null, seekPosition: Long? = null) {
+        val data = MediaControlData(command, volume, seekPosition)
+        sendMessage(ProtocolHelper.createMediaControl(data))
     }
 
     private fun handleSetDndCommand(message: ProtocolMessage) {
@@ -4170,9 +4171,7 @@ class BluetoothService : Service() {
         }
     }
 
-    fun sendMediaCommand(command: String) {
-        sendMessage(ProtocolHelper.createMediaControl(command))
-    }
+
 
     private fun updateDashboardWidget() {
         try {

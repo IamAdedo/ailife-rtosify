@@ -13,6 +13,7 @@ import android.view.Gravity
 import android.view.View
 import android.view.MotionEvent
 import android.view.ViewOutlineProvider
+import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.widget.*
 import android.content.res.ColorStateList
@@ -21,6 +22,20 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import androidx.core.view.setPadding
+import com.google.android.material.progressindicator.LinearProgressIndicator
+import com.google.android.material.slider.Slider
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.appcompat.view.ContextThemeWrapper
+import android.content.DialogInterface
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.ComposeView
+import com.ailife.rtosifycompanion.ui.MediaWaveSlider
+import androidx.lifecycle.findViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.findViewTreeViewModelStoreOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.findViewTreeSavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 
 class DynamicIslandView(context: Context) : FrameLayout(context) {
 
@@ -68,6 +83,11 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     private var isMediaPlaying: Boolean = false
     private var lastAlbumArtBase64: String? = null
     private var cachedAlbumBitmap: Bitmap? = null
+    
+    // Compose states for MediaWaveSlider
+    private var diSliderValue = mutableFloatStateOf(0f)
+    private var diIsPlaying = mutableStateOf(false)
+    private var diDuration = mutableLongStateOf(0L)
 
     // File media playback
     private var currentAudioPlayer: MediaPlayer? = null
@@ -93,6 +113,17 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
 
     // Media suppression
+    
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        val lifecycleOwner = context as? androidx.lifecycle.LifecycleOwner
+        val viewModelStoreOwner = context as? androidx.lifecycle.ViewModelStoreOwner
+        val savedStateRegistryOwner = context as? androidx.savedstate.SavedStateRegistryOwner
+
+        lifecycleOwner?.let { this.setViewTreeLifecycleOwner(it) }
+        viewModelStoreOwner?.let { this.setViewTreeViewModelStoreOwner(it) }
+        savedStateRegistryOwner?.let { this.setViewTreeSavedStateRegistryOwner(it) }
+    }
     private var suppressedMediaTitle: String? = null
     private var suppressedMediaArtist: String? = null
     
@@ -1182,6 +1213,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     }
 
     private fun releaseMediaPlayers() {
+        stopMediaProgressAnimation()
         try {
             currentAudioPlayer?.let {
                 if (it.isPlaying) it.stop()
@@ -1234,7 +1266,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     var onFilePlaybackStarted: ((NotificationData) -> Unit)? = null
 
     // Track current download progress views for updates
-    private var currentDownloadProgressBar: ProgressBar? = null
+    private var currentDownloadProgressBar: LinearProgressIndicator? = null
     private var currentDownloadLabel: TextView? = null
 
     fun updateDownloadProgress(notif: NotificationData, progress: Int) {
@@ -1407,6 +1439,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             expandedList.removeAllViews()
             notifications.forEach { notif ->
                 val itemView = createNotificationListItem(notif)
+                if (itemView.parent != null) {
+                    Log.w("DynamicIslandView", "View already has parent: ${itemView.parent} - forcing remove")
+                    (itemView.parent as? ViewGroup)?.removeView(itemView)
+                }
                 expandedList.addView(itemView)
             }
 
@@ -1432,6 +1468,10 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
             notifications.forEach { notif ->
                 val itemView = createNotificationListItem(notif)
+                if (itemView.parent != null) {
+                    Log.w("DynamicIslandView", "View already has parent (secondary): ${itemView.parent} - forcing remove")
+                    (itemView.parent as? ViewGroup)?.removeView(itemView)
+                }
                 expandedList.addView(itemView)
             }
 
@@ -1808,17 +1848,37 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
                     mediaContainer.addView(controlsRow)
 
-                    // Playback progress bar
-                    val progressBar = SeekBar(context).apply {
-                        layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                    // Wavy Slider (Compose)
+                    val composeSlider = ComposeView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(48)).apply {
                             topMargin = dpToPx(8)
                         }
-                        max = 100
-                        progress = 0
-                        progressTintList = ColorStateList.valueOf(Color.parseColor("#0A84FF"))
-                        thumbTintList = ColorStateList.valueOf(Color.parseColor("#0A84FF"))
+                        setContent {
+                            MediaWaveSlider(
+                                value = diSliderValue.floatValue,
+                                onValueChange = { newValue ->
+                                    diSliderValue.floatValue = newValue
+                                },
+                                isPlaying = diIsPlaying.value,
+                                onValueChangeFinished = {
+                                    try {
+                                        val audioPlayer = currentAudioPlayer
+                                        val videoPlayer = currentVideoView
+                                        if (audioPlayer != null) {
+                                            val seekPos = (audioPlayer.duration * diSliderValue.floatValue / 100).toInt()
+                                            audioPlayer.seekTo(seekPos)
+                                        } else if (videoPlayer != null) {
+                                            val seekPos = (videoPlayer.duration * diSliderValue.floatValue / 100).toInt()
+                                            videoPlayer.seekTo(seekPos)
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error seeking", e)
+                                    }
+                                }
+                            )
+                        }
                     }
-                    mediaContainer.addView(progressBar)
+                    mediaContainer.addView(composeSlider)
 
                     // Update progress periodically - keeps running as long as media player exists
                     val progressHandler = Handler(Looper.getMainLooper())
@@ -1828,12 +1888,14 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                 val audioPlayer = currentAudioPlayer
                                 val videoPlayer = currentVideoView
 
+                                diIsPlaying.value = (audioPlayer?.isPlaying ?: false) || (videoPlayer?.isPlaying ?: false)
+
                                 // Update progress for audio
                                 if (audioPlayer != null) {
                                     val duration = audioPlayer.duration
                                     val position = audioPlayer.currentPosition
                                     if (duration > 0) {
-                                        progressBar.progress = (position * 100 / duration)
+                                        diSliderValue.floatValue = (position * 100f / duration).coerceIn(0f, 100f)
                                     }
                                     // Keep running as long as player exists
                                     progressHandler.postDelayed(this, 500)
@@ -1845,7 +1907,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                                     val duration = videoPlayer.duration
                                     val position = videoPlayer.currentPosition
                                     if (duration > 0) {
-                                        progressBar.progress = (position * 100 / duration)
+                                        diSliderValue.floatValue = (position * 100f / duration).coerceIn(0f, 100f)
                                     }
                                     // Keep running as long as player exists
                                     progressHandler.postDelayed(this, 500)
@@ -1864,29 +1926,15 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                     }
                     progressHandler.post(updateProgress)
 
-                    // Seek on progress bar change
-                    progressBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                        override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                            if (fromUser) {
-                                try {
-                                    val audioPlayer = currentAudioPlayer
-                                    val videoPlayer = currentVideoView
-
-                                    if (audioPlayer != null) {
-                                        val seekPos = (audioPlayer.duration * progress / 100)
-                                        audioPlayer.seekTo(seekPos)
-                                    } else if (videoPlayer != null) {
-                                        val seekPos = (videoPlayer.duration * progress / 100)
-                                        videoPlayer.seekTo(seekPos)
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "Error seeking", e)
-                                }
-                            }
+                    // Stop updates when view is detached
+                    composeSlider.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                        override fun onViewAttachedToWindow(v: View) {}
+                        override fun onViewDetachedFromWindow(v: View) {
+                            progressHandler.removeCallbacksAndMessages(null)
                         }
-                        override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                        override fun onStopTrackingTouch(seekBar: SeekBar?) {}
                     })
+
+
 
                 } else {
                     // Play/download state
@@ -1919,13 +1967,14 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                         playLabel.text = "Downloading... ${notif.downloadProgress}%"
 
                         // Download progress bar
-                        val downloadProgress = ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+                        val downloadProgress = LinearProgressIndicator(ContextThemeWrapper(context, R.style.Theme_Smartwatch)).apply {
                             layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(4)).apply {
                                 topMargin = dpToPx(8)
                             }
                             max = 100
                             progress = notif.downloadProgress
-                            progressTintList = ColorStateList.valueOf(Color.parseColor("#0A84FF"))
+                            setIndicatorColor(Color.parseColor("#0A84FF"))
+                            setTrackColor(Color.parseColor("#330A84FF"))
                         }
                         mediaContainer.addView(downloadProgress)
 
@@ -1941,13 +1990,14 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                             playLabel.text = "Downloading... 0%"
 
                             // Add progress bar dynamically
-                            val downloadProgress = ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+                            val downloadProgress = LinearProgressIndicator(ContextThemeWrapper(context, R.style.Theme_Smartwatch)).apply {
                                 layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(4)).apply {
                                     topMargin = dpToPx(8)
                                 }
                                 max = 100
                                 progress = 0
-                                progressTintList = ColorStateList.valueOf(Color.parseColor("#0A84FF"))
+                                setIndicatorColor(Color.parseColor("#0A84FF"))
+                                setTrackColor(Color.parseColor("#330A84FF"))
                             }
                             mediaContainer.addView(downloadProgress)
                             currentDownloadProgressBar = downloadProgress
@@ -2246,10 +2296,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 }
 
         val dialog =
-                android.app.AlertDialog.Builder(
-                                context,
-                                android.R.style.Theme_DeviceDefault_Dialog_Alert
-                        )
+                MaterialAlertDialogBuilder(ContextThemeWrapper(context, R.style.Theme_Smartwatch))
                         .setTitle(context.getString(R.string.di_reply_to, notif.title))
                         .setView(container)
                         .setPositiveButton(context.getString(R.string.di_send)) { _, _ ->
@@ -2784,7 +2831,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 setTextColor(Color.WHITE)
                 textSize = getScaledTextSize(16f)
                 gravity = Gravity.CENTER
-                setOnClickListener { onMediaAction?.invoke(if (isPlaying) "pause" else "play") }
+                setOnClickListener { onMediaAction?.invoke(if (isPlaying) "pause" else "play", 0L) }
             }
             contentLayout.addView(playPauseBtn)
             
@@ -2828,6 +2875,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         // Store playback state for progress animation
         this.isMediaPlaying = isPlaying
         this.mediaDuration = duration
+        this.diDuration.longValue = duration
         if (isPlaying && !isAlreadyMediaExpanded) {
             mediaStartTime = System.currentTimeMillis()
             mediaStartPosition = position
@@ -2950,13 +2998,22 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 visibility = if (duration > 0) VISIBLE else GONE
             }
 
-            val progressBar = android.widget.ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+            val progressBar = ComposeView(context).apply {
                 tag = "media_progress_bar"
-                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(4))
-                max = if (duration > 0) duration.toInt() else 100
-                progress = if (duration > 0) position.toInt() else 0
-                progressDrawable = context.getDrawable(android.R.drawable.progress_horizontal)
-                progressTintList = ColorStateList.valueOf(Color.WHITE)
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(48)) // Increased height for wave
+                setContent {
+                    MediaWaveSlider(
+                        value = diSliderValue.floatValue,
+                        onValueChange = { newValue ->
+                            diSliderValue.floatValue = newValue
+                        },
+                        isPlaying = diIsPlaying.value,
+                        onValueChangeFinished = {
+                            val newPos = (diSliderValue.floatValue / 100 * diDuration.longValue)
+                            onMediaAction?.invoke("seek", newPos.toLong())
+                        }
+                    )
+                }
             }
             progressLayout.addView(progressBar)
 
@@ -2994,17 +3051,17 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 setPadding(dpToPx(12), 0, dpToPx(12), dpToPx(8))
             }
             
-            val prevBtn = createControlButton("⏮", 24f) { onMediaAction?.invoke("prev") }
+            val prevBtn = createControlButton("⏮", 24f) { onMediaAction?.invoke("prev", 0L) }
             playbackLayout.addView(prevBtn)
             
             val playPauseBtn = createControlButton(if (isPlaying) "⏸" else "▶", 32f) { 
-                onMediaAction?.invoke(if (isPlaying) "pause" else "play") 
+                onMediaAction?.invoke(if (isPlaying) "pause" else "play", 0L) 
             }.apply {
                 tag = "media_play_pause"
             }
             playbackLayout.addView(playPauseBtn)
             
-            val nextBtn = createControlButton("⏭", 24f) { onMediaAction?.invoke("next") }
+            val nextBtn = createControlButton("⏭", 24f) { onMediaAction?.invoke("next", 0L) }
             playbackLayout.addView(nextBtn)
             
             mainLayout.addView(playbackLayout)
@@ -3027,7 +3084,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             volumeLayout.addView(volLabel)
             
             val volDownBtn = createControlButton("−", 28f) { 
-                onMediaAction?.invoke("vol_down") 
+                onMediaAction?.invoke("vol_down", 0L) 
             }.apply {
                 layoutParams = LinearLayout.LayoutParams(0, dpToPx(50), 1f)
                 maxWidth = dpToPx(70)
@@ -3050,7 +3107,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             volumeLayout.addView(volText)
             
             val volUpBtn = createControlButton("+", 28f) { 
-                onMediaAction?.invoke("vol_up") 
+                onMediaAction?.invoke("vol_up", 0L) 
             }.apply {
                 layoutParams = LinearLayout.LayoutParams(0, dpToPx(50), 1f)
                 maxWidth = dpToPx(70)
@@ -3125,10 +3182,9 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                     val wrapper = expandedContainer.findViewWithTag<FrameLayout>("scroll_wrapper")
                     val mediaLayout = wrapper?.findViewWithTag<FrameLayout>("media_expanded_layout")
                     
-                    mediaLayout?.findViewWithTag<android.widget.ProgressBar>("media_progress_bar")?.apply {
-                        if (currentPos <= mediaDuration) {
-                            progress = currentPos.toInt()
-                        }
+                    diIsPlaying.value = isMediaPlaying
+                    if (currentPos <= mediaDuration) {
+                        diSliderValue.floatValue = (currentPos * 100f / mediaDuration).coerceIn(0f, 100f)
                     }
                     mediaLayout?.findViewWithTag<TextView>("media_position")?.text = formatTime(currentPos)
                     
@@ -3151,6 +3207,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         val wasPlaying = this.isMediaPlaying
         this.isMediaPlaying = isPlaying
         this.mediaDuration = duration
+        this.diDuration.longValue = duration
         
         if (isPlaying && !wasPlaying) {
             // Started playing
@@ -3183,16 +3240,14 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         wrapper.findViewWithTag<TextView>("media_artist")?.text = artist ?: "Unknown Artist"
         wrapper.findViewWithTag<TextView>("media_play_pause")?.apply {
             text = if (isPlaying) "⏸" else "▶"
-            setOnClickListener { onMediaAction?.invoke(if (isPlaying) "pause" else "play") }
+            setOnClickListener { onMediaAction?.invoke(if (isPlaying) "pause" else "play", 0L) }
         }
         
         wrapper.findViewWithTag<View>("media_progress_layout")?.visibility = if (duration > 0) VISIBLE else GONE
-        wrapper.findViewWithTag<android.widget.ProgressBar>("media_progress_bar")?.apply {
-            if (duration > 0) {
-                max = duration.toInt()
-                if (!isPlaying) {
-                    progress = position.toInt()
-                }
+        diIsPlaying.value = isPlaying
+        if (duration > 0) {
+            if (!isPlaying) {
+                diSliderValue.floatValue = (position * 100f / duration).coerceIn(0f, 100f)
             }
         }
         if (!isPlaying) {
@@ -3232,7 +3287,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     
     // Callbacks
     var onAlarmAction: ((String) -> Unit)? = null
-    var onMediaAction: ((String) -> Unit)? = null
+    var onMediaAction: ((String, Long) -> Unit)? = null
     var onCallAction: ((String) -> Unit)? = null
     var onCollapse: (() -> Unit)? = null
 

@@ -4,21 +4,22 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/colorBackground"
+    android:background="?android:attr/colorBackground"
     tools:context=".FileManagerActivity">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:theme="@style/AppTheme.AppBarOverlay">
+        android:background="?android:attr/colorBackground">
 
-        <androidx.appcompat.widget.Toolbar
+        <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="?attr/colorPrimary"
-            app:popupTheme="@style/AppTheme.PopupOverlay" />
+            app:navigationIcon="@drawable/ic_arrow_back"
+            app:navigationIconTint="?attr/colorOnSurface"
+            app:title="@string/file_manager" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -32,18 +33,19 @@
             android:id="@+id/tvCurrentPath"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:background="#1AFFFFFF"
+            android:background="?attr/colorSurfaceContainer"
+            android:padding="12dp"
             android:text="@string/symbol_slash"
-            android:textColor="@color/colorAccent"
-            android:textSize="14sp" />
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?attr/colorPrimary" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerViewFiles"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
-            android:padding="4dp" />
+            android:clipToPadding="false"
+            android:padding="8dp" />
 
     </LinearLayout>
 
@@ -53,15 +55,15 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        app:srcCompat="@android:drawable/ic_menu_upload"
-        android:contentDescription="@string/file_uploading" />
+        android:contentDescription="@string/file_uploading"
+        app:srcCompat="@android:drawable/ic_menu_upload" />
 
-    <ProgressBar
+    <com.google.android.material.progressindicator.CircularProgressIndicator
         android:id="@+id/progressBarFiles"
-        style="?android:attr/progressBarStyleLarge"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
+        android:indeterminate="true"
         android:visibility="gone" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

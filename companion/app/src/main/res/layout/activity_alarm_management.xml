@@ -1,53 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="?android:windowBackground">
+    android:background="?android:attr/colorBackground"
+    tools:context=".AlarmManagementActivity">
 
-    <!-- Compact header -->
-    <LinearLayout
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="12dp"
-        android:background="?attr/colorPrimary">
-        
+        android:background="?android:attr/colorBackground">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:navigationIcon="?attr/homeAsUpIndicator"
+            app:navigationIconTint="?attr/colorOnSurface"
+            app:title="@string/menu_alarms">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAddAlarm"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="end"
+                android:layout_marginEnd="8dp"
+                android:text="@string/symbol_plus"
+                android:textSize="20sp"
+                android:padding="0dp" />
+
+        </com.google.android.material.appbar.MaterialToolbar>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <FrameLayout
+        android:id="@+id/container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerViewAlarms"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:padding="4dp"
+            android:clipToPadding="false" />
+
         <TextView
-            android:layout_width="0dp"
+            android:id="@+id/tvEmptyState"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/menu_alarms"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="#FFFFFF" />
-        
-        <Button
-            android:id="@+id/btnAddAlarm"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:text="@string/symbol_plus"
-            android:textSize="20sp"
-            android:padding="0dp" />
-    </LinearLayout>
+            android:layout_gravity="center"
+            android:text="@string/alarm_no_alarms"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?android:attr/textColorSecondary"
+            android:visibility="gone" />
 
-    <!-- Alarm list -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerViewAlarms"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:padding="4dp" />
+    </FrameLayout>
 
-    <TextView
-        android:id="@+id/tvEmptyState"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginTop="40dp"
-        android:text="@string/alarm_no_alarms"
-        android:textSize="14sp"
-        android:visibility="gone" />
-
-</LinearLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

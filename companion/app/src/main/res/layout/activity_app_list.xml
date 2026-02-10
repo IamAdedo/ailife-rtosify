@@ -20,8 +20,8 @@
             android:layout_height="120dp"
             app:layout_scrollFlags="scroll|exitUntilCollapsed|snap"
             app:title="@string/applist_title"
-            app:collapsedTitleTextAppearance="@style/TextAppearance.AppCompat.Title"
-            app:expandedTitleTextAppearance="@style/TextAppearance.AppCompat.Display1"
+            app:collapsedTitleTextAppearance="@style/TextAppearance.Material3.TitleMedium"
+            app:expandedTitleTextAppearance="@style/TextAppearance.Material3.DisplaySmall"
             app:expandedTitleMarginStart="20dp"
             app:expandedTitleMarginBottom="20dp">
 
@@ -48,7 +48,7 @@
             android:gravity="center"
             android:padding="32dp">
 
-            <ProgressBar
+            <com.google.android.material.progressindicator.CircularProgressIndicator
                 android:id="@+id/progressBarList"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

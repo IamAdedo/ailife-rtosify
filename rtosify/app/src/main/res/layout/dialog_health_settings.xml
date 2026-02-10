@@ -32,13 +32,18 @@
                 android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
                 android:layout_marginBottom="4dp" />
 
-            <EditText
-                android:id="@+id/etAge"
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="25"
-                android:inputType="number"
-                android:maxLines="1" />
+                android:hint="25">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etAge"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>
 
         <!-- Gender -->
@@ -76,13 +81,18 @@
                 android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
                 android:layout_marginBottom="4dp" />
 
-            <EditText
-                android:id="@+id/etHeight"
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="170"
-                android:inputType="number"
-                android:maxLines="1" />
+                android:hint="170">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etHeight"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>
 
         <!-- Weight -->
@@ -99,13 +109,18 @@
                 android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
                 android:layout_marginBottom="4dp" />
 
-            <EditText
-                android:id="@+id/etWeight"
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="70"
-                android:inputType="numberDecimal"
-                android:maxLines="1" />
+                android:hint="70">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etWeight"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="numberDecimal"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>
 
         <!-- Divider -->
@@ -139,13 +154,18 @@
                 android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
                 android:layout_marginBottom="4dp" />
 
-            <EditText
-                android:id="@+id/etStepGoal"
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="10000"
-                android:inputType="number"
-                android:maxLines="1" />
+                android:hint="10000">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etStepGoal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>
 
         <!-- Monitoring Interval -->
@@ -162,13 +182,18 @@
                 android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
                 android:layout_marginBottom="4dp" />
 
-            <EditText
-                android:id="@+id/etMonitoringInterval"
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="30"
-                android:inputType="number"
-                android:maxLines="1" />
+                android:hint="30">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etMonitoringInterval"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>
 
         <!-- Background Monitoring Switch -->
@@ -186,7 +211,7 @@
                 android:text="@string/health_background_monitoring"
                 android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
-            <androidx.appcompat.widget.SwitchCompat
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/switchBackgroundMonitoring"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
@@ -206,7 +231,7 @@
                 android:text="@string/health_use_instant_steps"
                 android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
-            <androidx.appcompat.widget.SwitchCompat
+            <com.google.android.material.materialswitch.MaterialSwitch
                 android:id="@+id/switchInstantSteps"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />

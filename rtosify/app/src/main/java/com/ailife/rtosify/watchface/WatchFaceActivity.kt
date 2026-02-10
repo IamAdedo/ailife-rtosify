@@ -16,8 +16,9 @@ import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
+import com.google.android.material.appbar.MaterialToolbar
 import com.ailife.rtosify.BluetoothService
 import com.ailife.rtosify.DeviceInfoData
 import com.ailife.rtosify.FileTransferData
@@ -30,7 +31,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.lifecycleScope
 import android.view.View
-import android.widget.ProgressBar
+import com.google.android.material.progressindicator.CircularProgressIndicator
+import com.google.android.material.progressindicator.LinearProgressIndicator
 import android.widget.TextView
 
 data class TransferRequest(val file: File, val remotePath: String)
@@ -38,7 +40,7 @@ data class TransferRequest(val file: File, val remotePath: String)
 class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     private lateinit var tabLayout: TabLayout
-    private lateinit var toolbar: Toolbar
+    private lateinit var toolbar: MaterialToolbar
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
 
@@ -228,7 +230,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
     private fun showProgressDialog(message: String) {
         runOnUiThread {
             if (progressDialog == null) {
-                val builder = AlertDialog.Builder(this)
+                val builder = MaterialAlertDialogBuilder(this)
                 val view = layoutInflater.inflate(R.layout.dialog_upload_progress, null)
                 builder.setView(view)
                 builder.setCancelable(false)
@@ -237,7 +239,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
             }
             progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadDescription)?.text =
                     message
-            progressDialog?.findViewById<android.widget.ProgressBar>(R.id.progressBarUpload)
+            progressDialog?.findViewById<com.google.android.material.progressindicator.LinearProgressIndicator>(R.id.progressBarUpload)
                     ?.progress = 0
             progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadPercentage)?.text =
                     getString(R.string.percent_format, 0)
@@ -448,7 +450,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
     private fun showProgressDialog(title: String, message: String) {
         runOnUiThread {
             if (progressDialog == null || progressDialog?.isShowing == false) {
-                val builder = androidx.appcompat.app.AlertDialog.Builder(this)
+                val builder = MaterialAlertDialogBuilder(this)
                 val view = layoutInflater.inflate(R.layout.dialog_upload_progress, null)
                 builder.setView(view)
                 builder.setCancelable(false)
@@ -471,7 +473,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
             progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadTitle)?.text = title
             progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadDescription)?.text = message
             progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadPercentage)?.text = getString(R.string.percent_format, 0)
-            progressDialog?.findViewById<android.widget.ProgressBar>(R.id.progressBarUpload)?.progress = 0
+            progressDialog?.findViewById<com.google.android.material.progressindicator.LinearProgressIndicator>(R.id.progressBarUpload)?.progress = 0
             progressDialog?.findViewById<android.widget.Button>(R.id.btnUploadOk)?.visibility = View.GONE
             progressDialog?.findViewById<android.widget.Button>(R.id.btnUploadCancel)?.visibility = View.VISIBLE
         }
@@ -523,7 +525,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
                          progressDialog?.findViewById<android.widget.Button>(R.id.btnUploadOk)?.visibility = View.VISIBLE
                          progressDialog?.findViewById<android.widget.Button>(R.id.btnUploadCancel)?.visibility = View.GONE
                          progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadTitle)?.text = getString(R.string.upload_complete_title)
-                         progressDialog?.findViewById<android.widget.ProgressBar>(R.id.progressBarUpload)?.progress = 100
+                         progressDialog?.findViewById<com.google.android.material.progressindicator.LinearProgressIndicator>(R.id.progressBarUpload)?.progress = 100
                          progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadPercentage)?.text = getString(R.string.percent_100)
                     } else {
                          // Next item - keep dialog open
@@ -539,7 +541,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
                     Toast.makeText(this, getString(R.string.wf_transfer_failed), Toast.LENGTH_SHORT).show()
                 }
             } else {
-                progressDialog?.findViewById<android.widget.ProgressBar>(R.id.progressBarUpload)
+                progressDialog?.findViewById<com.google.android.material.progressindicator.LinearProgressIndicator>(R.id.progressBarUpload)
                         ?.progress = progress
                 progressDialog?.findViewById<android.widget.TextView>(R.id.tvUploadPercentage)
                         ?.text = getString(R.string.percent_format, progress)

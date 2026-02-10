@@ -7,10 +7,10 @@ import android.content.ServiceConnection
 import android.net.wifi.WifiManager
 import android.os.Bundle
 import android.os.IBinder
-import android.widget.Button
-import android.widget.CheckBox
-import android.widget.ImageButton
-import android.widget.RadioButton
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.checkbox.MaterialCheckBox
+
+import com.google.android.material.radiobutton.MaterialRadioButton
 import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
@@ -19,6 +19,7 @@ import android.view.View
 import android.text.Editable
 import android.text.TextWatcher
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
 import com.ailife.rtosify.communication.TransportManager
 import kotlinx.coroutines.Job
@@ -41,31 +42,31 @@ class NetworkSettingsActivity : AppCompatActivity() {
 
     // Bluetooth Transport Mode
     private lateinit var radioGroupBtTransport: RadioGroup
-    private lateinit var radioBtClassic: RadioButton
-    private lateinit var radioBtBle: RadioButton
+    private lateinit var radioBtClassic: MaterialRadioButton
+    private lateinit var radioBtBle: MaterialRadioButton
 
     // LAN Rules
     private lateinit var radioGroupLan: RadioGroup
-    private lateinit var radioLanDisabled: RadioButton
-    private lateinit var radioLanBtFallback: RadioButton
-    private lateinit var radioLanAppOpen: RadioButton
-    private lateinit var radioLanBtOrApp: RadioButton
-    private lateinit var radioLanAlways: RadioButton
+    private lateinit var radioLanDisabled: MaterialRadioButton
+    private lateinit var radioLanBtFallback: MaterialRadioButton
+    private lateinit var radioLanAppOpen: MaterialRadioButton
+    private lateinit var radioLanBtOrApp: MaterialRadioButton
+    private lateinit var radioLanAlways: MaterialRadioButton
 
     // Internet Rules
     private lateinit var radioGroupInternet: RadioGroup
-    private lateinit var radioInternetDisabled: RadioButton
-    private lateinit var radioInternetBtLanFallback: RadioButton
-    private lateinit var radioInternetAppOpen: RadioButton
-    private lateinit var radioInternetAlways: RadioButton
+    private lateinit var radioInternetDisabled: MaterialRadioButton
+    private lateinit var radioInternetBtLanFallback: MaterialRadioButton
+    private lateinit var radioInternetAppOpen: MaterialRadioButton
+    private lateinit var radioInternetAlways: MaterialRadioButton
 
     // Other views
-    private lateinit var btnPairForInternet: Button
-    private lateinit var btnTestInternet: Button
-    private lateinit var checkBoxFixedIp: CheckBox
+    private lateinit var btnPairForInternet: MaterialButton
+    private lateinit var btnTestInternet: MaterialButton
+    private lateinit var checkBoxFixedIp: MaterialCheckBox
     private lateinit var layoutFixedIp: View
     private lateinit var etFixedIp: EditText
-    private lateinit var checkBoxHqLan: CheckBox
+    private lateinit var checkBoxHqLan: MaterialCheckBox
     private lateinit var tvCurrentWifi: TextView
     private lateinit var tvPhoneIp: TextView
     private lateinit var tvWatchWifi: TextView
@@ -160,7 +161,9 @@ class NetworkSettingsActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
-        findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
+        val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        toolbar.setNavigationOnClickListener { finish() }
 
         // Status views
         tvActiveConnection = findViewById(R.id.tvActiveConnection)
@@ -597,7 +600,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
     private fun checkPrivacyAgreement() {
         val prefs = devicePrefManager.getGlobalPrefs()
         if (!prefs.getBoolean("privacy_policy_agreed", false)) {
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.privacy_policy_title)
                 .setMessage(R.string.privacy_policy_content)
                 .setCancelable(false)

@@ -14,7 +14,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
+import com.google.android.material.appbar.MaterialToolbar
 import androidx.core.content.ContextCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -22,7 +22,7 @@ import com.ailife.rtosify.utils.DeviceActionManager
 
 class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
-    private lateinit var toolbar: Toolbar
+    private lateinit var toolbar: MaterialToolbar
     private lateinit var imgStatus: ImageView
     private lateinit var tvStatus: TextView
     private lateinit var btnStartMirror: MaterialButton

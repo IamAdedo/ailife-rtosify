@@ -13,16 +13,17 @@ import android.util.Base64
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
-import android.widget.CheckBox
+import com.google.android.material.checkbox.MaterialCheckBox
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
+import com.google.android.material.appbar.MaterialToolbar
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.google.gson.Gson
@@ -112,7 +113,7 @@ class FileObserverSettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_file_observer_settings)
 
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
+        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
@@ -155,7 +156,7 @@ class FileObserverSettingsActivity : AppCompatActivity() {
     }
 
     private fun deleteRule(rule: FileObserverRule) {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.fo_delete_rule_title))
             .setMessage(getString(R.string.fo_delete_rule_msg, rule.name))
             .setPositiveButton(getString(R.string.fo_btn_delete)) { _, _ ->
@@ -187,12 +188,12 @@ class FileObserverSettingsActivity : AppCompatActivity() {
         val btnPickIcon = dialogView.findViewById<android.widget.Button>(R.id.btnPickIcon)
         val containerIcon = dialogView.findViewById<View>(R.id.tvIconLabel).parent as View
         
-        val cbImage = dialogView.findViewById<CheckBox>(R.id.cbTypeImage)
-        val cbVideo = dialogView.findViewById<CheckBox>(R.id.cbTypeVideo)
-        val cbAudio = dialogView.findViewById<CheckBox>(R.id.cbTypeAudio)
-        val cbText = dialogView.findViewById<CheckBox>(R.id.cbTypeText)
-        val switchRecursive = dialogView.findViewById<SwitchMaterial>(R.id.switchRecursive)
-        val switchSendToWatch = dialogView.findViewById<SwitchMaterial>(R.id.switchSendToWatch)
+        val cbImage = dialogView.findViewById<MaterialCheckBox>(R.id.cbTypeImage)
+        val cbVideo = dialogView.findViewById<MaterialCheckBox>(R.id.cbTypeVideo)
+        val cbAudio = dialogView.findViewById<MaterialCheckBox>(R.id.cbTypeAudio)
+        val cbText = dialogView.findViewById<MaterialCheckBox>(R.id.cbTypeText)
+        val switchRecursive = dialogView.findViewById<MaterialSwitch>(R.id.switchRecursive)
+        val switchSendToWatch = dialogView.findViewById<MaterialSwitch>(R.id.switchSendToWatch)
 
         currentDialogPathInput = etPath
         currentDialogIconBase64 = existingRule?.iconBase64
@@ -284,7 +285,7 @@ class FileObserverSettingsActivity : AppCompatActivity() {
             switchSendToWatch.isChecked = true
         }
 
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(if (existingRule != null) getString(R.string.fo_edit_rule_title) else getString(R.string.fo_add_rule_title))
             .setView(dialogView)
             .setPositiveButton(getString(R.string.fo_btn_save)) { _, _ ->
@@ -363,7 +364,7 @@ class FileObserverSettingsActivity : AppCompatActivity() {
 
         val items = apps.map { it.loadLabel(packageManager).toString() }.toTypedArray()
         
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(getString(R.string.fo_pick_icon_title))
             .setItems(items) { _, which ->
                 val app = apps[which]

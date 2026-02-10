@@ -52,23 +52,24 @@
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_menu_set_as"
-                app:tint="@color/design_default_color_primary" />
+                android:src="@drawable/ic_check"
+                app:tint="?attr/colorPrimary" />
 
             <ImageButton
                 android:id="@+id/btnRename"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_menu_edit" />
+                android:src="@drawable/ic_edit"
+                app:tint="?attr/colorOnSurfaceVariant" />
 
             <ImageButton
                 android:id="@+id/btnDelete"
                 android:layout_width="32dp"
                 android:layout_height="32dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@android:drawable/ic_menu_delete"
-                app:tint="@android:color/holo_red_dark" />
+                android:src="@drawable/ic_delete"
+                app:tint="?attr/colorError" />
 
         </LinearLayout>
 

@@ -32,12 +32,12 @@
         android:layout_marginBottom="12dp"
         android:gravity="center" />
 
-    <ProgressBar
+    <com.google.android.material.progressindicator.LinearProgressIndicator
         android:id="@+id/progressBarShare"
-        style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:max="100" />
+        android:max="100"
+        android:indeterminate="false" />
 
     <TextView
         android:id="@+id/tvSharePercentage"

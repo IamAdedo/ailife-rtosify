@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.os.IBinder
 import android.provider.ContactsContract
 import android.view.View
+import com.google.android.material.button.MaterialButton
 import android.widget.Button
 import android.widget.GridLayout
 import android.widget.ImageButton
@@ -66,8 +67,13 @@ class DialerActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_dialer)
-        val rootLayout = findViewById<View>(R.id.rootLayout)
-        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
+        val appBarLayout = findViewById<View>(R.id.appBarLayout)
+        val container = findViewById<View>(R.id.container)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, container)
+        
+        val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        toolbar.setNavigationOnClickListener { finish() }
 
         tvNumber = findViewById(R.id.tv_number)
         viewFlipper = findViewById(R.id.view_flipper)
@@ -82,14 +88,14 @@ class DialerActivity : AppCompatActivity() {
 
         setupKeypad()
 
-        findViewById<Button>(R.id.btn_delete).setOnClickListener {
+        findViewById<MaterialButton>(R.id.btn_delete).setOnClickListener {
             val current = tvNumber.text.toString()
             if (current.isNotEmpty()) {
                 tvNumber.text = current.substring(0, current.length - 1)
             }
         }
 
-        findViewById<Button>(R.id.btn_call).setOnClickListener {
+        findViewById<MaterialButton>(R.id.btn_call).setOnClickListener {
             val number = tvNumber.text.toString()
             if (number.isNotEmpty()) {
                 makeCall(number)

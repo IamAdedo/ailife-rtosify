@@ -1,6 +1,10 @@
 package com.ailife.rtosify
 
-import android.app.AlertDialog
+import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.checkbox.MaterialCheckBox
+import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.progressindicator.CircularProgressIndicator
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
@@ -22,7 +26,7 @@ class AlarmManagementActivity : AppCompatActivity() {
 
     private lateinit var recyclerView: RecyclerView
     private lateinit var swipeRefresh: SwipeRefreshLayout
-    private lateinit var progressBar: ProgressBar
+    private lateinit var progressBar: CircularProgressIndicator
     private lateinit var emptyState: TextView
     private lateinit var fabAdd: FloatingActionButton
     
@@ -66,8 +70,9 @@ class AlarmManagementActivity : AppCompatActivity() {
         val recyclerView = findViewById<View>(R.id.recyclerViewAlarms)
         EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, recyclerView)
         
-        setSupportActionBar(findViewById(R.id.toolbar))
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        toolbar.setNavigationOnClickListener { finish() }
         
         initViews()
         setupRecyclerView()
@@ -136,13 +141,13 @@ class AlarmManagementActivity : AppCompatActivity() {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_alarm_editor, null)
         
         val timePicker = dialogView.findViewById<TimePicker>(R.id.timePicker)
-        val cbMonday = dialogView.findViewById<CheckBox>(R.id.cbMonday)
-        val cbTuesday = dialogView.findViewById<CheckBox>(R.id.cbTuesday)
-        val cbWednesday = dialogView.findViewById<CheckBox>(R.id.cbWednesday)
-        val cbThursday = dialogView.findViewById<CheckBox>(R.id.cbThursday)
-        val cbFriday = dialogView.findViewById<CheckBox>(R.id.cbFriday)
-        val cbSaturday = dialogView.findViewById<CheckBox>(R.id.cbSaturday)
-        val cbSunday = dialogView.findViewById<CheckBox>(R.id.cbSunday)
+        val btnMonday = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnMonday)
+        val btnTuesday = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnTuesday)
+        val btnWednesday = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnWednesday)
+        val btnThursday = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnThursday)
+        val btnFriday = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnFriday)
+        val btnSaturday = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnSaturday)
+        val btnSunday = dialogView.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnSunday)
         val etLabel = dialogView.findViewById<EditText>(R.id.etAlarmLabel)
         
         timePicker.setIs24HourView(true)
@@ -153,16 +158,16 @@ class AlarmManagementActivity : AppCompatActivity() {
             timePicker.minute = alarm.minute
             etLabel.setText(alarm.label)
             
-            cbMonday.isChecked = alarm.daysOfWeek.contains(1)
-            cbTuesday.isChecked = alarm.daysOfWeek.contains(2)
-            cbWednesday.isChecked = alarm.daysOfWeek.contains(3)
-            cbThursday.isChecked = alarm.daysOfWeek.contains(4)
-            cbFriday.isChecked = alarm.daysOfWeek.contains(5)
-            cbSaturday.isChecked = alarm.daysOfWeek.contains(6)
-            cbSunday.isChecked = alarm.daysOfWeek.contains(7)
+            btnMonday.isChecked = alarm.daysOfWeek.contains(1)
+            btnTuesday.isChecked = alarm.daysOfWeek.contains(2)
+            btnWednesday.isChecked = alarm.daysOfWeek.contains(3)
+            btnThursday.isChecked = alarm.daysOfWeek.contains(4)
+            btnFriday.isChecked = alarm.daysOfWeek.contains(5)
+            btnSaturday.isChecked = alarm.daysOfWeek.contains(6)
+            btnSunday.isChecked = alarm.daysOfWeek.contains(7)
         }
         
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(if (existingAlarm == null) getString(R.string.alarm_add_title) else getString(R.string.alarm_edit_title))
             .setView(dialogView)
             .setPositiveButton(R.string.alarm_save) { _, _ ->
@@ -171,13 +176,13 @@ class AlarmManagementActivity : AppCompatActivity() {
                 val label = etLabel.text.toString()
                 
                 val daysOfWeek = mutableListOf<Int>()
-                if (cbMonday.isChecked) daysOfWeek.add(1)
-                if (cbTuesday.isChecked) daysOfWeek.add(2)
-                if (cbWednesday.isChecked) daysOfWeek.add(3)
-                if (cbThursday.isChecked) daysOfWeek.add(4)
-                if (cbFriday.isChecked) daysOfWeek.add(5)
-                if (cbSaturday.isChecked) daysOfWeek.add(6)
-                if (cbSunday.isChecked) daysOfWeek.add(7)
+                if (btnMonday.isChecked) daysOfWeek.add(1)
+                if (btnTuesday.isChecked) daysOfWeek.add(2)
+                if (btnWednesday.isChecked) daysOfWeek.add(3)
+                if (btnThursday.isChecked) daysOfWeek.add(4)
+                if (btnFriday.isChecked) daysOfWeek.add(5)
+                if (btnSaturday.isChecked) daysOfWeek.add(6)
+                if (btnSunday.isChecked) daysOfWeek.add(7)
                 
                 val alarm = AlarmData(
                     id = existingAlarm?.id ?: UUID.randomUUID().toString(),
@@ -202,7 +207,7 @@ class AlarmManagementActivity : AppCompatActivity() {
     }
     
     private fun confirmDelete(alarm: AlarmData) {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(R.string.alarm_delete_title)
             .setMessage(getString(R.string.alarm_delete_confirm, String.format("%02d:%02d", alarm.hour, alarm.minute)))
             .setPositiveButton(R.string.alarm_delete) { _, _ ->
@@ -222,10 +227,7 @@ class AlarmManagementActivity : AppCompatActivity() {
         }
     }
     
-    override fun onSupportNavigateUp(): Boolean {
-        finish()
-        return true
-    }
+
     
     // Adapter
     class AlarmAdapter(
@@ -256,7 +258,7 @@ class AlarmManagementActivity : AppCompatActivity() {
             private val tvTime: TextView = view.findViewById(R.id.tvAlarmTime)
             private val tvDays: TextView = view.findViewById(R.id.tvAlarmDays)
             private val tvLabel: TextView = view.findViewById(R.id.tvAlarmLabel)
-            private val switchEnabled: androidx.appcompat.widget.SwitchCompat = view.findViewById(R.id.switchAlarmEnabled)
+            private val switchEnabled: MaterialSwitch = view.findViewById(R.id.switchAlarmEnabled)
             private val btnDelete: ImageButton = view.findViewById(R.id.btnDeleteAlarm)
             
             fun bind(alarm: AlarmData) {

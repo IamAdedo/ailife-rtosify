@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Widget Adaptive Colors (Dark) -->
+    <color name="widget_background">#212121</color>
+    <color name="widget_text_primary">#FFFFFF</color>
+    <color name="widget_text_secondary">#AAAAAA</color>
+    <color name="widget_divider">#44FFFFFF</color>
+</resources>

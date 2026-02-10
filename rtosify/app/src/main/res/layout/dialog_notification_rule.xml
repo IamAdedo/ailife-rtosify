@@ -18,36 +18,33 @@
         android:layout_marginTop="16dp"
         android:textColor="?android:attr/textColorPrimary"/>
 
-    <LinearLayout
+    <com.google.android.material.button.MaterialButtonToggleGroup
+        android:id="@+id/toggleGroupMode"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
         android:layout_marginTop="8dp"
-        android:background="@android:drawable/dialog_holo_light_frame"
-        android:padding="4dp">
+        app:singleSelection="true"
+        app:selectionRequired="true"
+        app:checkedButton="@+id/btnWhitelist">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnWhitelist"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/rule_whitelist"
-            android:textColor="@android:color/holo_green_dark"
-            android:layout_marginEnd="4dp"
-            android:minHeight="48dp"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+            app:icon="@android:drawable/checkbox_on_background"
+            style="@style/Widget.Material3.Button.OutlinedButton"/>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnBlacklist"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/rule_blacklist"
-            android:textColor="@android:color/holo_red_dark"
-            android:layout_marginStart="4dp"
-            android:minHeight="48dp"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
-    </LinearLayout>
+            app:icon="@android:drawable/ic_delete"
+            style="@style/Widget.Material3.Button.OutlinedButton"/>
+    </com.google.android.material.button.MaterialButtonToggleGroup>
 
     <TextView
         android:layout_width="wrap_content"

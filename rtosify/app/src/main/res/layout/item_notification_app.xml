@@ -67,7 +67,7 @@
         android:paddingHorizontal="16dp"
         android:gravity="center">
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
+        <com.google.android.material.materialswitch.MaterialSwitch
             android:id="@+id/switchAppNotification"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

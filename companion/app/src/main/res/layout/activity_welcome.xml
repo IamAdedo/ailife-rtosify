@@ -52,7 +52,7 @@
             android:padding="8dp"
             android:visibility="gone" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnFinishedSetup"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -60,7 +60,7 @@
             android:visibility="gone"
             android:layout_marginBottom="16dp"/>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnAlreadyPaired"
             style="@style/Widget.Material3.Button.OutlinedButton"
             android:layout_width="wrap_content"
@@ -69,7 +69,7 @@
             android:visibility="gone"
             android:layout_marginBottom="16dp"/>
 
-        <ProgressBar
+        <com.google.android.material.progressindicator.CircularProgressIndicator
             android:id="@+id/progressBarSetup"
             style="?android:attr/progressBarStyleLarge"
             android:layout_width="wrap_content"

@@ -17,7 +17,7 @@
             android:orientation="vertical" />
     </ScrollView>
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnPairNewDevice"
         style="@style/Widget.Material3.Button.TextButton"
         android:layout_width="match_parent"

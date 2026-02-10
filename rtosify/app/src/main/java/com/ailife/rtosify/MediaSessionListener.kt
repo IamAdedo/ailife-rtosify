@@ -137,6 +137,15 @@ class MediaSessionListener(
             return false
         }
     }
+
+    fun seekTo(position: Long) {
+        val controller = activeController ?: return
+        try {
+            controller.transportControls.seekTo(position)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error seeking to position: $position", e)
+        }
+    }
     
     fun getCurrentState(): MediaStateData {
         return lastMediaState ?: createEmptyState()

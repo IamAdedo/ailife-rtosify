@@ -19,17 +19,18 @@
             android:layout_height="120dp"
             app:layout_scrollFlags="scroll|exitUntilCollapsed"
             app:title="@string/notif_settings_title"
-            app:collapsedTitleTextAppearance="@style/TextAppearance.AppCompat.Title"
-            app:expandedTitleTextAppearance="@style/TextAppearance.AppCompat.Display1"
+            app:collapsedTitleTextAppearance="@style/TextAppearance.Material3.TitleMedium"
+            app:expandedTitleTextAppearance="@style/TextAppearance.Material3.DisplaySmall"
             app:expandedTitleMarginStart="20dp"
             app:expandedTitleMarginBottom="20dp">
 
-            <androidx.appcompat.widget.Toolbar
+            <com.google.android.material.appbar.MaterialToolbar
                 android:id="@+id/toolbar"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
                 app:layout_collapseMode="pin"
-                app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"/>
+                app:navigationIcon="@android:drawable/ic_menu_close_clear_cancel"
+                app:navigationIconTint="?attr/colorOnSurface"/>
         </com.google.android.material.appbar.CollapsingToolbarLayout>
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -89,7 +90,7 @@
                             android:textColor="?android:attr/textColorSecondary"/>
                     </LinearLayout>
 
-                    <com.google.android.material.switchmaterial.SwitchMaterial
+                    <com.google.android.material.materialswitch.MaterialSwitch
                         android:id="@+id/switchEnableMirroring"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"/>
@@ -125,7 +126,7 @@
                     android:textColor="?android:attr/textColorPrimary"
                     android:layout_marginTop="8dp"/>
 
-                <Button
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnOpenSettings"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -133,7 +134,7 @@
                     android:textColor="?android:attr/colorError"
                     android:layout_marginTop="12dp"
                     android:layout_gravity="end"
-                    style="@style/Widget.MaterialComponents.Button.TextButton"/>
+                    style="@style/Widget.Material3.Button.TextButton"/>
             </LinearLayout>
 
             <!-- Card 3: Seção da Lista de Apps
@@ -170,7 +171,7 @@
                     android:padding="32dp"
                     android:visibility="gone">
 
-                    <ProgressBar
+                    <com.google.android.material.progressindicator.CircularProgressIndicator
                         android:id="@+id/progressBarApps"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"

@@ -11,13 +11,14 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.SeekBar
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.slider.Slider
+// No subpackage imports needed as they are in the same package
 
 class NotificationSettingsActivity : AppCompatActivity() {
 
@@ -25,14 +26,14 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private val activePrefs: SharedPreferences
         get() = devicePrefManager.getActiveDevicePrefs()
 
-    private lateinit var switchEnable: SwitchMaterial
-    private lateinit var switchWakeScreen: SwitchMaterial
-    private lateinit var switchWakeScreenDnd: SwitchMaterial
-    private lateinit var switchVibrate: SwitchMaterial
-    private lateinit var switchVibrateSilent: SwitchMaterial
-    private lateinit var switchSkipScreenOn: SwitchMaterial
-    private lateinit var switchPhoneCalls: SwitchMaterial
-    private lateinit var switchNotifyDisconnect: SwitchMaterial
+    private lateinit var switchEnable: MaterialSwitch
+    private lateinit var switchWakeScreen: MaterialSwitch
+    private lateinit var switchWakeScreenDnd: MaterialSwitch
+    private lateinit var switchVibrate: MaterialSwitch
+    private lateinit var switchVibrateSilent: MaterialSwitch
+    private lateinit var switchSkipScreenOn: MaterialSwitch
+    private lateinit var switchPhoneCalls: MaterialSwitch
+    private lateinit var switchNotifyDisconnect: MaterialSwitch
     
     private lateinit var cardManageApps: View
     private lateinit var cardDynamicIsland: View
@@ -42,7 +43,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var tvManageSettings: TextView
     private lateinit var btnSimulateNotification: android.widget.Button
 
-    private lateinit var seekVibrationStrength: SeekBar
+    private lateinit var seekVibrationStrength: Slider
     private lateinit var spinnerVibrationPattern: Spinner
 
     private lateinit var spinnerNotifStyle: Spinner
@@ -187,19 +188,15 @@ class NotificationSettingsActivity : AppCompatActivity() {
             sendSettingsUpdate()
         }
 
-        // Vibration Strength
+        // Vibration Strength Slider
         val strength = activePrefs.getInt("vibration_strength", 2) // Default Medium
-        seekVibrationStrength.progress = strength
-        seekVibrationStrength.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser) {
-                    activePrefs.edit().putInt("vibration_strength", progress).apply()
-                    sendSettingsUpdate()
-                }
+        seekVibrationStrength.value = strength.toFloat().coerceIn(0f, 4f)
+        seekVibrationStrength.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                activePrefs.edit().putInt("vibration_strength", value.toInt()).apply()
+                sendSettingsUpdate()
             }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
+        }
 
         // Vibration Pattern
         val patterns = arrayOf("Default", "Double Click", "Long", "Heartbeat", "Tick")

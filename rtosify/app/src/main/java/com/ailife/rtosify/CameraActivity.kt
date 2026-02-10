@@ -14,7 +14,7 @@ import android.os.IBinder
 import android.util.Base64
 import android.util.Log
 import android.view.View
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -43,8 +43,8 @@ import java.util.concurrent.Executors
 class CameraActivity : AppCompatActivity() {
 
     private lateinit var viewFinder: PreviewView
-    private lateinit var btnShutter: Button
-    private lateinit var btnRecord: Button
+    private lateinit var btnShutter: MaterialButton
+    private lateinit var btnRecord: MaterialButton
     private lateinit var tvTimer: TextView
 
     private var imageCapture: ImageCapture? = null

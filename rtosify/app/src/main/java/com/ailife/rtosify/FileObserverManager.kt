@@ -26,6 +26,7 @@ class FileObserverManager(
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var pollingJob: Job? = null
     private val prefs: SharedPreferences = context.getSharedPreferences("file_observer_prefs", Context.MODE_PRIVATE)
+    private val appPrefs: SharedPreferences = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
     
     // We keep track of rules to manage polling vs standard observers
     private var currentRules: List<FileObserverRule> = emptyList()
@@ -55,8 +56,6 @@ class FileObserverManager(
         val type = object : TypeToken<List<FileObserverRule>>() {}.type
         currentRules = gson.fromJson(json, type) ?: emptyList()
     }
-    
-    private val appPrefs: SharedPreferences = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
 
     private fun getBypassedPath(path: String): String {
         if (!appPrefs.getBoolean("native_access_bypass", true)) return path

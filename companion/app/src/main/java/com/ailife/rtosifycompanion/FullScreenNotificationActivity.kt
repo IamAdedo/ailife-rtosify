@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.util.Base64
 import android.util.Log
 import android.view.View
+import com.google.android.material.button.MaterialButton
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -33,8 +34,8 @@ class FullScreenNotificationActivity : AppCompatActivity() {
     private lateinit var imgBigPicture: ImageView
     private lateinit var btnClose: View
     private lateinit var containerActions: LinearLayout
-    private lateinit var btnReply: Button
-    private lateinit var btnDismiss: Button
+    private lateinit var btnReply: MaterialButton
+    private lateinit var btnDismiss: MaterialButton
 
     private var notificationKey: String? = null
     private var isFileDetected: Boolean = false

@@ -8,7 +8,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
-import android.widget.ProgressBar
+import com.google.android.material.progressindicator.LinearProgressIndicator
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -18,7 +18,7 @@ class ShareToPhoneActivity : AppCompatActivity(), BluetoothService.ServiceCallba
 
     private lateinit var tvShareStatus: TextView
     private lateinit var tvSharePercentage: TextView
-    private lateinit var progressBarShare: ProgressBar
+    private lateinit var progressBarShare: LinearProgressIndicator
     
     private var bluetoothService: BluetoothService? = null
     private var isBound = false

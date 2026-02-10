@@ -15,6 +15,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
@@ -296,7 +297,7 @@ class WelcomeActivity : AppCompatActivity() {
                                     .map { "${it.name ?: "Unknown"} (${it.address})" }
                                     .toTypedArray()
 
-                    AlertDialog.Builder(this@WelcomeActivity)
+                    MaterialAlertDialogBuilder(this@WelcomeActivity)
                             .setTitle(R.string.dialog_select_watch_title)
                             .setItems(names) { _, which ->
                                 completeSetupWithDevice(devicesToShow[which])

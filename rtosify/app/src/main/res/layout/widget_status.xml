@@ -2,7 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#212121"
+    android:background="@color/widget_background"
     android:orientation="vertical"
     android:padding="12dp">
 
@@ -18,6 +18,7 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/ic_smartwatch"
+            android:tint="@color/widget_text_primary"
             android:contentDescription="@string/device_name_default" />
 
         <LinearLayout
@@ -32,7 +33,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/device_watch"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/widget_text_primary"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
@@ -41,7 +42,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/status_disconnected"
-                android:textColor="#AAAAAA"
+                android:textColor="@color/widget_text_secondary"
                 android:textSize="12sp" />
         </LinearLayout>
 
@@ -50,6 +51,7 @@
             android:layout_width="20dp"
             android:layout_height="20dp"
             android:src="@drawable/ic_battery_full"
+            android:tint="@color/widget_text_primary"
             android:contentDescription="@string/battery_label_level" />
 
         <TextView
@@ -58,7 +60,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="4dp"
             android:text="@string/battery_percent_placeholder"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/widget_text_primary"
             android:textSize="12sp" />
     </LinearLayout>
 
@@ -67,7 +69,7 @@
         android:layout_height="1dp"
         android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"
-        android:background="#44FFFFFF" />
+        android:background="@color/widget_divider" />
 
     <!-- Info Row: WiFi -->
     <LinearLayout
@@ -82,6 +84,7 @@
             android:layout_width="16dp"
             android:layout_height="16dp"
             android:src="@drawable/ic_wifi"
+            android:tint="@color/widget_text_primary"
             android:contentDescription="@string/wifi" />
 
         <TextView
@@ -90,7 +93,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:text="@string/wifi_label_colon"
-            android:textColor="#AAAAAA"
+            android:textColor="@color/widget_text_secondary"
             android:textSize="12sp" />
 
         <TextView
@@ -102,7 +105,7 @@
             android:ellipsize="end"
             android:singleLine="true"
             android:text="@string/wifi_status_not_connected"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/widget_text_primary"
             android:textSize="12sp" />
     </LinearLayout>
 
@@ -112,7 +115,7 @@
         android:layout_height="1dp"
         android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"
-        android:background="#44FFFFFF" />
+        android:background="@color/widget_divider" />
 
     <!-- Action Buttons (auto-hide when widget is too short) -->
     <LinearLayout
@@ -138,13 +141,14 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_do_not_disturb"
+                android:tint="@color/widget_text_primary"
                 android:contentDescription="@string/dnd_label" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/dnd_normal"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/widget_text_primary"
                 android:textSize="10sp"
                 android:layout_marginTop="4dp"/>
         </LinearLayout>
@@ -165,13 +169,14 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:src="@drawable/ic_cast"
+                android:tint="@color/widget_text_primary"
                 android:contentDescription="@string/label_mirror" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/label_mirror"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/widget_text_primary"
                 android:textSize="10sp"
                 android:layout_marginTop="4dp"/>
         </LinearLayout>

@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
-    android:background="@android:color/black"
+    android:background="?android:attr/colorBackground"
     android:padding="16dp">
 
     <TextView
@@ -13,7 +13,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/call_unknown"
-        android:textColor="@android:color/white"
+        android:textColor="?attr/colorOnSurface"
         android:textSize="22sp"
         android:textStyle="bold"
         android:gravity="center"
@@ -25,7 +25,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="000 000 000"
-        android:textColor="#AAAAAA"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="16sp"
         android:layout_marginTop="4dp"
         android:gravity="center" />

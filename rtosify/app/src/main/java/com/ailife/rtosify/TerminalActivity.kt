@@ -18,6 +18,7 @@ import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.NestedScrollView
 import com.google.android.material.card.MaterialCardView
+import androidx.activity.enableEdgeToEdge
 import java.util.UUID
 
 class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
@@ -73,10 +74,25 @@ class TerminalActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_terminal)
-        EdgeToEdgeUtils.applyEdgeToEdge(this, findViewById(android.R.id.content))
-
+        
         initViews()
         setupListeners()
+
+        // Handle Edge-to-Edge and IME insets
+        enableEdgeToEdge()
+        val rootView = findViewById<android.view.View>(android.R.id.content)
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootView) { v, insets ->
+            val systemBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            val ime = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime())
+            
+            v.setPadding(
+                systemBars.left,
+                systemBars.top,
+                systemBars.right,
+                maxOf(systemBars.bottom, ime.bottom)
+            )
+            insets
+        }
 
         Intent(this, BluetoothService::class.java).also { intent ->
             bindService(intent, connection, Context.BIND_AUTO_CREATE)

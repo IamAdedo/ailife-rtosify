@@ -16,16 +16,18 @@ import android.os.IBinder
 import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ProgressBar
+import com.google.android.material.progressindicator.CircularProgressIndicator
+import com.google.android.material.progressindicator.LinearProgressIndicator
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
+import com.google.android.material.appbar.MaterialToolbar
 import androidx.core.content.ContextCompat
 import androidx.core.widget.NestedScrollView
 import kotlinx.coroutines.launch
@@ -38,7 +40,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     // UI References
 
-    private lateinit var progressBarMain: ProgressBar
+    private lateinit var progressBarMain: LinearProgressIndicator
     private lateinit var recyclerViewMenu: RecyclerView
 
 
@@ -83,12 +85,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     // Upload Dialog
     private var uploadDialog: AlertDialog? = null
-    private var uploadProgressBar: ProgressBar? = null
+    private var uploadProgressBar: LinearProgressIndicator? = null
     private var uploadPercentageText: TextView? = null
     private var uploadDescriptionText: TextView? = null
     private var uploadTitleText: TextView? = null
     private var uploadIconView: ImageView? = null
-    private var uploadOkButton: Button? = null
+    private var uploadOkButton: MaterialButton? = null
 
     private val connection =
             object : ServiceConnection {
@@ -224,7 +226,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         mainContentScrollView = findViewById(R.id.mainContentScrollView)
 
         tvLocalBtNameWatch = findViewById(R.id.tvLocalBtNameWatch)
-        progressBarMain = findViewById(R.id.progressBarMain)
+        progressBarMain = findViewById<LinearProgressIndicator>(R.id.progressBarMain)
         recyclerViewMenu = findViewById(R.id.recyclerViewMenu)
 
         recyclerViewMenu = findViewById(R.id.recyclerViewMenu)
@@ -648,7 +650,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun resetApp() {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.dialog_reset_all_title))
                 .setMessage(getString(R.string.dialog_reset_all_message))
                 .setPositiveButton(getString(R.string.dialog_reset_all_confirm)) { _, _ ->
@@ -661,7 +663,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun confirmApkUpload(uri: Uri) {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.dialog_upload_apk_title))
                 .setMessage(getString(R.string.dialog_upload_apk_message))
                 .setPositiveButton(getString(R.string.dialog_upload_apk_send)) { _, _ ->
@@ -680,7 +682,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     .show()
             return
         }
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.dialog_shutdown_title))
                 .setMessage(getString(R.string.dialog_shutdown_message))
                 .setIcon(android.R.drawable.ic_dialog_alert)
@@ -703,7 +705,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         uploadOkButton = dialogView.findViewById(R.id.btnUploadOk)
 
         uploadOkButton?.setOnClickListener { dismissUploadDialog() }
-        uploadDialog = AlertDialog.Builder(this).setView(dialogView).setCancelable(false).create()
+        uploadDialog = MaterialAlertDialogBuilder(this).setView(dialogView).setCancelable(false).create()
         uploadDialog?.show()
     }
 

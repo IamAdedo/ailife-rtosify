@@ -32,9 +32,9 @@
         android:text="Loud alarm is playing on this phone"
         android:textColor="@android:color/darker_gray" />
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btnStopAlarm"
-        style="@style/Widget.AppCompat.Button.Colored"
+        style="@style/Widget.Material3.Button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"

@@ -11,7 +11,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.materialswitch.MaterialSwitch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -82,7 +82,7 @@ class AppNotificationAdapter(private val prefs: SharedPreferences) : androidx.re
         private val imgIcon: ImageView = itemView.findViewById(R.id.imgAppIcon)
         private val tvName: TextView = itemView.findViewById(R.id.tvAppName)
         private val tvAppPackage: TextView = itemView.findViewById(R.id.tvAppPackage)
-        private val switchApp: SwitchMaterial = itemView.findViewById(R.id.switchAppNotification)
+        private val switchApp: MaterialSwitch = itemView.findViewById(R.id.switchAppNotification)
 
         private var loadJob: Job? = null
 

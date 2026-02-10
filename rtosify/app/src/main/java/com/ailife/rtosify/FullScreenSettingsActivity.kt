@@ -5,8 +5,8 @@ import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.materialswitch.MaterialSwitch
 
 class FullScreenSettingsActivity : AppCompatActivity() {
 
@@ -14,13 +14,13 @@ class FullScreenSettingsActivity : AppCompatActivity() {
     private val activePrefs: SharedPreferences
         get() = devicePrefManager.getActiveDevicePrefs()
 
-    private lateinit var switchStacking: SwitchMaterial
-    private lateinit var switchCloseOnScreenOff: SwitchMaterial
+    private lateinit var switchStacking: MaterialSwitch
+    private lateinit var switchCloseOnScreenOff: MaterialSwitch
 
     private lateinit var sliderAppNameSize: com.google.android.material.slider.Slider
     private lateinit var sliderTitleSize: com.google.android.material.slider.Slider
     private lateinit var sliderContentSize: com.google.android.material.slider.Slider
-    private lateinit var switchAutoClose: SwitchMaterial
+    private lateinit var switchAutoClose: MaterialSwitch
     private lateinit var sliderTimeout: com.google.android.material.slider.Slider
     private lateinit var layoutTimeout: android.view.View
 
@@ -42,10 +42,9 @@ class FullScreenSettingsActivity : AppCompatActivity() {
     }
 
     private fun setupToolbar() {
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
+        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = getString(R.string.title_full_screen_settings)
+        toolbar.setNavigationOnClickListener { finish() }
     }
 
     private fun initViews() {

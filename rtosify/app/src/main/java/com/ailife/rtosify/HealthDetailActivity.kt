@@ -12,17 +12,18 @@ import android.view.LayoutInflater
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.ProgressBar
+import com.google.android.material.progressindicator.LinearProgressIndicator
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.SwitchCompat
-import androidx.appcompat.widget.Toolbar
+import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.appbar.MaterialToolbar
 import androidx.core.content.ContextCompat
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.github.mikephil.charting.charts.BarChart
@@ -44,11 +45,12 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import com.google.android.material.color.MaterialColors
 
 class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     // UI Components
-    private lateinit var toolbar: Toolbar
+    private lateinit var toolbar: MaterialToolbar
     private lateinit var swipeRefresh: SwipeRefreshLayout
     private lateinit var togglePeriod: MaterialButtonToggleGroup
     private lateinit var bottomNavigation: BottomNavigationView
@@ -57,7 +59,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     private lateinit var cardCurrentValue: MaterialCardView
     private lateinit var tvCurrentValue: TextView
     private lateinit var tvLastMeasured: TextView
-    private lateinit var btnMeasureNow: Button
+    private lateinit var btnMeasureNow: MaterialButton
 
     // Date Navigation
     private lateinit var btnPrevDate: View
@@ -73,7 +75,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     // Goal Progress Card (Steps)
     private lateinit var cardGoalProgress: MaterialCardView
     private lateinit var tvGoalTitle: TextView
-    private lateinit var progressGoal: ProgressBar
+    private lateinit var progressGoal: LinearProgressIndicator
     private lateinit var tvGoalProgress: TextView
 
     // Chart and Stats
@@ -103,8 +105,8 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     private var settingsDialogWeight: EditText? = null
     private var settingsDialogStepGoal: EditText? = null
     private var settingsDialogInterval: EditText? = null
-    private var settingsDialogBackground: SwitchCompat? = null
-    private var settingsDialogInstantSteps: SwitchCompat? = null
+    private var settingsDialogBackground: MaterialSwitch? = null
+    private var settingsDialogInstantSteps: MaterialSwitch? = null
 
     // Service Binding
     private var bluetoothService: BluetoothService? = null
@@ -215,6 +217,8 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
 
     private fun setupChart() {
         // Line Chart Configuration
+        val textColorPrimary = MaterialColors.getColor(this, android.R.attr.textColorPrimary, Color.BLACK)
+
         chart.apply {
             description.isEnabled = false
             setTouchEnabled(true)
@@ -227,23 +231,25 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
                 position = XAxis.XAxisPosition.BOTTOM
                 setDrawGridLines(true)
                 granularity = 1f
-                textColor = ContextCompat.getColor(this@HealthDetailActivity, android.R.color.white)
+                textColor = textColorPrimary
             }
 
             axisLeft.apply {
                 setDrawGridLines(true)
                 axisMinimum = 0f
-                textColor = ContextCompat.getColor(this@HealthDetailActivity, android.R.color.white)
+                textColor = textColorPrimary
             }
             axisRight.isEnabled = false
 
             legend.apply {
                 isEnabled = true
-                textColor = ContextCompat.getColor(this@HealthDetailActivity, android.R.color.white)
+                textColor = textColorPrimary
             }
         }
 
         // Bar Chart Configuration
+        // textColorPrimary already defined above
+        
         barChart.apply {
             description.isEnabled = false
             setTouchEnabled(true)
@@ -256,19 +262,19 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
                 position = XAxis.XAxisPosition.BOTTOM
                 setDrawGridLines(false)
                 granularity = 1f
-                textColor = ContextCompat.getColor(this@HealthDetailActivity, android.R.color.white)
+                textColor = textColorPrimary
             }
 
             axisLeft.apply {
                 setDrawGridLines(true)
                 axisMinimum = 0f
-                textColor = ContextCompat.getColor(this@HealthDetailActivity, android.R.color.white)
+                textColor = textColorPrimary
             }
             axisRight.isEnabled = false
 
             legend.apply {
                 isEnabled = true
-                textColor = ContextCompat.getColor(this@HealthDetailActivity, android.R.color.white)
+                textColor = textColorPrimary
             }
         }
     }
@@ -833,8 +839,8 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         val etStepGoal = dialogView.findViewById<EditText>(R.id.etStepGoal)
         val etInterval = dialogView.findViewById<EditText>(R.id.etMonitoringInterval)
         val switchBackground =
-                dialogView.findViewById<SwitchCompat>(R.id.switchBackgroundMonitoring)
-        val switchInstantSteps = dialogView.findViewById<SwitchCompat>(R.id.switchInstantSteps)
+                dialogView.findViewById<MaterialSwitch>(R.id.switchBackgroundMonitoring)
+        val switchInstantSteps = dialogView.findViewById<MaterialSwitch>(R.id.switchInstantSteps)
 
         // Local settings (not from watch)
         val sharedPrefs = getSharedPreferences("health_prefs", Context.MODE_PRIVATE)
@@ -857,7 +863,7 @@ class HealthDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         dialogView.findViewById<View>(R.id.layoutStepGoal).visibility =
                 if (healthType == "STEPS") View.VISIBLE else View.GONE
 
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.health_settings))
                 .setView(dialogView)
                 .setPositiveButton(android.R.string.ok) { _, _ ->

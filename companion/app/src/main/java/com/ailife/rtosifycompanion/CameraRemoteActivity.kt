@@ -14,7 +14,7 @@ import android.util.Base64
 import android.os.Handler
 import android.os.Looper
 import android.view.View
-import android.widget.Button
+import com.google.android.material.button.MaterialButton
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -30,7 +30,7 @@ class CameraRemoteActivity : AppCompatActivity() {
 
     private lateinit var imageView: ImageView
     private lateinit var statusText: TextView
-    private lateinit var btnRecord: Button
+    private lateinit var btnRecord: MaterialButton
     private lateinit var tvTimer: TextView
 
     private val timerHandler = Handler(Looper.getMainLooper())
@@ -97,7 +97,7 @@ class CameraRemoteActivity : AppCompatActivity() {
         imageView = findViewById(R.id.img_viewfinder)
         statusText = findViewById(R.id.tv_status)
         tvTimer = findViewById(R.id.tv_timer)
-        val btnShutter = findViewById<Button>(R.id.btn_shutter)
+        val btnShutter = findViewById<MaterialButton>(R.id.btn_shutter)
         btnRecord = findViewById(R.id.btn_record)
 
         btnShutter.setOnClickListener {

@@ -10,13 +10,15 @@ import android.widget.ImageView
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
+import com.google.android.material.appbar.MaterialToolbar
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.materialswitch.MaterialSwitch
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -26,11 +28,11 @@ class AppNotificationSettingsActivity : AppCompatActivity() {
     private val activePrefs: SharedPreferences
         get() = devicePrefManager.getActiveDevicePrefs()
 
-    private lateinit var switchAllowNotifications: SwitchMaterial
-    private lateinit var switchOngoing: SwitchMaterial
-    private lateinit var switchSilent: SwitchMaterial
-    private lateinit var switchOnlyChat: SwitchMaterial
-    private lateinit var switchNavigation: SwitchMaterial
+    private lateinit var switchAllowNotifications: MaterialSwitch
+    private lateinit var switchOngoing: MaterialSwitch
+    private lateinit var switchSilent: MaterialSwitch
+    private lateinit var switchOnlyChat: MaterialSwitch
+    private lateinit var switchNavigation: MaterialSwitch
     
     private lateinit var cardSettings: MaterialCardView
     private lateinit var cardAppRules: MaterialCardView
@@ -77,7 +79,7 @@ class AppNotificationSettingsActivity : AppCompatActivity() {
     }
 
     private fun setupToolbar() {
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
+        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = ""
@@ -285,7 +287,7 @@ class AppNotificationSettingsActivity : AppCompatActivity() {
     }
     
     private fun deleteRule(rule: NotificationRule) {
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(R.string.rule_delete_title)
             .setMessage(getString(R.string.rule_delete_msg, rule.packageName))
             .setPositiveButton(R.string.label_delete) { _, _ ->
@@ -301,8 +303,7 @@ class AppNotificationSettingsActivity : AppCompatActivity() {
 
         val editTitlePattern = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.editTitlePattern)
         val editContentPattern = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.editContentPattern)
-        val btnWhitelist = dialogView.findViewById<android.widget.Button>(R.id.btnWhitelist)
-        val btnBlacklist = dialogView.findViewById<android.widget.Button>(R.id.btnBlacklist)
+        val toggleGroup = dialogView.findViewById<MaterialButtonToggleGroup>(R.id.toggleGroupMode)
         
         var selectedMode = existingRule?.mode ?: "whitelist"
         existingRule?.let {
@@ -311,29 +312,19 @@ class AppNotificationSettingsActivity : AppCompatActivity() {
             selectedMode = it.mode
         }
 
-        fun updateModeButtons() {
-            if (selectedMode == "whitelist") {
-                btnWhitelist.isSelected = true
-                btnBlacklist.isSelected = false
-                btnWhitelist.setBackgroundColor(getColor(android.R.color.holo_green_dark))
-                btnWhitelist.setTextColor(getColor(android.R.color.white))
-                btnBlacklist.setBackgroundColor(getColor(android.R.color.transparent))
-                btnBlacklist.setTextColor(getColor(android.R.color.holo_red_dark))
-            } else {
-                btnWhitelist.isSelected = false
-                btnBlacklist.isSelected = true
-                btnWhitelist.setBackgroundColor(getColor(android.R.color.transparent))
-                btnWhitelist.setTextColor(getColor(android.R.color.holo_green_dark))
-                btnBlacklist.setBackgroundColor(getColor(android.R.color.holo_red_dark))
-                btnBlacklist.setTextColor(getColor(android.R.color.white))
+        if (selectedMode == "whitelist") {
+            toggleGroup.check(R.id.btnWhitelist)
+        } else {
+            toggleGroup.check(R.id.btnBlacklist)
+        }
+
+        toggleGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (isChecked) {
+                selectedMode = if (checkedId == R.id.btnWhitelist) "whitelist" else "blacklist"
             }
         }
-        updateModeButtons()
 
-        btnWhitelist.setOnClickListener { selectedMode = "whitelist"; updateModeButtons() }
-        btnBlacklist.setOnClickListener { selectedMode = "blacklist"; updateModeButtons() }
-
-        val dialog = AlertDialog.Builder(this)
+        val dialog = MaterialAlertDialogBuilder(this)
             .setTitle(if (existingRule == null) R.string.rule_add else R.string.rule_edit)
             .setView(dialogView)
             .setPositiveButton(R.string.rule_save, null)

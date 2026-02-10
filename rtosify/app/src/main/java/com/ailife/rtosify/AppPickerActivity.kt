@@ -11,11 +11,11 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.ProgressBar
+import com.google.android.material.progressindicator.CircularProgressIndicator
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
+import com.google.android.material.appbar.MaterialToolbar
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -30,10 +30,10 @@ import java.io.FileOutputStream
 
 class AppPickerActivity : AppCompatActivity() {
 
-    private lateinit var progressBar: ProgressBar
+    private lateinit var progressBar: CircularProgressIndicator
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: AppPickerAdapter
-    private lateinit var toolbar: Toolbar
+    private lateinit var toolbar: MaterialToolbar
     private lateinit var editTextSearch: com.google.android.material.textfield.TextInputEditText
 
     private var allAppsList = listOf<PhoneAppItem>()
