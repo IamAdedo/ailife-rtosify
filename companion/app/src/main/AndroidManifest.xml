@@ -302,6 +302,11 @@
             android:exported="false"
             android:theme="@style/Theme.Smartwatch.Translucent" />
 
+        <activity
+            android:name=".RingtonePickerActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Smartwatch.Translucent" />
+
         <service
             android:name=".MirroringService"
             android:enabled="true"

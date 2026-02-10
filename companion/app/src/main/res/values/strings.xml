@@ -149,6 +149,7 @@
     <string name="dialog_find_watch_stop">Stop</string>
 
     <!-- Notification Actions -->
+    <string name="ringtone_picker_title">Select Notification Sound</string>
     <string name="reply_label">Reply</string>
     <string name="action_reply">Reply</string>
     <string name="action_dismiss">Dismiss</string>

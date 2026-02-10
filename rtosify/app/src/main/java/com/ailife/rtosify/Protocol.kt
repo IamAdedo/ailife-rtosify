@@ -163,6 +163,10 @@ object MessageType {
     
     // Dynamic Island Background
     const val SET_DYNAMIC_ISLAND_BACKGROUND = "set_dynamic_island_background"
+
+    // Ringtone Picker
+    const val REQUEST_RINGTONE_PICKER = "request_ringtone_picker"
+    const val RESPONSE_RINGTONE_PICKER = "response_ringtone_picker"
 }
 
 data class NavigationInfoData(
@@ -368,6 +372,11 @@ data class SettingsUpdateData(
         val forceBtEnabled: Boolean? = null,
         val shareSyncEnabled: Boolean? = null,
         val internetActivationRule: Int? = null,
+        val notificationSoundEnabled: Boolean? = null,
+        val phoneCallRingingEnabled: Boolean? = null,
+        val notificationSoundUri: String? = null,
+        val notificationSoundName: String? = null,
+        // Full screen notification settings
         val internetSignalingUrl: String? = null,
         val hqLanEnabled: Boolean? = null,
         val dynamicIslandFollowDnd: Boolean? = null,
@@ -1264,3 +1273,7 @@ object ProtocolHelper {
         return ProtocolMessage(type = MessageType.SHARE_SYNC, data = data)
     }
 }
+data class RingtonePickerResponseData(
+    val uri: String,
+    val name: String
+)

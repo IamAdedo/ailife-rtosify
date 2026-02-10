@@ -223,6 +223,8 @@ class BluetoothService : Service() {
     private var currentDevice: BluetoothDevice? = null
 
     @Volatile private var isStopping = false
+    private var ringtonePlayer: android.media.MediaPlayer? = null
+    private var currentRingtone: android.media.Ringtone? = null
 
     interface ServiceCallback {
         fun onStatusChanged(status: String)
@@ -329,6 +331,8 @@ class BluetoothService : Service() {
         const val EXTRA_NOTIF_ID = "extra_notif_id"
         const val EXTRA_FILE_KEY = "extra_file_key"
 
+        const val ACTION_STOP_RINGTONE = "com.ailife.rtosifycompanion.ACTION_STOP_RINGTONE"
+        const val ACTION_REQUEST_WATCH_RINGTONE_PICKER = "com.ailife.rtosifycompanion.ACTION_REQUEST_WATCH_RINGTONE_PICKER"
         private const val TAG = "BluetoothService"
         private const val DEBUG_NOTIFICATIONS = false // Ative para debug
     }
@@ -460,10 +464,16 @@ class BluetoothService : Service() {
                             val action = intent.getStringExtra("action")
                             Log.d(TAG, "Handling Dynamic Island call action: $action")
                             if (action == "answer") {
+                                stopRingtone()
                                 sendMessage(ProtocolMessage(type = MessageType.ANSWER_CALL))
                             } else if (action == "reject") {
+                                stopRingtone()
                                 sendMessage(ProtocolMessage(type = MessageType.REJECT_CALL))
                             }
+                        }
+                        ACTION_STOP_RINGTONE -> {
+                            Log.d(TAG, "Stopping ringtone via broadcast")
+                            stopRingtone()
                         }
                         "com.ailife.rtosifycompanion.ALARM_ACTION" -> {
                             val action = intent.getStringExtra("action")
@@ -819,6 +829,7 @@ class BluetoothService : Service() {
                     addAction(MediaWidget.ACTION_CMD_VOL_UP)
                     addAction(MediaWidget.ACTION_CMD_VOL_DOWN)
                     addAction("com.ailife.rtosifycompanion.CALL_ACTION")
+                    addAction(ACTION_STOP_RINGTONE)
                     addAction("com.ailife.rtosifycompanion.ALARM_ACTION")
                     addAction("com.ailife.rtosifycompanion.MEDIA_ACTION")
                 }
@@ -1210,7 +1221,25 @@ class BluetoothService : Service() {
                 Log.d(TAG, "onStartCommand: Service started, isConnected=$isConnected")
 
         isStopping = false // Reset on start
+        if (intent?.action == "com.ailife.rtosifycompanion.ACTION_RINGTONE_SELECTED") {
+            val uri = intent.getStringExtra("uri") ?: ""
+            val name = intent.getStringExtra("name") ?: "Default"
+            handleRingtoneSelected(uri, name)
+        }
+
         return START_STICKY
+    }
+
+    private fun handleRingtoneSelected(uri: String, name: String) {
+        serviceScope.launch {
+            sendMessage(ProtocolHelper.createRingtonePickerResponse(uri, name))
+        }
+        // Also update local prefs for consistency
+        prefs.edit().apply {
+            putString("notification_sound_uri", uri)
+            putString("notification_sound_name", name)
+            apply()
+        }
     }
 
     private fun initializeLogicFromPrefs() {
@@ -1458,6 +1487,7 @@ class BluetoothService : Service() {
             MessageType.REQUEST_PREVIEW -> handleRequestPreview(message)
             MessageType.UNINSTALL_APP -> handleUninstallApp(message)
             MessageType.INCOMING_CALL -> handleIncomingCall(message)
+            MessageType.REQUEST_RINGTONE_PICKER -> handleRequestRingtonePicker()
             MessageType.CALL_STATE_CHANGED -> handleCallStateChanged(message)
             MessageType.REQUEST_BATTERY_LIVE -> batteryAppUsageHandler.handleRequestBatteryLive()
             MessageType.REQUEST_BATTERY_STATIC -> batteryAppUsageHandler.handleRequestBatteryStatic()
@@ -1893,6 +1923,18 @@ class BluetoothService : Service() {
             settings.vibrateInSilentEnabled?.let {
                 prefs.edit().putBoolean("vibrate_silent_enabled", it).apply()
                 Log.d(TAG, "Vibrate in Silent setting updated: $it")
+            }
+            settings.notificationSoundEnabled?.let {
+                prefs.edit().putBoolean("notification_sound_enabled", it).apply()
+            }
+            settings.phoneCallRingingEnabled?.let {
+                prefs.edit().putBoolean("phone_call_ringing_enabled", it).apply()
+            }
+            settings.notificationSoundUri?.let {
+                prefs.edit().putString("notification_sound_uri", it).apply()
+            }
+            settings.notificationSoundName?.let {
+                prefs.edit().putString("notification_sound_name", it).apply()
             }
             settings.notificationStyle?.let {
                 prefs.edit().putString("notification_style", it).apply()
@@ -3131,11 +3173,32 @@ class BluetoothService : Service() {
     }
 
     fun sendRejectCall() {
+        stopRingtone()
         sendMessage(ProtocolHelper.createRejectCall())
     }
 
     fun sendAnswerCall() {
+        stopRingtone()
         sendMessage(ProtocolHelper.createAnswerCall())
+    }
+
+    fun stopRingtone() {
+        try {
+            ringtonePlayer?.let {
+                if (it.isPlaying) it.stop()
+                it.release()
+                Log.d(TAG, "MediaPlayer ringtone stopped")
+            }
+            ringtonePlayer = null
+            
+            currentRingtone?.let {
+                if (it.isPlaying) it.stop()
+                Log.d(TAG, "Ringtone stopped")
+            }
+            currentRingtone = null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping ringtone: ${e.message}")
+        }
     }
 
     fun sendMediaCommand(command: String, volume: Int? = null, seekPosition: Long? = null) {
@@ -4132,7 +4195,7 @@ class BluetoothService : Service() {
                 addAction(BluetoothDevice.ACTION_FOUND)
                 addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
             }
-            registerReceiver(findDeviceRssiReceiver, filter)
+            androidx.core.content.ContextCompat.registerReceiver(this, findDeviceRssiReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
 
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
                 btAdapter.startDiscovery()
@@ -4939,6 +5002,73 @@ class BluetoothService : Service() {
         sendBroadcast(intent)
     }
 
+    private fun handleRequestRingtonePicker() {
+        mainHandler.post {
+            val intent = Intent(this, RingtonePickerActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        }
+    }
+
+    private fun playSound(uriString: String? = null) {
+        if (!prefs.getBoolean("notification_sound_enabled", false)) return
+        try {
+            val uri = if (uriString != null) Uri.parse(uriString) else RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            if (uriString != null) {
+                // For custom sounds, MediaPlayer is usually better/more direct
+                android.media.MediaPlayer().apply {
+                    setDataSource(applicationContext, uri)
+                    setAudioStreamType(AudioManager.STREAM_NOTIFICATION)
+                    prepare()
+                    start()
+                    setOnCompletionListener { it.release() }
+                }
+            } else {
+                // For default sounds, Ringtone class is more robust
+                RingtoneManager.getRingtone(applicationContext, uri)?.apply {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                        audioAttributes = android.media.AudioAttributes.Builder()
+                            .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build()
+                    } else {
+                        streamType = AudioManager.STREAM_NOTIFICATION
+                    }
+                    play()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error playing sound: ${e.message}")
+        }
+    }
+
+    private fun playRingtone() {
+        if (!prefs.getBoolean("phone_call_ringing_enabled", false)) return
+        stopRingtone()
+        try {
+            val uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            currentRingtone = RingtoneManager.getRingtone(applicationContext, uri)?.apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    audioAttributes = android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                } else {
+                    streamType = AudioManager.STREAM_RING
+                }
+                
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    isLooping = true
+                }
+                play()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error playing ringtone: ${e.message}")
+        }
+    }
+
+
     private fun performNotificationAlert() {
         val wakeScreen = prefs.getBoolean("wake_screen_enabled", false)
         val wakeScreenDnd = prefs.getBoolean("wake_screen_dnd_enabled", false)
@@ -4954,6 +5084,8 @@ class BluetoothService : Service() {
                 wakeDeviceScreen()
             }
         }
+
+        playSound(prefs.getString("notification_sound_uri", null))
 
         if (vibrate) {
             val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
@@ -5631,6 +5763,8 @@ class BluetoothService : Service() {
 
         Log.d(TAG, "Incoming call: $number ($callerId)")
 
+        playRingtone()
+
         val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
         val style = prefs.getString("notification_style", "android")
         val showCallsInDI = prefs.getBoolean("di_show_phone_calls", true)
@@ -5658,6 +5792,10 @@ class BluetoothService : Service() {
     private fun handleCallStateChanged(message: ProtocolMessage) {
         val state = ProtocolHelper.extractStringField(message, "state")
         Log.d(TAG, "Call state changed: $state")
+
+        if (state == "IDLE" || state == "OFFHOOK") {
+            stopRingtone()
+        }
 
         val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
         val style = prefs.getString("notification_style", "android")

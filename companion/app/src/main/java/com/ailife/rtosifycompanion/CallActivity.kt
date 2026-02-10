@@ -115,6 +115,7 @@ class CallActivity : AppCompatActivity() {
 
     private fun rejectCall() {
         if (isBound && bluetoothService?.isConnected == true) {
+            bluetoothService?.stopRingtone()
             bluetoothService?.sendRejectCall()
             finish()
         } else {
@@ -125,6 +126,7 @@ class CallActivity : AppCompatActivity() {
 
     private fun answerCall() {
         if (isBound && bluetoothService?.isConnected == true) {
+            bluetoothService?.stopRingtone()
             bluetoothService?.sendAnswerCall()
             tvStatus.text = getString(R.string.call_answered)
             // We might want to finish or stay to show call duration, 

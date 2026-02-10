@@ -471,6 +471,7 @@ class BluetoothService : Service() {
 
         const val ACTION_UPDATE_SETTINGS = "com.ailife.rtosify.ACTION_UPDATE_SETTINGS"
         const val ACTION_RELOAD_FILE_RULES = "com.ailife.rtosify.ACTION_RELOAD_FILE_RULES"
+        const val ACTION_REQUEST_WATCH_RINGTONE_PICKER = "com.ailife.rtosify.ACTION_REQUEST_WATCH_RINGTONE_PICKER"
 
         // DISTINCT IDs to ensure correct cleanup when changing states
 
@@ -579,8 +580,10 @@ class BluetoothService : Service() {
                              handleMirrorToggle()
                         }
                         ACTION_RELOAD_FILE_RULES -> {
-                            Log.d(TAG, "Reloading File Observer rules")
                             fileObserverManager?.reload()
+                        }
+                        ACTION_REQUEST_WATCH_RINGTONE_PICKER -> {
+                            sendMessage(ProtocolMessage(type = MessageType.REQUEST_RINGTONE_PICKER))
                         }
                     }
                 }
@@ -705,6 +708,7 @@ class BluetoothService : Service() {
                     addAction(ACTION_SEND_REMOVE_TO_WATCH)
                     addAction(ACTION_SEND_NAVIGATION_INFO)
                     addAction(ACTION_UPDATE_SETTINGS)
+                    addAction(ACTION_REQUEST_WATCH_RINGTONE_PICKER)
                     addAction(StatusWidget.ACTION_TOGGLE_DND)
                     addAction(StatusWidget.ACTION_TOGGLE_MIRROR)
                     addAction(ACTION_RELOAD_FILE_RULES)
@@ -1093,6 +1097,7 @@ class BluetoothService : Service() {
             MessageType.NOTIFICATION_LITE -> Log.d(TAG, "Ignored NOTIFICATION_LITE on RTOSify")
             MessageType.SET_LITE_MODE -> Log.d(TAG, "Ignored SET_LITE_MODE on RTOSify")
             MessageType.REQUEST_FILE_DOWNLOAD -> handleRequestFileDownload(message)
+            MessageType.RESPONSE_RINGTONE_PICKER -> handleRingtonePickerResponse(message)
             else -> Log.d(TAG, "Unknown message type: ${message.type}")
         }
     }
@@ -1148,6 +1153,22 @@ class BluetoothService : Service() {
                         delay(20000) // Increased delay to 20s for status updates
                     }
                 }
+    }
+
+    private fun handleRingtonePickerResponse(message: ProtocolMessage) {
+        try {
+            val data = Gson().fromJson(message.data, RingtonePickerResponseData::class.java)
+            Log.d(TAG, "handleRingtonePickerResponse: uri=${data.uri}, name=${data.name}")
+            activePrefs.edit().apply {
+                putString("notification_sound_uri", data.uri)
+                putString("notification_sound_name", data.name)
+                apply()
+            }
+            // Notify UI to refresh
+            sendBroadcast(Intent(ACTION_UPDATE_SETTINGS).setPackage(packageName))
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing RingtonePickerResponseData: ${e.message}")
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -1631,7 +1652,11 @@ class BluetoothService : Service() {
                 vibrateEnabled = activePrefs.getBoolean("vibrate_enabled", false),
                 vibrateInSilentEnabled = activePrefs.getBoolean("vibrate_silent_enabled", false),
                 vibrationStrength = activePrefs.getInt("vibration_strength", 2),
-                vibrationPattern = activePrefs.getInt("vibration_pattern", 0)
+                vibrationPattern = activePrefs.getInt("vibration_pattern", 0),
+                notificationSoundEnabled = activePrefs.getBoolean("notification_sound_enabled", false),
+                phoneCallRingingEnabled = activePrefs.getBoolean("phone_call_ringing_enabled", false),
+                notificationSoundUri = activePrefs.getString("notification_sound_uri", null),
+                notificationSoundName = activePrefs.getString("notification_sound_name", null)
                 )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
         
@@ -1893,7 +1918,7 @@ class BluetoothService : Service() {
                 addAction(BluetoothDevice.ACTION_FOUND)
                 addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
             }
-            registerReceiver(findDeviceRssiReceiver, filter)
+            androidx.core.content.ContextCompat.registerReceiver(this, findDeviceRssiReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
 
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED) {
                 btAdapter.startDiscovery()

@@ -149,6 +149,7 @@
     <string name="dialog_find_watch_stop">停止</string>
 
     <!-- Notification Actions -->
+    <string name="ringtone_picker_title">选择通知音</string>
     <string name="reply_label">回复</string>
     <string name="reply_sender_me">我</string>
     

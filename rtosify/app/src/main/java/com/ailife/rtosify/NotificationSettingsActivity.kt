@@ -34,6 +34,11 @@ class NotificationSettingsActivity : AppCompatActivity() {
     private lateinit var switchSkipScreenOn: MaterialSwitch
     private lateinit var switchPhoneCalls: MaterialSwitch
     private lateinit var switchNotifyDisconnect: MaterialSwitch
+    private lateinit var switchNotifSound: MaterialSwitch
+    private lateinit var switchCallRinging: MaterialSwitch
+    
+    private lateinit var rowNotifSoundSelector: View
+    private lateinit var tvNotifSoundName: TextView
     
     private lateinit var cardManageApps: View
     private lateinit var cardDynamicIsland: View
@@ -92,6 +97,11 @@ class NotificationSettingsActivity : AppCompatActivity() {
         spinnerVibrationPattern = findViewById(R.id.spinnerVibrationPattern)
 
         spinnerNotifStyle = findViewById(R.id.spinnerNotificationStyle)
+        
+        switchNotifSound = findViewById(R.id.switchNotifSound)
+        switchCallRinging = findViewById(R.id.switchCallRinging)
+        rowNotifSoundSelector = findViewById(R.id.rowNotifSoundSelector)
+        tvNotifSoundName = findViewById(R.id.tvNotifSoundName)
     }
 
     private fun setupToolbar() {
@@ -133,6 +143,10 @@ class NotificationSettingsActivity : AppCompatActivity() {
         switchSkipScreenOn.isEnabled = isEnabled
         switchPhoneCalls.isEnabled = isEnabled
         switchNotifyDisconnect.isEnabled = isEnabled
+        switchNotifSound.isEnabled = isEnabled
+        switchCallRinging.isEnabled = isEnabled
+        rowNotifSoundSelector.isEnabled = isEnabled
+        rowNotifSoundSelector.alpha = if (isEnabled) 1.0f else 0.5f
         
         cardManageApps.isEnabled = isEnabled
         cardManageApps.alpha = if (isEnabled) 1.0f else 0.5f
@@ -213,6 +227,30 @@ class NotificationSettingsActivity : AppCompatActivity() {
                  sendSettingsUpdate()
              }
              override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        // Notification Sound
+        switchNotifSound.isChecked = activePrefs.getBoolean("notification_sound_enabled", false)
+        switchNotifSound.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("notification_sound_enabled", isChecked).apply()
+            sendSettingsUpdate()
+        }
+
+        // Call Ringing
+        switchCallRinging.isChecked = activePrefs.getBoolean("phone_call_ringing_enabled", false)
+        switchCallRinging.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("phone_call_ringing_enabled", isChecked).apply()
+            sendSettingsUpdate()
+        }
+
+        // Sound Selector
+        tvNotifSoundName.text = activePrefs.getString("notification_sound_name", getString(R.string.notif_sound_default))
+        rowNotifSoundSelector.setOnClickListener {
+            // Send request to watch to open ringtone picker
+            val intent = Intent("com.ailife.rtosify.ACTION_REQUEST_WATCH_RINGTONE_PICKER")
+            intent.setPackage(packageName)
+            sendBroadcast(intent)
+            Toast.makeText(this, "Requesting ringtone picker on watch...", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -345,5 +383,28 @@ class NotificationSettingsActivity : AppCompatActivity() {
             return true
         }
         return super.onOptionsItemSelected(item)
+    }
+
+    private val settingsReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            if (intent?.action == BluetoothService.ACTION_UPDATE_SETTINGS) {
+                // Refresh sound name
+                tvNotifSoundName.text = activePrefs.getString("notification_sound_name", getString(R.string.notif_sound_default))
+                // Refresh switches
+                switchNotifSound.isChecked = activePrefs.getBoolean("notification_sound_enabled", false)
+                switchCallRinging.isChecked = activePrefs.getBoolean("phone_call_ringing_enabled", false)
+            }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val filter = android.content.IntentFilter(BluetoothService.ACTION_UPDATE_SETTINGS)
+        androidx.core.content.ContextCompat.registerReceiver(this, settingsReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        unregisterReceiver(settingsReceiver)
     }
 }

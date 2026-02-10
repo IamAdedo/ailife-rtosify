@@ -250,6 +250,13 @@
     <string name="notif_settings_description">注意：这些设置通常不需要，因为系统会自动处理它们。</string>
     <string name="notif_general_settings">通用设置</string>
     <string name="notif_behavior">通知行为</string>
+    <string name="notif_sound_title">通知声音</string>
+    <string name="notif_sound_desc">收到通知时在手表上播放声音</string>
+    <string name="call_ringing_title">来电响铃</string>
+    <string name="call_ringing_desc">收到来电时在手表上播放铃声</string>
+    <string name="notif_sound_selector_title">通知声音</string>
+    <string name="notif_sound_default">默认</string>
+    <string name="notif_sound_change">更改声音</string>
     <string name="notif_dynamic_island">灵动岛</string>
     <string name="notif_style_android">安卓通知</string>
     <string name="notif_style_dynamic_island">灵动岛</string>

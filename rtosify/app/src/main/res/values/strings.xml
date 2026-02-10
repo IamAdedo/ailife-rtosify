@@ -263,6 +263,13 @@
     <string name="notif_phone_calls_title">Forward Phone Calls</string>
     <string name="notif_phone_calls_desc">Send incoming call alerts to the watch</string>
     <string name="notif_behavior">Notification Behavior</string>
+    <string name="notif_sound_title">Notification Sound</string>
+    <string name="notif_sound_desc">Play sound for incoming notifications on the watch</string>
+    <string name="call_ringing_title">Ring for Phone Calls</string>
+    <string name="call_ringing_desc">Play ringtone for incoming calls on the watch</string>
+    <string name="notif_sound_selector_title">Notification Sound</string>
+    <string name="notif_sound_default">Default</string>
+    <string name="notif_sound_change">Change Sound</string>
     <string name="notif_dynamic_island">Dynamic Island</string>
     <string name="notif_style_android">Android Notification</string>
     <string name="notif_style_dynamic_island">Dynamic Island</string>

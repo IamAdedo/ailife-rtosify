@@ -611,6 +611,10 @@ class DynamicIslandService : Service(), LifecycleOwner, ViewModelStoreOwner, Sav
 
         overlayView.onCallAction = { action ->
             Log.d(TAG, "Call action: $action - clearing Dynamic Island")
+            
+            // Stop ringtone
+            bluetoothService?.stopRingtone()
+            
             // Send call action to BluetoothService
             val intent = Intent("com.ailife.rtosifycompanion.CALL_ACTION")
             intent.setPackage(packageName)
