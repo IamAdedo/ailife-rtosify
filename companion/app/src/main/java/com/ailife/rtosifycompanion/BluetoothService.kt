@@ -5379,11 +5379,11 @@ class BluetoothService : Service() {
 
                 var count = 0
                 for (contact in contacts) {
-                    // Check for duplicate (same name)
-                    val exists =
+                    // Find existing contact ID by name to delete it if it exists (overwrite behavior)
+                    val existingContactId =
                             contentResolver.query(
                                             ContactsContract.Data.CONTENT_URI,
-                                            arrayOf(ContactsContract.Data._ID),
+                                            arrayOf(ContactsContract.Data.RAW_CONTACT_ID),
                                             "${ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
                                             arrayOf(
                                                     contact.name,
@@ -5392,10 +5392,26 @@ class BluetoothService : Service() {
                                             ),
                                             null
                                     )
-                                    ?.use { it.count > 0 }
-                                    ?: false
+                                    ?.use {
+                                        if (it.moveToFirst()) {
+                                            it.getLong(it.getColumnIndex(ContactsContract.Data.RAW_CONTACT_ID))
+                                        } else null
+                                    }
 
-                    if (!exists) {
+                    if (existingContactId != null) {
+                        try {
+                            contentResolver.delete(
+                                ContactsContract.RawContacts.CONTENT_URI,
+                                "${ContactsContract.RawContacts._ID} = ?",
+                                arrayOf(existingContactId.toString())
+                            )
+                            android.util.Log.d(TAG, "Deleted existing contact: ${contact.name} (ID: $existingContactId)")
+                        } catch (e: Exception) {
+                            android.util.Log.e(TAG, "Error deleting existing contact ${contact.name}: ${e.message}")
+                        }
+                    }
+
+                    if (true) { // Replaced !exists with true as we now delete existing ones above
                         val ops = arrayListOf<ContentProviderOperation>()
                         ops.add(
                                 ContentProviderOperation.newInsert(

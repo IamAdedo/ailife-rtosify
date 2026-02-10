@@ -2642,12 +2642,18 @@ class BluetoothService : Service() {
                         }
 
                 if (contactsList.isNotEmpty()) {
-                    val limitedList = contactsList.take(100)
-                    sendMessage(ProtocolHelper.createSyncContacts(limitedList))
+                    val chunks = contactsList.chunked(100)
+                    chunks.forEachIndexed { index, chunk ->
+                        sendMessage(ProtocolHelper.createSyncContacts(chunk))
+                        android.util.Log.d("BluetoothService", "Sent contact chunk ${index + 1}/${chunks.size} (${chunk.size} contacts)")
+                        // Small delay between chunks to avoid overwhelming the transport
+                        Thread.sleep(100)
+                    }
+
                     mainHandler.post {
                         Toast.makeText(
                                         this@BluetoothService,
-                                        getString(R.string.toast_sync_success, "Contacts"),
+                                        getString(R.string.toast_sync_success, "Contacts (${contactsList.size})"),
                                         Toast.LENGTH_SHORT
                                 )
                                 .show()
