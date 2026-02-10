@@ -315,31 +315,42 @@ class TransportManager(
             )
 
             try {
-                if (transport.connect()) {
-                    bleTransport = transport
-                    updateConnectionState()
-                    
-                    try {
-                        transport.receive().collect { msg ->
-                            _incomingMessages.send(msg)
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "BLE receive error: ${e.message}")
-                    } finally {
-                        Log.w(TAG, "Cleaning up BleTransport - connection ended.")
-                        bleTransport = null
-                        updateConnectionState()
-                    }
-                } else {
-                    Log.e(TAG, "Failed to start BLE server")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "BLE server error", e)
+                handleBleConnection(transport)
             } finally {
                 transport.disconnect()
             }
         }
     }
+
+
+private suspend fun handleBleConnection(transport: BleTransport) {
+    if (transport.connect()) {
+        bleTransport = transport
+        
+        // Update watchdog info from BLE connection
+        val deviceName = transport.getRemoteDeviceName() ?: "Phone (BLE)"
+        val deviceMac = transport.getRemoteAddress() ?: "02:00:00:00:00:00"
+        
+        lastDeviceName = deviceName
+        lastRemoteMac = deviceMac
+        if (lastLocalMac == null) lastLocalMac = "02:00:00:00:00:00"
+        
+        updateConnectionState()
+        triggerWatchdogsReevaluation()
+        
+        try {
+            transport.receive().collect { msg ->
+                _incomingMessages.send(msg)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "BLE receive error: ${e.message}")
+        } finally {
+            Log.w(TAG, "Cleaning up BleTransport - connection ended.")
+            bleTransport = null
+            updateConnectionState()
+        }
+    }
+}
 
     /**
      * Starts the WiFi server logic.
@@ -421,19 +432,25 @@ class TransportManager(
 
                     val internetEnabled = shouldInternetBeEnabled(btConnected)
 
+                    val activeWifiMac = wifiTransport?.getRemoteAddress()
+                    val macMismatch = activeWifiMac != null && !activeWifiMac.equals(remoteMac, ignoreCase = true)
+
                     // Logic based on rules (OR logic: if any active rule matches, enable LAN)
                     // CRITICAL FIX: If Internet is enabled, we MUST enable LAN server too, 
                     // because LAN is strictly better/faster/cheaper than Internet.
                     // This prevents the "Connected via Internet" issue when devices are on the same WiFi.
-                    val shouldBeRunning = wifiPairingMode ||
+                    val shouldBeRunning = (wifiPairingMode ||
                         internetEnabled || 
                         ((currentWifiRule and WIFI_RULE_ALWAYS) != 0) ||
                         (((currentWifiRule and WIFI_RULE_BT_OR_APP) != 0) && (!btConnected || isPhoneAppOpen)) ||
                         (((currentWifiRule and WIFI_RULE_MAINACTIVITY) != 0) && isPhoneAppOpen) ||
-                        (((currentWifiRule and WIFI_RULE_BT_FALLBACK) != 0) && !btConnected)
+                        (((currentWifiRule and WIFI_RULE_BT_FALLBACK) != 0) && !btConnected)) && !macMismatch
 
                     if (hasKey) {
-                        if (shouldBeRunning && !serverRunning) {
+                        if (macMismatch) {
+                            Log.w(TAG, "LAN server watchdog: MAC mismatch detected (Active: $activeWifiMac, Target: $remoteMac). Stopping server.")
+                            stopWifiServer()
+                        } else if (shouldBeRunning && !serverRunning) {
                             Log.w(TAG, "LAN server watchdog: starting (Rules matched [Rule=$currentWifiRule, BT=$btConnected, PhoneApp=$isPhoneAppOpen] or Internet enabled)")
                             startWifiServer(deviceName, localMac, remoteMac)
                         } else if (!shouldBeRunning && serverRunning) {
@@ -556,10 +573,16 @@ class TransportManager(
                     val internetRunning = internetMonitorJob?.isActive == true
                     val btConnected = bluetoothTransport?.isConnected() == true
 
-                    val shouldBeEnabled = shouldInternetBeEnabled(btConnected)
+                    val activeInternetMac = internetTransport?.getRemoteAddress()
+                    val macMismatch = activeInternetMac != null && !activeInternetMac.equals(remoteMac, ignoreCase = true)
+
+                    val shouldBeEnabled = shouldInternetBeEnabled(btConnected) && !macMismatch
 
                     if (hasKey) {
-                        if (shouldBeEnabled && !internetRunning) {
+                        if (macMismatch) {
+                            Log.w(TAG, "Internet watchdog: MAC mismatch detected (Active: $activeInternetMac, Target: $remoteMac). Stopping monitoring.")
+                            stopInternetMonitoring()
+                        } else if (shouldBeEnabled && !internetRunning) {
                             Log.w(TAG, "Internet watchdog: should be running but stopped - starting")
                             startInternetMonitoring(remoteMac)
                         } else if (!shouldBeEnabled && internetRunning) {

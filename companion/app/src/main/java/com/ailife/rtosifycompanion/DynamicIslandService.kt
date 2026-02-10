@@ -772,13 +772,7 @@ class DynamicIslandService : Service(), LifecycleOwner, ViewModelStoreOwner, Sav
         // Wake screen and vibrate on disconnect if enabled
         if (!connected && showDisconnect) {
             wakeScreenAndVibrate()
-            
-            // Trigger expanded disconnect alert directly (like notification)
-            overlayView.showExpandedDisconnected()
         }
-        
-        // Force collapse other states (like notification logic)
-        isExpanded = false
         
         // Set active state with timeout
         val timeout = prefs.getInt("dynamic_island_timeout", 5) * 1000L
@@ -970,7 +964,15 @@ class DynamicIslandService : Service(), LifecycleOwner, ViewModelStoreOwner, Sav
                 isExpanded && currentMedia != null -> "media_expanded"
                 isExpanded -> "expanded"
                 
-                // Active transient state (5 second display) - check expiration
+                // Continuous states (can't be interrupted)
+                currentCall != null -> "call"
+                currentAlarm != null -> "alarm"
+                
+                // Active notification (5 second preview)
+                currentNotification != null -> "active_notification"
+                
+                // Active transient state (5 second animation) - check expiration
+                // This is now lower priority than notifications/calls
                 activeState != null && System.currentTimeMillis() < activeState!!.expiresAt -> "active_transient"
                 
                 // If activeState is expired, we need to let it fall through, but we should also null it out to prevent logic issues
@@ -980,13 +982,6 @@ class DynamicIslandService : Service(), LifecycleOwner, ViewModelStoreOwner, Sav
                     updateState()
                     return@post
                 }
-                
-                // Active notification (5 second display)
-                currentNotification != null -> "active_notification"
-                
-                // Continuous states (can't be interrupted)
-                currentCall != null -> "call"
-                currentAlarm != null -> "alarm"
                 
                 // Idle states (persistent, priority order: media > notifications > charging > connection)
                 currentMedia != null && !overlayView.isMediaSuppressed(currentMedia?.title, currentMedia?.artist) -> "media"

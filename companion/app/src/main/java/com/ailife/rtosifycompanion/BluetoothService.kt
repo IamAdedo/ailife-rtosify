@@ -1301,9 +1301,8 @@ class BluetoothService : Service() {
         
         // Start automation and encryption
         serviceScope.launch {
-             // Save phone MAC for future reconnection, but ONLY if it's a stable Bluetooth Classic address
-             // BLE addresses are often randomized (RPA) and unsuitable for persistent ID/WebRTC signaling
-             if (mac != null && transportType.contains("BT", ignoreCase = true)) {
+             // Save phone MAC for future reconnection
+             if (mac != null) {
                  val oldMac = prefs.getString("last_phone_mac", null)
                  if (mac != oldMac) {
                      prefs.edit().putString("last_phone_mac", mac).apply()

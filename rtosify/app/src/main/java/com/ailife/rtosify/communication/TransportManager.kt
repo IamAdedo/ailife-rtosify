@@ -47,6 +47,8 @@ class TransportManager(
     @Volatile private var wifiForceForPairing = false
     @Volatile private var isMirroring = false
     
+    private var activeWifiTargetMac: String? = null
+    private var activeInternetTargetMac: String? = null
     private var discoveredLocalMac: String? = null
     
     // Message handling
@@ -225,7 +227,7 @@ class TransportManager(
                 Log.v(TAG, "transport.connect() succeeded")
                 bleTransport = transport
                 updateConnectionState()
-                
+                triggerWifiReevaluation()
                 // Run receive loop in current coroutine (blocking the reconnect loop)
                 try {
                     transport.receive().collect { msg ->
@@ -258,7 +260,7 @@ class TransportManager(
         if (transport.connect()) {
             bluetoothTransport = transport
             updateConnectionState()
-            
+            triggerWifiReevaluation()
             try {
                 transport.receive().collect { msg ->
                     _incomingMessages.send(msg)
@@ -276,28 +278,34 @@ class TransportManager(
     }
 
     fun triggerWifiReevaluation() {
-        bluetoothTransport?.getRemoteAddress()?.let { mac ->
-            // Cancel current job to force immediate re-evaluation in next loop
-            // Or just call the check logic.
-            // A simple way is to cancel and let it restart, but we need to ensure it DOES restart.
+        val mac = bluetoothTransport?.getRemoteAddress() ?: bleTransport?.getRemoteAddress()
+        
+        mac?.let { targetMac ->
             scope.launch {
-                wifiMonitorJob?.cancel()
-                startWifiMonitoring(mac)
-                internetMonitorJob?.cancel()
-                startInternetMonitoring(mac)
+                startWifiMonitoring(targetMac)
+                startInternetMonitoring(targetMac)
             }
         }
     }
 
     private fun startWifiMonitoring(deviceMac: String) {
-        if (wifiMonitorJob?.isActive == true) return
+        if (wifiMonitorJob?.isActive == true) {
+            // Check if we are already monitoring this specific MAC
+            // If it's a different MAC, we MUST restart to target the new device
+            if (activeWifiTargetMac == deviceMac) return
+            Log.i(TAG, "Restarting WiFi monitoring for new target MAC: $deviceMac")
+        }
         wifiMonitorJob?.cancel()
+        activeWifiTargetMac = deviceMac
         
         wifiMonitorJob = scope.launch(Dispatchers.IO) {
             Log.d(TAG, "Starting WiFi monitoring for MAC: $deviceMac")
             
             while (isActive) {
-                if (shouldWifiBeEnabled()) {
+                val activeWifiMac = wifiTransport?.getRemoteAddress()
+                val macMismatch = activeWifiMac != null && !activeWifiMac.equals(deviceMac, ignoreCase = true)
+
+                if (shouldWifiBeEnabled() && !macMismatch) {
                     // Try to connect if not connected
                     if (wifiTransport == null || !wifiTransport!!.isConnected()) {
                         val connected = connectWifi(deviceMac)
@@ -309,8 +317,11 @@ class TransportManager(
                         }
                     }
                 } else {
-                    // Reduce activity if rule says no
+                    // Reduce activity if rule says no OR if there is a MAC mismatch
                     if (wifiTransport != null) {
+                        if (macMismatch) {
+                            Log.w(TAG, "WiFi monitoring: MAC mismatch detected (Active: $activeWifiMac, Target: $deviceMac). Disconnecting.")
+                        }
                        wifiTransport?.disconnect()
                        wifiTransport = null
                        updateConnectionState()
@@ -382,14 +393,21 @@ class TransportManager(
     }
     
     private fun startInternetMonitoring(deviceMac: String) {
-        if (internetMonitorJob?.isActive == true) return
+        if (internetMonitorJob?.isActive == true) {
+            if (activeInternetTargetMac == deviceMac) return
+            Log.i(TAG, "Restarting Internet monitoring for new target MAC: $deviceMac")
+        }
         internetMonitorJob?.cancel()
+        activeInternetTargetMac = deviceMac
         
         internetMonitorJob = scope.launch(Dispatchers.IO) {
             Log.d(TAG, "Starting Internet monitoring for MAC: $deviceMac")
             
             while (isActive) {
-                if (shouldInternetBeEnabled()) {
+                val activeInternetMac = internetTransport?.getRemoteAddress()
+                val macMismatch = activeInternetMac != null && !activeInternetMac.equals(deviceMac, ignoreCase = true)
+
+                if (shouldInternetBeEnabled() && !macMismatch) {
                     if (internetTransport == null || !internetTransport!!.isConnected()) {
                         Log.d(TAG, "Internet transport disconnected or null - reconnecting")
                         internetTransport?.disconnect()
@@ -406,6 +424,9 @@ class TransportManager(
                     }
                 } else {
                     if (internetTransport != null) {
+                        if (macMismatch) {
+                            Log.w(TAG, "Internet monitoring: MAC mismatch detected (Active: $activeInternetMac, Target: $deviceMac). Disconnecting.")
+                        }
                         internetTransport?.disconnect()
                         internetTransport = null
                         updateConnectionState()
