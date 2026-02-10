@@ -2124,20 +2124,22 @@ class BluetoothService : Service() {
 
     // Clipboard sync functions
     private fun startClipboardMonitoring() {
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-            // Android 9 and below: Use standard ClipboardManager listener only
-            startStandardClipboardListener()
-            Log.d(TAG, "Clipboard monitoring started (Android 9- mode - listener only)")
-        } else {
-            // Android 10+: Shizuku UserService ONLY
-            if (userService != null) {
-                startClipboardPolling(3000)
-                Log.d(TAG, "Clipboard monitoring started (Shizuku mode)")
+        serviceScope.launch(Dispatchers.Main) {
+            if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
+                // Android 9 and below: Use standard ClipboardManager listener only
+                startStandardClipboardListener()
+                Log.d(TAG, "Clipboard monitoring started (Android 9- mode - listener only)")
             } else {
-                Log.w(
-                        TAG,
-                        "Shizuku UserService not available, clipboard sync disabled on Android 10+"
-                )
+                // Android 10+: Shizuku UserService ONLY
+                if (userService != null) {
+                    startClipboardPolling(3000)
+                    Log.d(TAG, "Clipboard monitoring started (Shizuku mode)")
+                } else {
+                    Log.w(
+                            TAG,
+                            "Shizuku UserService not available, clipboard sync disabled on Android 10+"
+                    )
+                }
             }
         }
     }
@@ -2145,9 +2147,11 @@ class BluetoothService : Service() {
     private fun stopClipboardMonitoring() {
         Log.d(TAG, "Stopping clipboard monitoring")
 
-        // Stop listener (Android 9-)
-        clipboardListener?.let { clipboardManager?.removePrimaryClipChangedListener(it) }
-        clipboardListener = null
+        serviceScope.launch(Dispatchers.Main) {
+            // Stop listener (Android 9-)
+            clipboardListener?.let { clipboardManager?.removePrimaryClipChangedListener(it) }
+            clipboardListener = null
+        }
 
         // Stop polling
         clipboardPollingRunnable?.let { clipboardPollingHandler.removeCallbacks(it) }
@@ -2155,26 +2159,28 @@ class BluetoothService : Service() {
     }
 
     private fun startStandardClipboardListener() {
-        if (clipboardManager == null) {
-            clipboardManager =
-                    getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
-        }
+        serviceScope.launch(Dispatchers.Main) {
+            if (clipboardManager == null) {
+                clipboardManager =
+                        getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+            }
 
-        clipboardListener =
-                android.content.ClipboardManager.OnPrimaryClipChangedListener {
-                    val clip = clipboardManager?.primaryClip
-                    if (clip != null && clip.itemCount > 0) {
-                        val text = clip.getItemAt(0).text?.toString()
-                        if (text != null && text != lastClipboardText) {
-                            lastClipboardText = text
-                            Log.d(TAG, "Clipboard changed (listener): $text")
-                            if (isConnected) {
-                                sendMessage(ProtocolHelper.createClipboardSync(text))
+            clipboardListener =
+                    android.content.ClipboardManager.OnPrimaryClipChangedListener {
+                        val clip = clipboardManager?.primaryClip
+                        if (clip != null && clip.itemCount > 0) {
+                            val text = clip.getItemAt(0).text?.toString()
+                            if (text != null && text != lastClipboardText) {
+                                lastClipboardText = text
+                                Log.d(TAG, "Clipboard changed (listener): $text")
+                                if (isConnected) {
+                                    sendMessage(ProtocolHelper.createClipboardSync(text))
+                                }
                             }
                         }
                     }
-                }
-        clipboardManager?.addPrimaryClipChangedListener(clipboardListener)
+            clipboardManager?.addPrimaryClipChangedListener(clipboardListener)
+        }
     }
 
     private fun startClipboardPolling(intervalMs: Long) {
