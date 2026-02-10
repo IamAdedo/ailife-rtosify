@@ -329,7 +329,8 @@ data class CalendarEvent(
 data class Contact(
         val name: String,
         val phoneNumbers: List<String>,
-        val emails: List<String>? = null
+        val emails: List<String>? = null,
+        val isStarred: Boolean = false
 )
 
 data class FileInfo(

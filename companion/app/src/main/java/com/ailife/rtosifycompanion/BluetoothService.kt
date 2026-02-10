@@ -5403,6 +5403,7 @@ class BluetoothService : Service() {
                                         )
                                         .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
                                         .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null)
+                                        .withValue(ContactsContract.RawContacts.STARRED, if (contact.isStarred) 1 else 0)
                                         .build()
                         )
 

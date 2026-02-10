@@ -172,20 +172,26 @@ class DialerActivity : AppCompatActivity() {
         val contactList = mutableListOf<ContactEntry>()
         val cursor: Cursor? = contentResolver.query(
             ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+            arrayOf(
+                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                ContactsContract.CommonDataKinds.Phone.NUMBER,
+                ContactsContract.CommonDataKinds.Phone.STARRED
+            ),
             null,
             null,
-            null,
-            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
+            "${ContactsContract.CommonDataKinds.Phone.STARRED} DESC, ${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC"
         )
 
         cursor?.use {
             val nameIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
             val numberIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+            val starredIndex = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.STARRED)
             
             while (it.moveToNext()) {
                 val name = it.getString(nameIndex)
                 val number = it.getString(numberIndex)
-                contactList.add(ContactEntry(name, number))
+                val isStarred = it.getInt(starredIndex) == 1
+                contactList.add(ContactEntry(name, number, isStarred))
             }
         }
 

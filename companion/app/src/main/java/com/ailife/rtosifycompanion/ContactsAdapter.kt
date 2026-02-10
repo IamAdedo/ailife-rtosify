@@ -9,7 +9,8 @@ import androidx.recyclerview.widget.RecyclerView
 
 data class ContactEntry(
     val name: String,
-    val phoneNumber: String
+    val phoneNumber: String,
+    val isStarred: Boolean = false
 )
 
 class ContactsAdapter(
@@ -39,10 +40,12 @@ class ContactsAdapter(
         private val tvName: TextView = itemView.findViewById(R.id.tvContactName)
         private val tvNumber: TextView = itemView.findViewById(R.id.tvContactNumber)
         private val imgCall: ImageView = itemView.findViewById(R.id.imgCallAction)
+        private val imgStarred: ImageView = itemView.findViewById(R.id.imgStarred)
 
         fun bind(contact: ContactEntry) {
             tvName.text = contact.name
             tvNumber.text = contact.phoneNumber
+            imgStarred.visibility = if (contact.isStarred) View.VISIBLE else View.GONE
 
             itemView.setOnClickListener { onContactSelected(contact) }
             imgCall.setOnClickListener { onCallClicked(contact) }

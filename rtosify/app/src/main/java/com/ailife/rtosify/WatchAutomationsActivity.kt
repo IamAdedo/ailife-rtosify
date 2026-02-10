@@ -17,6 +17,7 @@ class WatchAutomationsActivity : AppCompatActivity() {
     private lateinit var switchAutoBtTether: MaterialSwitch
     private lateinit var switchForceBt: MaterialSwitch
     private lateinit var switchSharingSync: MaterialSwitch
+    private lateinit var switchStarredContacts: MaterialSwitch
     private lateinit var switchAggressiveKeepalive: MaterialSwitch
 
     private lateinit var devicePrefManager: DevicePrefManager
@@ -47,6 +48,7 @@ class WatchAutomationsActivity : AppCompatActivity() {
         setupAutoBtTetherSwitch()
         setupForceBtSwitch()
         setupSharingSyncSwitch()
+        setupStarredContactsSwitch()
         setupAggressiveKeepaliveSwitch()
     }
 
@@ -58,6 +60,7 @@ class WatchAutomationsActivity : AppCompatActivity() {
         switchAutoBtTether = findViewById(R.id.switchAutoBtTether)
         switchForceBt = findViewById(R.id.switchForceBt)
         switchSharingSync = findViewById(R.id.switchSharingSync)
+        switchStarredContacts = findViewById(R.id.switchStarredContacts)
         switchAggressiveKeepalive = findViewById(R.id.switchAggressiveKeepalive)
     }
 
@@ -129,6 +132,14 @@ class WatchAutomationsActivity : AppCompatActivity() {
         switchAggressiveKeepalive.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean("aggressive_keepalive_enabled", isChecked).apply()
             sendAutomationUpdate()
+        }
+    }
+
+    private fun setupStarredContactsSwitch() {
+        val isEnabled = activePrefs.getBoolean("starred_contacts_enabled", true)
+        switchStarredContacts.isChecked = isEnabled
+        switchStarredContacts.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("starred_contacts_enabled", isChecked).apply()
         }
     }
 

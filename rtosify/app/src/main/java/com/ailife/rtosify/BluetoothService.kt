@@ -2586,11 +2586,13 @@ class BluetoothService : Service() {
 
         serviceScope.launch(Dispatchers.IO) {
             val contactsList = mutableListOf<Contact>()
+            val isStarredSyncEnabled = activePrefs.getBoolean("starred_contacts_enabled", true)
 
             val projection =
                     arrayOf(
                             ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-                            ContactsContract.CommonDataKinds.Phone.NUMBER
+                            ContactsContract.CommonDataKinds.Phone.NUMBER,
+                            ContactsContract.CommonDataKinds.Phone.STARRED
                     )
 
             try {
@@ -2610,19 +2612,32 @@ class BluetoothService : Service() {
                                     cursor.getColumnIndex(
                                             ContactsContract.CommonDataKinds.Phone.NUMBER
                                     )
+                            val starredIdx =
+                                    cursor.getColumnIndex(
+                                            ContactsContract.CommonDataKinds.Phone.STARRED
+                                    )
 
                             val contactMap = mutableMapOf<String, MutableList<String>>()
+                            val starredMap = mutableMapOf<String, Boolean>()
 
-                            while (cursor.moveToNext()) {
+                             while (cursor.moveToNext()) {
                                 val name = cursor.getString(nameIdx) ?: "Unknown"
                                 val number = cursor.getString(numberIdx) ?: ""
+                                val isStarred = if (isStarredSyncEnabled) cursor.getInt(starredIdx) == 1 else false
                                 if (number.isNotEmpty()) {
                                     contactMap.getOrPut(name) { mutableListOf() }.add(number)
+                                    starredMap[name] = isStarred
                                 }
                             }
 
                             contactMap.forEach { (name, numbers) ->
-                                contactsList.add(Contact(name = name, phoneNumbers = numbers))
+                                contactsList.add(
+                                        Contact(
+                                                name = name,
+                                                phoneNumbers = numbers,
+                                                isStarred = starredMap[name] ?: false
+                                        )
+                                )
                             }
                         }
 
