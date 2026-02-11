@@ -49,6 +49,7 @@ class BleDataGattServer(
     private var bluetoothGattServer: BluetoothGattServer? = null
     private var bleAdvertiser: BluetoothLeAdvertiser? = null
     private var isAdvertising = false
+    private var advertisingStarted = false  // Track if advertising actually started (not just initiated)
     private var connectedDevice: BluetoothDevice? = null
     private var currentMtu = 23 // Default BLE MTU
     
@@ -224,6 +225,13 @@ class BleDataGattServer(
             status: Int,
             newState: Int
         ) {
+            // CRITICAL FIX: Ignore connection state changes until advertising actually starts
+            // Android can fire spurious CONNECTED callbacks for bonded Bluetooth Classic devices
+            if (!advertisingStarted) {
+                Log.d(TAG, "Ignoring connection state change before advertising started: ${device?.address}, state=$newState")
+                return
+            }
+            
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
                     Log.i(TAG, "Client connected: ${device?.address}")
@@ -374,6 +382,7 @@ class BleDataGattServer(
     private val advertiseCallback = object : AdvertiseCallback() {
         override fun onStartSuccess(settingsInEffect: AdvertiseSettings?) {
             isAdvertising = true
+            advertisingStarted = true  // Now we can accept real connections
             Log.i(TAG, "BLE advertising started successfully")
         }
 
@@ -405,8 +414,29 @@ class BleDataGattServer(
         }
 
         try {
-            // Create GATT server
             val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+            
+            // CRITICAL FIX: Clear any stale connections before creating new server
+            // Android Bluetooth stack can maintain phantom connections even after GATT server is closed
+            val existingConnections = bluetoothManager.getConnectedDevices(BluetoothProfile.GATT_SERVER)
+            if (existingConnections.isNotEmpty()) {
+                Log.w(TAG, "Found ${existingConnections.size} stale GATT connections, clearing...")
+                // Create a temporary server just to cancel connections
+                val tempServer = bluetoothManager.openGattServer(context, object : BluetoothGattServerCallback() {})
+                existingConnections.forEach { device ->
+                    try {
+                        Log.d(TAG, "Cancelling stale connection to: ${device.address}")
+                        tempServer?.cancelConnection(device)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error cancelling stale connection: ${e.message}")
+                    }
+                }
+                // Small delay to let cancellations process
+                Thread.sleep(100)
+                tempServer?.close()
+            }
+            
+            // Create GATT server
             bluetoothGattServer = bluetoothManager.openGattServer(context, gattServerCallback)
 
             if (bluetoothGattServer == null) {
@@ -489,6 +519,7 @@ class BleDataGattServer(
      */
     fun stop() {
         try {
+            advertisingStarted = false  // Reset flag when stopping
             if (isAdvertising && bleAdvertiser != null && checkPermission()) {
                 bleAdvertiser?.stopAdvertising(advertiseCallback)
                 isAdvertising = false

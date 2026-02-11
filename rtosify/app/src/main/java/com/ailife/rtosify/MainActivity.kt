@@ -96,6 +96,33 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
 
     private lateinit var prefs: SharedPreferences
+    // Activity launchers
+    private val pairNewDeviceLauncher =
+            registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                android.util.Log.d("MainActivity", "Pairing activity finished. Result: ${result.resultCode}")
+                
+                if (result.resultCode == RESULT_OK) {
+                    val newDeviceMac = result.data?.getStringExtra("NEW_DEVICE_MAC")
+                    if (newDeviceMac != null) {
+                        android.util.Log.d("MainActivity", "New device paired: $newDeviceMac")
+                        // Set as selected device to ensure connection to the new device
+                        devicePrefManager.setSelectedDeviceMac(newDeviceMac)
+                    } else {
+                         android.util.Log.w("MainActivity", "Result OK but no NEW_DEVICE_MAC extra")
+                    }
+                } else {
+                    android.util.Log.w("MainActivity", "Pairing cancelled or failed")
+                }
+                
+                // Always restart service to ensure consistent state
+                // Force service restart by toggling switch off then on
+                switchService.isChecked = false
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    android.util.Log.d("MainActivity", "Restarting service after pairing attempt")
+                    switchService.isChecked = true
+                }, 1000)
+            }
+
     private lateinit var devicePrefManager: DevicePrefManager
     private lateinit var layoutConnectionHeader: LinearLayout
     private var bluetoothService: BluetoothService? = null
@@ -963,7 +990,11 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 )
                                 .show()
                         updateStatusUI(getString(R.string.status_switching), false)
-                        bluetoothService?.reconnect()
+                        // Force service restart by toggling switch off then on
+                        switchService.isChecked = false
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            switchService.isChecked = true
+                        }, 1000)
                         dialog.dismiss()
                     }
                 }
@@ -974,7 +1005,26 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                     builder.setMessage(getString(R.string.dialog_remove_device_message, device.name))
                     builder.setPositiveButton(R.string.dialog_remove_device_confirm, object : DialogInterface.OnClickListener {
                         override fun onClick(d: DialogInterface?, which: Int) {
+                            val wasSelected = (devicePrefManager.getSelectedDeviceMac() == device.mac)
                             devicePrefManager.removePairedDevice(device.mac)
+                            
+                            // If we deleted the currently selected device, switch to the next available device
+                            if (wasSelected) {
+                                val remainingDevices = devicePrefManager.getPairedDevices()
+                                if (remainingDevices.isNotEmpty()) {
+                                    // Select the first remaining device
+                                    val nextDevice = remainingDevices[0]
+                                    devicePrefManager.setSelectedDeviceMac(nextDevice.mac)
+                                    android.util.Log.d("MainActivity", "Deleted current device, switching to: ${nextDevice.mac}")
+                                    // Trigger reconnect to the new device
+                                    bluetoothService?.reconnect()
+                                } else {
+                                    // No devices left - disable the service to prevent re-adding bonded devices
+                                    android.util.Log.d("MainActivity", "No devices left after deletion, disabling service")
+                                    switchService.isChecked = false
+                                }
+                            }
+                            
                             showDevicePicker() // Refresh
                             dialog.dismiss()
                         }
@@ -990,11 +1040,16 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
         btnPairNew.setOnClickListener {
             dialog.dismiss()
-            startActivity(
-                    Intent(this, WelcomeActivity::class.java).apply {
-                        putExtra("FOR_NEW_DEVICE", true)
-                    }
-            )
+            // Stop service before pairing new device to ensure clean state
+            switchService.isChecked = false
+            // Launch WelcomeActivity after brief delay to ensure service stopped
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                pairNewDeviceLauncher.launch(
+                        Intent(this, WelcomeActivity::class.java).apply {
+                            putExtra("FOR_NEW_DEVICE", true)
+                        }
+                )
+            }, 300)
         }
 
         dialog.show()

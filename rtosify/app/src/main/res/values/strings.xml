@@ -300,6 +300,8 @@
     <string name="desc_stacking_enabled">If enabled, multiple notifications will stack. If disabled, new notifications replace the old one.</string>
     <string name="lbl_close_on_screen_off">Close on Screen Off</string>
     <string name="desc_close_on_screen_off">Automatically close the notification when the watch screen turns off.</string>
+    <string name="lbl_keep_screen_on">Keep Screen On</string>
+    <string name="desc_keep_screen_on">Keep the watch screen on while the notification is displayed.</string>
     <string name="notif_style_full_screen">Full Screen</string>
     <string name="btn_manage_full_screen">Manage Full Screen</string>
     <string name="btn_manage_dynamic_island">Manage Dynamic Island</string>

@@ -16,6 +16,7 @@ class FullScreenSettingsActivity : AppCompatActivity() {
 
     private lateinit var switchStacking: MaterialSwitch
     private lateinit var switchCloseOnScreenOff: MaterialSwitch
+    private lateinit var switchKeepScreenOn: MaterialSwitch
 
     private lateinit var sliderAppNameSize: com.google.android.material.slider.Slider
     private lateinit var sliderTitleSize: com.google.android.material.slider.Slider
@@ -50,6 +51,7 @@ class FullScreenSettingsActivity : AppCompatActivity() {
     private fun initViews() {
         switchStacking = findViewById(R.id.switchStacking)
         switchCloseOnScreenOff = findViewById(R.id.switchCloseOnScreenOff)
+        switchKeepScreenOn = findViewById(R.id.switchKeepScreenOn)
 
         sliderAppNameSize = findViewById(R.id.sliderAppNameSize)
         sliderTitleSize = findViewById(R.id.sliderTitleSize)
@@ -67,6 +69,7 @@ class FullScreenSettingsActivity : AppCompatActivity() {
     private fun loadSettings() {
         switchStacking.isChecked = activePrefs.getBoolean("full_screen_stacking_enabled", false)
         switchCloseOnScreenOff.isChecked = activePrefs.getBoolean("full_screen_close_on_screen_off", false)
+        switchKeepScreenOn.isChecked = activePrefs.getBoolean("full_screen_keep_screen_on", false)
 
         val appNameSize = activePrefs.getInt("full_screen_app_name_size", 20)
         sliderAppNameSize.value = appNameSize.toFloat()
@@ -97,6 +100,11 @@ class FullScreenSettingsActivity : AppCompatActivity() {
 
         switchCloseOnScreenOff.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean("full_screen_close_on_screen_off", isChecked).apply()
+            sendSettingsUpdate()
+        }
+
+        switchKeepScreenOn.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("full_screen_keep_screen_on", isChecked).apply()
             sendSettingsUpdate()
         }
 

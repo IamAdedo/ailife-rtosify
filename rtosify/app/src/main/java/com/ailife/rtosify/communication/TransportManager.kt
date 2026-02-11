@@ -143,6 +143,25 @@ class TransportManager(
         startConnectionHealthMonitor(targetDevice.address)
     }
 
+    /**
+     * Forcefully reconnects all transports to a new target device.
+     * This is used when switching between paired devices.
+     */
+    fun reconnectToDevice(targetDevice: BluetoothDevice) {
+        Log.i(TAG, "Forcefully reconnecting all transports to new device: ${targetDevice.address}")
+        
+        // Stop all transports and clear target MACs
+        stopAll()
+        
+        // Wait briefly for disconnections to complete
+        scope.launch {
+            delay(500)
+            
+            // Start client with new target device
+            startClient(targetDevice)
+        }
+    }
+
     fun setDiscoveredLocalMac(mac: String) {
         discoveredLocalMac = mac
     }

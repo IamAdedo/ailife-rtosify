@@ -22,6 +22,7 @@ import com.ailife.rtosifycompanion.NotificationData
 import com.ailife.rtosifycompanion.FileDetectedData
 import com.google.gson.Gson
 import androidx.core.content.ContextCompat
+import android.view.WindowManager
 
 class FullScreenNotificationActivity : AppCompatActivity() {
 
@@ -121,6 +122,14 @@ class FullScreenNotificationActivity : AppCompatActivity() {
             val timeout = prefs.getInt("full_screen_auto_close_timeout", 10)
             autoCloseHandler.removeCallbacks(autoCloseRunnable)
             autoCloseHandler.postDelayed(autoCloseRunnable, timeout * 1000L)
+        }
+        
+        // Keep Screen On
+        val keepScreenOn = prefs.getBoolean("full_screen_keep_screen_on", false)
+        if (keepScreenOn) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 

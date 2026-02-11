@@ -2047,6 +2047,10 @@ class BluetoothService : Service() {
             settings.fullScreenAutoCloseTimeout?.let {
                 prefs.edit().putInt("full_screen_auto_close_timeout", it).apply()
             }
+            settings.fullScreenKeepScreenOn?.let {
+                prefs.edit().putBoolean("full_screen_keep_screen_on", it).apply()
+                Log.d(TAG, "Full Screen Keep Screen On setting updated: $it")
+            }
             
             // Broadcast settings update to Dynamic Island Service if any DI setting changed
             if (settings.notificationStyle != null || settings.dynamicIslandTimeout != null ||

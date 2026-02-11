@@ -397,7 +397,8 @@ data class SettingsUpdateData(
         val fullScreenTitleSize: Int? = null,
         val fullScreenContentSize: Int? = null,
         val fullScreenAutoCloseEnabled: Boolean? = null,
-        val fullScreenAutoCloseTimeout: Int? = null
+        val fullScreenAutoCloseTimeout: Int? = null,
+        val fullScreenKeepScreenOn: Boolean? = null
 )
 
 data class HealthDataUpdate(

@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 
 class WelcomeActivity : AppCompatActivity() {
     private lateinit var devicePrefManager: DevicePrefManager
+    private var fromNewDevice = false
 
     private val requestPermissionLauncher =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -122,6 +123,9 @@ class WelcomeActivity : AppCompatActivity() {
                             when (bondState) {
                                 BluetoothDevice.BOND_BONDED -> {
                                     android.util.Log.d("Welcome", "Device bonded successfully")
+                                    // Save device to paired list before completing setup
+                                    val deviceName = device.name ?: getString(R.string.default_device_name)
+                                    devicePrefManager.addPairedDevice(deviceName, device.address)
                                     completeSetupWithDeviceAddress(device.address)
                                 }
                                 BluetoothDevice.BOND_NONE -> {
@@ -213,6 +217,7 @@ class WelcomeActivity : AppCompatActivity() {
         setContentView(R.layout.activity_welcome)
         EdgeToEdgeUtils.applyEdgeToEdge(this, findViewById(android.R.id.content))
         devicePrefManager = DevicePrefManager(this)
+        fromNewDevice = intent.getBooleanExtra("FOR_NEW_DEVICE", false)
 
         findViewById<android.widget.Button>(R.id.btnRetry).setOnClickListener {
             startAutomaticSetup()
@@ -227,7 +232,12 @@ class WelcomeActivity : AppCompatActivity() {
             qrScannerLauncher.launch(options)
         }
 
-        checkAndRequestPermissions()
+        // Skip permission requests if adding a second device (permissions already granted)
+        if (fromNewDevice) {
+            showPairingOptions()
+        } else {
+            checkAndRequestPermissions()
+        }
     }
 
     @android.annotation.SuppressLint("MissingPermission")
@@ -328,10 +338,14 @@ class WelcomeActivity : AppCompatActivity() {
         val statusText = findViewById<TextView>(R.id.tvWelcomeStatus)
         val progressBar = findViewById<android.view.View>(R.id.progressBarSetup)
 
-        globalPrefs.edit {
+        // Update selected device properly using the manager to ensure correct key (selected_device_mac) is used
+        devicePrefManager.setSelectedDeviceMac(address)
+        
+        // Update legacy/temp values
+        globalPrefs.edit().apply {
             putString("last_mac", address)
             remove("temp_mac")
-        }
+        }.commit() // Use commit() for immediate persistence before service restart
 
         statusText.text = getString(R.string.welcome_watch_ready)
         progressBar.visibility = android.view.View.VISIBLE
@@ -527,12 +541,19 @@ class WelcomeActivity : AppCompatActivity() {
         // RTOSify is phone-only, type parameter is unused
         val globalPrefs = devicePrefManager.getGlobalPrefs()
 
-        if (intent.getBooleanExtra("FOR_NEW_DEVICE", false)) {
+        if (fromNewDevice) {
+            // Adding a second device - return MAC to MainActivity to trigger reconnect
+            val selectedMac = devicePrefManager.getSelectedDeviceMac()
+            android.util.Log.d("Welcome", "Finishing setup for second device: $selectedMac")
+            val resultIntent = Intent().apply {
+                putExtra("NEW_DEVICE_MAC", selectedMac)
+            }
+            setResult(RESULT_OK, resultIntent)
             finish()
             return
         }
 
-        // After setup, show PermissionActivity to handle other permissions
+        // First-time setup - show PermissionActivity to handle other permissions
         val intent =
                 Intent(this, PermissionActivity::class.java).apply { putExtra("from_setup", true) }
         startActivity(intent)
@@ -564,10 +585,11 @@ class WelcomeActivity : AppCompatActivity() {
                     ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
                 }
 
-        if (missing.isNotEmpty()) {
-            requestPermissionLauncher.launch(missing.toTypedArray())
-        } else {
+        // If all permissions are already granted, proceed directly to pairing
+        if (missing.isEmpty()) {
             showPairingOptions()
+        } else {
+            requestPermissionLauncher.launch(missing.toTypedArray())
         }
     }
 

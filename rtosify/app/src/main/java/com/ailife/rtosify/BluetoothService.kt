@@ -1659,7 +1659,8 @@ class BluetoothService : Service() {
                 notificationSoundEnabled = activePrefs.getBoolean("notification_sound_enabled", false),
                 phoneCallRingingEnabled = activePrefs.getBoolean("phone_call_ringing_enabled", false),
                 notificationSoundUri = activePrefs.getString("notification_sound_uri", null),
-                notificationSoundName = activePrefs.getString("notification_sound_name", null)
+                notificationSoundName = activePrefs.getString("notification_sound_name", null),
+                fullScreenKeepScreenOn = activePrefs.getBoolean("full_screen_keep_screen_on", false)
                 )
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
         
@@ -1707,7 +1708,8 @@ class BluetoothService : Service() {
                 fullScreenTitleSize = activePrefs.getInt("full_screen_title_size", 22),
                 fullScreenContentSize = activePrefs.getInt("full_screen_content_size", 18),
                 fullScreenAutoCloseEnabled = activePrefs.getBoolean("full_screen_auto_close_enabled", false),
-                fullScreenAutoCloseTimeout = activePrefs.getInt("full_screen_auto_close_timeout", 10)
+                fullScreenAutoCloseTimeout = activePrefs.getInt("full_screen_auto_close_timeout", 10),
+                fullScreenKeepScreenOn = activePrefs.getBoolean("full_screen_keep_screen_on", false)
         )
         Log.d(TAG, "syncDynamicIslandSettings: inAppReplyDialog = ${settings.inAppReplyDialog}")
         sendMessage(ProtocolHelper.createUpdateSettings(settings))
