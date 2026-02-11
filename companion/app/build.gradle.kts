@@ -20,9 +20,6 @@ android {
         versionName = "1.0"
 
         resConfigs("en", "zh")
-        ndk {
-            abiFilters.add("arm64-v8a")
-        }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -30,6 +27,9 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            ndk {
+                abiFilters.add("arm64-v8a")
+            }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

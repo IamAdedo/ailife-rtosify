@@ -71,9 +71,9 @@
 
         <com.google.android.material.progressindicator.CircularProgressIndicator
             android:id="@+id/progressBarSetup"
-            style="?android:attr/progressBarStyleLarge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:indeterminate="true"
             android:layout_marginBottom="24dp"
             android:visibility="visible"/>
 
