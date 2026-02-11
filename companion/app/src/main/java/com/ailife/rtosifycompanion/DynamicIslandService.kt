@@ -691,7 +691,7 @@ class DynamicIslandService : Service(), LifecycleOwner, ViewModelStoreOwner, Sav
         }
 
         // Request initial battery status
-        registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        androidx.core.content.ContextCompat.registerReceiver(this, null, IntentFilter(Intent.ACTION_BATTERY_CHANGED), androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     private fun handleBatteryChanged(intent: Intent) {

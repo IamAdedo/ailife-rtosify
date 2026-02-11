@@ -21,11 +21,11 @@ class CrashHandler(private val context: Context) : Thread.UncaughtExceptionHandl
     }
 
     override fun uncaughtException(t: Thread, e: Throwable) {
-        handleException(e)
+        handleException(t, e)
         defaultHandler?.uncaughtException(t, e)
     }
 
-    private fun handleException(e: Throwable) {
+    private fun handleException(t: Thread, e: Throwable) {
         try {
             val date = Date()
             val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(date)
@@ -59,11 +59,16 @@ class CrashHandler(private val context: Context) : Thread.UncaughtExceptionHandl
             val printWriter = PrintWriter(stringWriter)
             
             printWriter.println("App Version: $versionName ($versionCode)")
+            printWriter.println("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
+            printWriter.println("Android Version: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
+            printWriter.println("Thread: ${t.name} (ID: ${t.id})")
             printWriter.println("Crash Time: $timestamp")
             printWriter.println("---------- Stack Trace ----------")
             e.printStackTrace(printWriter)
-            val logContent = stringWriter.toString()
+            printWriter.flush()
             printWriter.close()
+            
+            val logContent = stringWriter.toString()
 
             FileOutputStream(logFile).use { fos ->
                 fos.write(logContent.toByteArray())

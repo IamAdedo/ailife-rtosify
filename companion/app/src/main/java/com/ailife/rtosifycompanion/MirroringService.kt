@@ -110,13 +110,9 @@ class MirroringService : Service() {
         val dpi = intent?.getIntExtra(EXTRA_DPI, 240) ?: 240
         val highQuality = intent?.getBooleanExtra(EXTRA_HIGH_QUALITY, false) ?: false
 
-        // Register receiver for stop commands
-        val filter = IntentFilter("com.ailife.rtosifycompanion.STOP_MIRROR")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            androidx.core.content.ContextCompat.registerReceiver(this, stopReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(stopReceiver, filter)
-        }
+        // Register receivers for stop and refresh commands
+        androidx.core.content.ContextCompat.registerReceiver(this, stopReceiver, IntentFilter("com.ailife.rtosifycompanion.STOP_MIRROR"), androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+        androidx.core.content.ContextCompat.registerReceiver(this, refreshReceiver, IntentFilter("com.ailife.rtosifycompanion.REFRESH_MIRROR"), androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
 
         if (resultCode != 0 && data != null) {
             lastResultCode = resultCode
@@ -127,14 +123,6 @@ class MirroringService : Service() {
             startMirroring(resultCode, data, width, height, dpi)
         } else {
             stopSelf()
-        }
-
-        // Add refresh receiver
-        val refreshFilter = IntentFilter("com.ailife.rtosifycompanion.REFRESH_MIRROR")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            androidx.core.content.ContextCompat.registerReceiver(this, refreshReceiver, refreshFilter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(refreshReceiver, refreshFilter)
         }
 
         return START_NOT_STICKY

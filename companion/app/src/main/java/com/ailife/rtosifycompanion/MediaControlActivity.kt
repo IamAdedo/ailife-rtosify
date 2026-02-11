@@ -125,11 +125,7 @@ class MediaControlActivity : AppCompatActivity() {
         
         // Register media state receiver
         val filter = IntentFilter(ACTION_MEDIA_STATE_UPDATE)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.registerReceiver(this, mediaStateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(mediaStateReceiver, filter)
-        }
+        ContextCompat.registerReceiver(this, mediaStateReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
 
         setupListeners()
         

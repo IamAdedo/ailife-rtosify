@@ -873,7 +873,12 @@ class BluetoothService : Service() {
                     IntentFilter(BluetoothDevice.ACTION_ACL_DISCONNECTED),
                     ContextCompat.RECEIVER_EXPORTED // Needs to be exported for system ACL events
             )
-            registerReceiver(batteryAppUsageHandler.batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+            ContextCompat.registerReceiver(
+                    this,
+                    batteryAppUsageHandler.batteryReceiver,
+                    IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+            )
             ContextCompat.registerReceiver(
                     this,
                     audioNotificationReceiver,
@@ -2580,7 +2585,7 @@ class BluetoothService : Service() {
         val batteryLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
 
         // Use ACTION_BATTERY_CHANGED intent for reliable charging detection (same as DynamicIslandService)
-        val batteryIntent = registerReceiver(null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val batteryIntent = ContextCompat.registerReceiver(this, null, android.content.IntentFilter(Intent.ACTION_BATTERY_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
         val status = batteryIntent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
         val isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
                          status == BatteryManager.BATTERY_STATUS_FULL

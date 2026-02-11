@@ -12,6 +12,7 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import androidx.core.content.ContextCompat
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -153,15 +154,8 @@ class FullScreenMediaActivity : ComponentActivity() {
         parseIntent()
 
         // Register for download broadcasts
-        val filter = IntentFilter().apply {
-            addAction(BluetoothService.ACTION_FILE_DOWNLOAD_PROGRESS)
-            addAction(BluetoothService.ACTION_FILE_DOWNLOAD_COMPLETE)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(downloadReceiver, filter, RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(downloadReceiver, filter)
-        }
+        val filter = IntentFilter(BluetoothService.ACTION_FILE_DOWNLOAD_COMPLETE)
+        ContextCompat.registerReceiver(this, downloadReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED)
 
         // Bind to BluetoothService
         Intent(this, BluetoothService::class.java).also { intent ->

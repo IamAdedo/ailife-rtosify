@@ -412,12 +412,7 @@ class HealthDataCollector(private val context: Context) {
 
             // Register receiver
             val filter = IntentFilter(DATA_REPLY)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
-            } else {
-                @Suppress("UnspecifiedRegisterReceiverFlag")
-                context.registerReceiver(receiver, filter)
-            }
+            androidx.core.content.ContextCompat.registerReceiver(context, receiver, filter, androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
 
             // Send request
             val intent = Intent(GET_DATA_API).apply {
@@ -491,12 +486,7 @@ class HealthDataCollector(private val context: Context) {
 
             // Register receiver
             val filter = IntentFilter(DATA_REPLY)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
-            } else {
-                @Suppress("UnspecifiedRegisterReceiverFlag")
-                context.registerReceiver(receiver, filter)
-            }
+            androidx.core.content.ContextCompat.registerReceiver(context, receiver, filter, androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
 
             // Send request
             val intent = Intent(GET_DATA_API).apply {
@@ -598,12 +588,7 @@ class HealthDataCollector(private val context: Context) {
 
             // Register receiver
             val filter = IntentFilter(SETTING_REPLY)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
-            } else {
-                @Suppress("UnspecifiedRegisterReceiverFlag")
-                context.registerReceiver(receiver, filter)
-            }
+            androidx.core.content.ContextCompat.registerReceiver(context, receiver, filter, androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
 
             // Send request
             val intent = Intent(SETTING_API).apply {
@@ -681,12 +666,7 @@ class HealthDataCollector(private val context: Context) {
 
             // Register receiver
             val filter = IntentFilter(SETTING_REPLY)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
-            } else {
-                @Suppress("UnspecifiedRegisterReceiverFlag")
-                context.registerReceiver(receiver, filter)
-            }
+            androidx.core.content.ContextCompat.registerReceiver(context, receiver, filter, androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
 
             // Send request
             val intent = Intent(SETTING_API).apply {
@@ -766,12 +746,7 @@ class HealthDataCollector(private val context: Context) {
 
             // Register receiver
             val filter = IntentFilter(SETTING_REPLY)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
-            } else {
-                @Suppress("UnspecifiedRegisterReceiverFlag")
-                context.registerReceiver(receiver, filter)
-            }
+            androidx.core.content.ContextCompat.registerReceiver(context, receiver, filter, androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
 
             // Send request
             val intent = Intent(SETTING_API).apply {

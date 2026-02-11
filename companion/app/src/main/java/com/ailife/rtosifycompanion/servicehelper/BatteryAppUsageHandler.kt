@@ -80,7 +80,7 @@ class BatteryAppUsageHandler(
         val current = bm.getLongProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW).toInt()
         val batteryStatus: Intent? =
             IntentFilter(Intent.ACTION_BATTERY_CHANGED).let { ifilter ->
-                context.registerReceiver(null, ifilter)
+                androidx.core.content.ContextCompat.registerReceiver(context, null, ifilter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
             }
         val voltage = batteryStatus?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 0) ?: 0
 
