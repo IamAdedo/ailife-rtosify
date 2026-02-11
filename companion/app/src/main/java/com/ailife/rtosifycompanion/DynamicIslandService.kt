@@ -1596,14 +1596,8 @@ class DynamicIslandService : Service(), LifecycleOwner, ViewModelStoreOwner, Sav
         Log.d(TAG, "Call state changed: $state")
         
         when (state) {
-            "ENDED", "IDLE" -> {
-                // Call ended
-                currentCall = null
-                stopVibration()
-                updateState()
-            }
-            "ACTIVE" -> {
-                // Call answered - clear Dynamic Island immediately
+            "IDLE", "OFFHOOK", "ENDED", "ACTIVE" -> {
+                // Any state other than RINGING dismisses the call UI in Dynamic Island
                 currentCall = null
                 stopVibration()
                 updateState()

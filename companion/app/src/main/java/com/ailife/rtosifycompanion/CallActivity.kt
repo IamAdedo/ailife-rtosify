@@ -61,6 +61,13 @@ class CallActivity : AppCompatActivity() {
         tvName = findViewById(R.id.tv_caller_name)
         tvNumber = findViewById(R.id.tv_caller_number)
         tvStatus = findViewById(R.id.tv_call_status)
+        
+        val state = intent.getStringExtra("state")
+        if (state != null && state != "RINGING") {
+            Log.d("CallActivity", "Started with state $state, finishing immediately")
+            finish()
+            return
+        }
 
         val name = intent.getStringExtra("callerId") ?: getString(R.string.device_name_default)
         val number = intent.getStringExtra("number") ?: getString(R.string.call_unknown)
@@ -142,7 +149,8 @@ class CallActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         // Handle state updates if already open
         val state = intent?.getStringExtra("state")
-        if (state == "IDLE") {
+        if (state != null) {
+            Log.d("CallActivity", "Received state update: $state, finishing")
             finish()
         }
     }

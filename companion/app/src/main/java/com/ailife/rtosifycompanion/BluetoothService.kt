@@ -5805,7 +5805,7 @@ class BluetoothService : Service() {
         val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
         val style = prefs.getString("notification_style", "android")
         
-        if (style != "dynamic_island" || state == "IDLE") {
+        if (style != "dynamic_island" || state == "IDLE" || state == "OFFHOOK") {
             val intent =
                     Intent(this, CallActivity::class.java).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
