@@ -110,20 +110,33 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
         bindToService()
 
         if (intent.getBooleanExtra("request_mirror", false)) {
-            Log.d(
-                    "MirrorSettingsActivity",
-                    "Received mirror request, delaying projection permission by 1s for stability"
-            )
-            android.os.Handler(android.os.Looper.getMainLooper())
-                    .postDelayed(
-                            {
-                                if (!MirroringService.isRunning) {
-                                    startPhoneMirroring()
-                                }
-                            },
-                            1000
-                    )
+            handleMirrorRequest()
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.getBooleanExtra("request_mirror", false)) {
+            handleMirrorRequest()
+        }
+    }
+
+    private fun handleMirrorRequest() {
+        Log.d(
+                "MirrorSettingsActivity",
+                "Received mirror request, delaying projection permission by 1s for stability"
+        )
+        android.os.Handler(android.os.Looper.getMainLooper())
+                .postDelayed(
+                        {
+                            if (isFinishing || isDestroyed) return@postDelayed
+                            if (!MirroringService.isRunning) {
+                                startPhoneMirroring()
+                            }
+                        },
+                        1000
+                )
     }
 
     private fun initViews() {
@@ -203,7 +216,12 @@ class MirrorSettingsActivity : AppCompatActivity(), BluetoothService.ServiceCall
         val projectionManager =
                 getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as
                         android.media.projection.MediaProjectionManager
-        screenCaptureLauncher.launch(projectionManager.createScreenCaptureIntent())
+        try {
+            screenCaptureLauncher.launch(projectionManager.createScreenCaptureIntent())
+        } catch (e: Exception) {
+            Log.e("MirrorSettingsActivity", "Failed to launch screen capture: ${e.message}")
+            Toast.makeText(this, "Failed to start mirroring: ${e.message}", Toast.LENGTH_LONG).show()
+        }
         
         // Automate allow dialog (Entire screen + Start now)
         deviceActionManager.automateMirroringAllow()

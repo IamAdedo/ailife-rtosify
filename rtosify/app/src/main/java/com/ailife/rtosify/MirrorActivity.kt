@@ -295,21 +295,22 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     private fun decodeFrame(data: ByteArray) {
         if (!isCodecReady) return
+        val currentCodec = codec ?: return
 
         try {
-            val inputBufferId = codec?.dequeueInputBuffer(10000) ?: -1
+            val inputBufferId = currentCodec.dequeueInputBuffer(10000)
             if (inputBufferId >= 0) {
-                val inputBuffer = codec?.getInputBuffer(inputBufferId)
+                val inputBuffer = currentCodec.getInputBuffer(inputBufferId)
                 inputBuffer?.clear()
                 inputBuffer?.put(data)
-                codec?.queueInputBuffer(inputBufferId, 0, data.size, System.nanoTime() / 1000, 0)
+                currentCodec.queueInputBuffer(inputBufferId, 0, data.size, System.nanoTime() / 1000, 0)
             }
 
             val bufferInfo = MediaCodec.BufferInfo()
-            var outputBufferId = codec?.dequeueOutputBuffer(bufferInfo, 10000) ?: -1
+            var outputBufferId = currentCodec.dequeueOutputBuffer(bufferInfo, 10000)
             while (outputBufferId >= 0) {
-                codec?.releaseOutputBuffer(outputBufferId, true)
-                outputBufferId = codec?.dequeueOutputBuffer(bufferInfo, 0) ?: -1
+                currentCodec.releaseOutputBuffer(outputBufferId, true)
+                outputBufferId = currentCodec.dequeueOutputBuffer(bufferInfo, 0)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error decoding frame: ${e.message}")
@@ -318,12 +319,17 @@ class MirrorActivity : AppCompatActivity(), SurfaceHolder.Callback {
 
     private fun releaseDecoder() {
         isCodecReady = false
+        val currentCodec = codec
+        codec = null
         try {
-            codec?.stop()
-        } catch (e: IllegalStateException) {
+            currentCodec?.stop()
+        } catch (e: Exception) {
             // Decoder wasn't started or already stopped, ignore
         }
-        codec?.release()
-        codec = null
+        try {
+            currentCodec?.release()
+        } catch (e: Exception) {
+            // Ignore
+        }
     }
 }

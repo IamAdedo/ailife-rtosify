@@ -58,7 +58,6 @@ class MirroringService : Service() {
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var codec: MediaCodec? = null
-    private var isRunning = false
     private var highQualityMode = false
 
     private val bufferInfo = MediaCodec.BufferInfo()
@@ -150,16 +149,23 @@ class MirroringService : Service() {
                     try {
                         virtualDisplay?.release()
                         virtualDisplay = null
-                        codec?.stop()
-                        codec?.release()
+                        
+                        val currentCodec = codec
                         codec = null
+                        currentCodec?.stop()
+                        currentCodec?.release()
                     } catch (e: Exception) {
                         Log.e(TAG, "Error during partial cleanup: ${e.message}")
                     }
 
                     // Re-setup codec and virtual display
                     setupCodec(newW, newH)
-                    val surface = codec?.createInputSurface()
+                    val currentCodec = codec
+                    if (currentCodec == null) {
+                        Log.e(TAG, "Failed to setup codec during refresh")
+                        return@postDelayed
+                    }
+                    val surface = currentCodec.createInputSurface()
                     virtualDisplay = mediaProjection?.createVirtualDisplay(
                         "MirroringDisplay",
                         newW, newH, lastDpi,
@@ -167,15 +173,14 @@ class MirroringService : Service() {
                         surface, null, handler
                     )
 
-                    codec?.start()
-                    isRunning = true
-
+                    currentCodec.start()
+                    isRunning = true // Set static isRunning to true
                     Thread {
                         drainAndSend()
                     }.start()
 
                     Log.d(TAG, "Mirroring refreshed with new resolution: ${newW}x${newH}")
-                }, 200)
+                }, 300)
             }
         }
     }
@@ -284,48 +289,57 @@ class MirroringService : Service() {
     }
 
     private fun drainAndSend() {
+        val currentCodec = codec ?: return
         Log.d(TAG, "drainAndSend: Starting encoding loop, isRunning=$isRunning")
         var frameCount = 0
-        while (MirroringService.isRunning) {
-            val outputBufferId = try { 
-                codec?.dequeueOutputBuffer(bufferInfo, 10000) ?: -1 
-            } catch (e: Exception) { 
-                Log.e(TAG, "Error dequeuing buffer: ${e.message}")
-                -1 
-            }
+        try {
+            while (isRunning) {
+                val outputBufferId = try { 
+                    currentCodec.dequeueOutputBuffer(bufferInfo, 10000) 
+                } catch (e: Exception) { 
+                    Log.e(TAG, "Error dequeuing buffer: ${e.message}")
+                    -1 
+                }
 
-            if (outputBufferId >= 0) {
-                val outputBuffer = codec?.getOutputBuffer(outputBufferId)
-                if (outputBuffer != null) {
-                    val bytes = ByteArray(bufferInfo.size)
-                    outputBuffer.get(bytes)
-                    
-                    val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                    val isKeyFrame = (bufferInfo.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0
-                    
-                    frameCount++
-                    if (frameCount % 30 == 0 || isKeyFrame) {
-                        Log.d(TAG, "Frame #$frameCount: size=${encoded.length}B, keyframe=$isKeyFrame")
+                if (outputBufferId >= 0) {
+                    val outputBuffer = currentCodec.getOutputBuffer(outputBufferId)
+                    if (outputBuffer != null) {
+                        val bytes = ByteArray(bufferInfo.size)
+                        outputBuffer.get(bytes)
+                        
+                        val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        val isKeyFrame = (bufferInfo.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0
+                        
+                        frameCount++
+                        if (frameCount % 30 == 0 || isKeyFrame) {
+                            Log.d(TAG, "Frame #$frameCount: size=${encoded.length}B, keyframe=$isKeyFrame")
+                        }
+                        
+                        // Optimization: Use direct callback if available to avoid Broadcast overhead (lag in background)
+                        val callback = frameCallback
+                        if (callback != null) {
+                            callback(encoded, isKeyFrame)
+                        } else {
+                            // Fallback: Send to BluetoothService via Broadcast
+                            val intent = Intent("com.ailife.rtosifycompanion.SCREEN_DATA_AVAILABLE")
+                            intent.setPackage(packageName) // Make it explicit for Android 14+
+                            intent.putExtra("data", encoded)
+                            intent.putExtra("isKeyFrame", isKeyFrame)
+                            sendBroadcast(intent)
+                        }
                     }
-                    
-                    
-                    // Optimization: Use direct callback if available to avoid Broadcast overhead (lag in background)
-                    val callback = frameCallback
-                    if (callback != null) {
-                        callback(encoded, isKeyFrame)
-                    } else {
-                        // Fallback: Send to BluetoothService via Broadcast
-                        val intent = Intent("com.ailife.rtosifycompanion.SCREEN_DATA_AVAILABLE")
-                        intent.setPackage(packageName) // Make it explicit for Android 14+
-                        intent.putExtra("data", encoded)
-                        intent.putExtra("isKeyFrame", isKeyFrame)
-                        sendBroadcast(intent)
+                    try {
+                        currentCodec.releaseOutputBuffer(outputBufferId, false)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error releasing output buffer: ${e.message}")
                     }
                 }
-                codec?.releaseOutputBuffer(outputBufferId, false)
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in drainAndSend loop: ${e.message}")
+        } finally {
+            Log.d(TAG, "drainAndSend: Encoding loop finished, total frames=$frameCount")
         }
-        Log.d(TAG, "drainAndSend: Encoding loop finished, total frames=$frameCount")
     }
 
     private val stopReceiver = object : BroadcastReceiver() {

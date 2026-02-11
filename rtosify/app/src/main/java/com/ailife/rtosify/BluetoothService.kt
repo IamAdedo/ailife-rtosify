@@ -816,6 +816,9 @@ class BluetoothService : Service() {
         // Register direct frame callback
         MirroringService.frameCallback = { data, isKeyFrame ->
             if (isConnected) {
+                if (System.currentTimeMillis() % 1000 < 50) { // Limit logging but show activity
+                    Log.d(TAG, "Forwarding mirror frame: size=${data.length}B, keyframe=$isKeyFrame")
+                 }
                 // Use runBlocking to enforce backpressure.
                 // This blocks the encoding thread until the frame is sent or dropped.
                 // Since this runs on a background thread (drainAndSend), it is safe.

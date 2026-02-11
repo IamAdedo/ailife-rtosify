@@ -5880,6 +5880,7 @@ class BluetoothService : Service() {
         val data = ProtocolHelper.extractData<MirrorData>(message)
         Log.d(TAG, "Received mirror frame: size=${data.data.length}B, keyframe=${data.isKeyFrame}")
         val intent = Intent(ACTION_SCREEN_DATA_RECEIVED)
+        intent.setPackage(packageName) // Make it explicit for Android 14+
         intent.putExtra("data", data.data)
         intent.putExtra("isKeyFrame", data.isKeyFrame)
         sendBroadcast(intent)

@@ -342,7 +342,12 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         val projectionManager =
                 getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as
                         android.media.projection.MediaProjectionManager
-        screenCaptureLauncher.launch(projectionManager.createScreenCaptureIntent())
+        try {
+            screenCaptureLauncher.launch(projectionManager.createScreenCaptureIntent())
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to launch screen capture: ${e.message}")
+            Toast.makeText(this, "Failed to start mirroring: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     // --- NEW SECURITY FUNCTION ---

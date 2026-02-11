@@ -58,7 +58,6 @@ class MirroringService : Service() {
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var codec: MediaCodec? = null
-    private var isRunning = false
     private var highQualityMode = false
 
     private val bufferInfo = MediaCodec.BufferInfo()
@@ -163,16 +162,23 @@ class MirroringService : Service() {
                     try {
                         virtualDisplay?.release()
                         virtualDisplay = null
-                        codec?.stop()
-                        codec?.release()
+                        
+                        val currentCodec = codec
                         codec = null
+                        currentCodec?.stop()
+                        currentCodec?.release()
                     } catch (e: Exception) {
                         Log.e(TAG, "Error during partial cleanup: ${e.message}")
                     }
 
                     // Re-setup codec and virtual display
                     setupCodec(newW, newH)
-                    val surface = codec?.createInputSurface()
+                    val currentCodec = codec
+                    if (currentCodec == null) {
+                        Log.e(TAG, "Failed to setup codec during refresh")
+                        return@postDelayed
+                    }
+                    val surface = currentCodec.createInputSurface()
                     virtualDisplay = mediaProjection?.createVirtualDisplay(
                         "MirroringDisplay",
                         newW, newH, lastDpi,
@@ -180,15 +186,15 @@ class MirroringService : Service() {
                         surface, null, handler
                     )
 
-                    codec?.start()
-                    isRunning = true
-
-                    Thread {
-                        drainAndSend()
-                    }.start()
+                    currentCodec.start()
+                    isRunning = true // Set static isRunning to true
+ 
+                     Thread {
+                         drainAndSend()
+                     }.start()
 
                     Log.d(TAG, "Mirroring refreshed with new resolution: ${newW}x${newH}")
-                }, 200)
+                }, 300)
             }
         }
     }
@@ -228,6 +234,7 @@ class MirroringService : Service() {
         )
 
         codec?.start()
+        isRunning = true
         MirroringService.isRunning = true
         sendBroadcast(Intent(ACTION_MIRROR_STATE_CHANGED).setPackage(packageName))
         
@@ -237,7 +244,27 @@ class MirroringService : Service() {
     }
 
     private fun setupCodec(width: Int, height: Int) {
-        val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height)
+        // Dynamic scaling: Target ~360px on the shortest side for watch performance (or higher for HQ)
+        val targetShortSide = if (highQualityMode) 480 else 360
+        val isPortrait = height > width
+        val shortSide = if (isPortrait) width else height
+
+        var scaledWidth = width
+        var scaledHeight = height
+
+        if (shortSide > targetShortSide) {
+            val scale = targetShortSide.toFloat() / shortSide.toFloat()
+            scaledWidth = (width * scale).toInt()
+            scaledHeight = (height * scale).toInt()
+        }
+
+        // Ensure even dimensions (required for some encoders)
+        if (scaledWidth % 2 != 0) scaledWidth--
+        if (scaledHeight % 2 != 0) scaledHeight--
+
+        Log.d(TAG, "Setting up codec: Input=${width}x${height}, Scaled=${scaledWidth}x${scaledHeight}, HQ=$highQualityMode")
+
+        val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, scaledWidth, scaledHeight)
         format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
 
         // Use higher quality settings when on LAN with HQ mode enabled
@@ -248,63 +275,97 @@ class MirroringService : Service() {
         format.setInteger(MediaFormat.KEY_FRAME_RATE, frameRate)
         format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2) // 2 seconds between I-frames
 
-        codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
-        codec?.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-        Log.d(TAG, "Codec configured: ${width}x${height}, ${bitrate/1000}kbps, ${frameRate}fps, HQ=$highQualityMode")
+        try {
+            codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+            codec?.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            Log.d(TAG, "Codec configured: ${scaledWidth}x${scaledHeight}, ${bitrate/1000}kbps, ${frameRate}fps, HQ=$highQualityMode")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to configure codec: ${e.message}")
+            // Fallback to safe default if scaling fails
+            fallbackSetupCodec()
+        }
+    }
+
+    private fun fallbackSetupCodec() {
+        Log.w(TAG, "Using fallback safe resolution (320x568)")
+        val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, 320, 568)
+        format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+        format.setInteger(MediaFormat.KEY_BIT_RATE, 200000)
+        format.setInteger(MediaFormat.KEY_FRAME_RATE, 5)
+        format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5)
+        
+        try {
+            codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+            codec?.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+        } catch (e: Exception) {
+            Log.e(TAG, "Critical failure: Fallback codec setup failed: ${e.message}")
+        }
     }
 
     private fun drainAndSend() {
+        val currentCodec = codec ?: return
         var frameCount = 0
         var totalBytes = 0L
-        while (MirroringService.isRunning) {
-            val outputBufferId = try { 
-                codec?.dequeueOutputBuffer(bufferInfo, 10000) ?: -1 
-            } catch (e: Exception) { 
-                Log.e(TAG, "Error dequeuing output buffer: ${e.message}")
-                -1 
-            }
-
-            if (outputBufferId >= 0) {
-                val outputBuffer = codec?.getOutputBuffer(outputBufferId)
-                if (outputBuffer != null) {
-                    val bytes = ByteArray(bufferInfo.size)
-                    outputBuffer.get(bytes)
-                    
-                    val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
-                    val isKeyFrame = (bufferInfo.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0
-                    
-                    frameCount++
-                    totalBytes += encoded.length
-                    
-                    if (frameCount % 30 == 0) {
-                        val avgSize = totalBytes / frameCount
-                        Log.d(TAG, "Frame stats: count=$frameCount, avg_size=${avgSize}B, last_size=${encoded.length}B, keyframe=$isKeyFrame")
-                    }
-                    
-                    if (encoded.length > 100000) {
-                        Log.w(TAG, "Large frame detected: ${encoded.length}B (keyframe=$isKeyFrame)")
-                    }
-                    
-                    
-                    // Optimization: Use direct callback if available to avoid Broadcast overhead (lag in background)
-                    val callback = frameCallback
-                    if (callback != null) {
-                        callback(encoded, isKeyFrame)
-                    } else {
-                        // Fallback: Send to BluetoothService via Broadcast
-                        val intent = Intent("com.ailife.rtosify.SCREEN_DATA_AVAILABLE")
-                        intent.setPackage(packageName) // Make it explicit for Android 14+
-                        intent.putExtra("data", encoded)
-                        intent.putExtra("isKeyFrame", isKeyFrame)
-                        sendBroadcast(intent)
-                    }
+        try {
+            while (isRunning) {
+                val outputBufferId = try { 
+                    currentCodec.dequeueOutputBuffer(bufferInfo, 10000)
+                } catch (e: Exception) { 
+                    Log.e(TAG, "Error dequeuing output buffer: ${e.message}")
+                    -1 
                 }
-                codec?.releaseOutputBuffer(outputBufferId, false)
-            } else if (outputBufferId == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                Log.d(TAG, "Output format changed")
+
+                if (outputBufferId >= 0) {
+                    val outputBuffer = currentCodec.getOutputBuffer(outputBufferId)
+                    if (outputBuffer != null) {
+                        val bytes = ByteArray(bufferInfo.size)
+                        outputBuffer.get(bytes)
+                        
+                        val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        val isKeyFrame = (bufferInfo.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0
+                        
+                        frameCount++
+                        totalBytes += encoded.length
+                        
+                        if (frameCount % 30 == 0) {
+                            val avgSize = totalBytes / frameCount
+                            Log.d(TAG, "Frame stats: count=$frameCount, avg_size=${avgSize}B, last_size=${encoded.length}B, keyframe=$isKeyFrame")
+                        }
+                        
+                        if (encoded.length > 100000) {
+                            Log.w(TAG, "Large frame detected: ${encoded.length}B (keyframe=$isKeyFrame)")
+                        }
+                        
+                        
+                        // Optimization: Use direct callback if available to avoid Broadcast overhead (lag in background)
+                        val callback = frameCallback
+                        if (callback != null) {
+                            if (frameCount % 60 == 0) Log.d(TAG, "Sending frame via callback")
+                            callback(encoded, isKeyFrame)
+                        } else {
+                            // Fallback: Send to BluetoothService via Broadcast
+                            if (frameCount % 60 == 0) Log.d(TAG, "Sending frame via broadcast fallback")
+                            val intent = Intent("com.ailife.rtosify.SCREEN_DATA_AVAILABLE")
+                            intent.setPackage(packageName) // Make it explicit for Android 14+
+                            intent.putExtra("data", encoded)
+                            intent.putExtra("isKeyFrame", isKeyFrame)
+                            sendBroadcast(intent)
+                        }
+                    }
+                    try {
+                        currentCodec.releaseOutputBuffer(outputBufferId, false)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error releasing output buffer: ${e.message}")
+                    }
+                } else if (outputBufferId == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    Log.d(TAG, "Output format changed")
+                }
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in drainAndSend loop: ${e.message}")
+        } finally {
+            Log.d(TAG, "Encoding stopped. Total frames: $frameCount, avg size: ${if (frameCount > 0) totalBytes / frameCount else 0}B")
         }
-        Log.d(TAG, "Encoding stopped. Total frames: $frameCount, avg size: ${if (frameCount > 0) totalBytes / frameCount else 0}B")
     }
 
     private val stopReceiver = object : BroadcastReceiver() {
