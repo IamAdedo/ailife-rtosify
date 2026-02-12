@@ -24,12 +24,20 @@ class MdnsDiscovery(private val context: Context) {
     private val nsdManager: NsdManager =
         context.getSystemService(Context.NSD_SERVICE) as NsdManager
     
+    private val wifiManager: android.net.wifi.WifiManager =
+        context.applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+        
+    private var multicastLock: android.net.wifi.WifiManager.MulticastLock? = null
+    
     private val _discoveredServices = MutableSharedFlow<ServiceInfo>(replay = 1, extraBufferCapacity = 10)
     private val discoveredServicesCache = mutableMapOf<String, ServiceInfo>()
     
     private var registrationListener: NsdManager.RegistrationListener? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
-    private var resolveListener: NsdManager.ResolveListener? = null
+    
+    // Resolution Queue
+    private val resolutionQueue = java.util.ArrayDeque<NsdServiceInfo>()
+    private var isResolving = false
 
     private var isDiscovering = false
     private var isRegistered = false
@@ -104,6 +112,16 @@ class MdnsDiscovery(private val context: Context) {
             return
         }
         
+        // Acquire Multicast Lock
+        try {
+            multicastLock = wifiManager.createMulticastLock("rtosify_mdns")
+            multicastLock?.setReferenceCounted(true)
+            multicastLock?.acquire()
+            Log.d(TAG, "Multicast lock acquired")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to acquire multicast lock", e)
+        }
+        
         // Clear cached services to avoid stale IPs after network changes
         discoveredServicesCache.clear()
         Log.d(TAG, "Cleared mDNS service cache")
@@ -120,6 +138,7 @@ class MdnsDiscovery(private val context: Context) {
 
             override fun onStartDiscoveryFailed(serviceType: String?, errorCode: Int) {
                 Log.e(TAG, "Discovery start failed: $errorCode")
+                releaseMulticastLock()
             }
 
             override fun onDiscoveryStopped(serviceType: String?) {
@@ -128,7 +147,7 @@ class MdnsDiscovery(private val context: Context) {
 
             override fun onServiceFound(service: NsdServiceInfo?) {
                 Log.d(TAG, "Service found: ${service?.serviceName}")
-                service?.let { resolveService(it) }
+                service?.let { queueResolution(it) }
             }
 
             override fun onServiceLost(service: NsdServiceInfo?) {
@@ -138,56 +157,82 @@ class MdnsDiscovery(private val context: Context) {
 
         nsdManager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
     }
+
     /**
-     * Resolve a discovered service to get its host and port.
+     * Queue a service for resolution to handle concurrency.
      */
-    private fun resolveService(service: NsdServiceInfo) {
-        resolveListener = object : NsdManager.ResolveListener {
-            override fun onResolveFailed(serviceInfo: NsdServiceInfo?, errorCode: Int) {
-                Log.e(TAG, "Resolve failed: $errorCode for ${serviceInfo?.serviceName}")
-            }
+    private fun queueResolution(service: NsdServiceInfo) {
+        synchronized(resolutionQueue) {
+            resolutionQueue.add(service)
+            processResolutionQueue()
+        }
+    }
 
-            override fun onServiceResolved(serviceInfo: NsdServiceInfo?) {
-                serviceInfo?.let { info ->
-                    var mac = info.attributes?.get("mac")?.let { String(it) }
-                    
-                    // Fallback: Try to extract MAC from service name if attribute is missing
-                    if (mac == null && info.serviceName != null && info.serviceName.startsWith(SERVICE_NAME_PREFIX)) {
-                        val parts = info.serviceName.split("_")
-                        if (parts.size >= 2) {
-                            val rawMac = parts[1]
-                            // Reconstruct colons: AABBCCDDEEFF -> AA:BB:CC:DD:EE:FF
-                            if (rawMac.length == 12) {
-                                val sb = StringBuilder()
-                                for (i in 0 until 12 step 2) {
-                                    sb.append(rawMac.substring(i, i + 2))
-                                    if (i < 10) sb.append(":")
-                                }
-                                mac = sb.toString()
-                                Log.d(TAG, "Extracted MAC from service name fallback: $mac")
-                            }
-                        }
+    private fun processResolutionQueue() {
+        synchronized(resolutionQueue) {
+            if (isResolving || resolutionQueue.isEmpty()) return
+            
+            val service = resolutionQueue.poll() ?: return
+            isResolving = true
+            
+            Log.d(TAG, "Resolving service: ${service.serviceName}")
+            nsdManager.resolveService(service, object : NsdManager.ResolveListener {
+                override fun onResolveFailed(serviceInfo: NsdServiceInfo?, errorCode: Int) {
+                    Log.e(TAG, "Resolve failed: $errorCode for ${serviceInfo?.serviceName}")
+                    synchronized(resolutionQueue) {
+                        isResolving = false
+                        processResolutionQueue()
                     }
+                }
 
-                    val name = info.attributes?.get("name")?.let { String(it) } ?: "Unknown"
-                    val host = info.host?.hostAddress
-                    val port = info.port
-
-                    if (mac != null && host != null && port > 0) {
-                        val resolved = ServiceInfo(mac, name, host, port)
-                        Log.d(TAG, "Resolved service: $resolved")
-                        
-                        // Update cache and emit
-                        discoveredServicesCache[mac] = resolved
-                        CoroutineScope(Dispatchers.IO).launch {
-                            _discoveredServices.emit(resolved)
-                        }
+                override fun onServiceResolved(serviceInfo: NsdServiceInfo?) {
+                    serviceInfo?.let { info ->
+                        handleResolvedService(info)
                     }
+                    synchronized(resolutionQueue) {
+                        isResolving = false
+                        processResolutionQueue()
+                    }
+                }
+            })
+        }
+    }
+
+    private fun handleResolvedService(info: NsdServiceInfo) {
+        var mac = info.attributes?.get("mac")?.let { String(it) }
+        
+        // Fallback: Try to extract MAC from service name if attribute is missing
+        if (mac == null && info.serviceName != null && info.serviceName.startsWith(SERVICE_NAME_PREFIX)) {
+            val parts = info.serviceName.split("_")
+            if (parts.size >= 2) {
+                val rawMac = parts[1]
+                // Reconstruct colons: AABBCCDDEEFF -> AA:BB:CC:DD:EE:FF
+                if (rawMac.length == 12) {
+                    val sb = StringBuilder()
+                    for (i in 0 until 12 step 2) {
+                        sb.append(rawMac.substring(i, i + 2))
+                        if (i < 10) sb.append(":")
+                    }
+                    mac = sb.toString()
+                    Log.d(TAG, "Extracted MAC from service name fallback: $mac")
                 }
             }
         }
 
-        nsdManager.resolveService(service, resolveListener)
+        val name = info.attributes?.get("name")?.let { String(it) } ?: "Unknown"
+        val host = info.host?.hostAddress
+        val port = info.port
+
+        if (mac != null && host != null && port > 0) {
+            val resolved = ServiceInfo(mac, name, host, port)
+            Log.d(TAG, "Resolved service: $resolved")
+            
+            // Update cache and emit
+            discoveredServicesCache[mac] = resolved
+            CoroutineScope(Dispatchers.IO).launch {
+                _discoveredServices.emit(resolved)
+            }
+        }
     }
 
     private fun stopDiscovery() {
@@ -198,6 +243,20 @@ class MdnsDiscovery(private val context: Context) {
         }
         discoveryListener = null
         isDiscovering = false
+        releaseMulticastLock()
+    }
+    
+    private fun releaseMulticastLock() {
+        try {
+            if (multicastLock?.isHeld == true) {
+                multicastLock?.release()
+                Log.d(TAG, "Multicast lock released")
+            }
+        } catch (e: Exception) {
+             Log.e(TAG, "Error releasing multicast lock", e)
+        } finally {
+            multicastLock = null
+        }
     }
 
     /**
@@ -220,6 +279,10 @@ class MdnsDiscovery(private val context: Context) {
     fun stop() {
         stopDiscovery()
         unregisterService()
-        resolveListener = null
+        // No listener to clear for local variable, but clearing queue is good practice
+        synchronized(resolutionQueue) {
+            resolutionQueue.clear()
+            isResolving = false
+        }
     }
 }
