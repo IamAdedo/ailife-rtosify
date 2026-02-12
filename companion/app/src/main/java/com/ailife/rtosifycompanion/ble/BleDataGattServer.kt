@@ -219,32 +219,34 @@ class BleDataGattServer(
         }
     }
 
+    private var isAppSubscribed = false
+
     private val gattServerCallback = object : BluetoothGattServerCallback() {
+
+
         override fun onConnectionStateChange(
             device: BluetoothDevice?,
             status: Int,
             newState: Int
         ) {
-            // CRITICAL FIX: Ignore connection state changes until advertising actually starts
-            // Android can fire spurious CONNECTED callbacks for bonded Bluetooth Classic devices
-            if (!advertisingStarted) {
-                Log.d(TAG, "Ignoring connection state change before advertising started: ${device?.address}, state=$newState")
-                return
-            }
-            
             when (newState) {
                 BluetoothProfile.STATE_CONNECTED -> {
-                    Log.i(TAG, "Client connected: ${device?.address}")
+                    Log.i(TAG, "Client connected (GATT): ${device?.address} - waiting for subscription")
                     connectedDevice = device
-                    device?.let { onClientConnected(it) }
+                    // Do NOT call onClientConnected yet. Wait for CCCD write.
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> {
                     Log.i(TAG, "Client disconnected: ${device?.address}")
                     if (connectedDevice?.address == device?.address) {
                         connectedDevice = null
                         currentMtu = 23
+                        
+                        // Only report disconnect if we previously reported connect
+                        if (isAppSubscribed) {
+                            isAppSubscribed = false
+                            device?.let { onClientDisconnected(it) }
+                        }
                     }
-                    device?.let { onClientDisconnected(it) }
                 }
             }
         }
@@ -254,6 +256,11 @@ class BleDataGattServer(
             currentMtu = mtu
         }
 
+        // ... existing read/write request methods ... (Keep existing implementation implicitly by not replacing them if possible, OR explicitly include them)
+        // Since replace_file_content replaces a logic block, I need to include the FULL content of the block I'm replacing if I span across methods.
+        // Wait, I can target specific methods or the whole callback object. The user instruction implies replacing the callback logic.
+        // I will replace the whole `gattServerCallback` object implementation to be safe and ensure logic consistency.
+
         override fun onCharacteristicReadRequest(
             device: BluetoothDevice?,
             requestId: Int,
@@ -261,7 +268,6 @@ class BleDataGattServer(
             characteristic: BluetoothGattCharacteristic?
         ) {
             if (characteristic?.uuid == BleRssiUuids.DATA_TX_CHARACTERISTIC_UUID) {
-                // Send empty response for read requests (data is sent via notifications)
                 val response = ByteArray(0)
                 if (checkPermission()) {
                     bluetoothGattServer?.sendResponse(
@@ -345,9 +351,21 @@ class BleDataGattServer(
                     )
                 }
                 
-                // If notifications enabled and we have queued data, start sending
                 if (notificationsEnabled) {
+                    // Critical: This is where we confirm the app is actually connected
+                    if (!isAppSubscribed) {
+                        isAppSubscribed = true
+                        Log.i(TAG, "Client subscribed to notifications - invoking onClientConnected")
+                        device?.let { onClientConnected(it) }
+                    }
                     processTxQueue()
+                } else {
+                    // If unsubscribed, treat as app-level disconnect
+                     if (isAppSubscribed) {
+                        isAppSubscribed = false
+                        Log.i(TAG, "Client unsubscribed from notifications - invoking onClientDisconnected")
+                        device?.let { onClientDisconnected(it) }
+                    }
                 }
             } else {
                 if (responseNeeded && checkPermission()) {
@@ -367,7 +385,6 @@ class BleDataGattServer(
                 isSendingNotification = false
             }
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                // Continue sending if more data in queue
                 currentPacketCompletion?.complete(true)
                 currentPacketCompletion = null
                 onTransportActive()
@@ -545,7 +562,7 @@ class BleDataGattServer(
         }
     }
 
-    fun isConnected(): Boolean = connectedDevice != null
+    fun isConnected(): Boolean = connectedDevice != null && isAppSubscribed
 
     private fun checkPermission(): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -573,7 +590,10 @@ class BleDataGattServer(
                 Log.e(TAG, "Error cancelling connection", e)
             }
             connectedDevice = null
-            onClientDisconnected(device)
+            if (isAppSubscribed) {
+                isAppSubscribed = false
+                onClientDisconnected(device)
+            }
         }
         txQueue.clear()
         isSendingNotification = false

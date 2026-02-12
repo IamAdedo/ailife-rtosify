@@ -119,8 +119,6 @@ class BluetoothTransport(
         // Send keepalive pings in another job
         keepaliveJob = CoroutineScope(Dispatchers.IO).launch {
             while (isActive && connected) {
-                delay(KEEPALIVE_INTERVAL)
-                
                 // Send keepalive ping (-1 message length)
                 try {
                     val output = outputStream ?: break
@@ -133,6 +131,8 @@ class BluetoothTransport(
                     disconnect()
                     break
                 }
+                
+                delay(KEEPALIVE_INTERVAL)
             }
         }
     }

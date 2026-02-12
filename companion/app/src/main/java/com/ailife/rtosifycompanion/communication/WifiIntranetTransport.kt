@@ -61,12 +61,29 @@ class WifiIntranetTransport(
         val port = fixedPort ?: 0
         Log.d(TAG, "Starting server on port $port...")
         // Use fixed port if provided, otherwise dynamic. Enable reuseAddress to avoid bind issues on restart.
-        val ss = ServerSocket()
+        var ss = ServerSocket()
         serverSocket = ss // Assign BEFORE bind to ensure disconnect() can close it if bind fails
-        ss.apply {
-            reuseAddress = true
-            bind(java.net.InetSocketAddress(port))
+        
+        try {
+            ss.reuseAddress = true
+            ss.bind(java.net.InetSocketAddress(port))
+            Log.d(TAG, "Server bound to port ${ss.localPort}")
+        } catch (e: java.net.BindException) {
+            if (port != 0) {
+                Log.w(TAG, "Port $port in use (${e.message}), falling back to dynamic port")
+                try { ss.close() } catch (ignored: Exception) {}
+                
+                ss = ServerSocket()
+                serverSocket = ss
+                ss.reuseAddress = true
+                ss.bind(java.net.InetSocketAddress(0))
+                Log.i(TAG, "Server successfully bound to fallback port: ${ss.localPort}")
+            } else {
+                Log.e(TAG, "Failed to bind to dynamic port", e)
+                throw e
+            }
         }
+        
         val localPort = ss.localPort
         Log.d(TAG, "Server listening on port $localPort")
 

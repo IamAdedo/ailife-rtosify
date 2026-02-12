@@ -175,10 +175,13 @@ class MdnsDiscovery(private val context: Context) {
             val service = resolutionQueue.poll() ?: return
             isResolving = true
             
-            Log.d(TAG, "Resolving service: ${service.serviceName}")
+            Log.d(TAG, "Processing resolution queue. Resolving: ${service.serviceName}")
             nsdManager.resolveService(service, object : NsdManager.ResolveListener {
                 override fun onResolveFailed(serviceInfo: NsdServiceInfo?, errorCode: Int) {
                     Log.e(TAG, "Resolve failed: $errorCode for ${serviceInfo?.serviceName}")
+                    if (errorCode == NsdManager.FAILURE_ALREADY_ACTIVE) {
+                        Log.w(TAG, "FAILURE_ALREADY_ACTIVE - will retry next in queue")
+                    }
                     synchronized(resolutionQueue) {
                         isResolving = false
                         processResolutionQueue()
@@ -186,6 +189,7 @@ class MdnsDiscovery(private val context: Context) {
                 }
 
                 override fun onServiceResolved(serviceInfo: NsdServiceInfo?) {
+                    Log.d(TAG, "Service resolved successfully: ${serviceInfo?.serviceName}")
                     serviceInfo?.let { info ->
                         handleResolvedService(info)
                     }

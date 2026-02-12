@@ -105,6 +105,14 @@ class BluetoothTransport(
     private fun startKeepalive() {
         // Monitor timeout in a separate job that doesn't do I/O
         CoroutineScope(Dispatchers.IO).launch {
+            // Initial grace period for handshake/first message
+            delay(5000)
+            if (isActive && connected && (System.currentTimeMillis() - lastReceiveTime > 5000)) {
+                 Log.w(TAG, "BT initial handshake timeout: No data received in first 5s - forcing disconnect")
+                 disconnect()
+                 return@launch
+            }
+
             while (isActive && connected) {
                 delay(1000) // Check every second
                 val elapsed = System.currentTimeMillis() - lastReceiveTime
@@ -119,8 +127,6 @@ class BluetoothTransport(
         // Send keepalive pings in another job
         keepaliveJob = CoroutineScope(Dispatchers.IO).launch {
             while (isActive && connected) {
-                delay(KEEPALIVE_INTERVAL)
-                
                 // Send keepalive ping (-1 message length)
                 try {
                     val output = outputStream ?: break
@@ -133,6 +139,8 @@ class BluetoothTransport(
                     disconnect()
                     break
                 }
+                
+                delay(KEEPALIVE_INTERVAL)
             }
         }
     }

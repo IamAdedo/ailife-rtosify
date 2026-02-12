@@ -2157,12 +2157,13 @@ class BluetoothService : Service() {
 
     private fun handleUpdateWifiRule(message: ProtocolMessage) {
         try {
-            val wifiActivationRule = message.data.get("rule")?.asInt
-            wifiActivationRule?.let {
-                prefs.edit().putInt("wifi_activation_rule", it).apply()
-                transportManager.updateWifiRule(it)
-                Log.d(TAG, "WiFi activation rule updated to: $it")
-            }
+            // Default to current rule if not present in message, or 8 (BT_OR_APP) if never set
+            val defaultRule = prefs.getInt("wifi_activation_rule", 8)
+            val wifiActivationRule = message.data.get("rule")?.asInt ?: defaultRule
+            
+            prefs.edit().putInt("wifi_activation_rule", wifiActivationRule).apply()
+            transportManager.updateWifiRule(wifiActivationRule)
+            Log.d(TAG, "WiFi activation rule updated to: $wifiActivationRule")
         } catch (e: Exception) {
             Log.e(TAG, "Error updating WiFi rule", e)
         }

@@ -233,8 +233,19 @@ class TransportManager(
                             break
                         }
 
-                        socket?.let {
-                            handleBluetoothConnection(it)
+                        // Launch handler in separate coroutine to accept next connection immediately if needed
+                        socket?.let { newSocket ->
+                            Log.i(TAG, "BT connection accepted, launching handler...")
+                            // Ensure any existing transport is cleaned up
+                            val oldTransport = bluetoothTransport
+                            if (oldTransport != null) {
+                                Log.w(TAG, "Disconnecting old BT transport for new connection")
+                                oldTransport.disconnect()
+                            }
+                            
+                            scope.launch(Dispatchers.IO) {
+                                handleBluetoothConnection(newSocket)
+                            }
                         }
                     }
                 } finally {
