@@ -23,6 +23,14 @@ import com.ailife.rtosifycompanion.FileDetectedData
 import com.google.gson.Gson
 import androidx.core.content.ContextCompat
 import android.view.WindowManager
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.Rect
+import android.graphics.RectF
+import android.graphics.drawable.GradientDrawable
 
 class FullScreenNotificationActivity : AppCompatActivity() {
 
@@ -206,19 +214,48 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         tvTime.text = timeFormat.format(java.util.Date())
 
         // Icons
-        val iconBitmap = decodeBase64(data.largeIcon ?: data.smallIcon)
+        // Priority: Group Icon > Sender Icon > Large Icon > Small Icon
+        val iconBitmap = when {
+            data.isGroupConversation && data.groupIcon != null -> decodeBase64(data.groupIcon)
+            data.isGroupConversation && data.largeIcon != null -> decodeBase64(data.largeIcon)
+            data.senderIcon != null -> decodeBase64(data.senderIcon)
+            data.groupIcon != null -> decodeBase64(data.groupIcon)
+            data.largeIcon != null -> decodeBase64(data.largeIcon)
+            data.smallIcon != null -> decodeBase64(data.smallIcon)
+            else -> null
+        }
+
         if (iconBitmap != null) {
-            imgAppIcon.setImageBitmap(iconBitmap)
+            imgAppIcon.setImageBitmap(getCircularBitmap(iconBitmap))
         } else {
             imgAppIcon.setImageResource(R.mipmap.ic_launcher)
         }
 
-        // Small Icon (Bottom Right) - show if both icons exist AND are different
-        if (data.smallIcon != null && data.largeIcon != null && data.smallIcon != data.largeIcon) {
-             val smallIconBitmap = decodeBase64(data.smallIcon)
+        // Small Icon (Bottom Right)
+        // Show if smallIcon exists AND (we are using a fancy icon OR it is a file type)
+        // Basically if we have a main icon that is NOT the small icon, we show small icon as badge.
+        // Or if we specifically have a small icon different from the one we showed.
+        
+        // DynamicIsland Logic simplifies to:
+        // if (notif.fileType != null || (notif.smallIcon != null && (notif.senderIcon != null || notif.groupIcon != null || notif.largeIcon != null)))
+        
+        if (data.fileType != null || (data.smallIcon != null && (data.senderIcon != null || data.groupIcon != null || data.largeIcon != null))) {
+             val smallIconBitmap = if (data.smallIcon != null) decodeBase64(data.smallIcon) else null
+             
              if (smallIconBitmap != null) {
-                 imgSmallIcon.setImageBitmap(smallIconBitmap)
+                 imgSmallIcon.setImageBitmap(getCircularBitmap(smallIconBitmap))
                  imgSmallIcon.visibility = View.VISIBLE
+                 
+                 // Apply dark background for visibility in light mode
+                 imgSmallIcon.background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Color.parseColor("#333333"))
+                    setStroke(2.dpToPx(), Color.parseColor("#1C1C1E"))
+                }
+                // Padding to ensure icon doesn't touch the border
+                val pad = 2.dpToPx()
+                imgSmallIcon.setPadding(pad, pad, pad, pad)
+                
              } else {
                  imgSmallIcon.visibility = View.GONE
              }
@@ -279,6 +316,15 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         if (fileTypeIcon != null && data.largeIcon != null) {
             imgSmallIcon.setImageResource(fileTypeIcon)
             imgSmallIcon.visibility = View.VISIBLE
+            
+            // Apply dark background for visibility in light mode
+            imgSmallIcon.background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#333333"))
+                setStroke(2.dpToPx(), Color.parseColor("#1C1C1E"))
+            }
+            val pad = 2.dpToPx()
+            imgSmallIcon.setPadding(pad, pad, pad, pad)
         } else {
             imgSmallIcon.visibility = View.GONE
         }
@@ -459,6 +505,23 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         } catch (e: Exception) {
             null
         }
+    }
+
+    private fun getCircularBitmap(bitmap: Bitmap): Bitmap {
+        val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val color = -0xbdbdbe
+        val paint = Paint()
+        val rect = Rect(0, 0, bitmap.width, bitmap.height)
+        val rectF = RectF(rect)
+        val roundPx = Math.min(bitmap.width, bitmap.height) / 2f
+        paint.isAntiAlias = true
+        canvas.drawARGB(0, 0, 0, 0)
+        paint.color = color
+        canvas.drawRoundRect(rectF, roundPx, roundPx, paint)
+        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+        canvas.drawBitmap(bitmap, rect, rect, paint)
+        return output
     }
 
     private fun Int.dpToPx(): Int {

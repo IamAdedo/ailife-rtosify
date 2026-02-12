@@ -536,7 +536,7 @@ class TransportManager(
         // Always rule takes precedence
         if ((rule and WIFI_RULE_ALWAYS) != 0) return true
 
-        val btConnected = bluetoothTransport?.isConnected() == true
+        val btConnected = bluetoothTransport?.isConnected() == true || bleTransport?.isConnected() == true
         val appActive = isAppInForeground || isMirroring
 
         // Combined rule: BT disconnected OR app open
@@ -565,7 +565,7 @@ class TransportManager(
 
         if ((rule and INTERNET_RULE_ALWAYS) != 0) return true
 
-        val btConnected = bluetoothTransport?.isConnected() == true
+        val btConnected = bluetoothTransport?.isConnected() == true || bleTransport?.isConnected() == true
         val lanConnected = wifiTransport?.isConnected() == true
 
         var shouldEnable = false

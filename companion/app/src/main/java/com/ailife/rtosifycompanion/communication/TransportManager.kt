@@ -439,7 +439,7 @@ private suspend fun handleBleConnection(transport: BleTransport) {
                 try {
                     val hasKey = encryptionManager.hasKey(remoteMac)
                     val serverRunning = wifiServerJob?.isActive == true
-                    val btConnected = bluetoothTransport?.isConnected() == true
+                    val btConnected = bluetoothTransport?.isConnected() == true || bleTransport?.isConnected() == true
 
                     val internetEnabled = shouldInternetBeEnabled(btConnected)
 
@@ -582,7 +582,7 @@ private suspend fun handleBleConnection(transport: BleTransport) {
                 try {
                     val hasKey = encryptionManager.hasKey(remoteMac)
                     val internetRunning = internetMonitorJob?.isActive == true
-                    val btConnected = bluetoothTransport?.isConnected() == true
+                    val btConnected = bluetoothTransport?.isConnected() == true || bleTransport?.isConnected() == true
 
                     val activeInternetMac = internetTransport?.getRemoteAddress()
                     val macMismatch = activeInternetMac != null && !activeInternetMac.equals(remoteMac, ignoreCase = true)

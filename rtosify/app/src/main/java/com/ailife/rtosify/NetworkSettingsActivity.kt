@@ -442,7 +442,7 @@ class NetworkSettingsActivity : AppCompatActivity() {
     private fun updateConnectionStatus(transportStatus: TransportManager.TransportStatus? = null) {
         val status = transportStatus ?: bluetoothService?.transportManager?.status?.value
         
-        val btConnected = status?.isBtConnected ?: (bluetoothService?.isConnected == true)
+        val btConnected = status?.isBtConnected ?: (bluetoothService?.isConnected == true) || (status?.isBleConnected == true)
         val bleConnected = status?.isBleConnected == true
         val lanConnected = status?.isLanConnected ?: (bluetoothService?.isWifiConnected() == true)
         val internetConnected = status?.isInternetConnected ?: (bluetoothService?.isInternetConnected() == true)
