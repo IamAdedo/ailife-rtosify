@@ -53,6 +53,9 @@ class MirroringService : Service() {
         
         // Direct callback to avoid Broadcast overhead
         @Volatile var frameCallback: ((String, Boolean) -> Unit)? = null
+        
+        // Callback for actual encoding resolution
+        @Volatile var onResolutionChange: ((Int, Int, Int) -> Unit)? = null
     }
 
     private var mediaProjection: MediaProjection? = null
@@ -269,6 +272,9 @@ class MirroringService : Service() {
             codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
             codec?.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
             Log.d(TAG, "Codec configured: ${scaledWidth}x${scaledHeight}, ${bitrate/1000}kbps, ${frameRate}fps")
+            
+            // Notify listener about actual encoding resolution
+            onResolutionChange?.invoke(scaledWidth, scaledHeight, 0)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to configure codec: ${e.message}")
             // Fallback to safe default if scaling fails
