@@ -648,13 +648,6 @@ class BluetoothService : Service() {
                          }
                          currentDeviceName = storedName ?: status.deviceName ?: getString(R.string.device_name_default)
                          
-                         // Update selected device MAC in preferences
-                         if (status.deviceMac != null) {
-                             devicePrefManager.setSelectedDeviceMac(status.deviceMac)
-                             // DO NOT update device name here from Bluetooth device name - it's often stale
-                             // Device name will be updated from protocol in handleDeviceInfoUpdate which has the correct name
-                         }
-                         
                          // Show transport type in status - handle combined types
                          val statusText = buildConnectionStatusText(status.typeString, currentDeviceName ?: "")
                          updateStatus(statusText)

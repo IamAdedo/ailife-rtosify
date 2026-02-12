@@ -115,12 +115,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 }
                 
                 // Always restart service to ensure consistent state
-                // Force service restart by toggling switch off then on
-                switchService.isChecked = false
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    android.util.Log.d("MainActivity", "Restarting service after pairing attempt")
-                    switchService.isChecked = true
-                }, 1000)
+                bluetoothService?.reconnect()
             }
 
     private lateinit var devicePrefManager: DevicePrefManager
@@ -989,13 +984,10 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                         Toast.LENGTH_SHORT
                                 )
                                 .show()
-                        updateStatusUI(getString(R.string.status_switching), false)
-                        // Force service restart by toggling switch off then on
-                        switchService.isChecked = false
-                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            switchService.isChecked = true
-                        }, 1000)
-                        dialog.dismiss()
+                         updateStatusUI(getString(R.string.status_switching), false)
+                         // Trigger reconnect to the new device via service
+                         bluetoothService?.reconnect()
+                         dialog.dismiss()
                     }
                 }
 
