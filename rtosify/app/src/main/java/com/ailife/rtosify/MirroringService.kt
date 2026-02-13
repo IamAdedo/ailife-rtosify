@@ -65,6 +65,7 @@ class MirroringService : Service() {
 
     private val bufferInfo = MediaCodec.BufferInfo()
     private val handler = Handler(Looper.getMainLooper())
+    private var configBuffer: ByteArray? = null
 
     inner class MirroringBinder : Binder() {
         fun getService(): MirroringService = this@MirroringService
@@ -335,8 +336,27 @@ class MirroringService : Service() {
                         val bytes = ByteArray(bufferInfo.size)
                         outputBuffer.get(bytes)
                         
-                        val encoded = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                        // Handle Codec Config (SPS/PPS)
+                        if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                            Log.d(TAG, "CSD (SPS/PPS) headers received: ${bytes.size}B")
+                            configBuffer = bytes
+                            currentCodec.releaseOutputBuffer(outputBufferId, false)
+                            continue
+                        }
+                        
                         val isKeyFrame = (bufferInfo.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0
+                        
+                        // Prepend CSD to keyframes for robustness
+                        val finalBytes = if (isKeyFrame && configBuffer != null) {
+                            val combined = ByteArray(configBuffer!!.size + bytes.size)
+                            System.arraycopy(configBuffer!!, 0, combined, 0, configBuffer!!.size)
+                            System.arraycopy(bytes, 0, combined, configBuffer!!.size, bytes.size)
+                            combined
+                        } else {
+                            bytes
+                        }
+                        
+                        val encoded = Base64.encodeToString(finalBytes, Base64.NO_WRAP)
                         
                         frameCount++
                         totalBytes += encoded.length

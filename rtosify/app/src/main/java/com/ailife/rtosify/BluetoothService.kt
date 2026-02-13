@@ -827,9 +827,9 @@ class BluetoothService : Service() {
 
         MirroringService.onResolutionChange = { w, h, d ->
             if (isConnected) {
-                Log.d(TAG, "Mirroring resolution changed to ${w}x${h}, notifying watch in 1000ms")
+                Log.d(TAG, "Mirroring resolution changed to ${w}x${h}, notifying watch in 300ms")
                 serviceScope.launch {
-                    kotlinx.coroutines.delay(1000)
+                    kotlinx.coroutines.delay(300)
                     sendMessage(ProtocolHelper.createMirrorResChange(w, h, d))
                 }
             }
