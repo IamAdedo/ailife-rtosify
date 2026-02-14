@@ -223,7 +223,7 @@
         <activity
             android:name=".FullScreenNotificationActivity"
             android:exported="false"
-            android:launchMode="standard"
+            android:launchMode="singleTop"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:theme="@style/Theme.Smartwatch" />

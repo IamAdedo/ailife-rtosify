@@ -288,6 +288,7 @@ class BluetoothService : Service() {
         const val ACTION_UPDATE_DI_SETTINGS = "com.ailife.rtosifycompanion.UPDATE_DI_SETTINGS"
         const val ACTION_SHOW_IN_DYNAMIC_ISLAND = "com.ailife.rtosifycompanion.SHOW_IN_DI"
         const val ACTION_DISMISS_FROM_DYNAMIC_ISLAND = "com.ailife.rtosifycompanion.DISMISS_FROM_DI"
+        const val ACTION_DISMISS_FROM_FULL_SCREEN = "com.ailife.rtosifycompanion.DISMISS_FROM_FULL_SCREEN"
         const val ACTION_REQUEST_CONNECTION_STATE =
                 "com.ailife.rtosifycompanion.REQUEST_CONNECTION_STATE"
         const val ACTION_CONNECTION_STATE_CHANGED =
@@ -4652,7 +4653,7 @@ class BluetoothService : Service() {
                      // Stacking Logic
                      val stacking = prefs.getBoolean("full_screen_stacking_enabled", true)
                      if (stacking) {
-                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                      } else {
                          // If Stacking OFF, we clear top to replace existing activity
                          flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -4995,6 +4996,14 @@ class BluetoothService : Service() {
                     setPackage(packageName)
                 }
         sendBroadcast(intent)
+
+        // Also dismiss from Full Screen if it's running
+        val fullScreenIntent =
+                Intent(ACTION_DISMISS_FROM_FULL_SCREEN).apply {
+                    putExtra(EXTRA_NOTIF_KEY, key)
+                    setPackage(packageName)
+                }
+        sendBroadcast(fullScreenIntent)
     }
 
     private fun requestDismissOnPhone(message: ProtocolMessage) {
@@ -6333,7 +6342,7 @@ class BluetoothService : Service() {
                      // Stacking Logic - same as regular notifications
                      val stacking = prefs.getBoolean("full_screen_stacking_enabled", true)
                      if (stacking) {
-                         flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
                      } else {
                          // If Stacking OFF, we clear top to replace existing activity with latest
                          flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

@@ -46,7 +46,8 @@ class FullScreenNotificationActivity : AppCompatActivity() {
     private lateinit var btnReply: MaterialButton
     private lateinit var btnDismiss: MaterialButton
 
-    private var notificationKey: String? = null
+    private val notifications = mutableListOf<NotificationData>()
+    private var currentIndex = 0
     private var isFileDetected: Boolean = false
 
     private val screenOffReceiver = object : BroadcastReceiver() {
@@ -61,12 +62,40 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         }
     }
 
+    private val notificationDismissReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == BluetoothService.ACTION_DISMISS_FROM_FULL_SCREEN) {
+                val key = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_KEY)
+                if (key != null) {
+                    val index = notifications.indexOfFirst { it.key == key }
+                    if (index != -1) {
+                        Log.d(TAG, "Dismissing notification from full screen due to remote removal: $key")
+                        notifications.removeAt(index)
+                        if (notifications.isEmpty()) {
+                            finish()
+                        } else {
+                            if (currentIndex >= notifications.size) {
+                                currentIndex = notifications.size - 1
+                            }
+                            displayCurrentNotification()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_full_screen_notification)
 
         initViews()
-        registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(BluetoothService.ACTION_DISMISS_FROM_FULL_SCREEN)
+        }
+        registerReceiver(screenOffReceiver, filter)
+        registerReceiver(notificationDismissReceiver, filter)
 
         processIntent(intent)
     }
@@ -84,6 +113,7 @@ class FullScreenNotificationActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(screenOffReceiver)
+        unregisterReceiver(notificationDismissReceiver)
         autoCloseHandler.removeCallbacks(autoCloseRunnable)
     }
 
@@ -101,7 +131,11 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         btnDismiss = findViewById(R.id.btnDismiss)
 
         btnClose.setOnClickListener {
-            finish()
+            popNotification(dismissOnPhone = false)
+        }
+
+        btnDismiss.setOnClickListener {
+            popNotification(dismissOnPhone = true)
         }
         
         applySettings()
@@ -143,7 +177,7 @@ class FullScreenNotificationActivity : AppCompatActivity() {
 
     private fun processIntent(intent: Intent?) {
         if (intent == null) {
-            finish()
+            if (notifications.isEmpty()) finish()
             return
         }
         
@@ -159,49 +193,129 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         val gson = Gson()
         
         isFileDetected = intent.getBooleanExtra("is_file_detected", false)
-        
+        val notificationKey = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_KEY)
+        val json = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_JSON)
+        val fileDataJson = intent.getStringExtra("file_data_json")
+
         if (isFileDetected) {
-            val json = intent.getStringExtra("file_data_json")
-            if (json != null) {
+            if (fileDataJson != null) {
                 try {
-                    val fileData = gson.fromJson(json, FileDetectedData::class.java)
-                    displayFileDetected(fileData)
+                    val fileData = gson.fromJson(fileDataJson, FileDetectedData::class.java)
+                    val notifData = fileToNotification(fileData)
+                    addOrUpdateNotification(notifData)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error parsing file data: ${e.message}")
-                    finish()
+                    if (notifications.isEmpty()) finish()
                 }
             }
         } else {
-             notificationKey = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_KEY)
-             val json = intent.getStringExtra(BluetoothService.EXTRA_NOTIF_JSON)
-             
              if (json != null) {
                  try {
                      val notifData = gson.fromJson(json, NotificationData::class.java)
-                     displayNotification(notifData)
+                     addOrUpdateNotification(notifData)
                  } catch (e: Exception) {
                      Log.e(TAG, "Error parsing notification data: ${e.message}")
-                     // Fallback to cache if key exists?
                      if (notificationKey != null) {
-                         val cached = NotificationCache.get(notificationKey!!)
+                         val cached = NotificationCache.get(notificationKey)
                          if (cached != null) {
-                             displayNotification(cached)
-                         } else {
+                             addOrUpdateNotification(cached)
+                         } else if (notifications.isEmpty()) {
                              finish()
                          }
-                     } else {
+                     } else if (notifications.isEmpty()) {
                          finish()
                      }
                  }
              } else if (notificationKey != null) {
-                 val cached = NotificationCache.get(notificationKey!!)
+                 val cached = NotificationCache.get(notificationKey)
                  if (cached != null) {
-                     displayNotification(cached)
-                 } else {
+                     addOrUpdateNotification(cached)
+                 } else if (notifications.isEmpty()) {
                      finish()
                  }
              }
         }
+    }
+
+    private fun fileToNotification(data: FileDetectedData): NotificationData {
+        val sizeText = android.text.format.Formatter.formatFileSize(this, data.size)
+        val durationText = data.duration?.let { " • ${formatDuration(it)}" } ?: ""
+        val typeText = "Type: ${data.type}"
+        val textValue = "$typeText • $sizeText$durationText" + (data.textContent?.let { "\n\n$it" } ?: "")
+
+        return NotificationData(
+            packageName = "com.ailife.rtosify.file",
+            title = data.name,
+            text = textValue,
+            key = "file_${data.path}",
+            appName = data.notificationTitle ?: getString(R.string.notification_file_detected_title),
+            largeIcon = data.largeIcon,
+            bigPicture = data.thumbnail,
+            fileType = data.type,
+            textContent = data.textContent,
+            localFilePath = data.path
+        )
+    }
+
+    private fun addOrUpdateNotification(data: NotificationData) {
+        val existingIndex = notifications.indexOfFirst { it.key == data.key }
+        if (existingIndex != -1) {
+            notifications[existingIndex] = data
+            // If we are currently viewing this notification, refresh it
+            if (currentIndex == existingIndex) {
+                displayCurrentNotification()
+            }
+        } else {
+            notifications.add(data)
+            currentIndex = notifications.size - 1
+            displayCurrentNotification()
+        }
+    }
+
+    private fun displayCurrentNotification() {
+        if (currentIndex in notifications.indices) {
+            val data = notifications[currentIndex]
+            if (data.packageName == "com.ailife.rtosify.file") {
+                displayFileNotification(data)
+            } else {
+                displayNotification(data)
+            }
+            updateNavigationUI()
+        } else if (notifications.isEmpty()) {
+            finish()
+        }
+    }
+
+    private fun updateNavigationUI() {
+        // UI navigation removed as per user request
+    }
+
+    private fun popNotification(dismissOnPhone: Boolean) {
+        if (currentIndex in notifications.indices) {
+            val data = notifications[currentIndex]
+            if (dismissOnPhone && data.packageName != "com.ailife.rtosify.file") {
+                // Send dismiss to phone (only for regular notifications)
+                val intent = Intent(BluetoothService.ACTION_WATCH_DISMISSED_LOCAL)
+                intent.putExtra(BluetoothService.EXTRA_NOTIF_KEY, data.key)
+                sendBroadcast(intent)
+            }
+            
+            notifications.removeAt(currentIndex)
+            if (notifications.isEmpty()) {
+                finish()
+            } else {
+                if (currentIndex >= notifications.size) {
+                    currentIndex = notifications.size - 1
+                }
+                displayCurrentNotification()
+            }
+        } else {
+            finish()
+        }
+    }
+
+    private fun dismissCurrentNotification() {
+        popNotification(dismissOnPhone = true)
     }
 
     private fun displayNotification(data: NotificationData) {
@@ -280,20 +394,15 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         setupActions(data)
     }
 
-    private fun displayFileDetected(data: FileDetectedData) {
-        tvAppName.text = data.notificationTitle ?: getString(R.string.notification_file_detected_title)
-        tvTitle.text = data.name
-        
-        // Build text with type, size, and duration if available
-        val sizeText = android.text.format.Formatter.formatFileSize(this, data.size)
-        val durationText = data.duration?.let { " • ${formatDuration(it)}" } ?: ""
-        val typeText = "Type: ${data.type}"
-        tvText.text = "$typeText • $sizeText$durationText"
+    private fun displayFileNotification(data: NotificationData) {
+        tvAppName.text = data.appName ?: getString(R.string.notification_file_detected_title)
+        tvTitle.text = data.title
+        tvText.text = data.text
         
         val timeFormat = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
-        tvTime.text = timeFormat.format(java.util.Date(data.timestamp))
+        tvTime.text = timeFormat.format(java.util.Date())
 
-        // Icon for file detected - use large icon if available, otherwise use file type icon
+        // Icon for file detected
         if (data.largeIcon != null) {
             val largeIconBitmap = decodeBase64(data.largeIcon)
             if (largeIconBitmap != null) {
@@ -306,7 +415,7 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         }
         
         // Show small icon overlay based on file type
-        val fileTypeIcon = when (data.type) {
+        val fileTypeIcon = when (data.fileType) {
             "image" -> android.R.drawable.ic_menu_gallery
             "video" -> android.R.drawable.ic_media_play
             "audio" -> android.R.drawable.ic_lock_silent_mode_off
@@ -316,8 +425,6 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         if (fileTypeIcon != null && data.largeIcon != null) {
             imgSmallIcon.setImageResource(fileTypeIcon)
             imgSmallIcon.visibility = View.VISIBLE
-            
-            // Apply dark background for visibility in light mode
             imgSmallIcon.background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.parseColor("#333333"))
@@ -329,28 +436,29 @@ class FullScreenNotificationActivity : AppCompatActivity() {
             imgSmallIcon.visibility = View.GONE
         }
 
-        // Thumbnail or text content
-        val isText = data.type == "text"
-        val isImage = data.type == "image"
-        val isVideo = data.type == "video"
-        
-        if (isText && !data.textContent.isNullOrEmpty()) {
-            // Show text preview
-            tvText.text = "$typeText • $sizeText\n\n${data.textContent}"
-            imgBigPicture.visibility = View.GONE
-        } else if (data.thumbnail != null) {
-            val thumb = decodeBase64(data.thumbnail)
+        // Thumbnail
+        if (data.bigPicture != null) {
+            val thumb = decodeBase64(data.bigPicture)
             if (thumb != null) {
                 imgBigPicture.setImageBitmap(thumb)
                 imgBigPicture.visibility = View.VISIBLE
                 
-                // Make thumbnail clickable for images and videos
-                if (isImage || isVideo) {
+                if (data.fileType == "image" || data.fileType == "video") {
                     imgBigPicture.isClickable = true
                     imgBigPicture.setOnClickListener {
-                        val intent = Intent(this@FullScreenNotificationActivity, FullScreenMediaActivity::class.java)
-                        intent.putExtra(FullScreenMediaActivity.EXTRA_DATA_JSON, Gson().toJson(data))
-                        startActivity(intent)
+                        val mediaIntent = Intent(this@FullScreenNotificationActivity, FullScreenMediaActivity::class.java)
+                        // Mock FileDetectedData for FullScreenMediaActivity if possible, 
+                        // or better, just use the path.
+                        // FullScreenMediaActivity expects EXTRA_DATA_JSON.
+                        // We might need to store the original JSON if we want full compat.
+                        // For now, let's see if we can just pass the path.
+                        mediaIntent.putExtra(FullScreenMediaActivity.EXTRA_LOCAL_FILE_PATH, data.localFilePath)
+                        mediaIntent.putExtra(FullScreenMediaActivity.EXTRA_NOTIFICATION_KEY, data.key)
+                        startActivity(mediaIntent)
+                        // In popNotification(true) logic? No, viewing shouldn't pop from stack usually,
+                        // but user said "no matter what action is pressed".
+                        // However, clicking the image to VIEW is a navigation.
+                        // I'll leave it as is for now.
                     }
                 }
             } else {
@@ -363,10 +471,13 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         // Setup generic actions for file
         containerActions.removeAllViews()
         btnReply.visibility = View.GONE
-        btnDismiss.visibility = View.GONE // User requested no dismiss button
+        btnDismiss.visibility = View.VISIBLE
+        btnDismiss.text = getString(R.string.action_dismiss)
 
         // Add Play/View actions
-        val isAudio = data.type == "audio"
+        val isAudio = data.fileType == "audio"
+        val isImage = data.fileType == "image"
+        val isVideo = data.fileType == "video"
         
         if (isAudio) {
              val btnPlay = Button(this).apply {
@@ -381,10 +492,11 @@ class FullScreenNotificationActivity : AppCompatActivity() {
                     topMargin = 4.dpToPx()
                 }
                 setOnClickListener {
-                    // Open FullScreenMediaActivity for audio playback
-                    val intent = Intent(this@FullScreenNotificationActivity, FullScreenMediaActivity::class.java)
-                    intent.putExtra(FullScreenMediaActivity.EXTRA_DATA_JSON, Gson().toJson(data))
-                    startActivity(intent)
+                    val mediaIntent = Intent(this@FullScreenNotificationActivity, FullScreenMediaActivity::class.java)
+                    mediaIntent.putExtra(FullScreenMediaActivity.EXTRA_LOCAL_FILE_PATH, data.localFilePath)
+                    mediaIntent.putExtra(FullScreenMediaActivity.EXTRA_NOTIFICATION_KEY, data.key)
+                    startActivity(mediaIntent)
+                    popNotification(dismissOnPhone = false)
                 }
             }
             containerActions.addView(btnPlay)
@@ -403,10 +515,11 @@ class FullScreenNotificationActivity : AppCompatActivity() {
                     topMargin = 4.dpToPx()
                 }
                 setOnClickListener {
-                     // Open FullScreenMediaActivity
-                     val intent = Intent(this@FullScreenNotificationActivity, FullScreenMediaActivity::class.java)
-                     intent.putExtra(FullScreenMediaActivity.EXTRA_DATA_JSON, Gson().toJson(data))
-                     startActivity(intent)
+                     val mediaIntent = Intent(this@FullScreenNotificationActivity, FullScreenMediaActivity::class.java)
+                     mediaIntent.putExtra(FullScreenMediaActivity.EXTRA_LOCAL_FILE_PATH, data.localFilePath)
+                     mediaIntent.putExtra(FullScreenMediaActivity.EXTRA_NOTIFICATION_KEY, data.key)
+                     startActivity(mediaIntent)
+                     popNotification(dismissOnPhone = false)
                 }
             }
             containerActions.addView(btnView)
@@ -427,14 +540,7 @@ class FullScreenNotificationActivity : AppCompatActivity() {
     private fun setupActions(data: NotificationData) {
         containerActions.removeAllViews()
         
-        // Standard Dismiss
-        btnDismiss.setOnClickListener {
-            // Send dismiss to phone
-            val intent = Intent(BluetoothService.ACTION_WATCH_DISMISSED_LOCAL)
-            intent.putExtra(BluetoothService.EXTRA_NOTIF_KEY, data.key)
-            sendBroadcast(intent)
-            finish()
-        }
+        // Standard Dismiss logic moved to dismissCurrentNotification()
 
         // Reply
         // Check if there is a reply action in actions list or strictly use data.actions?
@@ -453,6 +559,9 @@ class FullScreenNotificationActivity : AppCompatActivity() {
         if (hasReply) {
             btnReply.visibility = View.VISIBLE
             btnReply.setOnClickListener {
+                // Cancel auto-close timer when replying
+                autoCloseHandler.removeCallbacks(autoCloseRunnable)
+                
                 // Launch Reply Dialog
                 val replyIntent = Intent(this, ReplyDialogActivity::class.java)
                 replyIntent.putExtra(BluetoothService.EXTRA_NOTIF_KEY, data.key)
@@ -461,7 +570,7 @@ class FullScreenNotificationActivity : AppCompatActivity() {
                 if (replyAction != null) {
                     replyIntent.putExtra(BluetoothService.EXTRA_ACTION_KEY, replyAction.actionKey)
                     startActivity(replyIntent)
-                    finish()
+                    popNotification(dismissOnPhone = false)
                 }
             }
         } else {
@@ -491,7 +600,7 @@ class FullScreenNotificationActivity : AppCompatActivity() {
                 intent.putExtra(BluetoothService.EXTRA_ACTION_KEY, action.actionKey)
                 intent.setPackage(packageName)
                 sendBroadcast(intent)
-                finish()
+                popNotification(dismissOnPhone = false)
             }
             containerActions.addView(btn)
         }
