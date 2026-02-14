@@ -351,6 +351,7 @@ class DynamicIslandService : Service(), LifecycleOwner, ViewModelStoreOwner, Sav
         Log.d(TAG, "Auto-hide mode: $autoHideMode, Blacklisted apps: ${blacklistedApps.size}, Hide with notifs: $hideWithActiveNotifs")
         Log.d(TAG, "Feature toggles - Calls: $showPhoneCalls, Alarms: $showAlarms, Disconnect: $showDisconnect, Media: $showMedia")
 
+        overlayView.updateBackground()
         updateState()
         
         // Start/stop periodic foreground app checking based on auto-hide mode

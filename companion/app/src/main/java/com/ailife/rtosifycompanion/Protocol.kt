@@ -165,6 +165,7 @@ object MessageType {
 
     // Dynamic Island Background
     const val SET_DYNAMIC_ISLAND_BACKGROUND = "set_dynamic_island_background"
+    const val SET_DYNAMIC_ISLAND_COLOR = "set_dynamic_island_color"
 
     // Ringtone Picker
     const val REQUEST_RINGTONE_PICKER = "request_ringtone_picker"
@@ -372,6 +373,7 @@ data class SettingsUpdateData(
         val dynamicIslandHideWithActiveNotifs: Boolean? = null, // Hide even with active notifications in blacklisted apps
         val dynamicIslandTextMultiplier: Float? = null,
         val dynamicIslandLimitMessageLength: Boolean? = null,
+        val dynamicIslandGlobalOpacity: Int? = null,
         // Dynamic Island feature toggles
         val diShowPhoneCalls: Boolean? = null, // Show phone calls in DI (default: true)
         val diShowAlarms: Boolean? = null, // Show alarms in DI (default: true)
@@ -803,6 +805,20 @@ object ProtocolHelper {
         paths.forEach { array.add(it) }
         data.add("paths", array)
         return ProtocolMessage(type = MessageType.DELETE_FILES, data = data)
+    }
+
+    fun createSetDynamicIslandBackground(image: String, opacity: Int): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("image", image)
+        data.addProperty("opacity", opacity)
+        return ProtocolMessage(type = MessageType.SET_DYNAMIC_ISLAND_BACKGROUND, data = data)
+    }
+
+    fun createSetDynamicIslandColor(color: Int, opacity: Int): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("color", color)
+        data.addProperty("opacity", opacity)
+        return ProtocolMessage(type = MessageType.SET_DYNAMIC_ISLAND_COLOR, data = data)
     }
 
     fun createRenameFile(oldPath: String, newPath: String): ProtocolMessage {

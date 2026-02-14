@@ -85,44 +85,45 @@
                         android:textColor="?android:attr/textColorSecondary"
                         android:layout_marginBottom="16dp"/>
 
-                    <LinearLayout
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/di_bg_type"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        android:textColor="?android:attr/textColorPrimary"
+                        android:layout_marginBottom="8dp"/>
+
+                    <com.google.android.material.button.MaterialButtonToggleGroup
+                        android:id="@+id/toggleBgType"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:gravity="center_vertical">
-
-                            
-                         <!-- Placeholder icon logic, using standard resources if custom not avail -->
-
-                        <LinearLayout
+                        android:layout_marginBottom="16dp"
+                        app:singleSelection="true"
+                        app:selectionRequired="true">
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnTypeImage"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/di_background_title"
-                                android:textSize="15sp"
-                                android:textStyle="bold"
-                                android:textColor="?android:attr/textColorPrimary"/>
-                            
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="@string/di_background_desc"
-                                android:textSize="12sp"
-                                android:textColor="?android:attr/textColorSecondary"/>
-                        </LinearLayout>
-
-                        <TextView
-                            android:layout_width="wrap_content"
+                            android:text="@string/di_bg_type_image"/>
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnTypeColor"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:text="@string/symbol_forward"
-                            android:textSize="24sp"
-                            android:textColor="?android:attr/textColorSecondary"/>
-                    </LinearLayout>
+                            android:layout_weight="1"
+                            android:text="@string/di_bg_type_color"/>
+                    </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnCustomize"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/di_adjust_color"
+                        app:icon="@drawable/ic_edit"/>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
             <com.google.android.material.card.MaterialCardView
@@ -720,6 +721,47 @@
                             android:valueTo="80"
                             android:stepSize="1"
                             android:value="20"/>
+                    </LinearLayout>
+
+                    <!-- Global Opacity -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginTop="16dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/di_global_opacity"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="?android:attr/textColorPrimary"/>
+
+                            <TextView
+                                android:id="@+id/tvGlobalOpacityValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="100%"
+                                android:textSize="14sp"
+                                android:textColor="?android:attr/textColorPrimary"/>
+                        </LinearLayout>
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/seekBarGlobalOpacity"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:valueFrom="0"
+                            android:valueTo="100"
+                            android:stepSize="1"
+                            android:value="100"/>
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

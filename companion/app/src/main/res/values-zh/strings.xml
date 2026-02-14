@@ -206,7 +206,7 @@
 
     <!-- Round Screen Warning -->
     <string name="round_screen_warning_title">设备兼容性</string>
-    <string name="round_screen_warning_message">检测到圆形显示屏。本应用未针对您的设备进行优化，功能可能无法正常工作。</string>
+    <string name="round_screen_warning_message">检测到圆形显示屏。本应用未针对您的设备进行优化，功能可能无法正常工作，请开启系统方形兼容模式以确保内容正确显示。</string>
     <string name="round_screen_warning_exit">退出</string>
     <string name="round_screen_warning_continue">无论如何继续</string>
 

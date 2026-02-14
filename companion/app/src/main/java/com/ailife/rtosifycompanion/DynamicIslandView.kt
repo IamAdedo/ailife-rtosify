@@ -111,6 +111,16 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     private var textSizeMultiplier: Float = 1.0f
     private var limitMessageLength: Boolean = true
 
+    // Background settings
+    private var backgroundMode: Int = 0 // 0=Image, 1=Color
+    private var solidColor: Int = Color.parseColor("#1C1C1E")
+    private var currentGlobalAlpha: Float = 1.0f
+
+    private fun getGlobalAlpha(): Float {
+        val prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+        return prefs.getInt("di_global_opacity", 100) / 100f
+    }
+
 
     // Media suppression
     
@@ -130,6 +140,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     // Active media tracking (to avoid stale closures)
     private var activeMediaTitle: String? = null
     private var activeMediaArtist: String? = null
+    private var isExpandedShowingMedia: Boolean = false
 
     private fun checkMediaSuppression(title: String?, artist: String?): Boolean {
         // If we don't have active media, nothing to suppress against
@@ -287,6 +298,14 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         addView(expandedContainer)
     }
 
+    private fun createPillBackground(): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            // Always use dark background for the pill itself as a base
+            setColor(Color.parseColor("#1C1C1E"))
+            cornerRadius = dpToPx(CORNER_RADIUS_DP).toFloat()
+        }
+    }
     private var initialTouchX = 0f
     private var initialTouchY = 0f
     private var isDraggingUp = false
@@ -374,13 +393,6 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         return super.onTouchEvent(event)
     }
 
-    private fun createPillBackground(): GradientDrawable {
-        return GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            setColor(Color.parseColor("#1C1C1E")) // Dark gray/black
-            cornerRadius = dpToPx(pillHeightCollapsed / 2).toFloat()
-        }
-    }
 
     fun showIdleState(transportType: String = "") {
         if (currentState == State.IDLE) return
@@ -389,12 +401,13 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         stopMediaProgressAnimation() // Clean up media animation
 
         expandedContainer.visibility = GONE
-        pillContainer.alpha = 1f
+        pillContainer.alpha = currentGlobalAlpha
         closeContainer.visibility = GONE
         contentContainer.visibility = VISIBLE
         iconContainer.visibility = GONE
 
         animateToCollapsed {
+            updateBackground()
             resetContentPadding()
             contentContainer.removeAllViews()
 
@@ -408,12 +421,13 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         currentState = State.DISCONNECTED
 
         expandedContainer.visibility = GONE
-        pillContainer.alpha = 1f
+        pillContainer.alpha = currentGlobalAlpha
         closeContainer.visibility = GONE
         contentContainer.visibility = VISIBLE
         iconContainer.visibility = GONE
 
         animateToCollapsed {
+            updateBackground()
             resetContentPadding()
             contentContainer.removeAllViews()
             val container =
@@ -574,18 +588,21 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         contentContainer.addView(disconnectedLayout)
 
         // Animate to expanded size
-        animateToExpanded {}
+        animateToExpanded {
+            updateBackground()
+        }
     }
 
     fun showConnectedState(transportType: String = "") {
         currentState = State.IDLE // Or a new state if needed, but IDLE implies connected active
         expandedContainer.visibility = GONE
-        pillContainer.alpha = 1f
+        pillContainer.alpha = currentGlobalAlpha
         closeContainer.visibility = GONE
         contentContainer.visibility = VISIBLE
         iconContainer.visibility = GONE
 
         animateToCollapsed {
+            updateBackground()
             resetContentPadding()
             contentContainer.removeAllViews()
             val iconSize = dpToPx(pillHeightCollapsed * 0.6f)
@@ -651,7 +668,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         currentState = State.CHARGING
 
         expandedContainer.visibility = GONE
-        pillContainer.alpha = 1f
+        pillContainer.alpha = currentGlobalAlpha
         contentContainer.visibility = VISIBLE
         closeContainer.visibility = GONE
 
@@ -712,7 +729,9 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
             animator.start()
         }
 
-        animateToCollapsed {}
+        animateToCollapsed {
+            updateBackground()
+        }
     }
 
     private fun updateChargingDisplay(batteryPercent: Int) {
@@ -824,6 +843,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         contentContainer.addView(notifLayout)
 
         // Now animate to show it
+        updateBackground()
         animateToExpanded {}
     }
 
@@ -1319,7 +1339,8 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 .setDuration(300)
                 .withEndAction {
                     expandedContainer.visibility = GONE
-                    pillContainer.alpha = 1f
+                    updateBackground()
+                    pillContainer.alpha = currentGlobalAlpha
                     closeContainer.visibility = GONE
 
                     contentContainer.removeAllViews()
@@ -1460,6 +1481,7 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
 
         // Collapse pill back to small size
         animateToCollapsed {
+            updateBackground()
             // Once pill is small, show the list with animation
             expandedContainer.alpha = 0f
             expandedContainer.translationY = -dpToPx(20).toFloat()
@@ -2667,7 +2689,11 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         
         contentContainer.addView(callContainer)
         if (isRinging) {
-            animateToExpanded {}
+            animateToExpanded {
+                updateBackground()
+            }
+        } else {
+            updateBackground()
         }
     }
     
@@ -2751,7 +2777,9 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         })
         
         contentContainer.addView(alarmContainer)
-        animateToExpanded {}
+        animateToExpanded {
+            updateBackground()
+        }
     }
     
     fun showMediaState(title: String?, artist: String?, isPlaying: Boolean, albumArtBase64: String?) {
@@ -2794,27 +2822,23 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         
         // Ensure pill is at collapsed size
         animateToCollapsed {
+            // Restore custom background first to ensure shape
+            updateBackground()
+            
+            // Overlay album art if available
+            if (albumArtBase64 != null) {
+                val albumBitmap = decodeBase64ToBitmap(albumArtBase64)
+                if (albumBitmap != null) {
+                    backgroundImageView.setImageBitmap(albumBitmap)
+                    backgroundImageView.alpha = 0.5f // Dim for media player
+                    backgroundImageView.visibility = VISIBLE
+                }
+            }
+
             contentContainer.removeAllViews() // Clear again just in case overlap during animation
             
             val mediaContainer = FrameLayout(context).apply {
                 layoutParams = LayoutParams(dpToPx(pillWidthCollapsed), dpToPx(pillHeightCollapsed))
-            }
-            
-            // Album art background (blurred/dimmed)
-            if (albumArtBase64 != null) {
-                val albumBitmap = decodeBase64ToBitmap(albumArtBase64)
-                if (albumBitmap != null) {
-                    val backgroundView = ImageView(context).apply {
-                        layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-                        scaleType = ImageView.ScaleType.CENTER_CROP
-                        setImageBitmap(albumBitmap)
-                        alpha = 0.4f // Dim for text visibility
-                    }
-                    mediaContainer.addView(backgroundView)
-                }
-            } else {
-                // Dim dark background if no art
-                mediaContainer.setBackgroundColor(Color.parseColor("#33000000"))
             }
             
             // Content overlay
@@ -2913,8 +2937,21 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         
         // Collapse pill and show close UI like notifications
         animateToCollapsed {
-            closeContainer.visibility = VISIBLE
+            // Restore custom background first to ensure shape
+            updateBackground()
             
+            // Overlay album art if available
+            if (albumArtBase64 != null) {
+                val albumBitmap = decodeBase64ToBitmap(albumArtBase64)
+                if (albumBitmap != null) {
+                    backgroundImageView.setImageBitmap(albumBitmap)
+                    backgroundImageView.alpha = 0.5f // Dim for media player
+                    backgroundImageView.visibility = VISIBLE
+                }
+            }
+
+            closeContainer.visibility = VISIBLE
+           
             val currentMediaLayout = wrapper.findViewWithTag<FrameLayout>("media_expanded_layout") ?: return@animateToCollapsed
             currentMediaLayout.removeAllViews()
             currentMediaLayout.background = null
@@ -3256,6 +3293,9 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
         wrapper.findViewWithTag<TextView>("media_duration")?.text = formatTime(duration)
         
         wrapper.findViewWithTag<TextView>("media_volume_text")?.text = "$volume%"
+
+        // Indicate that media UI is being shown (for background priority)
+        isExpandedShowingMedia = true
     }
 
     private fun formatTime(ms: Long): String {
@@ -3303,9 +3343,22 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
     fun updateBackground() {
         try {
             val prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+            backgroundMode = prefs.getInt("di_background_mode", 0)
+            solidColor = prefs.getInt("di_background_color", Color.parseColor("#1C1C1E"))
             val opacity = prefs.getInt("di_background_opacity", 255)
-            val file = java.io.File(context.filesDir, "di_background.webp")
+            currentGlobalAlpha = prefs.getInt("di_global_opacity", 100) / 100f
             
+            pillContainer.background = createPillBackground()
+            pillContainer.alpha = currentGlobalAlpha
+
+            if (backgroundMode == 1) { // Color
+                backgroundImageView.setImageDrawable(android.graphics.drawable.ColorDrawable(solidColor))
+                backgroundImageView.alpha = opacity / 255f
+                backgroundImageView.visibility = View.VISIBLE
+                return
+            }
+
+            val file = java.io.File(context.filesDir, "di_background.webp")
             if (file.exists()) {
                 val bitmap = BitmapFactory.decodeFile(file.absolutePath)
                 if (bitmap != null) {

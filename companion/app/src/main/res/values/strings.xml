@@ -218,7 +218,7 @@
 
     <!-- Round Screen Warning -->
     <string name="round_screen_warning_title">Device Compatibility</string>
-    <string name="round_screen_warning_message">Round display is detected. The application is not optimized for your device and features will not work properly.</string>
+    <string name="round_screen_warning_message">Round display is detected. The application is not optimized for your device and features will not work properly, please activate the square inset mode in device settings to ensure contents is displayed correctly.</string>
     <string name="round_screen_warning_exit">Exit</string>
     <string name="round_screen_warning_continue">Continue Anyways</string>
 

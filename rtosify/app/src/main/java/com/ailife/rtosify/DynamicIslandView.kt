@@ -3,6 +3,7 @@ package com.ailife.rtosify
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.*
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
 import android.view.Gravity
@@ -26,6 +27,10 @@ class DynamicIslandView @JvmOverloads constructor(
         private const val PILL_HEIGHT_EXPANDED_DP = 80 // Reasonable for title + text
         private const val PILL_WIDTH_EXPANDED_DP = 320
     }
+
+    enum class BackgroundMode { IMAGE, COLOR }
+    private var backgroundMode = BackgroundMode.IMAGE
+    private var solidColor = Color.parseColor("#1C1C1E")
 
     private val rootBackgroundImageView: ImageView // Full image for cropping help
     private val pillContainer: FrameLayout
@@ -90,11 +95,51 @@ class DynamicIslandView @JvmOverloads constructor(
     private fun createPillBackground(): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
+            // Always use dark background for the pill itself as a base
             setColor(Color.parseColor("#1C1C1E"))
             // We use height/2 for full rounding. Note: this might need update if height changes.
             val currentH = pillContainer?.layoutParams?.height ?: dpToPx(pillHeightCollapsed)
             cornerRadius = (currentH / 2f)
         }
+    }
+
+    fun setBackgroundMode(mode: BackgroundMode) {
+        backgroundMode = mode
+        updateBackgroundUI()
+    }
+
+    fun setPreviewColor(color: Int, brightness: Int = 100) {
+        solidColor = color
+        backgroundMode = BackgroundMode.COLOR
+        updateBackgroundUI()
+        setPreviewOpacity((brightness * 255) / 100)
+    }
+
+    private fun updateBackgroundUI() {
+        if (backgroundMode == BackgroundMode.COLOR) {
+            backgroundImageView.visibility = VISIBLE
+            backgroundImageView.setImageDrawable(ColorDrawable(solidColor))
+            rootBackgroundImageView.visibility = GONE
+        } else {
+            backgroundImageView.visibility = VISIBLE
+            backgroundImageView.setImageBitmap(previewBitmap)
+            if (previewMode) rootBackgroundImageView.visibility = VISIBLE
+        }
+        pillContainer.background = createPillBackground()
+    }
+
+    fun showIdleState() {
+        showConnectedState("BT")
+    }
+
+    fun showExpandedPreview() {
+        val mockNotif = NotificationData(
+            packageName = context.packageName,
+            title = "Preview Notification",
+            text = "This is how it looks expanded",
+            key = "preview_key"
+        )
+        showNotification(mockNotif)
     }
 
     fun showConnectedState(transportType: String = "") {
@@ -172,11 +217,7 @@ class DynamicIslandView @JvmOverloads constructor(
                 
                 pillContainer.layoutParams.width = w
                 pillContainer.layoutParams.height = h
-                pillContainer.background = GradientDrawable().apply {
-                    shape = GradientDrawable.RECTANGLE
-                    setColor(Color.parseColor("#1C1C1E"))
-                    cornerRadius = h / 2f
-                }
+                pillContainer.background = createPillBackground()
                 pillContainer.requestLayout()
                 
                 // Keep background image synced with pill position relative to root
@@ -213,7 +254,6 @@ class DynamicIslandView @JvmOverloads constructor(
     fun setPreviewOpacity(alpha: Int) {
         backgroundImageView.alpha = alpha / 255f
     }
-
     private fun resetImageMatrix() {
         val bmp = previewBitmap ?: return
         val viewW = width.toFloat().takeIf { it > 0 } ?: dpToPx(300).toFloat()

@@ -1538,6 +1538,7 @@ class BluetoothService : Service() {
             MessageType.IOS_CONNECTED -> handleIosConnected(message)
             MessageType.FILE_DETECTED -> handleFileDetected(message)
             MessageType.SET_DYNAMIC_ISLAND_BACKGROUND -> handleSetDynamicIslandBackground(message)
+            MessageType.SET_DYNAMIC_ISLAND_COLOR -> handleSetDynamicIslandColor(message)
             else -> Log.w(TAG, "Unknown message type: ${message.type}")
         }
     }
@@ -1560,8 +1561,11 @@ class BluetoothService : Service() {
                 
                 Log.d(TAG, "Saved Dynamic Island background to ${file.absolutePath}")
                 
-                // Save Opacity pref (though mostly redundant if baked in, good for future)
-                prefs.edit().putInt("di_background_opacity", opacity).apply()
+                // Save Mode and Opacity
+                prefs.edit()
+                    .putInt("di_background_mode", 0) // Image
+                    .putInt("di_background_opacity", opacity)
+                    .apply()
                 
                 // Notify Service
                 val intent = Intent(DynamicIslandService.ACTION_UPDATE_BACKGROUND)
@@ -1570,6 +1574,29 @@ class BluetoothService : Service() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling DI background: ${e.message}")
+        }
+    }
+
+    private fun handleSetDynamicIslandColor(message: ProtocolMessage) {
+        try {
+            val color = ProtocolHelper.extractIntField(message, "color")
+            val opacity = try { ProtocolHelper.extractIntField(message, "opacity") } catch (e: Exception) { 255 }
+            
+            Log.d(TAG, "Received SET_DYNAMIC_ISLAND_COLOR: color=$color, opacity=$opacity")
+            
+            // Save Color, Mode and Opacity
+            prefs.edit()
+                .putInt("di_background_mode", 1) // Color
+                .putInt("di_background_color", color)
+                .putInt("di_background_opacity", opacity)
+                .apply()
+            
+            // Notify Service
+            val intent = Intent(DynamicIslandService.ACTION_UPDATE_BACKGROUND)
+            intent.setPackage(packageName)
+            sendBroadcast(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling DI color: ${e.message}")
         }
     }
 
@@ -1990,6 +2017,10 @@ class BluetoothService : Service() {
             settings.dynamicIslandLimitMessageLength?.let {
                 prefs.edit().putBoolean("dynamic_island_limit_message_length", it).apply()
                 Log.d(TAG, "Dynamic Island Limit Message Length updated: $it")
+            }
+            settings.dynamicIslandGlobalOpacity?.let {
+                prefs.edit().putInt("di_global_opacity", it).apply()
+                Log.d(TAG, "Dynamic Island Global Opacity updated: $it")
             }
             // New auto-hide mode settings
             settings.dynamicIslandAutoHideMode?.let {

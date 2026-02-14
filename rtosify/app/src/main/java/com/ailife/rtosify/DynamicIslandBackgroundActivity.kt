@@ -2,6 +2,7 @@ package com.ailife.rtosify
 
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
@@ -33,6 +34,9 @@ class DynamicIslandBackgroundActivity : AppCompatActivity() {
     private lateinit var seekBarOpacity: Slider
     private lateinit var tvOpacityValue: TextView
     private lateinit var toggleMode: MaterialButtonToggleGroup
+
+    private val devicePrefManager by lazy { DevicePrefManager(this) }
+    private val activePrefs by lazy { devicePrefManager.getActiveDevicePrefs() }
 
     private var selectedUri: Uri? = null
     private var bluetoothService: BluetoothService? = null
@@ -80,10 +84,9 @@ class DynamicIslandBackgroundActivity : AppCompatActivity() {
         dynamicIslandPreview.setPreviewMode(true)
     }
 
-
     private fun loadPrefs() {
         // Load default or saved dimensions from Watch settings
-        val prefs = DevicePrefManager(this).getActiveDevicePrefs()
+        val prefs = devicePrefManager.getActiveDevicePrefs()
         val widthDp = prefs.getInt("dynamic_island_width", 150)
         val heightDp = prefs.getInt("dynamic_island_height", 40)
         
@@ -113,12 +116,6 @@ class DynamicIslandBackgroundActivity : AppCompatActivity() {
             val alpha = (progress * 255) / 100
             dynamicIslandPreview.setPreviewOpacity(alpha)
             tvOpacityValue.text = "$progress%"
-        }
-
-        toggleMode.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (isChecked) {
-                updatePreviewMode(checkedId == R.id.btnModePill)
-            }
         }
 
         btnSave.setOnClickListener {
@@ -168,6 +165,10 @@ class DynamicIslandBackgroundActivity : AppCompatActivity() {
     }
 
     private fun saveAndSync() {
+        val progress = seekBarOpacity.value.toInt()
+        val alpha = (progress * 255) / 100
+
+        // Image Mode
         val result = dynamicIslandPreview.generateCroppedBitmap()
         if (result == null) {
             Toast.makeText(this, getString(R.string.di_bg_toast_select_first), Toast.LENGTH_SHORT).show()
@@ -181,12 +182,11 @@ class DynamicIslandBackgroundActivity : AppCompatActivity() {
         val base64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
         
         if (bluetoothService != null) {
-            val progress = seekBarOpacity.value.toInt()
-            val alpha = (progress * 255) / 100
-            
-            // Persist Matrix and Opacity
             saveMatrix(dynamicIslandPreview.getMatrixValues())
             saveOpacity(progress)
+            activePrefs.edit()
+                .putInt("dynamic_island_background_mode", 0)
+                .apply()
 
             // UI Feedback: Change button state
             btnSave.isEnabled = false
@@ -257,15 +257,13 @@ class DynamicIslandBackgroundActivity : AppCompatActivity() {
     }
 
     private fun saveOpacity(opacity: Int) {
-        getSharedPreferences("dynamic_island_prefs", MODE_PRIVATE)
-            .edit()
-            .putInt("opacity", opacity)
+        activePrefs.edit()
+            .putInt("dynamic_island_background_opacity", opacity)
             .apply()
     }
 
     private fun loadOpacity(): Int {
-        return getSharedPreferences("dynamic_island_prefs", MODE_PRIVATE)
-            .getInt("opacity", 100)
+        return activePrefs.getInt("dynamic_island_background_opacity", 100)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {

@@ -198,6 +198,12 @@
             android:parentActivityName=".DynamicIslandSettingsActivity"
             android:theme="@style/Theme.Smartwatch" />
         
+        <activity
+            android:name=".DynamicIslandColorPickerActivity"
+            android:label="@string/di_color_picker_title"
+            android:parentActivityName=".DynamicIslandSettingsActivity"
+            android:theme="@style/Theme.Smartwatch" />
+        
         <!-- Dynamic Island App Blacklist -->
         <activity
             android:name=".DIBlacklistActivity"

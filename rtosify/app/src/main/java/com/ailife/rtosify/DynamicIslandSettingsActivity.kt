@@ -13,6 +13,8 @@ import android.widget.Spinner
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
 // No subpackage imports needed as they are in the same package
@@ -43,6 +45,8 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
     private lateinit var tvWidthValue: TextView
     private lateinit var seekBarHeight: Slider
     private lateinit var tvHeightValue: TextView
+    private lateinit var seekBarGlobalOpacity: Slider
+    private lateinit var tvGlobalOpacityValue: TextView
 
     // Text settings
     private lateinit var seekBarTextSize: Slider
@@ -54,6 +58,8 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
         get() = devicePrefManager.getActiveDevicePrefs()
 
     private var bluetoothService: BluetoothService? = null
+    private lateinit var toggleBgType: MaterialButtonToggleGroup
+    private lateinit var btnCustomize: MaterialButton
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -115,6 +121,8 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
         tvWidthValue = findViewById(R.id.tvWidthValue)
         seekBarHeight = findViewById(R.id.seekBarHeight)
         tvHeightValue = findViewById(R.id.tvHeightValue)
+        seekBarGlobalOpacity = findViewById(R.id.seekBarGlobalOpacity)
+        tvGlobalOpacityValue = findViewById(R.id.tvGlobalOpacityValue)
 
         // Text settings
         seekBarTextSize = findViewById(R.id.seekBarTextSize)
@@ -122,9 +130,10 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
         switchLimitMessageLength = findViewById(R.id.switchLimitMessageLength)
         
         // Appearance
-        findViewById<View>(R.id.cardAppearance).setOnClickListener {
-            startActivity(Intent(this, DynamicIslandBackgroundActivity::class.java))
-        }
+        toggleBgType = findViewById(R.id.toggleBgType)
+        btnCustomize = findViewById(R.id.btnCustomize)
+
+        setupAppearanceSettings()
     }
 
     private fun setupFeatureToggles() {
@@ -266,6 +275,52 @@ class DynamicIslandSettingsActivity : AppCompatActivity() {
                 activePrefs.edit().putInt("dynamic_island_height", actualValue).apply()
                 syncSettings()
             }
+        }
+
+        // Global Opacity Slider
+        val globalOpacity = activePrefs.getInt("di_global_opacity", 100)
+        seekBarGlobalOpacity.value = globalOpacity.toFloat()
+        tvGlobalOpacityValue.text = getString(R.string.percent_format, globalOpacity)
+        seekBarGlobalOpacity.addOnChangeListener { _, value, fromUser ->
+            val actualValue = value.toInt()
+            tvGlobalOpacityValue.text = getString(R.string.percent_format, actualValue)
+            if (fromUser) {
+                activePrefs.edit().putInt("di_global_opacity", actualValue).apply()
+                syncSettings()
+            }
+        }
+    }
+
+    private fun setupAppearanceSettings() {
+        val mode = activePrefs.getInt("dynamic_island_background_mode", 0) // 0: Image, 1: Color
+        if (mode == 0) toggleBgType.check(R.id.btnTypeImage) else toggleBgType.check(R.id.btnTypeColor)
+        
+        updateCustomizeButtonText(mode)
+
+        toggleBgType.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (isChecked) {
+                val newMode = if (checkedId == R.id.btnTypeImage) 0 else 1
+                activePrefs.edit().putInt("dynamic_island_background_mode", newMode).apply()
+                updateCustomizeButtonText(newMode)
+                syncSettings()
+            }
+        }
+
+        btnCustomize.setOnClickListener {
+            val currentMode = activePrefs.getInt("dynamic_island_background_mode", 0)
+            if (currentMode == 0) {
+                startActivity(Intent(this, DynamicIslandBackgroundActivity::class.java))
+            } else {
+                startActivity(Intent(this, DynamicIslandColorPickerActivity::class.java))
+            }
+        }
+    }
+
+    private fun updateCustomizeButtonText(mode: Int) {
+        btnCustomize.text = if (mode == 0) {
+            getString(R.string.di_select_image)
+        } else {
+            getString(R.string.di_select_color)
         }
     }
 

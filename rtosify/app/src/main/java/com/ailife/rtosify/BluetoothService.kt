@@ -400,6 +400,12 @@ class BluetoothService : Service() {
         }
     }
 
+    fun sendDynamicIslandColor(color: Int, opacity: Int) {
+        if (isConnected) {
+            sendMessage(ProtocolHelper.createSetDynamicIslandColor(color, opacity))
+        }
+    }
+
     private val phoneStateReceiver =
             object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
@@ -1696,6 +1702,7 @@ class BluetoothService : Service() {
                 // Text settings
                 dynamicIslandTextMultiplier = activePrefs.getFloat("dynamic_island_text_multiplier", 1.0f),
                 dynamicIslandLimitMessageLength = activePrefs.getBoolean("dynamic_island_limit_message_length", true),
+                dynamicIslandGlobalOpacity = activePrefs.getInt("di_global_opacity", 100),
                 // Feature toggles
                 diShowPhoneCalls = activePrefs.getBoolean("di_show_phone_calls", true),
                 diShowAlarms = activePrefs.getBoolean("di_show_alarms", true),

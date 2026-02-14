@@ -493,7 +493,13 @@
     <string name="di_background_title">Background Image</string>
     <string name="di_background_desc">Set a custom background for the island</string>
     <string name="di_select_image">Select Image</string>
-    <string name="di_opacity">Opacity</string>
+    <string name="di_opacity">Opacity / Brightness</string>
+    <string name="di_bg_type">Background Type</string>
+    <string name="di_bg_type_image">Image</string>
+    <string name="di_bg_type_color">Solid Color</string>
+    <string name="di_select_color">Select Color</string>
+    <string name="di_color_picker_title">Color Picker</string>
+    <string name="di_adjust_color">Adjust Color</string>
     <string name="di_preview">Preview</string>
     <string name="di_preview_pill">Collapsed</string>
     <string name="di_preview_expanded">Expanded</string>
@@ -1106,6 +1112,7 @@
     <string name="file_delete_confirm_multi">Are you sure you want to delete these %d items?</string>
     <string name="file_rename_error">Rename failed</string>
     <string name="percent_format">%d%%</string>
+    <string name="di_global_opacity">Global Opacity</string>
 
     <!-- Network Settings Extras -->
     <string name="network_bt_mode_changed">Bluetooth mode: %s\nReconnect to apply changes</string>
@@ -1153,6 +1160,7 @@
     <string name="di_bg_toast_select_first">Please select a background image first</string>
     <string name="di_bg_toast_success">Background saved and syncing...</string>
     <string name="di_bg_toast_service_disconnected">Service disconnected. Restart Bluetooth.</string>
+    <string name="toast_sent_to_watch">Settings sent to watch</string>
 
     <string name="battery_time_m">%dm</string>
     <string name="battery_time_h_m">%1$dh %2$dm</string>
