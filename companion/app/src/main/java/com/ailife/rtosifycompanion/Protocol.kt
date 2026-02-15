@@ -170,6 +170,12 @@ object MessageType {
     // Ringtone Picker
     const val REQUEST_RINGTONE_PICKER = "request_ringtone_picker"
     const val RESPONSE_RINGTONE_PICKER = "response_ringtone_picker"
+
+    // PHONE SETTINGS CONTROL
+    const val REQUEST_PHONE_SETTINGS = "request_phone_settings"
+    const val PHONE_SETTINGS_UPDATE = "phone_settings_update"
+    const val SET_RINGER_MODE = "set_ringer_mode"
+    const val SET_VOLUME = "set_volume"
 }
 
 data class NavigationInfoData(
@@ -212,6 +218,20 @@ data class FileDetectedData(
 )
 
 data class PhoneBatteryData(val level: Int, val isCharging: Boolean)
+
+// Phone Settings Data
+data class VolumeChannelData(
+    val streamType: Int, // AudioManager.STREAM_*
+    val name: String,
+    val currentVolume: Int,
+    val maxVolume: Int
+)
+
+data class PhoneSettingsData(
+    val ringerMode: Int, // AudioManager.RINGER_MODE_*
+    val dndEnabled: Boolean,
+    val volumeChannels: List<VolumeChannelData>
+)
 
 // Sharing sync data
 data class ShareData(
@@ -1281,6 +1301,28 @@ object ProtocolHelper {
     fun createRingtonePickerResponse(uri: String, name: String): ProtocolMessage {
         val data = gson.toJsonTree(RingtonePickerResponseData(uri, name)).asJsonObject
         return ProtocolMessage(type = MessageType.RESPONSE_RINGTONE_PICKER, data = data)
+    }
+
+    fun createRequestPhoneSettings(): ProtocolMessage {
+        return ProtocolMessage(type = MessageType.REQUEST_PHONE_SETTINGS)
+    }
+
+    fun createPhoneSettingsUpdate(settings: PhoneSettingsData): ProtocolMessage {
+        val data = gson.toJsonTree(settings).asJsonObject
+        return ProtocolMessage(type = MessageType.PHONE_SETTINGS_UPDATE, data = data)
+    }
+
+    fun createSetRingerMode(mode: Int): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("mode", mode)
+        return ProtocolMessage(type = MessageType.SET_RINGER_MODE, data = data)
+    }
+
+    fun createSetVolume(streamType: Int, volume: Int): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("streamType", streamType)
+        data.addProperty("volume", volume)
+        return ProtocolMessage(type = MessageType.SET_VOLUME, data = data)
     }
 }
 data class RingtonePickerResponseData(

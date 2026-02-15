@@ -16,6 +16,18 @@
 
     <!-- Toast Messages -->
     <string name="toast_watch_not_connected">Watch not connected.</string>
+    <string name="toast_bt_not_connected">Bluetooth is not connected</string>
+
+    <!-- Phone Settings Activity -->
+    <string name="phone_settings_title">Volume Settings</string>
+    <string name="ringer_mode_title">Ringer Mode</string>
+    <string name="ringer_mode_normal">Normal</string>
+    <string name="ringer_mode_vibrate">Vibrate</string>
+    <string name="ringer_mode_silent">Silent</string>
+    <string name="dnd_title">Do Not Disturb</string>
+    <string name="volume_title">Volumes</string>
+    <string name="loading_phone_settings">Loading settings…</string>
+    <string name="error_loading_settings">Failed to load settings</string>
     <string name="toast_command_sent">Command sent</string>
     <string name="toast_upload_failed">Upload failed.</string>
 
@@ -142,7 +154,9 @@
     <string name="find_watch_alarm_message">Loud sound playing. Press stop when found.</string>
     <string name="find_watch_alarm_stop">Stop</string>
     <string name="menu_find_phone">Find Phone</string>
-    <string name="menu_find_phone_desc">Play loud sound on phone</string>
+    <string name="menu_find_phone_desc">Locate connected phone via map</string>
+    <string name="menu_phone_settings">Volume Settings</string>
+    <string name="menu_phone_settings_desc">Control phone ringer, DND and volume</string>
     <string name="menu_phone_not_found">Phone not connected</string>
     <string name="dialog_find_watch_message">This will play a loud alarm on the phone.</string>
     <string name="dialog_find_watch_start">Start</string>

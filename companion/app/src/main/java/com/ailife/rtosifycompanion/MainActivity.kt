@@ -417,6 +417,16 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 }
                         ),
                         MenuOption(
+                                getString(R.string.menu_phone_settings),
+                                getString(R.string.menu_phone_settings_desc),
+                                android.R.drawable.ic_lock_silent_mode,
+                                {
+                                    runIfConnected {
+                                        startActivity(Intent(this, PhoneSettingsActivity::class.java))
+                                    }
+                                }
+                        ),
+                        MenuOption(
                                 getString(R.string.menu_notification_log),
                                 getString(R.string.menu_notification_log_desc),
                                 android.R.drawable.ic_popup_reminder,
@@ -549,6 +559,19 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         {
                             runIfConnected {
                                 startActivity(Intent(this, DialerActivity::class.java))
+                            }
+                        }
+                )
+        )
+
+        options.add(
+                MenuOption(
+                        getString(R.string.menu_phone_settings),
+                        getString(R.string.menu_phone_settings_desc),
+                        android.R.drawable.ic_lock_silent_mode,
+                        {
+                            runIfConnected {
+                                startActivity(Intent(this, PhoneSettingsActivity::class.java))
                             }
                         }
                 )

@@ -1309,7 +1309,6 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 null,
                                 R.string.menu_terminal
                         ),
-
                         MenuOption(
                                 getString(R.string.menu_watchface),
                                 getString(R.string.wf_title),

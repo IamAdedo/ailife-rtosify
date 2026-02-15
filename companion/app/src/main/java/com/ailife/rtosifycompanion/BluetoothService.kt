@@ -1539,6 +1539,7 @@ class BluetoothService : Service() {
             MessageType.FILE_DETECTED -> handleFileDetected(message)
             MessageType.SET_DYNAMIC_ISLAND_BACKGROUND -> handleSetDynamicIslandBackground(message)
             MessageType.SET_DYNAMIC_ISLAND_COLOR -> handleSetDynamicIslandColor(message)
+            MessageType.PHONE_SETTINGS_UPDATE -> handlePhoneSettingsUpdate(message)
             else -> Log.w(TAG, "Unknown message type: ${message.type}")
         }
     }
@@ -1574,6 +1575,22 @@ class BluetoothService : Service() {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error handling DI background: ${e.message}")
+        }
+    }
+
+    private fun handlePhoneSettingsUpdate(message: ProtocolMessage) {
+        try {
+            val settings = ProtocolHelper.extractData<PhoneSettingsData>(message)
+            Log.d(TAG, "Watch received PHONE_SETTINGS_UPDATE: ringerMode=${settings.ringerMode}, dndEnabled=${settings.dndEnabled}")
+            
+            val intent = Intent("com.ailife.rtosifycompanion.ACTION_PHONE_SETTINGS_UPDATE").apply {
+                val gson = com.google.gson.Gson()
+                putExtra("settings_json", gson.toJson(settings))
+                setPackage(packageName)
+            }
+            sendBroadcast(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error parsing phone settings update: ${e.message}", e)
         }
     }
 
@@ -3273,6 +3290,70 @@ class BluetoothService : Service() {
                 sendMessage(ProtocolHelper.createStatusUpdate(status))
             }
         }
+    }
+
+    private fun handleRequestPhoneSettings() {
+        val settings = collectPhoneSettings()
+        sendMessage(ProtocolHelper.createPhoneSettingsUpdate(settings))
+    }
+
+    private fun handleSetRingerMode(message: ProtocolMessage) {
+        val mode = ProtocolHelper.extractIntField(message, "mode")
+        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        am.ringerMode = mode
+        
+        // Notify watch of the change
+        serviceScope.launch {
+            delay(300)
+            handleRequestPhoneSettings()
+        }
+    }
+
+    private fun handleSetVolume(message: ProtocolMessage) {
+        val streamType = ProtocolHelper.extractIntField(message, "streamType")
+        val volume = ProtocolHelper.extractIntField(message, "volume")
+        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        
+        // Ensure volume is within bounds [0, max]
+        val maxVolume = am.getStreamMaxVolume(streamType)
+        val targetVolume = volume.coerceIn(0, maxVolume)
+        
+        am.setStreamVolume(streamType, targetVolume, 0)
+        
+        // Notify watch of the change
+        serviceScope.launch {
+            delay(300)
+            handleRequestPhoneSettings()
+        }
+    }
+
+    private fun collectPhoneSettings(): PhoneSettingsData {
+        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        
+        val ringerMode = am.ringerMode
+        val dndEnabled = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+        
+        val volumeChannels = listOf(
+            AudioManager.STREAM_MUSIC to "Media",
+            AudioManager.STREAM_RING to "Ring",
+            AudioManager.STREAM_NOTIFICATION to "Notification",
+            AudioManager.STREAM_ALARM to "Alarm",
+            AudioManager.STREAM_SYSTEM to "System"
+        ).map { (streamType, name) ->
+            VolumeChannelData(
+                streamType = streamType,
+                name = name,
+                currentVolume = am.getStreamVolume(streamType),
+                maxVolume = am.getStreamMaxVolume(streamType)
+            )
+        }
+        
+        return PhoneSettingsData(
+            ringerMode = ringerMode,
+            dndEnabled = dndEnabled,
+            volumeChannels = volumeChannels
+        )
     }
 
     private fun handleSetWifiCommand(message: ProtocolMessage) {

@@ -1071,6 +1071,9 @@ class BluetoothService : Service() {
             MessageType.FIND_DEVICE -> handleFindDeviceCommand(message)
             MessageType.FIND_DEVICE_LOCATION_REQUEST -> handleFindDeviceLocationRequest(message)
             MessageType.FIND_DEVICE_LOCATION_UPDATE -> handleFindDeviceLocationUpdate(message)
+            MessageType.REQUEST_PHONE_SETTINGS -> handleRequestPhoneSettings()
+            MessageType.SET_RINGER_MODE -> handleSetRingerMode(message)
+            MessageType.SET_VOLUME -> handleSetVolume(message)
             MessageType.MEDIA_CONTROL -> handleMediaControl(message)
             MessageType.REQUEST_MEDIA_STATE -> handleRequestMediaState()
             MessageType.CAMERA_START -> handleCameraStart()
@@ -1591,6 +1594,77 @@ class BluetoothService : Service() {
         }
     }
 
+    private fun handleRequestPhoneSettings() {
+        val settings = collectPhoneSettings()
+        sendMessage(ProtocolHelper.createPhoneSettingsUpdate(settings))
+    }
+
+    private fun handleSetRingerMode(message: ProtocolMessage) {
+        try {
+            val mode = ProtocolHelper.extractIntField(message, "mode")
+            val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            am.ringerMode = mode
+            
+            // Notify watch of the change
+            serviceScope.launch {
+                delay(300)
+                handleRequestPhoneSettings()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting ringer mode: ${e.message}")
+        }
+    }
+
+    private fun handleSetVolume(message: ProtocolMessage) {
+        try {
+            val streamType = ProtocolHelper.extractIntField(message, "streamType")
+            val volume = ProtocolHelper.extractIntField(message, "volume")
+            val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            
+            val maxVolume = am.getStreamMaxVolume(streamType)
+            val targetVolume = volume.coerceIn(0, maxVolume)
+            
+            am.setStreamVolume(streamType, targetVolume, 0)
+            
+            // Notify watch of the change
+            serviceScope.launch {
+                delay(300)
+                handleRequestPhoneSettings()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting volume: ${e.message}")
+        }
+    }
+
+    private fun collectPhoneSettings(): PhoneSettingsData {
+        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        
+        val ringerMode = am.ringerMode
+        val dndEnabled = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
+        
+        val volumeChannels = listOf(
+            AudioManager.STREAM_MUSIC to "Media",
+            AudioManager.STREAM_RING to "Ring",
+            AudioManager.STREAM_NOTIFICATION to "Notification",
+            AudioManager.STREAM_ALARM to "Alarm",
+            AudioManager.STREAM_SYSTEM to "System"
+        ).map { (streamType, name) ->
+            VolumeChannelData(
+                streamType = streamType,
+                name = name,
+                currentVolume = am.getStreamVolume(streamType),
+                maxVolume = am.getStreamMaxVolume(streamType)
+            )
+        }
+        
+        return PhoneSettingsData(
+            ringerMode = ringerMode,
+            dndEnabled = dndEnabled,
+            volumeChannels = volumeChannels
+        )
+    }
+    
     private fun handleDeviceInfoUpdate(message: ProtocolMessage) {
         val info = ProtocolHelper.extractData<DeviceInfoData>(message)
         
@@ -1780,6 +1854,9 @@ class BluetoothService : Service() {
                 delay(500)
                 val status = collectWatchStatus()
                 sendMessage(ProtocolHelper.createStatusUpdate(status))
+                
+                // Also update Phone Settings state on watch
+                handleRequestPhoneSettings()
             }
         }
     }
