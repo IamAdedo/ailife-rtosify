@@ -25,6 +25,8 @@ class AboutActivity : AppCompatActivity() {
 
         val tvAppName = findViewById<TextView>(R.id.tvAppName)
         val tvVersion = findViewById<TextView>(R.id.tvVersion)
+        val tvCompanionVersion = findViewById<TextView>(R.id.tvCompanionVersion)
+        val btnOriginalProject = findViewById<Button>(R.id.btnOriginalProject)
         val switchAutoUpdate = findViewById<MaterialSwitch>(R.id.switchAutoUpdate)
         val btnCheckUpdate = findViewById<Button>(R.id.btnCheckUpdate)
         val btnWebsite = findViewById<Button>(R.id.btnWebsite)
@@ -35,6 +37,16 @@ class AboutActivity : AppCompatActivity() {
             tvVersion.text = getString(R.string.about_version_format, pInfo.versionName)
         } catch (e: Exception) {
             tvVersion.text = getString(R.string.about_version_unknown)
+        }
+
+        // Set companion version info
+        val prefs = getSharedPreferences("AppPrefs", MODE_PRIVATE)
+        val companionVersion = prefs.getString("companion_version", null)
+        if (companionVersion != null) {
+            tvCompanionVersion.text = getString(R.string.about_companion_version_format, companionVersion)
+            tvCompanionVersion.visibility = android.view.View.VISIBLE
+        } else {
+            tvCompanionVersion.visibility = android.view.View.GONE
         }
 
         // Setup Auto Update Switch
@@ -51,6 +63,12 @@ class AboutActivity : AppCompatActivity() {
         // Website Button
         btnWebsite.setOnClickListener {
             val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://gitlab.com/ailife8881/rtosify"))
+            startActivity(browserIntent)
+        }
+
+        // Original Project Button
+        btnOriginalProject.setOnClickListener {
+            val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.about_credit_original_link)))
             startActivity(browserIntent)
         }
     }

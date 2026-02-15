@@ -516,7 +516,8 @@ data class DeviceInfoData(
         val processor: String,
         val cpuUsage: Int,
         val btRssi: Int? = null,
-        val deviceName: String? = null
+        val deviceName: String? = null,
+        val companionVersion: String? = null
 )
 
 data class BatteryHistoryPoint(

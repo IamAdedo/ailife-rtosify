@@ -1205,7 +1205,11 @@
     <string name="vibration_med">Med</string>
     <string name="vibration_high">High</string>
     <string name="lbl_vibration_pattern">Vibration Pattern</string>
-    <string name="about_copyright">© 2026 AI Life. All rights reserved.</string>
+    <string name="about_copyright">© 2026 AI LIFE. All rights reserved.</string>
+    <string name="about_companion_version_format">Companion: %s</string>
+    <string name="about_credit_label">Original Project:</string>
+    <string name="about_credit_original">@GMB8281 original project</string>
+    <string name="about_credit_original_link">https://gitlab.com/GMB8281/MarinovWatch</string>
     <string name="ota_no_changelog">No changelog available</string>
     <string name="notif_only_chat_title">Only allow chat notification</string>
     <string name="notif_only_chat_desc">Only forward messaging style notifications</string>

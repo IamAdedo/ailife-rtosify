@@ -1685,8 +1685,13 @@ class BluetoothService : Service() {
         }
     }
         
-        serviceScope.launch(Dispatchers.Main) { callback?.onDeviceInfoReceived(info) }
+        // Update companion version if present
+    if (info.companionVersion != null) {
+        prefs.edit().putString("companion_version", info.companionVersion).apply()
     }
+    
+    serviceScope.launch(Dispatchers.Main) { callback?.onDeviceInfoReceived(info) }
+}
 
     private fun onConnectionLost() {
         Log.d(

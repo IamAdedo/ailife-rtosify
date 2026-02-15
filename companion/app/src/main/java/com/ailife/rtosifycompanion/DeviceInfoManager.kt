@@ -19,6 +19,12 @@ class DeviceInfoManager(private val context: Context) {
         val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? android.bluetooth.BluetoothManager
         val deviceName = bluetoothManager?.adapter?.name
         
+        val companionVersion = try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        } catch (e: Exception) {
+            null
+        }
+
         return DeviceInfoData(
                 model = Build.MODEL,
                 androidVersion = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
@@ -26,7 +32,8 @@ class DeviceInfoManager(private val context: Context) {
                 storageUsage = getStorageUsage(),
                 processor = getProcessorName(),
                 cpuUsage = getCpuUsage(userService),
-                deviceName = deviceName
+                deviceName = deviceName,
+                companionVersion = companionVersion
         )
     }
 

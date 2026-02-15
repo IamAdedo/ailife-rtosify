@@ -1247,7 +1247,11 @@
     <string name="vibration_med">中</string>
     <string name="vibration_high">强</string>
     <string name="lbl_vibration_pattern">振动模式</string>
-    <string name="about_copyright">© 2026 AI Life. 保留所有权利。</string>
+    <string name="about_copyright">© 2026 AI LIFE. 保留所有权利。</string>
+    <string name="about_companion_version_format">伴侣版本: %s</string>
+    <string name="about_credit_label">原始项目:</string>
+    <string name="about_credit_original">@GMB8281 原始项目</string>
+    <string name="about_credit_original_link">https://gitlab.com/GMB8281/MarinovWatch</string>
     <string name="ota_no_changelog">没有可用更新日志</string>
     <string name="notif_only_chat_title">仅允许聊天通知</string>
     <string name="notif_only_chat_desc">仅转发消息样式的通知</string>
