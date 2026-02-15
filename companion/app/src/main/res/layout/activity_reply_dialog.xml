@@ -26,7 +26,7 @@
                 android:id="@+id/tvReplyTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Reply"
+                android:text="@string/reply_label"
                 android:textColor="@color/white"
                 android:textSize="14sp"
                 android:textStyle="bold"
@@ -35,7 +35,7 @@
             <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Type reply...">
+                android:hint="@string/di_reply_hint">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etReply"
@@ -62,14 +62,14 @@
                     style="@style/Widget.Material3.Button.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Cancel"
+                    android:text="@string/di_cancel"
                     android:textColor="#80FFFFFF"/>
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnSend"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Send"
+                    android:text="@string/di_send"
                     android:layout_marginStart="8dp"
                     app:cornerRadius="16dp"/>
             </LinearLayout>

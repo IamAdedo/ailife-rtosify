@@ -582,4 +582,12 @@
     <string name="msg_permission_granted">Permission granted!</string>
     <string name="msg_permission_failed">Failed (Code: %d). Try ADB.</string>
     <string name="msg_error_format">Error: %s</string>
+    <string name="file_new_detected">New File Detected</string>
+    <string name="file_download">Download</string>
+    <string name="file_dismiss">Dismiss</string>
+    <string name="perm_title_placeholder">Permission Title</string>
+    <string name="perm_desc_placeholder">Description of where is used.</string>
+    <string name="perm_granted_label">Granted</string>
+    <string name="transport_internet_webrtc">Internet (WebRTC)</string>
+    <string name="transport_wifi_intranet">WiFi Intranet</string>
 </resources>

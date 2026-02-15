@@ -2,6 +2,7 @@ package com.ailife.rtosifycompanion.communication
 
 import android.content.Context
 import android.util.Log
+import com.ailife.rtosifycompanion.R
 import com.ailife.rtosifycompanion.ProtocolMessage
 import com.ailife.rtosifycompanion.ProtocolHelper
 import com.ailife.rtosifycompanion.security.EncryptionManager
@@ -534,7 +535,7 @@ class WebRtcTransport(
         return (now - lastMessageReceivedTime) <= 60000
     }
 
-    override fun getTransportType(): String = "Internet (WebRTC)"
+    override fun getTransportType(): String = context.getString(R.string.transport_internet_webrtc)
 
     override fun getRemoteDeviceName(): String? = deviceName
 

@@ -379,6 +379,7 @@ private suspend fun handleBleConnection(transport: BleTransport) {
             
             while (isActive) {
                 val transport = WifiIntranetTransport(
+                    context = context,
                     remoteMac = remoteMac,
                     localMac = localMac,
                     deviceName = deviceName,

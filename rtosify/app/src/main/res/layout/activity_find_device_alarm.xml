@@ -19,7 +19,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="Watch is Finding You"
+        android:text="@string/find_device_finding_you"
         android:textColor="@android:color/white"
         android:textSize="20sp"
         android:textStyle="bold" />
@@ -29,7 +29,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:gravity="center"
-        android:text="Loud alarm is playing on this phone"
+        android:text="@string/find_device_alarm_playing"
         android:textColor="@android:color/darker_gray" />
 
     <com.google.android.material.button.MaterialButton

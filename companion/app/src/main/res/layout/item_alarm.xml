@@ -37,7 +37,7 @@
                 android:id="@+id/tvAlarmLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Wake up"
+                android:text="@string/alarm_default_label"
                 android:textSize="11sp"
                 android:layout_marginTop="2dp"
                 android:visibility="gone" />

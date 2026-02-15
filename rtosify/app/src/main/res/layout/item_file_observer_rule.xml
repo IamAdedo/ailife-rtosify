@@ -32,7 +32,7 @@
                 android:id="@+id/tvRuleName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Rule Name"
+                android:text="@string/lbl_rule_name"
                 android:textStyle="bold"
                 android:textSize="16sp"
                 android:textColor="?android:attr/textColorPrimary"/>
@@ -51,7 +51,7 @@
                 android:id="@+id/tvRuleTypes"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Image, Video (Recursive)"
+                android:text="@string/lbl_rule_type_desc"
                 android:textColor="?attr/colorPrimary"
                 android:textSize="12sp"
                 android:layout_marginTop="2dp"/>

@@ -154,8 +154,8 @@ class OtaManager(private val context: Context) {
             }
             latestVersion = version
 
-            changelog = release.optString("description", "No changelog available")
-            changelog = cleanMarkdown(changelog ?: "")
+            changelog = release.optString("description", context.getString(R.string.ota_no_changelog))
+            changelog = cleanMarkdown(changelog ?: context.getString(R.string.ota_no_changelog))
 
             val assets = release.optJSONObject("assets")
             val links = assets?.optJSONArray("links")

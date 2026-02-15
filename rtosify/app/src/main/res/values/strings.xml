@@ -67,6 +67,7 @@
     <string name="wifi_connected">Connected</string>
     <string name="wifi_already_connected">Already connected to %s</string>
     <string name="wifi_connecting">Connecting to %s…</string>
+    <string name="title_activity_wifi_pairing">WiFi Pairing</string>
 
     <!-- WiFi Password Dialog -->
     <string name="wifi_password_dialog_title">Connect to %s</string>
@@ -1196,7 +1197,21 @@
     <string name="about_title">About RTOSify</string>
 
     <!-- WiFi Pairing Extras -->
-    <string name="title_activity_wifi_pairing">WiFi Pairing</string>
+    <string name="lbl_text_size_timeout">Text Size &amp; Timeout</string>
+    <string name="status_checking">Checking…</string>
+    <string name="lbl_vibration_strength">Vibration Strength</string>
+    <string name="vibration_off">Off</string>
+    <string name="vibration_low">Low</string>
+    <string name="vibration_med">Med</string>
+    <string name="vibration_high">High</string>
+    <string name="lbl_vibration_pattern">Vibration Pattern</string>
+    <string name="about_copyright">© 2026 AI Life. All rights reserved.</string>
+    <string name="ota_no_changelog">No changelog available</string>
+    <string name="notif_only_chat_title">Only allow chat notification</string>
+    <string name="notif_only_chat_desc">Only forward messaging style notifications</string>
+    <string name="lbl_rule_name">Rule Name</string>
+    <string name="lbl_rule_type_desc">Image, Video (Recursive)</string>
+    <string name="btn_use_this_folder">Use This Folder</string>
 </resources>
 
 

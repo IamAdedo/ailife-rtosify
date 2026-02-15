@@ -380,7 +380,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Vibration Strength"
+                            android:text="@string/lbl_vibration_strength"
                             android:textSize="15sp"
                             android:textStyle="bold"
                             android:textColor="?android:attr/textColorPrimary"/>
@@ -399,10 +399,10 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:orientation="horizontal">
-                            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Off" android:textSize="12sp"/>
-                            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Low" android:gravity="center_horizontal" android:textSize="12sp"/>
-                            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="Med" android:gravity="center_horizontal" android:textSize="12sp"/>
-                            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="High" android:gravity="end" android:textSize="12sp"/>
+                            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/vibration_off" android:textSize="12sp"/>
+                            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/vibration_low" android:gravity="center_horizontal" android:textSize="12sp"/>
+                            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/vibration_med" android:gravity="center_horizontal" android:textSize="12sp"/>
+                            <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/vibration_high" android:gravity="end" android:textSize="12sp"/>
                         </LinearLayout>
                     </LinearLayout>
 
@@ -416,7 +416,7 @@
                          <TextView
                              android:layout_width="wrap_content"
                              android:layout_height="wrap_content"
-                             android:text="Vibration Pattern"
+                             android:text="@string/lbl_vibration_pattern"
                              android:textSize="15sp"
                              android:textStyle="bold"
                              android:textColor="?android:attr/textColorPrimary"/>

@@ -191,7 +191,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:paddingBottom="16dp"
-                        android:text="Text Size &amp; Timeout"
+                        android:text="@string/lbl_text_size_timeout"
                         android:textAppearance="?attr/textAppearanceTitleMedium"
                         android:textStyle="bold" />
 

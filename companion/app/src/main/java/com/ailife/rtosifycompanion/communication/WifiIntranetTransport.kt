@@ -1,6 +1,8 @@
 package com.ailife.rtosifycompanion.communication
 
+import android.content.Context
 import android.util.Log
+import com.ailife.rtosifycompanion.R
 import com.ailife.rtosifycompanion.ProtocolMessage
 import com.ailife.rtosifycompanion.security.EncryptionManager
 import kotlinx.coroutines.*
@@ -17,6 +19,7 @@ import java.net.Socket
  * All messages are encrypted using EncryptionManager.
  */
 class WifiIntranetTransport(
+    private val context: Context,
     private val remoteMac: String,
     private val localMac: String,
     private val deviceName: String,
@@ -331,7 +334,7 @@ class WifiIntranetTransport(
         return elapsed <= KEEPALIVE_TIMEOUT
     }
 
-    override fun getTransportType(): String = "WiFi Intranet"
+    override fun getTransportType(): String = context.getString(R.string.transport_wifi_intranet)
 
     override fun getRemoteDeviceName(): String? = deviceName
 
