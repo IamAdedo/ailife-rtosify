@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.scale
+import com.ailife.rtosifycompanion.ui.theme.SmartwatchTheme
 
 class PhoneSettingsActivity : ComponentActivity() {
 
@@ -80,27 +81,10 @@ class PhoneSettingsActivity : ComponentActivity() {
         registerReceiver(settingsReceiver, IntentFilter(ACTION_SETTINGS_UPDATE), RECEIVER_NOT_EXPORTED)
 
         setContent {
-            MaterialTheme(
-                colorScheme = darkColorScheme(
-                    primary = Color(0xFF3DAADC),
-                    onPrimary = Color(0xFF000000),
-                    primaryContainer = Color(0xFF2A7294),
-                    onPrimaryContainer = Color(0xFFFFFFFF),
-                    secondary = Color(0xFFDC3D3D),
-                    onSecondary = Color(0xFFFFFFFF),
-                    secondaryContainer = Color(0xFF852626),
-                    onSecondaryContainer = Color(0xFFFFFFFF),
-                    background = Color(0xFF000000),
-                    onBackground = Color(0xFFE6E1E5),
-                    surface = Color(0xFF121212),
-                    onSurface = Color(0xFFE6E1E5),
-                    surfaceVariant = Color(0xFF1E1E1E),
-                    onSurfaceVariant = Color(0xFFCAC4D0)
-                )
-            ) {
+            SmartwatchTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = Color.Black
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     PhoneSettingsScreen(
                         settings = _settingsState.value,
@@ -183,7 +167,7 @@ fun PhoneSettingsScreen(
                 Text(
                     text = stringResource(R.string.volume_title),
                     style = MaterialTheme.typography.labelLarge,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
                 )
             }
@@ -204,14 +188,14 @@ fun RingerModeCard(currentMode: Int, onModeChange: (Int) -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
             Text(
                 text = stringResource(R.string.ringer_mode_title),
                 style = MaterialTheme.typography.labelMedium,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
             Row(
@@ -248,8 +232,8 @@ fun RingerOption(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val containerColor = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFF2C2C2C)
-    val contentColor = if (isSelected) Color.Black else Color.White
+    val containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+    val contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
     
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -266,7 +250,12 @@ fun RingerOption(
             Icon(icon, contentDescription = label, modifier = Modifier.size(20.dp))
         }
         Spacer(modifier = Modifier.height(4.dp))
-        Text(text = label, style = MaterialTheme.typography.labelSmall, fontSize = 8.sp, color = if (isSelected) Color.White else Color.Gray)
+        Text(
+            text = label, 
+            style = MaterialTheme.typography.labelSmall, 
+            fontSize = 8.sp, 
+            color = if (isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -275,7 +264,7 @@ fun DndCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Row(
@@ -290,10 +279,14 @@ fun DndCard(enabled: Boolean, onToggle: (Boolean) -> Unit) {
                     Icons.Default.DoNotDisturbOn,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
-                    tint = if (enabled) MaterialTheme.colorScheme.secondary else Color.Gray
+                    tint = if (enabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.width(10.dp))
-                Text(text = stringResource(R.string.dnd_title), style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = stringResource(R.string.dnd_title), 
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
             }
             Switch(
                 checked = enabled, 
@@ -311,10 +304,10 @@ fun Switch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, scale: Float = 
         onCheckedChange = onCheckedChange,
         modifier = Modifier.scale(scale),
         colors = SwitchDefaults.colors(
-            checkedThumbColor = Color.White,
+            checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
             checkedTrackColor = MaterialTheme.colorScheme.primary,
-            uncheckedThumbColor = Color.Gray,
-            uncheckedTrackColor = Color(0xFF2C2C2C)
+            uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+            uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
         )
     )
 }
@@ -329,7 +322,7 @@ fun VolumeSliderCard(channel: VolumeChannelData, onVolumeChange: (Int, Int) -> U
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1E1E1E)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
@@ -338,11 +331,15 @@ fun VolumeSliderCard(channel: VolumeChannelData, onVolumeChange: (Int, Int) -> U
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = channel.name, style = MaterialTheme.typography.bodySmall, color = Color.LightGray)
+                Text(
+                    text = channel.name, 
+                    style = MaterialTheme.typography.bodySmall, 
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Text(
                     text = "${sliderValue.toInt()}/${channel.maxVolume}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
             Slider(
@@ -354,12 +351,7 @@ fun VolumeSliderCard(channel: VolumeChannelData, onVolumeChange: (Int, Int) -> U
                     onVolumeChange(channel.streamType, sliderValue.toInt())
                 },
                 valueRange = 0f..channel.maxVolume.toFloat(),
-                steps = if (channel.maxVolume > 0) channel.maxVolume - 1 else 0,
-                colors = SliderDefaults.colors(
-                    thumbColor = Color.White,
-                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                    inactiveTrackColor = Color(0xFF2C2C2C)
-                )
+                steps = if (channel.maxVolume > 0) channel.maxVolume - 1 else 0
             )
         }
     }

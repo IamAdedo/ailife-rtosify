@@ -30,6 +30,8 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.platform.ComposeView
 import com.ailife.rtosifycompanion.ui.MediaWaveSlider
+import com.ailife.rtosifycompanion.ui.theme.SmartwatchTheme
+import androidx.compose.material3.MaterialTheme
 import com.google.android.material.progressindicator.LinearProgressIndicator
 import com.google.android.material.color.MaterialColors
 import android.util.TypedValue
@@ -582,18 +584,20 @@ class FullScreenMediaActivity : ComponentActivity() {
                 bottomMargin = dpToPx(8)
             }
             setContent {
-                MediaWaveSlider(
-                    value = sliderValue.floatValue,
-                    onValueChange = { newValue ->
-                        sliderValue.floatValue = newValue
-                        audioCurrentTime?.text = formatDuration(newValue.toLong())
-                    },
-                    isPlaying = isPlayingState.value,
-                    valueRange = 0f..durationMs.toFloat(),
-                    onValueChangeFinished = {
-                        audioPlayer?.seekTo(sliderValue.floatValue.toInt())
-                    }
-                )
+                SmartwatchTheme {
+                    MediaWaveSlider(
+                        value = sliderValue.floatValue,
+                        onValueChange = { newValue ->
+                            sliderValue.floatValue = newValue
+                            audioCurrentTime?.text = formatDuration(newValue.toLong())
+                        },
+                        isPlaying = isPlayingState.value,
+                        valueRange = 0f..durationMs.toFloat(),
+                        onValueChangeFinished = {
+                            audioPlayer?.seekTo(sliderValue.floatValue.toInt())
+                        }
+                    )
+                }
             }
         }
         audioControlsContainer!!.addView(audioComposeSlider)

@@ -30,6 +30,8 @@ import android.content.DialogInterface
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.ComposeView
 import com.ailife.rtosifycompanion.ui.MediaWaveSlider
+import com.ailife.rtosifycompanion.ui.theme.SmartwatchTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.lifecycle.findViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.findViewTreeViewModelStoreOwner
@@ -1876,28 +1878,30 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                             topMargin = dpToPx(8)
                         }
                         setContent {
-                            MediaWaveSlider(
-                                value = diSliderValue.floatValue,
-                                onValueChange = { newValue ->
-                                    diSliderValue.floatValue = newValue
-                                },
-                                isPlaying = diIsPlaying.value,
-                                onValueChangeFinished = {
-                                    try {
-                                        val audioPlayer = currentAudioPlayer
-                                        val videoPlayer = currentVideoView
-                                        if (audioPlayer != null) {
-                                            val seekPos = (audioPlayer.duration * diSliderValue.floatValue / 100).toInt()
-                                            audioPlayer.seekTo(seekPos)
-                                        } else if (videoPlayer != null) {
-                                            val seekPos = (videoPlayer.duration * diSliderValue.floatValue / 100).toInt()
-                                            videoPlayer.seekTo(seekPos)
+                            SmartwatchTheme {
+                                MediaWaveSlider(
+                                    value = diSliderValue.floatValue,
+                                    onValueChange = { newValue ->
+                                        diSliderValue.floatValue = newValue
+                                    },
+                                    isPlaying = diIsPlaying.value,
+                                    onValueChangeFinished = {
+                                        try {
+                                            val audioPlayer = currentAudioPlayer
+                                            val videoPlayer = currentVideoView
+                                            if (audioPlayer != null) {
+                                                val seekPos = (audioPlayer.duration * diSliderValue.floatValue / 100).toInt()
+                                                audioPlayer.seekTo(seekPos)
+                                            } else if (videoPlayer != null) {
+                                                val seekPos = (videoPlayer.duration * diSliderValue.floatValue / 100).toInt()
+                                                videoPlayer.seekTo(seekPos)
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "Error seeking", e)
                                         }
-                                    } catch (e: Exception) {
-                                        Log.e(TAG, "Error seeking", e)
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                     mediaContainer.addView(composeSlider)
@@ -3039,17 +3043,19 @@ class DynamicIslandView(context: Context) : FrameLayout(context) {
                 tag = "media_progress_bar"
                 layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(48)) // Increased height for wave
                 setContent {
-                    MediaWaveSlider(
-                        value = diSliderValue.floatValue,
-                        onValueChange = { newValue ->
-                            diSliderValue.floatValue = newValue
-                        },
-                        isPlaying = diIsPlaying.value,
-                        onValueChangeFinished = {
-                            val newPos = (diSliderValue.floatValue / 100 * diDuration.longValue)
-                            onMediaAction?.invoke("seek", newPos.toLong())
-                        }
-                    )
+                    SmartwatchTheme {
+                        MediaWaveSlider(
+                            value = diSliderValue.floatValue,
+                            onValueChange = { newValue ->
+                                diSliderValue.floatValue = newValue
+                            },
+                            isPlaying = diIsPlaying.value,
+                            onValueChangeFinished = {
+                                val newPos = (diSliderValue.floatValue / 100 * diDuration.longValue)
+                                onMediaAction?.invoke("seek", newPos.toLong())
+                            }
+                        )
+                    }
                 }
             }
             progressLayout.addView(progressBar)

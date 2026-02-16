@@ -25,6 +25,7 @@ import androidx.core.content.ContextCompat
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import com.ailife.rtosifycompanion.ui.MediaWaveSlider
+import com.ailife.rtosifycompanion.ui.theme.SmartwatchTheme
 import androidx.compose.material3.MaterialTheme
 import com.ailife.rtosifycompanion.EdgeToEdgeUtils
 
@@ -305,7 +306,7 @@ class MediaControlActivity : AppCompatActivity() {
 
     private fun setupComposeSlider() {
         composeSlider.setContent {
-            MaterialTheme {
+            SmartwatchTheme {
                 MediaWaveSlider(
                     value = sliderValue.value,
                     onValueChange = { newValue ->

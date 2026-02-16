@@ -21,7 +21,9 @@ fun MediaWaveSlider(
     value: Float,
     onValueChange: (Float) -> Unit,
     isPlaying: Boolean,
+    modifier: Modifier = Modifier,
     valueRange: ClosedFloatingPointRange<Float> = 0f..100f,
+    steps: Int = 0,
     onValueChangeFinished: (() -> Unit)? = null
 ) {
     val waveHeight by animateDpAsState(
@@ -41,14 +43,16 @@ fun MediaWaveSlider(
         label = "phase"
     )
 
-    val cyanColor = Color(0xFF00BCD4)
-    val inactiveColor = Color(0xFF303030)
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val inactiveTrackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
 
     Slider(
         value = value,
         onValueChange = onValueChange,
         onValueChangeFinished = onValueChangeFinished,
         valueRange = valueRange,
+        steps = steps,
+        modifier = modifier,
         track = { sliderState ->
             val range = valueRange.endInclusive - valueRange.start
             val fraction = if (range > 0) (value - valueRange.start) / range else 0f
@@ -63,7 +67,7 @@ fun MediaWaveSlider(
                 
                 // Draw inactive track (straight line)
                 drawLine(
-                    color = inactiveColor,
+                    color = inactiveTrackColor,
                     start = Offset(thumbX, centerY),
                     end = Offset(width, centerY),
                     strokeWidth = 4.dp.toPx()
@@ -74,11 +78,11 @@ fun MediaWaveSlider(
                     val path = Path()
                     path.moveTo(0f, centerY)
                     val stepPx = 2f
-                    val steps = (thumbX / stepPx).toInt()
+                    val stepsCount = (thumbX / stepPx).toInt()
                     val waveLength = 40f
                     val amplitude = waveHeight.toPx()
                     
-                    for (i in 1..steps) {
+                    for (i in 1..stepsCount) {
                         val x = i.toFloat() * stepPx
                         // Include phase to create the moving effect
                         val angle = (x / waveLength) * 2 * PI.toFloat() - phase
@@ -89,13 +93,13 @@ fun MediaWaveSlider(
                     
                     drawPath(
                         path = path,
-                        color = cyanColor,
+                        color = primaryColor,
                         style = Stroke(width = 4.dp.toPx())
                     )
                 } else {
                     // Straight active track if not playing
                     drawLine(
-                        color = cyanColor,
+                        color = primaryColor,
                         start = Offset(0f, centerY),
                         end = Offset(thumbX, centerY),
                         strokeWidth = 4.dp.toPx()
@@ -104,7 +108,7 @@ fun MediaWaveSlider(
             }
         },
         colors = SliderDefaults.colors(
-            thumbColor = cyanColor,
+            thumbColor = primaryColor,
             activeTrackColor = Color.Transparent, // We draw our own track
             inactiveTrackColor = Color.Transparent
         )
