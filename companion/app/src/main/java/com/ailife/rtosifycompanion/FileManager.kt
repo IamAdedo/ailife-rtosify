@@ -74,7 +74,7 @@ class FileManager(
                      FileInfo(it.name, it.length(), it.isDirectory, it.lastModified())
                  })
                  Log.d(TAG, "Standard native access success for $absolutePath")
-                 return@withContext files
+                 return@withContext files.also { injectSpecialFolders(absolutePath, it) }
              }
         }
 
@@ -91,7 +91,7 @@ class FileManager(
                          FileInfo(name, it.length(), it.isDirectory, it.lastModified())
                      })
                      Log.d(TAG, "Bypassed native access success for $absolutePath")
-                     return@withContext files
+                     return@withContext files.also { injectSpecialFolders(absolutePath, it) }
                  }
             }
         }
@@ -107,7 +107,7 @@ class FileManager(
                         val shizukuFiles: List<FileInfo> = gson.fromJson(json, type)
                         files.addAll(shizukuFiles)
                         Log.d(TAG, "Shizuku listFiles success for $absolutePath")
-                        return@withContext files
+                        return@withContext files.also { injectSpecialFolders(absolutePath, it) }
                     }
                 }
             } catch (e: Exception) {
@@ -127,7 +127,7 @@ class FileManager(
                         val cleanName = line.trimEnd('/', '@', '*', '|', '=', '>')
                         FileInfo(cleanName, 0, isDir, System.currentTimeMillis())
                     })
-                    return@withContext files
+                    return@withContext files.also { injectSpecialFolders(absolutePath, it) }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Root listFiles failed: ${e.message}")
@@ -143,20 +143,10 @@ class FileManager(
                  FileInfo(it.name ?: "", it.length(), it.isDirectory, it.lastModified())
              })
              Log.d(TAG, "SAF listFiles success for $absolutePath")
-             return@withContext files
+             return@withContext files.also { injectSpecialFolders(absolutePath, it) }
         }
         
-        // 4. Fallback: Inject special folder for Android/data if needed
-        val storageRoot = android.os.Environment.getExternalStorageDirectory().absolutePath
-        if (absolutePath == File(storageRoot, "Android/data").absolutePath) {
-             // If we failed to list anything but we know we are in Android/data, maybe show the specific package folder if useful?
-             // Or at least our own package path?
-             if (files.none { it.name == "com.ailife.ClockSkinCoco" }) {
-                files.add(FileInfo("com.ailife.ClockSkinCoco", 0, true, System.currentTimeMillis()))
-             }
-        }
-
-        return@withContext files
+        return@withContext files.also { injectSpecialFolders(absolutePath, it) }
     }
 
     suspend fun deleteFile(path: String): Boolean = withContext(Dispatchers.IO) {
@@ -646,6 +636,27 @@ class FileManager(
         }
     }
     
+    private fun injectSpecialFolders(absolutePath: String, files: MutableList<FileInfo>) {
+        val storageRoot = android.os.Environment.getExternalStorageDirectory().absolutePath
+        val dataPath = File(storageRoot, "Android/data").absolutePath
+        val obbPath = File(storageRoot, "Android/obb").absolutePath
+
+        if (absolutePath == dataPath) {
+            val ownPkg = context.packageName
+            if (files.none { it.name == ownPkg }) {
+                files.add(FileInfo(ownPkg, 0, true, System.currentTimeMillis()))
+            }
+            if (files.none { it.name == "com.ailife.ClockSkinCoco" }) {
+                files.add(FileInfo("com.ailife.ClockSkinCoco", 0, true, System.currentTimeMillis()))
+            }
+        } else if (absolutePath == obbPath) {
+            val ownPkg = context.packageName
+            if (files.none { it.name == ownPkg }) {
+                files.add(FileInfo(ownPkg, 0, true, System.currentTimeMillis()))
+            }
+        }
+    }
+
     // Helpers
     private fun translatePathForRoot(path: String): String {
         val root = android.os.Environment.getExternalStorageDirectory().absolutePath

@@ -842,7 +842,7 @@ class FileManagerActivity : AppCompatActivity(), BluetoothService.ServiceCallbac
             val file = files[position]
             holder.tvName.text = file.name
 
-            val sdf = SimpleDateFormat("dd/MM/yy HH:mm", Locale.getDefault())
+            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
             val dateStr = sdf.format(Date(file.lastModified))
 
             if (file.isDirectory) {
