@@ -43,6 +43,14 @@ class RtosifyAccessibilityService : AccessibilityService() {
             context.sendBroadcast(intent)
             instance?.performGlobalAction(action)
         }
+
+        fun performSwipe(context: Context, direction: String) {
+            val intent = Intent("com.ailife.rtosify.DISPATCH_SWIPE").apply {
+                putExtra("direction", direction)
+            }
+            context.sendBroadcast(intent)
+            instance?.performSwipe(direction)
+        }
     }
 
 
@@ -57,6 +65,7 @@ class RtosifyAccessibilityService : AccessibilityService() {
             addAction("com.ailife.rtosify.DISPATCH_REMOTE_INPUT")
             addAction("com.ailife.rtosify.CLICK_KEYWORDS")
             addAction("com.ailife.rtosify.GLOBAL_ACTION")
+            addAction("com.ailife.rtosify.DISPATCH_SWIPE")
         }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             androidx.core.content.ContextCompat.registerReceiver(this, commandReceiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
@@ -103,6 +112,10 @@ class RtosifyAccessibilityService : AccessibilityService() {
                     if (action != -1) {
                         performGlobalAction(action)
                     }
+                }
+                "com.ailife.rtosify.DISPATCH_SWIPE" -> {
+                    val direction = intent.getStringExtra("direction") ?: return
+                    performSwipe(direction)
                 }
             }
         }
@@ -306,6 +319,24 @@ class RtosifyAccessibilityService : AccessibilityService() {
                 performGlobalAction(GLOBAL_ACTION_RECENTS)
                 return
             }
+            RemoteInputData.ACTION_TAP -> {
+                val dm = resources.displayMetrics
+                performTap(xP * dm.widthPixels, yP * dm.heightPixels)
+                return
+            }
+            RemoteInputData.ACTION_DOUBLE_TAP -> {
+                val dm = resources.displayMetrics
+                performDoubleTap(xP * dm.widthPixels, yP * dm.heightPixels)
+                return
+            }
+            RemoteInputData.ACTION_SCROLL_FORWARD -> {
+                performScroll(true)
+                return
+            }
+            RemoteInputData.ACTION_SCROLL_BACKWARD -> {
+                performScroll(false)
+                return
+            }
         }
 
         val displayMetrics = resources.displayMetrics
@@ -351,6 +382,89 @@ class RtosifyAccessibilityService : AccessibilityService() {
                 }
             }
         }
+    }
+
+    private fun performSwipe(direction: String) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return
+
+        val displayMetrics = resources.displayMetrics
+        val width = displayMetrics.widthPixels.toFloat()
+        val height = displayMetrics.heightPixels.toFloat()
+
+        val path = Path()
+        when (direction) {
+            "UP" -> {
+                // Swipe from lower middle to upper middle
+                path.moveTo(width * 0.5f, height * 0.85f)
+                path.lineTo(width * 0.5f, height * 0.15f)
+            }
+            "DOWN" -> {
+                // Swipe from upper middle to lower middle
+                path.moveTo(width * 0.5f, height * 0.15f)
+                path.lineTo(width * 0.5f, height * 0.85f)
+            }
+            else -> return
+        }
+
+        Log.d(TAG, "Dispatching swipe: $direction")
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, 200)) // Faster swipe
+            .build()
+
+        dispatchGesture(gesture, object : GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription?) {
+                Log.d(TAG, "Swipe gesture completed")
+            }
+            override fun onCancelled(gestureDescription: GestureDescription?) {
+                Log.e(TAG, "Swipe gesture cancelled")
+            }
+        }, null)
+    }
+
+    private fun performTap(x: Float, y: Float) {
+        val path = Path()
+        path.moveTo(x, y)
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, 50))
+            .build()
+        dispatchGesture(gesture, null, null)
+    }
+
+    private fun performDoubleTap(x: Float, y: Float) {
+        val path1 = Path()
+        path1.moveTo(x, y)
+        val path2 = Path()
+        path2.moveTo(x, y)
+        
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path1, 0, 50))
+            .addStroke(GestureDescription.StrokeDescription(path2, 100, 50)) // 100ms delay between taps
+            .build()
+        dispatchGesture(gesture, null, null)
+    }
+
+    private fun performScroll(forward: Boolean) {
+        val rootNode = rootInActiveWindow ?: return
+        val scrollableNode = findScrollableNode(rootNode)
+        if (scrollableNode != null) {
+            val action = if (forward) AccessibilityNodeInfo.ACTION_SCROLL_FORWARD else AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+            Log.d(TAG, "Performing scroll: ${if (forward) "FORWARD" else "BACKWARD"}")
+            scrollableNode.performAction(action)
+            scrollableNode.recycle()
+        } else {
+            // Fallback to swipe if no scrollable node found
+            performSwipe(if (forward) "UP" else "DOWN")
+        }
+    }
+
+    private fun findScrollableNode(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        if (node.isScrollable) return node
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            val result = findScrollableNode(child)
+            if (result != null) return result
+        }
+        return null
     }
 
     private fun findSwitchInChildren(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {

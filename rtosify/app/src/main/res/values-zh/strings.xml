@@ -1258,4 +1258,29 @@
     <string name="lbl_rule_name">规则名称</string>
     <string name="lbl_rule_type_desc">图片、视频（递归）</string>
     <string name="btn_use_this_folder">使用此文件夹</string>
+
+    <!-- Video Helper -->
+    <string name="video_helper_title">短视频助手</string>
+    <string name="video_helper_desc">通过手表手势控制手机上的短视频应用</string>
+    <string name="video_helper_settings_title">短视频助手设置</string>
+    <string name="video_helper_swipes">滑动手势控制</string>
+    <string name="video_helper_swipes_desc">将手表滑动映射到手机动作</string>
+    <string name="video_helper_tap">点击控制</string>
+    <string name="video_helper_tap_desc">将手表点击映射到手机动作</string>
+    <string name="video_helper_hold">长按控制</string>
+    <string name="video_helper_hold_desc">将手表长按映射到手机动作</string>
+    <string name="video_helper_mapping_dpad">方向键 (上/下)</string>
+    <string name="video_helper_mapping_swipe">屏幕滑动</string>
+    <string name="video_helper_mapping_none">无</string>
+    <string name="video_helper_mapping_media">媒体 播放/暂停</string>
+    <string name="video_helper_mapping_tap">屏幕点击</string>
+    <string name="video_helper_mapping_key">媒体按键</string>
+    <string name="video_helper_double_tap">双击控制</string>
+    <string name="video_helper_double_tap_desc">将手表双击映射到手机动作</string>
+    <string name="video_helper_special_tap">特殊点击序列</string>
+    <string name="video_helper_special_tap_desc">点击一次后长按触发速度控制</string>
+    <string name="video_helper_mapping_center">屏幕中心</string>
+    <string name="video_helper_mapping_right">右侧</string>
+    <string name="video_helper_mapping_speed_control">倍速控制 (2.0x)</string>
+
 </resources>

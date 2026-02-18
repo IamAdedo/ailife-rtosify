@@ -235,6 +235,12 @@
             android:theme="@style/Theme.Smartwatch" />
 
         <activity
+            android:name=".VideoHelperActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Smartwatch" />
+
+        <activity
             android:name=".MediaControlActivity"
             android:exported="false"
             android:screenOrientation="portrait"

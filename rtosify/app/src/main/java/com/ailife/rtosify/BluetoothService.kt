@@ -1113,6 +1113,7 @@ class BluetoothService : Service() {
             MessageType.SET_LITE_MODE -> Log.d(TAG, "Ignored SET_LITE_MODE on RTOSify")
             MessageType.REQUEST_FILE_DOWNLOAD -> handleRequestFileDownload(message)
             MessageType.RESPONSE_RINGTONE_PICKER -> handleRingtonePickerResponse(message)
+            MessageType.VIDEO_HELPER_GESTURE -> handleVideoHelperGesture(message)
             else -> Log.d(TAG, "Unknown message type: ${message.type}")
         }
     }
@@ -2021,6 +2022,106 @@ class BluetoothService : Service() {
                 btAdapter.startDiscovery()
             }
         }
+    }
+
+    private fun handleVideoHelperGesture(message: ProtocolMessage) {
+        try {
+            val data = ProtocolHelper.extractData<VideoHelperGestureData>(message)
+            val prefs = devicePrefManager.getActiveDevicePrefs()
+
+            Log.d(TAG, "VideoHelper Gesture received: ${data.gestureType}")
+
+            when (data.gestureType) {
+                VideoHelperGestureData.GESTURE_SWIPE_UP -> {
+                    val mapping = prefs.getString("video_helper_swipe_mapping", "dpad")
+                    when (mapping) {
+                        "dpad" -> {
+                            dispatchScroll(true)
+                        }
+                        "swipe" -> {
+                            RtosifyAccessibilityService.performSwipe(this, "UP")
+                        }
+                    }
+                }
+                VideoHelperGestureData.GESTURE_SWIPE_DOWN -> {
+                    val mapping = prefs.getString("video_helper_swipe_mapping", "dpad")
+                    when (mapping) {
+                        "dpad" -> {
+                            dispatchScroll(false)
+                        }
+                        "swipe" -> {
+                            RtosifyAccessibilityService.performSwipe(this, "DOWN")
+                        }
+                    }
+                }
+                VideoHelperGestureData.GESTURE_SINGLE_TAP -> {
+                    val mapping = prefs.getString("video_helper_tap_mapping", "media")
+                    when (mapping) {
+                        "media" -> {
+                            dispatchMediaKey(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
+                        }
+                        "screen" -> {
+                            dispatchTapAt(0.5f, 0.5f)
+                        }
+                    }
+                }
+                VideoHelperGestureData.GESTURE_DOUBLE_TAP -> {
+                    val mapping = prefs.getString("video_helper_double_tap_mapping", "center")
+                    if (mapping == "center") {
+                        dispatchDoubleTapAt(0.5f, 0.5f)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling video helper gesture: ${e.message}")
+        }
+    }
+
+    private fun dispatchTapAt(x: Float, y: Float) {
+        dispatchTouchAction(RemoteInputData.ACTION_TAP, x, y)
+    }
+
+    private fun dispatchDoubleTapAt(x: Float, y: Float) {
+        dispatchTouchAction(RemoteInputData.ACTION_DOUBLE_TAP, x, y)
+    }
+
+    private fun dispatchScroll(forward: Boolean) {
+        val action = if (forward) RemoteInputData.ACTION_SCROLL_FORWARD else RemoteInputData.ACTION_SCROLL_BACKWARD
+        dispatchTouchAction(action, 0.5f, 0.5f)
+    }
+
+    private fun dispatchTouchAction(action: Int, x: Float, y: Float) {
+        val intent = Intent("com.ailife.rtosify.DISPATCH_REMOTE_INPUT").apply {
+            putExtra("action", action)
+            putExtra("x", x)
+            putExtra("y", y)
+            setPackage(packageName)
+        }
+        sendBroadcast(intent)
+    }
+
+    private fun dispatchKeyEvent(keyCode: Int) {
+        // We can't easily dispatch DPAD keys globally via AudioManager.dispatchMediaKeyEvent
+        // So we might need to use AccessibilityService or MediaSession
+        // If we have AccessibilityService, we can't perform global key injection easily either.
+        // But we can try using MediaSession next/prev if mapping allows.
+        
+        // For now, let's try media next/prev if it's DPAD mapping
+        val mediaKeyCode = when(keyCode) {
+            KeyEvent.KEYCODE_DPAD_DOWN -> KeyEvent.KEYCODE_MEDIA_NEXT
+            KeyEvent.KEYCODE_DPAD_UP -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
+            else -> 0
+        }
+        
+        if (mediaKeyCode != 0) {
+            dispatchMediaKey(mediaKeyCode)
+        }
+    }
+
+    private fun dispatchMediaKey(keyCode: Int) {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, keyCode))
+        audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
     }
 
     private fun handleMediaControl(message: ProtocolMessage) {

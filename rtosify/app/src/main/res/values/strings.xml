@@ -1216,6 +1216,30 @@
     <string name="lbl_rule_name">Rule Name</string>
     <string name="lbl_rule_type_desc">Image, Video (Recursive)</string>
     <string name="btn_use_this_folder">Use This Folder</string>
+    <!-- Video Helper -->
+    <string name="video_helper_title">Short Video Helper</string>
+    <string name="video_helper_desc">Control short video apps from your watch with gestures</string>
+    <string name="video_helper_settings_title">Short Video Helper Settings</string>
+    <string name="video_helper_swipes">Swipes Control</string>
+    <string name="video_helper_swipes_desc">Map watch swipes to phone actions</string>
+    <string name="video_helper_tap">Tap Control</string>
+    <string name="video_helper_tap_desc">Map watch tap to phone actions</string>
+    <string name="video_helper_hold">Press &amp; Hold Control</string>
+    <string name="video_helper_hold_desc">Map watch long press to phone actions</string>
+    <string name="video_helper_mapping_dpad">DPAD Keys (Up/Down)</string>
+    <string name="video_helper_mapping_swipe">Screen Swipes</string>
+    <string name="video_helper_mapping_none">None</string>
+    <string name="video_helper_mapping_media">Media Play/Pause</string>
+    <string name="video_helper_mapping_tap">Screen Tap</string>
+    <string name="video_helper_mapping_key">Media Key</string>
+    <string name="video_helper_double_tap">Double Tap Control</string>
+    <string name="video_helper_double_tap_desc">Map watch double tap to phone actions</string>
+    <string name="video_helper_special_tap">Special Tap Sequence</string>
+    <string name="video_helper_special_tap_desc">Tap once then hold to trigger speed control</string>
+    <string name="video_helper_mapping_center">Center of Screen</string>
+    <string name="video_helper_mapping_right">Right Side</string>
+    <string name="video_helper_mapping_speed_control">Speed Control (2.0x)</string>
+
 </resources>
 
 

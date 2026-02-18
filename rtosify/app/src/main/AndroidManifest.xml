@@ -259,6 +259,12 @@
             android:theme="@style/Theme.Smartwatch" />
 
         <activity
+            android:name=".VideoHelperSettingsActivity"
+            android:exported="false"
+            android:parentActivityName=".WatchAutomationsActivity"
+            android:theme="@style/Theme.Smartwatch" />
+
+        <activity
             android:name=".HealthDetailActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity"

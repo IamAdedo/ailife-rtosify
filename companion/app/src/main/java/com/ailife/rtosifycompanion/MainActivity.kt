@@ -431,6 +431,16 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                                 getString(R.string.menu_notification_log_desc),
                                 android.R.drawable.ic_popup_reminder,
                                 { startActivity(Intent(this, NotificationLogActivity::class.java)) }
+                        ),
+                        MenuOption(
+                                getString(R.string.menu_video_helper),
+                                getString(R.string.menu_video_helper_desc),
+                                R.drawable.ic_settings_remote,
+                                {
+                                    runIfConnected {
+                                        startActivity(Intent(this, VideoHelperActivity::class.java))
+                                    }
+                                }
                         )
                 )
 
@@ -583,6 +593,19 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                         getString(R.string.menu_notification_log_desc),
                         android.R.drawable.ic_popup_reminder,
                         { startActivity(Intent(this, NotificationLogActivity::class.java)) }
+                )
+        )
+
+        options.add(
+                MenuOption(
+                        getString(R.string.menu_video_helper),
+                        getString(R.string.menu_video_helper_desc),
+                        R.drawable.ic_settings_remote,
+                        {
+                            runIfConnected {
+                                startActivity(Intent(this, VideoHelperActivity::class.java))
+                            }
+                        }
                 )
         )
 

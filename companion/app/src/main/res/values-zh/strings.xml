@@ -579,4 +579,15 @@
     <string name="perm_granted_label">已授予</string>
     <string name="transport_internet_webrtc">互联网 (WebRTC)</string>
     <string name="transport_wifi_intranet">局域网 WiFi</string>
+
+    <string name="menu_video_helper">短视频助手</string>
+    <string name="menu_video_helper_desc">视频手势控制</string>
+    <string name="video_helper_title">短视频助手</string>
+    <string name="video_helper_tutorial">教程</string>
+    <string name="video_helper_gesture_active">手势检测已激活</string>
+    <string name="video_helper_tutorial_swipe_up">向上滑动：下一个视频</string>
+    <string name="video_helper_tutorial_swipe_down">向下滑动：上一个视频</string>
+    <string name="video_helper_tutorial_tap">单击：播放/暂停</string>
+    <string name="video_helper_tutorial_double_tap">双击：点赞</string>
+    <string name="video_helper_tutorial_desc">在屏幕上执行手势来控制手机</string>
 </resources>

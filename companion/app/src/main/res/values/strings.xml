@@ -436,6 +436,16 @@
     <string name="media_album_art_desc">Album Art</string>
     <string name="media_no_media">No Media Playing</string>
     <string name="media_unknown_artist">Unknown Artist</string>
+    <string name="menu_video_helper">Short Video Helper</string>
+    <string name="menu_video_helper_desc">Gesture control for videos</string>
+    <string name="video_helper_title">Short Video Helper</string>
+    <string name="video_helper_tutorial">Tutorial</string>
+    <string name="video_helper_gesture_active">Gesture detection active</string>
+    <string name="video_helper_tutorial_swipe_up">Swipe UP: Next Video</string>
+    <string name="video_helper_tutorial_swipe_down">Swipe DOWN: Prev Video</string>
+    <string name="video_helper_tutorial_tap">Single Tap: Play/Pause</string>
+    <string name="video_helper_tutorial_double_tap">Double Tap: Like</string>
+    <string name="video_helper_tutorial_desc">Perform gestures on the screen to control your phone</string>
     <string name="mirror_stop">Stop Mirroring</string>
     <string name="mirror_requesting">Requesting phone screen...</string>
     <string name="status_phone_not_connected">Phone not connected</string>

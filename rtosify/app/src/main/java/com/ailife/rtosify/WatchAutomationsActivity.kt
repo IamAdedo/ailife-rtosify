@@ -50,6 +50,7 @@ class WatchAutomationsActivity : AppCompatActivity() {
         setupSharingSyncSwitch()
         setupStarredContactsSwitch()
         setupAggressiveKeepaliveSwitch()
+        setupVideoHelperCard()
     }
 
     private fun initViews() {
@@ -140,6 +141,13 @@ class WatchAutomationsActivity : AppCompatActivity() {
         switchStarredContacts.isChecked = isEnabled
         switchStarredContacts.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean("starred_contacts_enabled", isChecked).apply()
+        }
+    }
+
+    private fun setupVideoHelperCard() {
+        findViewById<android.view.View>(R.id.cardVideoHelper).setOnClickListener {
+            val intent = Intent(this, VideoHelperSettingsActivity::class.java)
+            startActivity(intent)
         }
     }
 

@@ -176,6 +176,9 @@ object MessageType {
     const val PHONE_SETTINGS_UPDATE = "phone_settings_update"
     const val SET_RINGER_MODE = "set_ringer_mode"
     const val SET_VOLUME = "set_volume"
+    
+    // Video Helper
+    const val VIDEO_HELPER_GESTURE = "video_helper_gesture"
 }
 
 data class NavigationInfoData(
@@ -589,6 +592,11 @@ data class RemoteInputData(
         const val ACTION_NAV_BACK = -10
         const val ACTION_NAV_HOME = -11
         const val ACTION_NAV_RECENTS = -12
+
+        const val ACTION_TAP = -20
+        const val ACTION_DOUBLE_TAP = -21
+        const val ACTION_SCROLL_FORWARD = -22
+        const val ACTION_SCROLL_BACKWARD = -23
     }
 }
 
@@ -602,6 +610,17 @@ data class ResolutionData(
     companion object {
         const val MODE_RESOLUTION = 1
         const val MODE_ASPECT = 2
+    }
+}
+
+data class VideoHelperGestureData(
+    val gestureType: String
+) {
+    companion object {
+        const val GESTURE_SWIPE_UP = "SWIPE_UP"
+        const val GESTURE_SWIPE_DOWN = "SWIPE_DOWN"
+        const val GESTURE_SINGLE_TAP = "SINGLE_TAP"
+        const val GESTURE_DOUBLE_TAP = "DOUBLE_TAP"
     }
 }
 
@@ -1324,6 +1343,14 @@ object ProtocolHelper {
         data.addProperty("streamType", streamType)
         data.addProperty("volume", volume)
         return ProtocolMessage(type = MessageType.SET_VOLUME, data = data)
+    }
+
+    fun createVideoHelperGesture(gestureType: String, x: Float = 0f, y: Float = 0f): ProtocolMessage {
+        val data = JsonObject()
+        data.addProperty("gestureType", gestureType)
+        data.addProperty("x", x)
+        data.addProperty("y", y)
+        return ProtocolMessage(type = MessageType.VIDEO_HELPER_GESTURE, data = data)
     }
 }
 data class RingtonePickerResponseData(
