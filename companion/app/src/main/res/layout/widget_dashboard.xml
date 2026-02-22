@@ -168,92 +168,162 @@
         android:background="@color/widget_divider"
         android:layout_marginBottom="8dp"/>
 
-    <!-- Action Buttons -->
+    <!-- Action Buttons (2x2 Grid) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:gravity="center">
 
-        <!-- Mirror Button -->
+        <!-- Top Row (3 Buttons) -->
         <LinearLayout
-            android:id="@+id/btn_mirror"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="4dp">
+            android:orientation="horizontal"
+            android:layout_marginBottom="4dp">
 
-            <ImageView
-                android:id="@+id/imgBtnMirror"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_cast"
-                android:tint="@color/widget_text_primary"
-                android:contentDescription="Mirror"/>
-
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- Mirror Button -->
+            <LinearLayout
+                android:id="@+id/btn_mirror"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="@string/label_mirror"
-                android:textColor="@color/widget_text_primary"
-                android:textSize="9sp"
-                android:layout_marginTop="2dp"/>
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="2dp">
+
+                <ImageView
+                    android:id="@+id/imgBtnMirror"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_cast"
+                    android:tint="@color/widget_text_primary"
+                    android:contentDescription="Mirror"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_mirror"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="8sp"
+                    android:layout_marginTop="1dp"/>
+            </LinearLayout>
+
+            <!-- Camera Button -->
+            <LinearLayout
+                android:id="@+id/btn_camera"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="2dp">
+
+                <ImageView
+                    android:id="@+id/imgBtnCamera"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_camera"
+                    android:tint="@color/widget_text_primary"
+                    android:contentDescription="Camera"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/menu_camera"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="8sp"
+                    android:layout_marginTop="1dp"/>
+            </LinearLayout>
+
+            <!-- Dialer Button -->
+            <LinearLayout
+                android:id="@+id/btn_dialer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="2dp">
+
+                <ImageView
+                    android:id="@+id/imgBtnDialer"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/ic_phone"
+                    android:tint="@color/widget_text_primary"
+                    android:contentDescription="Dialer"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/menu_dialer"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="8sp"
+                    android:layout_marginTop="1dp"/>
+            </LinearLayout>
         </LinearLayout>
 
-        <!-- Camera Button -->
+        <!-- Bottom Row (2 Buttons) -->
         <LinearLayout
-            android:id="@+id/btn_camera"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="4dp">
+            android:orientation="horizontal">
 
-            <ImageView
-                android:id="@+id/imgBtnCamera"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_camera"
-                android:tint="@color/widget_text_primary"
-                android:contentDescription="Camera"/>
-
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- Ringer (Cycle) Button -->
+            <LinearLayout
+                android:id="@+id/btn_ringer_cycle"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="@string/menu_camera"
-                android:textColor="@color/widget_text_primary"
-                android:textSize="9sp"
-                android:layout_marginTop="2dp"/>
-        </LinearLayout>
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="4dp">
 
-        <!-- Dialer Button -->
-        <LinearLayout
-            android:id="@+id/btn_dialer"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="4dp">
+                <ImageView
+                    android:id="@+id/imgBtnRinger"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_ringer_normal"
+                    android:tint="@color/widget_text_primary"
+                    android:contentDescription="Ringer"/>
 
-            <ImageView
-                android:id="@+id/imgBtnDialer"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:src="@drawable/ic_phone"
-                android:tint="@color/widget_text_primary"
-                android:contentDescription="Dialer"/>
+                <TextView
+                    android:id="@+id/txtRinger"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/ringer_mode_normal"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="9sp"
+                    android:layout_marginTop="2dp"/>
+            </LinearLayout>
 
-            <TextView
-                android:layout_width="wrap_content"
+            <!-- Volume Button -->
+            <LinearLayout
+                android:id="@+id/btn_volume"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="@string/menu_dialer"
-                android:textColor="@color/widget_text_primary"
-                android:textSize="9sp"
-                android:layout_marginTop="2dp"/>
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="4dp">
+
+                <ImageView
+                    android:id="@+id/imgBtnVolume"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_volume_up"
+                    android:tint="@color/widget_text_primary"
+                    android:contentDescription="Volume"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_volume"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="9sp"
+                    android:layout_marginTop="2dp"/>
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 

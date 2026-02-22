@@ -30,6 +30,12 @@
     <string name="toast_command_sent">命令已发送</string>
     <string name="toast_upload_failed">上传失败。</string>
     <string name="toast_error_open_settings">打开设置时出错。</string>
+    <string name="label_volume">音量</string>
+    <string name="volume_channel_media">媒体</string>
+    <string name="volume_channel_ring">铃声</string>
+    <string name="volume_channel_notification">通知</string>
+    <string name="volume_channel_alarm">闹钟</string>
+    <string name="volume_channel_system">系统</string>
 
     <!-- DND (Do Not Disturb) -->
     <string name="dnd_on">勿扰开启</string>
@@ -81,13 +87,13 @@
     <string name="menu_install_apk">安装 APK</string>
     <string name="menu_install_apk_desc">发送 .apk 文件到手表</string>
     <string name="menu_device_mgmt">设备管理</string>
-    <string name="menu_device_mgmt_desc">电源、锁定和查找设备</string>
+    <string name="menu_device_mgmt_desc">电源、超级省电和查找设备</string>
     <string name="menu_shutdown_watch">关机</string>
     <string name="menu_shutdown_watch_desc">完全关闭智能手表电源</string>
     <string name="menu_reboot_watch">重启</string>
     <string name="menu_reboot_watch_desc">重新启动智能手表</string>
-    <string name="menu_lock_watch">锁定设备</string>
-    <string name="menu_lock_watch_desc">锁定手表屏幕</string>
+    <string name="menu_lock_watch">启用超级省电模式</string>
+    <string name="menu_lock_watch_desc">降低屏幕亮度并限制后台任务</string>
     <string name="menu_find_watch">查找设备</string>
     <string name="menu_find_watch_desc">在手表上播放响亮声音</string>
     <string name="menu_disconnect">断开连接</string>
@@ -102,6 +108,8 @@
     <string name="dialog_reset_all_message">这将清除所有设置并返回开始屏幕。是否继续？</string>
     <string name="dialog_reset_all_confirm">重置所有</string>
     <string name="dialog_reset_all_cancel">取消</string>
+    <string name="dialog_reset_all_input_hint">输入 \'yes\' 以确认</string>
+    <string name="dialog_reset_all_error">确认输入无效。请输入 \'yes\'。</string>
 
     <!-- Watch Automations -->
     <string name="watch_automations_title">手表自动化</string>

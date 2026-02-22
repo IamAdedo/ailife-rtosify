@@ -30,6 +30,11 @@
     <string name="error_loading_settings">Failed to load settings</string>
     <string name="toast_command_sent">Command sent</string>
     <string name="toast_upload_failed">Upload failed.</string>
+    <string name="volume_channel_media">Media</string>
+    <string name="volume_channel_ring">Ring</string>
+    <string name="volume_channel_notification">Notification</string>
+    <string name="volume_channel_alarm">Alarm</string>
+    <string name="volume_channel_system">System</string>
 
     <!-- DND (Do Not Disturb) -->
     <string name="dnd_on">DND ON</string>
@@ -80,8 +85,8 @@
 
     <!-- Upload Progress -->
     <string name="upload_transferring">Transferring file…</string>
-    <string name="upload_complete_title">Upload complete</string>
-    <string name="upload_complete_message">APK sent successfully!</string>
+    <string name="upload_complete_title">Transfer complete</string>
+    <string name="upload_complete_message">File transferred successfully!</string>
 
     <!-- Welcome Activity -->
     <string name="welcome_permission_title">Permission required.</string>
@@ -488,6 +493,7 @@
     <string name="label_transport_bt">BT</string>
     <string name="label_link">Link</string>
     <string name="label_mirror">Mirror</string>
+    <string name="label_volume">Volume</string>
     <string name="label_plus">+</string>
     <string name="label_minus">-</string>
     <string name="media_album_art">Album Art</string>
@@ -530,7 +536,7 @@
     <string name="toast_install_failed">Failed to start install: %s</string>
     <string name="toast_shutdown_received">Shutdown command received</string>
     <string name="toast_reboot_received">Reboot command received</string>
-    <string name="toast_lock_received">Lock command received</string>
+    <string name="toast_lock_received">Ultra battery saver enabled</string>
     <string name="toast_find_device">Find Device: %s</string>
     <string name="toast_uninstalled">Uninstalled: %s</string>
     <string name="toast_uninstalling">Uninstalling: %s</string>
@@ -540,6 +546,8 @@
     <string name="upload_apk_title">Uploading APK</string>
     <string name="upload_to_watch">Transferring file to watch…</string>
     <string name="upload_to_phone">Transferring file to phone…</string>
+    <string name="upload_receiving_from_phone">Receiving from phone…</string>
+    <string name="upload_sending_to_phone">Sending to phone…</string>
     <string name="initializing">Initializing...</string>
     <string name="error_location_disabled">Location services are disabled. Please enable location to use Find Device.</string>
     

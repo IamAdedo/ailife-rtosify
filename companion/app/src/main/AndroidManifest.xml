@@ -72,9 +72,7 @@
         <package android:name="moe.shizuku.privileged.api" />
     </queries>
 
-    <!-- ============================================================ -->
-    <!-- APLICAÇÃO -->
-    <!-- ============================================================ -->
+
     <application
         android:name=".CompanionApplication"
         android:allowBackup="true"
@@ -135,7 +133,7 @@
         <service
             android:name=".BluetoothService"
             android:enabled="true"
-            android:exported="false"
+            android:exported="true"
             android:foregroundServiceType="connectedDevice|location" />
 
         <!-- Accessibility Service for Bluetooth Tethering Automation -->
@@ -230,37 +228,37 @@
 
         <activity
             android:name=".FullScreenMediaActivity"
-            android:exported="false"
+            android:exported="true"
             android:configChanges="orientation|screenSize"
             android:theme="@style/Theme.Smartwatch" />
 
         <activity
             android:name=".VideoHelperActivity"
-            android:exported="false"
+            android:exported="true"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Smartwatch" />
 
         <activity
             android:name=".MediaControlActivity"
-            android:exported="false"
+            android:exported="true"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Smartwatch" />
 
         <activity
             android:name=".CameraRemoteActivity"
-            android:exported="false"
+            android:exported="true"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Smartwatch" />
 
         <activity
             android:name=".DialerActivity"
-            android:exported="false"
+            android:exported="true"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Smartwatch" />
 
         <activity
             android:name=".PhoneSettingsActivity"
-            android:exported="false"
+            android:exported="true"
             android:theme="@style/Theme.Smartwatch" />
 
         <activity
@@ -281,7 +279,7 @@
 
         <activity
             android:name=".AlarmManagementActivity"
-            android:exported="false"
+            android:exported="true"
             android:theme="@style/Theme.Smartwatch" />
 
         <activity
@@ -304,7 +302,7 @@
 
         <activity
             android:name=".NotificationLogActivity"
-            android:exported="false"
+            android:exported="true"
             android:parentActivityName=".MainActivity"
             android:theme="@style/Theme.Smartwatch" />
 
@@ -329,7 +327,7 @@
         <service
             android:name=".DynamicIslandService"
             android:enabled="true"
-            android:exported="false"
+            android:exported="true"
             android:foregroundServiceType="specialUse">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"

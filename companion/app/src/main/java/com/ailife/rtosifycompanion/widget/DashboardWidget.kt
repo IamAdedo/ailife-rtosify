@@ -15,10 +15,12 @@ class DashboardWidget : AppWidgetProvider() {
 
     companion object {
         const val ACTION_DASHBOARD_UPDATE = "com.ailife.rtosifycompanion.widget.ACTION_DASHBOARD_UPDATE"
+        const val ACTION_CMD_CYCLE_RINGER = "com.ailife.rtosifycompanion.widget.ACTION_CMD_CYCLE_RINGER"
         const val EXTRA_STATUS = "status"
         const val EXTRA_PHONE_BATTERY = "phone_battery"
         const val EXTRA_WATCH_BATTERY = "watch_battery"
         const val EXTRA_TRANSPORT = "transport"
+        const val EXTRA_RINGER_MODE = "ringer_mode"
     }
 
     override fun onUpdate(
@@ -42,10 +44,17 @@ class DashboardWidget : AppWidgetProvider() {
             val phoneBattery = intent.getIntExtra(EXTRA_PHONE_BATTERY, -1)
             val watchBattery = intent.getIntExtra(EXTRA_WATCH_BATTERY, -1)
             val transport = intent.getStringExtra(EXTRA_TRANSPORT) ?: "BT"
+            val ringerMode = intent.getIntExtra(EXTRA_RINGER_MODE, 2)
 
             for (appWidgetId in appWidgetIds) {
-                updateAppWidget(context, appWidgetManager, appWidgetId, status, phoneBattery, watchBattery, transport)
+                updateAppWidget(context, appWidgetManager, appWidgetId, status, phoneBattery, watchBattery, transport, ringerMode)
             }
+        } else if (intent.action == ACTION_CMD_CYCLE_RINGER) {
+            // Forward back to BluetoothService
+            val serviceIntent = Intent(context, com.ailife.rtosifycompanion.BluetoothService::class.java).apply {
+                action = ACTION_CMD_CYCLE_RINGER
+            }
+            context.startForegroundService(serviceIntent)
         }
     }
 
@@ -56,7 +65,8 @@ class DashboardWidget : AppWidgetProvider() {
         status: String? = null,
         phoneBattery: Int = -1,
         watchBattery: Int = -1,
-        transport: String = "BT"
+        transport: String = "BT",
+        ringerMode: Int = 2
     ) {
         val views = RemoteViews(context.packageName, R.layout.widget_dashboard)
 
@@ -105,6 +115,31 @@ class DashboardWidget : AppWidgetProvider() {
         val dialerIntent = Intent(context, DialerActivity::class.java)
         val dialerPendingIntent = PendingIntent.getActivity(context, 2, dialerIntent, PendingIntent.FLAG_IMMUTABLE)
         views.setOnClickPendingIntent(R.id.btn_dialer, dialerPendingIntent)
+
+        // Ringer Mode Cycle
+        val ringerIcon = when (ringerMode) {
+            1 -> R.drawable.ic_ringer_vibrate
+            0 -> R.drawable.ic_ringer_silent
+            else -> R.drawable.ic_ringer_normal
+        }
+        val ringerLabel = when (ringerMode) {
+            1 -> context.getString(R.string.ringer_mode_vibrate)
+            0 -> context.getString(R.string.ringer_mode_silent)
+            else -> context.getString(R.string.ringer_mode_normal)
+        }
+        views.setImageViewResource(R.id.imgBtnRinger, ringerIcon)
+        views.setTextViewText(R.id.txtRinger, ringerLabel)
+
+        val cycleRingerIntent = Intent(context, DashboardWidget::class.java).apply {
+            action = ACTION_CMD_CYCLE_RINGER
+        }
+        val cycleRingerPendingIntent = PendingIntent.getBroadcast(context, 3, cycleRingerIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        views.setOnClickPendingIntent(R.id.btn_ringer_cycle, cycleRingerPendingIntent)
+
+        // Volume Settings Shortcut
+        val settingsIntent = Intent(context, com.ailife.rtosifycompanion.PhoneSettingsActivity::class.java)
+        val settingsPendingIntent = PendingIntent.getActivity(context, 4, settingsIntent, PendingIntent.FLAG_IMMUTABLE)
+        views.setOnClickPendingIntent(R.id.btn_volume, settingsPendingIntent)
 
         // Instruct the widget manager to update the widget
         appWidgetManager.updateAppWidget(appWidgetId, views)

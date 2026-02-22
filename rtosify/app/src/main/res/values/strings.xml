@@ -34,6 +34,12 @@
     <string name="toast_command_sent">Command sent</string>
     <string name="toast_upload_failed">Upload failed.</string>
     <string name="toast_error_open_settings">Error opening settings.</string>
+    <string name="label_volume">Volume</string>
+    <string name="volume_channel_media">Media</string>
+    <string name="volume_channel_ring">Ring</string>
+    <string name="volume_channel_notification">Notification</string>
+    <string name="volume_channel_alarm">Alarm</string>
+    <string name="volume_channel_system">System</string>
 
     <!-- DND (Do Not Disturb) -->
     <string name="dnd_on">DND ON</string>
@@ -86,13 +92,13 @@
     <string name="menu_install_apk">Install APK</string>
     <string name="menu_install_apk_desc">Send .apk file to Watch</string>
     <string name="menu_device_mgmt">Device Management</string>
-    <string name="menu_device_mgmt_desc">Power, lock and find device</string>
+    <string name="menu_device_mgmt_desc">Power, ultra battery saver and find device</string>
     <string name="menu_shutdown_watch">Shutdown</string>
     <string name="menu_shutdown_watch_desc">Completely power off the smartwatch</string>
     <string name="menu_reboot_watch">Restart</string>
     <string name="menu_reboot_watch_desc">Reboot the smartwatch</string>
-    <string name="menu_lock_watch">Lock Device</string>
-    <string name="menu_lock_watch_desc">Lock the watch screen</string>
+    <string name="menu_lock_watch">Enable ultra battery saver</string>
+    <string name="menu_lock_watch_desc">Dim screen and restrict background tasks</string>
     <string name="menu_find_watch">Find Device</string>
     <string name="menu_find_watch_desc">Play loud sound on watch</string>
     <string name="menu_disconnect">Disconnect</string>
@@ -107,6 +113,8 @@
     <string name="dialog_reset_all_message">This will clear all settings and return to the start screen. Do you want to continue?</string>
     <string name="dialog_reset_all_confirm">Reset All</string>
     <string name="dialog_reset_all_cancel">Cancel</string>
+    <string name="dialog_reset_all_input_hint">Type \'yes\' to confirm</string>
+    <string name="dialog_reset_all_error">Invalid confirmation. Please type \'yes\'.</string>
 
     <!-- Watch Automations -->
     <string name="watch_automations_title">Watch Automations</string>

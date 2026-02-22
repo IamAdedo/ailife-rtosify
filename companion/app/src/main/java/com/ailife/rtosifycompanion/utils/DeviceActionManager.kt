@@ -60,9 +60,6 @@ class DeviceActionManager(
         } else false
     }
 
-    /**
-     * Shuts down the device.
-     */
     fun shutdown() {
         Log.i(TAG, "Requesting shutdown")
         if (tryUserService { it.shutdown() }) return
@@ -72,7 +69,11 @@ class DeviceActionManager(
         showPowerMenu()
         handler.postDelayed({
             RtosifyAccessibilityService.clickNodesWithKeywords(context, listOf("Power off", "Shutdown", "关机", "關機"))
-        }, 1000)
+            // Secondary confirmation (for some devices)
+            handler.postDelayed({
+                RtosifyAccessibilityService.clickNodesWithKeywords(context, listOf("Power off", "Shutdown", "OK", "Confirm", "确定", "確定", "关机", "關機"))
+            }, 1000)
+        }, 1200)
     }
 
     /**
@@ -86,8 +87,12 @@ class DeviceActionManager(
         // Root fallback: show power menu and click reboot
         showPowerMenu()
         handler.postDelayed({
-            RtosifyAccessibilityService.clickNodesWithKeywords(context, listOf("Restart", "Reboot", "重新启动", "重新開機"))
-        }, 1000)
+            RtosifyAccessibilityService.clickNodesWithKeywords(context, listOf("Restart", "Reboot", "重新启动", "重启", "重新開機"))
+            // Secondary confirmation (for some devices)
+            handler.postDelayed({
+                RtosifyAccessibilityService.clickNodesWithKeywords(context, listOf("Restart", "Reboot", "OK", "Confirm", "确定", "確定", "重新启动", "重新開機", "重启"))
+            }, 1000)
+        }, 1200)
     }
 
     private fun showPowerMenu() {

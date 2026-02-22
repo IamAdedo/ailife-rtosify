@@ -164,6 +164,7 @@ class BluetoothService : Service() {
 
     // Widget Data Cache
     private var lastPhoneBattery = -1
+    private var lastRingerMode = 2 // Default to NORMAL (2)
 
     // ANCS Client for iOS notifications
     private var ancsClient: AncsClient? = null
@@ -529,9 +530,18 @@ class BluetoothService : Service() {
                         MediaWidget.ACTION_CMD_VOL_UP -> sendMediaCommand(MediaControlData.CMD_VOL_UP)
                         MediaWidget.ACTION_CMD_VOL_DOWN -> sendMediaCommand(MediaControlData.CMD_VOL_DOWN)
                         MediaWidget.ACTION_MEDIA_UPDATE -> {
-                            // Widget requesting current state
                             if (isConnected) {
                                 sendMessage(ProtocolMessage(type = MessageType.REQUEST_MEDIA_STATE))
+                            }
+                        }
+                        DashboardWidget.ACTION_CMD_CYCLE_RINGER -> {
+                            val nextMode = when (lastRingerMode) {
+                                2 -> 1 // Normal -> Vibrate
+                                1 -> 0 // Vibrate -> Silent
+                                else -> 2 // Silent (0) or other -> Normal
+                            }
+                            if (isConnected) {
+                                sendMessage(ProtocolHelper.createSetRingerMode(nextMode))
                             }
                         }
                     }
@@ -829,6 +839,7 @@ class BluetoothService : Service() {
                     addAction(MediaWidget.ACTION_CMD_PREV)
                     addAction(MediaWidget.ACTION_CMD_VOL_UP)
                     addAction(MediaWidget.ACTION_CMD_VOL_DOWN)
+                    addAction(DashboardWidget.ACTION_CMD_CYCLE_RINGER)
                     addAction("com.ailife.rtosifycompanion.CALL_ACTION")
                     addAction(ACTION_STOP_RINGTONE)
                     addAction("com.ailife.rtosifycompanion.ALARM_ACTION")
@@ -1224,6 +1235,19 @@ class BluetoothService : Service() {
             return START_NOT_STICKY
         }
 
+        if (intent?.action == DashboardWidget.ACTION_CMD_CYCLE_RINGER) {
+            val nextMode = when (lastRingerMode) {
+                2 -> 1 // Normal -> Vibrate
+                1 -> 0 // Vibrate -> Silent
+                else -> 2 // Silent (0) or other -> Normal
+            }
+            if (isConnected) {
+                sendMessage(ProtocolHelper.createSetRingerMode(nextMode))
+                Log.d(TAG, "Cycled ringer mode via onStartCommand to $nextMode")
+            }
+            return START_NOT_STICKY
+        }
+
         // CRÍTICO: Chamar startForeground imediatamente para cumprir a promessa feita no
         // BootReceiver.
         updateForegroundNotification()
@@ -1362,6 +1386,10 @@ class BluetoothService : Service() {
                  }
              }
 
+             // Sync phone settings on connect
+             sendMessage(ProtocolMessage(type = MessageType.REQUEST_PHONE_SETTINGS))
+
+             Log.d(TAG, "Device fully connected, synced phone settings")
              // Trigger automation on connection
              onConnectionEstablished(transportType)
              
@@ -1583,6 +1611,9 @@ class BluetoothService : Service() {
             val settings = ProtocolHelper.extractData<PhoneSettingsData>(message)
             Log.d(TAG, "Watch received PHONE_SETTINGS_UPDATE: ringerMode=${settings.ringerMode}, dndEnabled=${settings.dndEnabled}")
             
+            lastRingerMode = settings.ringerMode
+            updateDashboardWidget()
+
             val intent = Intent("com.ailife.rtosifycompanion.ACTION_PHONE_SETTINGS_UPDATE").apply {
                 val gson = com.google.gson.Gson()
                 putExtra("settings_json", gson.toJson(settings))
@@ -3335,11 +3366,11 @@ class BluetoothService : Service() {
         val dndEnabled = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
         
         val volumeChannels = listOf(
-            AudioManager.STREAM_MUSIC to "Media",
-            AudioManager.STREAM_RING to "Ring",
-            AudioManager.STREAM_NOTIFICATION to "Notification",
-            AudioManager.STREAM_ALARM to "Alarm",
-            AudioManager.STREAM_SYSTEM to "System"
+            AudioManager.STREAM_MUSIC to getString(R.string.volume_channel_media),
+            AudioManager.STREAM_RING to getString(R.string.volume_channel_ring),
+            AudioManager.STREAM_NOTIFICATION to getString(R.string.volume_channel_notification),
+            AudioManager.STREAM_ALARM to getString(R.string.volume_channel_alarm),
+            AudioManager.STREAM_SYSTEM to getString(R.string.volume_channel_system)
         ).map { (streamType, name) ->
             VolumeChannelData(
                 streamType = streamType,
@@ -4387,6 +4418,7 @@ class BluetoothService : Service() {
                 putExtra(DashboardWidget.EXTRA_PHONE_BATTERY, lastPhoneBattery)
                 putExtra(DashboardWidget.EXTRA_WATCH_BATTERY, watchBattery)
                 putExtra(DashboardWidget.EXTRA_TRANSPORT, currentTransportType)
+                putExtra(DashboardWidget.EXTRA_RINGER_MODE, lastRingerMode)
                 setPackage(packageName)
             }
             sendBroadcast(intent)

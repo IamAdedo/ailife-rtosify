@@ -1645,11 +1645,11 @@ class BluetoothService : Service() {
         val dndEnabled = nm.currentInterruptionFilter != NotificationManager.INTERRUPTION_FILTER_ALL
         
         val volumeChannels = listOf(
-            AudioManager.STREAM_MUSIC to "Media",
-            AudioManager.STREAM_RING to "Ring",
-            AudioManager.STREAM_NOTIFICATION to "Notification",
-            AudioManager.STREAM_ALARM to "Alarm",
-            AudioManager.STREAM_SYSTEM to "System"
+            AudioManager.STREAM_MUSIC to getString(R.string.volume_channel_media),
+            AudioManager.STREAM_RING to getString(R.string.volume_channel_ring),
+            AudioManager.STREAM_NOTIFICATION to getString(R.string.volume_channel_notification),
+            AudioManager.STREAM_ALARM to getString(R.string.volume_channel_alarm),
+            AudioManager.STREAM_SYSTEM to getString(R.string.volume_channel_system)
         ).map { (streamType, name) ->
             VolumeChannelData(
                 streamType = streamType,

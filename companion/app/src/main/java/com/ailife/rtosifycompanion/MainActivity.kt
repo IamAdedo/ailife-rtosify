@@ -885,13 +885,19 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         // This callback should never be called in watch mode
     }
     override fun onUploadProgress(progress: Int) {
-        runOnUiThread { if (uploadDialog?.isShowing == true) updateUploadProgress(progress) }
+        runOnUiThread {
+            if (uploadDialog == null || !uploadDialog!!.isShowing) {
+                showUploadDialog()
+                uploadTitleText?.text = getString(R.string.upload_sending_to_phone)
+            }
+            updateUploadProgress(progress)
+        }
     }
     override fun onDownloadProgress(progress: Int) {
         runOnUiThread {
             if (uploadDialog == null || !uploadDialog!!.isShowing) {
                 showUploadDialog()
-                uploadTitleText?.text = getString(R.string.upload_to_phone)
+                uploadTitleText?.text = getString(R.string.upload_receiving_from_phone)
             }
             updateUploadProgress(progress)
         }

@@ -1500,13 +1500,35 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     }
 
     private fun resetApp() {
+        val input = android.widget.EditText(this).apply {
+            hint = getString(R.string.dialog_reset_all_input_hint)
+            gravity = android.view.Gravity.CENTER
+            setSingleLine(true)
+        }
+        val padding = (16 * resources.displayMetrics.density).toInt()
+        val container = android.widget.FrameLayout(this).apply {
+            addView(input, android.widget.FrameLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                leftMargin = padding
+                rightMargin = padding
+                topMargin = padding / 2
+            })
+        }
+
         MaterialAlertDialogBuilder(this)
                 .setTitle(getString(R.string.dialog_reset_all_title))
                 .setMessage(getString(R.string.dialog_reset_all_message))
+                .setView(container)
                 .setPositiveButton(getString(R.string.dialog_reset_all_confirm)) { _, _ ->
-                    bluetoothService?.resetApp()
-                    startActivity(Intent(this, WelcomeActivity::class.java))
-                    finish()
+                    if (input.text.toString().trim().lowercase() == "yes") {
+                        bluetoothService?.resetApp()
+                        startActivity(Intent(this, WelcomeActivity::class.java))
+                        finish()
+                    } else {
+                        Toast.makeText(this, getString(R.string.dialog_reset_all_error), Toast.LENGTH_SHORT).show()
+                    }
                 }
                 .setNegativeButton(getString(R.string.dialog_reset_all_cancel), null)
                 .show()

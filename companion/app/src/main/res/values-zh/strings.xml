@@ -28,6 +28,11 @@
     <string name="error_loading_settings">无法加载设置</string>
     <string name="toast_command_sent">命令已发送</string>
     <string name="toast_upload_failed">上传失败。</string>
+    <string name="volume_channel_media">媒体</string>
+    <string name="volume_channel_ring">铃声</string>
+    <string name="volume_channel_notification">通知</string>
+    <string name="volume_channel_alarm">闹钟</string>
+    <string name="volume_channel_system">系统</string>
     <string name="menu_find_phone">查找手机</string>
     <string name="menu_find_phone_desc">在地图上查找连接的手机</string>
 
@@ -80,8 +85,8 @@
 
     <!-- Upload Progress -->
     <string name="upload_transferring">正在传输文件…</string>
-    <string name="upload_complete_title">上传完成</string>
-    <string name="upload_complete_message">APK 发送成功！</string>
+    <string name="upload_complete_title">传输完成</string>
+    <string name="upload_complete_message">文件传输成功！</string>
 
     <!-- Welcome Activity -->
     <string name="welcome_permission_title">需要权限。</string>
@@ -469,6 +474,7 @@
     <string name="label_transport_bt">蓝牙</string>
     <string name="label_link">链接</string>
     <string name="label_mirror">镜像</string>
+    <string name="label_volume">音量</string>
     <string name="label_plus">+</string>
     <string name="label_minus">-</string>
     <string name="media_album_art">专辑封面</string>
@@ -512,7 +518,7 @@
     <string name="toast_install_failed">启动安装失败：%s</string>
     <string name="toast_shutdown_received">收到关机命令</string>
     <string name="toast_reboot_received">收到重启命令</string>
-    <string name="toast_lock_received">收到锁定命令</string>
+    <string name="toast_lock_received">超级省电模式已启用</string>
     <string name="toast_find_device">查找设备：%s</string>
     <string name="toast_uninstalled">已卸载：%s</string>
     <string name="toast_uninstalling">正在卸载：%s</string>
@@ -522,6 +528,8 @@
     <string name="upload_apk_title">正在上传 APK</string>
     <string name="upload_to_watch">正在传输文件到手表...</string>
     <string name="upload_to_phone">正在传输文件到手机...</string>
+    <string name="upload_receiving_from_phone">正在从手机接收...</string>
+    <string name="upload_sending_to_phone">正在发送到手机...</string>
     <string name="initializing">正在初始化...</string>
     <string name="error_location_disabled">定位服务已禁用。请开启定位以使用查找设备功能。</string>
 
