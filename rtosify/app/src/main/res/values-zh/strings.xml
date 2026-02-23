@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name">RTOSify</string>
+    <string name="app_name">智连助手</string>
 
     <!-- App Title -->
-    <string name="app_title">RTOSify</string>
+    <string name="app_title">智连助手</string>
 
     <!-- Connection Status -->
     <string name="status_searching">正在搜索…</string>
@@ -114,7 +114,7 @@
     <!-- Watch Automations -->
     <string name="watch_automations_title">手表自动化</string>
     <string name="automation_boot_service_title">开机启动服务</string>
-    <string name="automation_boot_service_desc">手机开机时自动启动 RTOSify 服务</string>
+    <string name="automation_boot_service_desc">手机开机时自动启动智连助手服务</string>
     <string name="automation_clipboard_title">同步剪贴板</string>
     <string name="automation_clipboard_desc">连接时自动在手机和手表之间同步剪贴板</string>
     <string name="automation_wifi_title">自动 WiFi 控制</string>
@@ -343,7 +343,7 @@
     
     <string name="perm_accessibility">无障碍服务</string>
     <string name="perm_accessibility_desc">用于从手表控制您的手机屏幕。</string>
-    <string name="accessibility_service_description">允许 RTOSify 从手表控制您的手机屏幕</string>
+    <string name="accessibility_service_description">允许智连助手从手表控制您的手机屏幕</string>
     
     <string name="menu_sync_calendar">同步日历</string>
     <string name="menu_sync_calendar_desc">将您的日历事件发送到手表</string>
@@ -470,7 +470,7 @@
     <string name="status_failed">失败</string>
     <string name="status_fail_short">失败</string>
     <string name="status_invalid_json">无效 JSON</string>
-    <string name="terminal_title">RTOSify 终端 v1.0</string>
+    <string name="terminal_title">智连助手终端 v1.0</string>
     <string name="terminal_connecting">正在连接到手表…</string>
     <string name="terminal_executing">正在执行…</string>
     <string name="terminal_changed_dir">已更改目录到：%s</string>
@@ -1028,7 +1028,7 @@
 
     <!-- Notification Settings -->
     <string name="notif_sim_title">测试通知</string>
-    <string name="notif_sim_text">这是一条来自 RTOSify 设置的模拟通知。</string>
+    <string name="notif_sim_text">这是一条来自智连助手设置的模拟通知。</string>
     <string name="notif_sim_sent">模拟通知已发送</string>
     <string name="notif_sim_error">发送模拟通知错误：%1$s</string>
 
@@ -1245,7 +1245,7 @@
     <string name="label_transport">传输方式</string>
     <string name="di_global_opacity">全局不透明度</string>
     <string name="toast_sent_to_watch">设置已发送到手表</string>
-    <string name="about_title">关于 RTOSify</string>
+    <string name="about_title">关于智连助手</string>
     <string name="title_activity_wifi_pairing">WiFi 配对</string>
     <string name="lbl_text_size_timeout">文字大小与超时</string>
     <string name="status_checking">正在检查…</string>

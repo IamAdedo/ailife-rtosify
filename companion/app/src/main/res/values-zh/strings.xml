@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name">RTOSify 伴侣</string>
+    <string name="app_name">智连伴侣</string>
 
     <!-- App Title -->
-    <string name="app_title">RTOSify</string>
+    <string name="app_title">智连伴侣</string>
 
     <!-- Connection Status -->
     <string name="status_searching">正在搜索…</string>
@@ -201,7 +201,7 @@
     <string name="perm_nearby_wifi_desc">用于局域网传输。</string>
     <string name="perm_accessibility">无障碍服务</string>
     <string name="perm_accessibility_desc">用于从手机控制手表屏幕。</string>
-    <string name="accessibility_service_description">允许 RTOSify 伴侣从手机控制手表屏幕</string>
+    <string name="accessibility_service_description">允许智连伴侣从手机控制手表屏幕</string>
     <string name="perm_usage_stats">使用情况访问</string>
     <string name="perm_usage_stats_desc">用于显示应用电池使用情况。</string>
     <string name="perm_battery">电池优化</string>
