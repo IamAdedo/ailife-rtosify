@@ -1250,6 +1250,13 @@
     <string name="video_helper_mapping_right">Right Side</string>
     <string name="video_helper_mapping_speed_control">Speed Control (2.0x)</string>
 
+    <string name="vibration_pattern_default">Default</string>
+    <string name="vibration_pattern_double_click">Double Click</string>
+    <string name="vibration_pattern_long">Long</string>
+    <string name="vibration_pattern_heartbeat">Heartbeat</string>
+    <string name="vibration_pattern_tick">Tick</string>
+    <string name="toast_requesting_ringtone_picker">Requesting ringtone picker on watch...</string>
+
 </resources>
 
 

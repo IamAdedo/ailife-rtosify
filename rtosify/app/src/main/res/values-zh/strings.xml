@@ -1293,4 +1293,11 @@
     <string name="video_helper_mapping_right">右侧</string>
     <string name="video_helper_mapping_speed_control">倍速控制 (2.0x)</string>
 
+    <string name="vibration_pattern_default">默认</string>
+    <string name="vibration_pattern_double_click">双击</string>
+    <string name="vibration_pattern_long">长振动</string>
+    <string name="vibration_pattern_heartbeat">心跳</string>
+    <string name="vibration_pattern_tick">滴答</string>
+    <string name="toast_requesting_ringtone_picker">正在请求手表铃声选择器...</string>
+
 </resources>

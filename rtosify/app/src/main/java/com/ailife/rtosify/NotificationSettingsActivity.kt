@@ -213,7 +213,13 @@ class NotificationSettingsActivity : AppCompatActivity() {
         }
 
         // Vibration Pattern
-        val patterns = arrayOf("Default", "Double Click", "Long", "Heartbeat", "Tick")
+        val patterns = arrayOf(
+            getString(R.string.vibration_pattern_default),
+            getString(R.string.vibration_pattern_double_click),
+            getString(R.string.vibration_pattern_long),
+            getString(R.string.vibration_pattern_heartbeat),
+            getString(R.string.vibration_pattern_tick)
+        )
         val patternAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, patterns)
         patternAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         spinnerVibrationPattern.adapter = patternAdapter
@@ -250,7 +256,7 @@ class NotificationSettingsActivity : AppCompatActivity() {
             val intent = Intent("com.ailife.rtosify.ACTION_REQUEST_WATCH_RINGTONE_PICKER")
             intent.setPackage(packageName)
             sendBroadcast(intent)
-            Toast.makeText(this, "Requesting ringtone picker on watch...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_requesting_ringtone_picker), Toast.LENGTH_SHORT).show()
         }
     }
 
