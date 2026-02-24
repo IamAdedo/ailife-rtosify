@@ -16,6 +16,7 @@ class NavigationOverlayActivity : AppCompatActivity() {
     private lateinit var txtNavTitle: TextView
     private lateinit var txtNavContent: TextView
     private lateinit var btnClose: ImageButton
+    private lateinit var rootLayout: View
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,6 +37,7 @@ class NavigationOverlayActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
+        rootLayout = findViewById(R.id.nav_overlay_root)
         imgNavImage = findViewById(R.id.imgNavImage)
         txtNavTitle = findViewById(R.id.txtNavTitle)
         txtNavContent = findViewById(R.id.txtNavContent)
@@ -47,11 +49,18 @@ class NavigationOverlayActivity : AppCompatActivity() {
         val title = intent.getStringExtra("EXTRA_TITLE")
         val content = intent.getStringExtra("EXTRA_CONTENT")
         val keepScreenOn = intent.getBooleanExtra("EXTRA_KEEP_SCREEN_ON", true)
+        val useGreyBackground = intent.getBooleanExtra("EXTRA_USE_GREY_BACKGROUND", false)
 
         if (keepScreenOn) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else {
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        
+        if (useGreyBackground) {
+            rootLayout.setBackgroundColor(0xFF444444.toInt())
+        } else {
+            rootLayout.setBackgroundColor(0xFF000000.toInt())
         }
 
         txtNavTitle.text = title

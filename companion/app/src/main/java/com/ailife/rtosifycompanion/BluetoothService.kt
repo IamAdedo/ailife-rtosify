@@ -1712,6 +1712,7 @@ class BluetoothService : Service() {
                 putExtra("EXTRA_TITLE", navInfo.title)
                 putExtra("EXTRA_CONTENT", navInfo.content)
                 putExtra("EXTRA_KEEP_SCREEN_ON", navInfo.keepScreenOn)
+                putExtra("EXTRA_USE_GREY_BACKGROUND", navInfo.useGreyBackground)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
             startActivity(intent)

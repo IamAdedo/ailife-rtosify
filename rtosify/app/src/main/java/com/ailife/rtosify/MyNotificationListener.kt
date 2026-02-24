@@ -480,6 +480,7 @@ class MyNotificationListener : NotificationListenerService() {
             val imageType = activePrefs.getInt("nav_image_type", 1) // 0: None, 1: Large Icon, 2: Big Picture
             val textType = activePrefs.getInt("nav_text_type", 2) // 0: Title, 1: Content, 2: Both
             val keepScreenOn = activePrefs.getBoolean("nav_keep_screen_on", true)
+            val useGreyBackground = activePrefs.getBoolean("nav_use_grey_background", false)
 
             // Extract image based on setting
             var navImage: String? = null
@@ -545,6 +546,7 @@ class MyNotificationListener : NotificationListenerService() {
             intent.putExtra("title", navTitle)
             intent.putExtra("content", navContent)
             intent.putExtra("keepScreenOn", keepScreenOn)
+            intent.putExtra("useGreyBackground", useGreyBackground)
             intent.putExtra("packageName", sbn.packageName)
             intent.setPackage(packageName) // Make the broadcast explicit
             sendBroadcast(intent)

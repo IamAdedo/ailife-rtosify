@@ -186,7 +186,8 @@ data class NavigationInfoData(
     val title: String,
     val content: String,
     val keepScreenOn: Boolean,
-    val packageName: String
+    val packageName: String,
+    val useGreyBackground: Boolean = false
 )
 
 data class PreviewRequestData(

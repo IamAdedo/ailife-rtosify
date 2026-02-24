@@ -1007,6 +1007,8 @@
     
     <string name="nav_keep_screen_on">Keep Screen On</string>
     <string name="nav_keep_screen_on_desc">Keep the screen awake while navigation is active</string>
+    <string name="nav_force_grey_bg">Force Grey Background</string>
+    <string name="nav_force_grey_bg_desc">Ensure black and white icons are visible</string>
     <string name="btn_manage_navigation">Manage Navigation</string>
     <string name="notif_navigation_title">Navigation Overlay</string>
     <string name="notif_navigation_desc">Display full-screen navigation info over other apps</string>

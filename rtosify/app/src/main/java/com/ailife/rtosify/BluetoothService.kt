@@ -551,6 +551,7 @@ class BluetoothService : Service() {
                             val title = intent.getStringExtra("title") ?: ""
                             val content = intent.getStringExtra("content") ?: ""
                             val keepScreenOn = intent.getBooleanExtra("keepScreenOn", true)
+                            val useGreyBackground = intent.getBooleanExtra("useGreyBackground", false)
                             val packageName = intent.getStringExtra("packageName") ?: ""
                             
                             val navInfo = NavigationInfoData(
@@ -558,7 +559,8 @@ class BluetoothService : Service() {
                                 title = title,
                                 content = content,
                                 keepScreenOn = keepScreenOn,
-                                packageName = packageName
+                                packageName = packageName,
+                                useGreyBackground = useGreyBackground
                             )
                             sendMessage(ProtocolHelper.createNavigationInfo(navInfo))
                         }

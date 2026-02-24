@@ -20,6 +20,7 @@ class NavigationSettingsActivity : AppCompatActivity() {
     private lateinit var spinnerImageType: Spinner
     private lateinit var spinnerTextType: Spinner
     private lateinit var switchKeepScreenOn: MaterialSwitch
+    private lateinit var switchForceGreyBg: MaterialSwitch
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +41,7 @@ class NavigationSettingsActivity : AppCompatActivity() {
         spinnerImageType = findViewById(R.id.spinnerImageType)
         spinnerTextType = findViewById(R.id.spinnerTextType)
         switchKeepScreenOn = findViewById(R.id.switchKeepScreenOn)
+        switchForceGreyBg = findViewById(R.id.switchForceGreyBg)
     }
 
     private fun setupSpinners() {
@@ -90,6 +92,11 @@ class NavigationSettingsActivity : AppCompatActivity() {
         switchKeepScreenOn.isChecked = activePrefs.getBoolean("nav_keep_screen_on", true)
         switchKeepScreenOn.setOnCheckedChangeListener { _, isChecked ->
             activePrefs.edit().putBoolean("nav_keep_screen_on", isChecked).apply()
+        }
+
+        switchForceGreyBg.isChecked = activePrefs.getBoolean("nav_use_grey_background", false)
+        switchForceGreyBg.setOnCheckedChangeListener { _, isChecked ->
+            activePrefs.edit().putBoolean("nav_use_grey_background", isChecked).apply()
         }
     }
 

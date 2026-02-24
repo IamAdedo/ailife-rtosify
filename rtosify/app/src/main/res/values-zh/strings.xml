@@ -950,7 +950,7 @@
     <string name="nav_settings_title">导航设置</string>
     <string name="nav_image_type">图片类型</string>
     <string name="nav_image_none">无</string>
-    <string name="nav_image_large_icon">大图标</string>
+    <string name="nav_image_large_icon">图标</string>
     <string name="nav_image_big_picture">大图</string>
     
     <string name="nav_text_type">文本类型</string>
@@ -960,6 +960,8 @@
     
     <string name="nav_keep_screen_on">保持屏幕开启</string>
     <string name="nav_keep_screen_on_desc">导航活动时保持屏幕唤醒</string>
+    <string name="nav_force_grey_bg">强制灰色背景</string>
+    <string name="nav_force_grey_bg_desc">确保黑白图标清晰可见</string>
     <string name="btn_manage_navigation">管理导航</string>
     <string name="notif_navigation_title">导航浮窗</string>
     <string name="notif_navigation_desc">在其他应用上显示全屏导航信息</string>
