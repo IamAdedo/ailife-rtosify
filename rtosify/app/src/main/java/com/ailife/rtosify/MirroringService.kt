@@ -331,65 +331,71 @@ class MirroringService : Service() {
                 }
 
                 if (outputBufferId >= 0) {
-                    val outputBuffer = currentCodec.getOutputBuffer(outputBufferId)
-                    if (outputBuffer != null) {
-                        val bytes = ByteArray(bufferInfo.size)
-                        outputBuffer.get(bytes)
-                        
-                        // Handle Codec Config (SPS/PPS)
-                        if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                            Log.d(TAG, "CSD (SPS/PPS) headers received: ${bytes.size}B")
-                            configBuffer = bytes
-                            currentCodec.releaseOutputBuffer(outputBufferId, false)
-                            continue
-                        }
-                        
-                        val isKeyFrame = (bufferInfo.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0
-                        
-                        // Prepend CSD to keyframes for robustness
-                        val finalBytes = if (isKeyFrame && configBuffer != null) {
-                            val combined = ByteArray(configBuffer!!.size + bytes.size)
-                            System.arraycopy(configBuffer!!, 0, combined, 0, configBuffer!!.size)
-                            System.arraycopy(bytes, 0, combined, configBuffer!!.size, bytes.size)
-                            combined
-                        } else {
-                            bytes
-                        }
-                        
-                        val encoded = Base64.encodeToString(finalBytes, Base64.NO_WRAP)
-                        
-                        frameCount++
-                        totalBytes += encoded.length
-                        
-                        if (frameCount % 30 == 0) {
-                            val avgSize = totalBytes / frameCount
-                            Log.d(TAG, "Frame stats: count=$frameCount, avg_size=${avgSize}B, last_size=${encoded.length}B, keyframe=$isKeyFrame")
-                        }
-                        
-                        if (encoded.length > 100000) {
-                            Log.w(TAG, "Large frame detected: ${encoded.length}B (keyframe=$isKeyFrame)")
-                        }
-                        
-                        
-                        // Optimization: Use direct callback if available to avoid Broadcast overhead (lag in background)
-                        val callback = frameCallback
-                        if (callback != null) {
-                            if (frameCount % 60 == 0) Log.d(TAG, "Sending frame via callback")
-                            callback(encoded, isKeyFrame)
-                        } else {
-                            // Fallback: Send to BluetoothService via Broadcast
-                            if (frameCount % 60 == 0) Log.d(TAG, "Sending frame via broadcast fallback")
-                            val intent = Intent("com.ailife.rtosify.SCREEN_DATA_AVAILABLE")
-                            intent.setPackage(packageName) // Make it explicit for Android 14+
-                            intent.putExtra("data", encoded)
-                            intent.putExtra("isKeyFrame", isKeyFrame)
-                            sendBroadcast(intent)
-                        }
-                    }
                     try {
-                        currentCodec.releaseOutputBuffer(outputBufferId, false)
+                        val outputBuffer = currentCodec.getOutputBuffer(outputBufferId)
+                        if (outputBuffer != null) {
+                            val bytes = ByteArray(bufferInfo.size)
+                            outputBuffer.get(bytes)
+                            
+                            // Handle Codec Config (SPS/PPS)
+                            if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                                Log.d(TAG, "CSD (SPS/PPS) headers received: ${bytes.size}B")
+                                configBuffer = bytes
+                            } else {
+                                val isKeyFrame = (bufferInfo.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0
+                                
+                                // Prepend CSD to keyframes for robustness
+                                val finalBytes = if (isKeyFrame && configBuffer != null) {
+                                    val combined = ByteArray(configBuffer!!.size + bytes.size)
+                                    System.arraycopy(configBuffer!!, 0, combined, 0, configBuffer!!.size)
+                                    System.arraycopy(bytes, 0, combined, configBuffer!!.size, bytes.size)
+                                    combined
+                                } else {
+                                    bytes
+                                }
+                                
+                                val encoded = Base64.encodeToString(finalBytes, Base64.NO_WRAP)
+                                
+                                frameCount++
+                                totalBytes += encoded.length
+                                
+                                if (frameCount % 30 == 0) {
+                                    val avgSize = totalBytes / frameCount
+                                    Log.d(TAG, "Frame stats: count=$frameCount, avg_size=${avgSize}B, last_size=${encoded.length}B, keyframe=$isKeyFrame")
+                                }
+                                
+                                if (encoded.length > 100000) {
+                                    Log.w(TAG, "Large frame detected: ${encoded.length}B (keyframe=$isKeyFrame)")
+                                }
+                                
+                                
+                                // Optimization: Use direct callback if available to avoid Broadcast overhead (lag in background)
+                                val callback = frameCallback
+                                if (callback != null) {
+                                    if (frameCount % 60 == 0) Log.d(TAG, "Sending frame via callback")
+                                    callback(encoded, isKeyFrame)
+                                } else {
+                                    // Fallback: Send to BluetoothService via Broadcast
+                                    if (frameCount % 60 == 0) Log.d(TAG, "Sending frame via broadcast fallback")
+                                    val intent = Intent("com.ailife.rtosify.SCREEN_DATA_AVAILABLE")
+                                    intent.setPackage(packageName) // Make it explicit for Android 14+
+                                    intent.putExtra("data", encoded)
+                                    intent.putExtra("isKeyFrame", isKeyFrame)
+                                    sendBroadcast(intent)
+                                }
+                            }
+                        }
+                    } catch (e: IllegalStateException) {
+                        Log.e(TAG, "Codec in invalid state during processing: ${e.message}")
+                        break
                     } catch (e: Exception) {
-                        Log.e(TAG, "Error releasing output buffer: ${e.message}")
+                        Log.e(TAG, "Error processing frame: ${e.message}")
+                    } finally {
+                        try {
+                            currentCodec.releaseOutputBuffer(outputBufferId, false)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error releasing output buffer: ${e.message}")
+                        }
                     }
                 } else if (outputBufferId == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     Log.d(TAG, "Output format changed")
