@@ -15,6 +15,7 @@ class DashboardWidget : AppWidgetProvider() {
 
     companion object {
         const val ACTION_DASHBOARD_UPDATE = "com.ailife.rtosifycompanion.widget.ACTION_DASHBOARD_UPDATE"
+        const val ACTION_REQUEST_DASHBOARD_UPDATE = "com.ailife.rtosifycompanion.widget.ACTION_REQUEST_DASHBOARD_UPDATE"
         const val ACTION_CMD_CYCLE_RINGER = "com.ailife.rtosifycompanion.widget.ACTION_CMD_CYCLE_RINGER"
         const val EXTRA_STATUS = "status"
         const val EXTRA_PHONE_BATTERY = "phone_battery"
@@ -53,6 +54,12 @@ class DashboardWidget : AppWidgetProvider() {
             // Forward back to BluetoothService
             val serviceIntent = Intent(context, com.ailife.rtosifycompanion.BluetoothService::class.java).apply {
                 action = ACTION_CMD_CYCLE_RINGER
+            }
+            context.startForegroundService(serviceIntent)
+        } else if (intent.action == ACTION_REQUEST_DASHBOARD_UPDATE) {
+            // Forward to BluetoothService
+            val serviceIntent = Intent(context, com.ailife.rtosifycompanion.BluetoothService::class.java).apply {
+                action = ACTION_REQUEST_DASHBOARD_UPDATE
             }
             context.startForegroundService(serviceIntent)
         }
@@ -140,6 +147,14 @@ class DashboardWidget : AppWidgetProvider() {
         val settingsIntent = Intent(context, com.ailife.rtosifycompanion.PhoneSettingsActivity::class.java)
         val settingsPendingIntent = PendingIntent.getActivity(context, 4, settingsIntent, PendingIntent.FLAG_IMMUTABLE)
         views.setOnClickPendingIntent(R.id.btn_volume, settingsPendingIntent)
+
+        // Request Dashboard Update on Connection Header or Phone Battery Click
+        val requestUpdateIntent = Intent(context, DashboardWidget::class.java).apply {
+            action = ACTION_REQUEST_DASHBOARD_UPDATE
+        }
+        val requestUpdatePendingIntent = PendingIntent.getBroadcast(context, 5, requestUpdateIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        views.setOnClickPendingIntent(R.id.ll_connection_header, requestUpdatePendingIntent)
+        views.setOnClickPendingIntent(R.id.ll_phone_battery, requestUpdatePendingIntent)
 
         // Instruct the widget manager to update the widget
         appWidgetManager.updateAppWidget(appWidgetId, views)

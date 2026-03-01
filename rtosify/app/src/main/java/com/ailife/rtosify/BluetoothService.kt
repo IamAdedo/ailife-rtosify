@@ -978,11 +978,26 @@ class BluetoothService : Service() {
         }
 
         // Handle widget actions
-    if (intent?.action != null && intent.action!!.startsWith("com.ailife.rtosify.widget.ACTION_TOGGLE")) {
+    if (intent?.action != null && intent.action!!.startsWith("com.ailife.rtosify.widget.ACTION_")) {
         Log.d(TAG, "onStartCommand: Received widget action: ${intent.action}")
         when (intent.action) {
             StatusWidget.ACTION_TOGGLE_DND -> handleDndToggle()
             StatusWidget.ACTION_TOGGLE_MIRROR -> handleMirrorToggle()
+            StatusWidget.ACTION_REQUEST_STATUS_UPDATE -> {
+                if (isConnected) {
+                    requestWatchStatus()
+                    Log.d(TAG, "onStartCommand: Requested watch status from widget")
+                }
+            }
+            HealthWidget.ACTION_REQUEST_HEALTH_UPDATE -> {
+                if (isConnected) {
+                    val healthPrefs = getSharedPreferences("health_prefs", Context.MODE_PRIVATE)
+                    val useInstantSteps = healthPrefs.getBoolean("use_instant_steps", false)
+                    val stepType = if (useInstantSteps) "RAW" else "TODAY"
+                    requestHealthData(stepType)
+                    Log.d(TAG, "onStartCommand: Requested health data ($stepType) from widget")
+                }
+            }
         }
     }
 
@@ -1161,14 +1176,14 @@ class BluetoothService : Service() {
         statusUpdateJob?.cancel()
         statusUpdateJob =
                 serviceScope.launch(Dispatchers.IO) {
-                    while (isActive && isConnected) {
+                    if (isActive && isConnected) {
                         try {
                             val status = collectWatchStatus()
                             sendMessage(ProtocolHelper.createStatusUpdate(status))
+                            Log.d(TAG, "Sent initial phone status to watch")
                         } catch (e: Exception) {
                             Log.e(TAG, "Erro ao enviar status: ${e.message}")
                         }
-                        delay(20000) // Increased delay to 20s for status updates
                     }
                 }
     }

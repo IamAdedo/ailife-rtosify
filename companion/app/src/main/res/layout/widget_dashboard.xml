@@ -10,6 +10,7 @@
 
     <!-- Connection Status Header -->
     <LinearLayout
+        android:id="@+id/ll_connection_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -65,6 +66,7 @@
 
         <!-- Phone Battery -->
         <LinearLayout
+            android:id="@+id/ll_phone_battery"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"

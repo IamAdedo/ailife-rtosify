@@ -544,6 +544,14 @@ class BluetoothService : Service() {
                                 sendMessage(ProtocolHelper.createSetRingerMode(nextMode))
                             }
                         }
+                        DashboardWidget.ACTION_REQUEST_DASHBOARD_UPDATE -> {
+                            if (isConnected) {
+                                requestPhoneBattery()
+                                Log.d(TAG, "onStartCommand: Requested phone battery from widget")
+                            }
+                            // Also update immediately with whatever local data we have
+                            updateDashboardWidget()
+                        }
                     }
                 }
             }
@@ -627,6 +635,24 @@ class BluetoothService : Service() {
                     }
                 }
             }
+
+    private val localBatteryReceiver = object : BroadcastReceiver() {
+        private var lastLevel = -1
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_BATTERY_CHANGED) {
+                val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                if (level != -1 && scale != -1) {
+                    val batteryPct = (level * 100) / scale
+                    if (batteryPct != lastLevel) {
+                        lastLevel = batteryPct
+                        Log.d(TAG, "Local watch battery changed to $batteryPct%, updating dashboard widget")
+                        updateDashboardWidget()
+                    }
+                }
+            }
+        }
+    }
 
     private val wifiStateReceiver =
             object : BroadcastReceiver() {
@@ -901,6 +927,12 @@ class BluetoothService : Service() {
                     },
                     ContextCompat.RECEIVER_NOT_EXPORTED
             )
+            ContextCompat.registerReceiver(
+                    this,
+                    localBatteryReceiver,
+                    IntentFilter(Intent.ACTION_BATTERY_CHANGED),
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+            )
         } else {
             registerReceiver(internalReceiver, filterInternal)
             registerReceiver(watchDismissReceiver, filterWatch)
@@ -913,6 +945,7 @@ class BluetoothService : Service() {
                 addAction(ACTION_AUDIO_PLAY_PAUSE)
                 addAction(ACTION_AUDIO_STOP)
             })
+            registerReceiver(localBatteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         }
 
         // Initialize health data collector
@@ -1236,6 +1269,7 @@ class BluetoothService : Service() {
         }
 
         if (intent?.action == DashboardWidget.ACTION_CMD_CYCLE_RINGER) {
+            updateForegroundNotification() // Ensure startForeground is called
             val nextMode = when (lastRingerMode) {
                 2 -> 1 // Normal -> Vibrate
                 1 -> 0 // Vibrate -> Silent
@@ -1245,6 +1279,16 @@ class BluetoothService : Service() {
                 sendMessage(ProtocolHelper.createSetRingerMode(nextMode))
                 Log.d(TAG, "Cycled ringer mode via onStartCommand to $nextMode")
             }
+            return START_NOT_STICKY
+        }
+
+        if (intent?.action == DashboardWidget.ACTION_REQUEST_DASHBOARD_UPDATE) {
+            updateForegroundNotification() // Ensure startForeground is called
+            Log.d(TAG, "onStartCommand: Received Dashboard update request")
+            if (isConnected) {
+                requestPhoneBattery()
+            }
+            updateDashboardWidget()
             return START_NOT_STICKY
         }
 
@@ -5874,6 +5918,9 @@ class BluetoothService : Service() {
         } catch (_: Exception) {}
         try {
             unregisterReceiver(audioNotificationReceiver)
+        } catch (_: Exception) {}
+        try {
+            unregisterReceiver(localBatteryReceiver)
         } catch (_: Exception) {}
 
         // Cleanup audio notification player

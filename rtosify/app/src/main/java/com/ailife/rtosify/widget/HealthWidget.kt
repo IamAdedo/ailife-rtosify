@@ -10,11 +10,13 @@ import android.text.format.DateUtils
 import android.widget.RemoteViews
 import com.ailife.rtosify.MainActivity
 import com.ailife.rtosify.R
+import com.ailife.rtosify.BluetoothService
 
 class HealthWidget : AppWidgetProvider() {
 
     companion object {
         const val ACTION_WIDGET_HEALTH_UPDATE = "com.ailife.rtosify.widget.ACTION_WIDGET_HEALTH_UPDATE"
+        const val ACTION_REQUEST_HEALTH_UPDATE = "com.ailife.rtosify.widget.ACTION_REQUEST_HEALTH_UPDATE"
 
         const val EXTRA_STEPS = "extra_steps"
         const val EXTRA_HEART_RATE = "extra_heart_rate"
@@ -102,6 +104,18 @@ class HealthWidget : AppWidgetProvider() {
             PendingIntent.FLAG_IMMUTABLE
         )
         views.setOnClickPendingIntent(R.id.widgetHealthRoot, appPendingIntent)
+
+        // Request Health Update on Heart Icon Click
+        val requestHealthIntent = Intent(context, BluetoothService::class.java).apply {
+            action = ACTION_REQUEST_HEALTH_UPDATE
+        }
+        val requestHealthPendingIntent = PendingIntent.getService(
+            context,
+            1,
+            requestHealthIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        views.setOnClickPendingIntent(R.id.imgWidgetHeart, requestHealthPendingIntent)
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
     }

@@ -18,6 +18,7 @@ class StatusWidget : AppWidgetProvider() {
         const val ACTION_WIDGET_UPDATE = "com.ailife.rtosify.widget.ACTION_WIDGET_UPDATE"
         const val ACTION_TOGGLE_DND = "com.ailife.rtosify.widget.ACTION_TOGGLE_DND"
         const val ACTION_TOGGLE_MIRROR = "com.ailife.rtosify.widget.ACTION_TOGGLE_MIRROR"
+        const val ACTION_REQUEST_STATUS_UPDATE = "com.ailife.rtosify.widget.ACTION_REQUEST_STATUS_UPDATE"
 
         // Extras for Update Intent
         const val EXTRA_DEVICE_NAME = "extra_device_name"
@@ -145,6 +146,18 @@ class StatusWidget : AppWidgetProvider() {
             PendingIntent.FLAG_IMMUTABLE
         )
         views.setOnClickPendingIntent(R.id.imgDeviceIcon, appPendingIntent)
+
+        // Request Status Update on Battery Click
+        val requestStatusIntent = Intent(context, BluetoothService::class.java).apply {
+            action = ACTION_REQUEST_STATUS_UPDATE
+        }
+        val requestStatusPendingIntent = PendingIntent.getService(
+            context,
+            3,
+            requestStatusIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        views.setOnClickPendingIntent(R.id.imgWidgetBattery, requestStatusPendingIntent)
 
 
         // Instruct the widget manager to update the widget
