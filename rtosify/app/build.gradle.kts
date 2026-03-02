@@ -18,7 +18,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        resConfigs("en", "zh", "es")
+        resConfigs("en", "zh", "es", "pt")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

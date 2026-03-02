@@ -1,0 +1,1261 @@
+<resources>
+    <string name="app_name">RTOSify</string>
+
+    <!-- App Title -->
+    <string name="app_title">RTOSify</string>
+
+    <!-- Connection Status -->
+    <string name="status_searching">A procurar…</string>
+    <string name="status_waiting">A aguardar…</string>
+    <string name="status_connected">Ligado</string>
+    <string name="status_disconnected">Desligado</string>
+    <string name="status_stopped">Parado</string>
+    <string name="status_starting">A iniciar…</string>
+    <string name="status_verifying">A verificar…</string>
+    <string name="status_no_watch_found">Nenhum relógio encontrado.</string>
+    <string name="status_open_app_watch">Abre a aplicação no teu relógio e tenta novamente.</string>
+    <string name="status_connecting_to">A ligar a %s…</string>
+    <string name="status_connected_to">Ligado a %s</string>
+    <string name="status_connected_to_bt">Ligado a %s (Bluetooth)</string>
+    <string name="status_connected_to_wifi">Ligado a %s (LAN)</string>
+    <string name="status_connected_to_ble">Ligado a %s (BLE)</string>
+    <string name="status_connected_to_internet">Ligado a %s (Internet)</string>
+    <string name="status_switching">A mudar de dispositivo…</string>
+    <string name="device_name_default">Dispositivo</string>
+    <string name="device_picker_title">Selecionar Dispositivo</string>
+    <string name="no_devices_paired">Ainda não há dispositivos emparelhados.</string>
+    <string name="device_selected">%s selecionado</string>
+    <string name="pair_new_device">Emparelhar Novo Dispositivo</string>
+
+    <!-- Toast Messages -->
+    <string name="toast_watch_not_connected">Relógio não ligado.</string>
+    <string name="toast_watch_disconnected">Relógio desligado!</string>
+    <string name="toast_service_disconnected">Serviço desligado</string>
+    <string name="toast_command_sent">Comando enviado</string>
+    <string name="toast_upload_failed">Falha no envio.</string>
+    <string name="toast_error_open_settings">Erro ao abrir definições.</string>
+    <string name="label_volume">Volume</string>
+    <string name="volume_channel_media">Multimédia</string>
+    <string name="volume_channel_ring">Toque</string>
+    <string name="volume_channel_notification">Notificações</string>
+    <string name="volume_channel_alarm">Alarme</string>
+    <string name="volume_channel_system">Sistema</string>
+
+    <!-- DND (Do Not Disturb) -->
+    <string name="dnd_on">DND LIGADO</string>
+    <string name="dnd_off">DND DESLIGADO</string>
+    <string name="dnd_normal">Normal</string>
+    <string name="dnd_dialog_title">Horário DND e Duração Rápida</string>
+    <string name="dnd_schedule_enable">Ativar Horário</string>
+    <string name="dnd_start_time">Hora de Início</string>
+    <string name="dnd_end_time">Hora de Fim</string>
+    <string name="dnd_quick_options">Ativação Rápida</string>
+    <string name="dnd_duration_1h">1 Hora</string>
+    <string name="dnd_duration_2h">2 Horas</string>
+    <string name="dnd_duration_custom">Personalizado</string>
+    <string name="dnd_save_settings">Guardar Definições</string>
+    <string name="dnd_custom_duration_title">Duração Personalizada</string>
+    <string name="dnd_custom_duration_message">Introduz a duração em minutos:</string>
+
+    <!-- Battery -->
+    <string name="battery_placeholder">—%</string>
+    <string name="battery_capacity_label">Capacidade</string>
+    <string name="battery_capacity_unit">%s mAh</string>
+
+    <!-- Wi-Fi -->
+    <string name="wifi_verifying">A verificar</string>
+    <string name="wifi_placeholder">---</string>
+    <string name="wifi_dialog_title">Redes Wi-Fi do Relógio</string>
+    <string name="wifi_available_networks">Redes Disponíveis</string>
+    <string name="wifi_activate_message">Ativa o Wi-Fi para ver redes disponíveis</string>
+    <string name="wifi_current_connection">Ligação Atual</string>
+    <string name="wifi_available_networks_title">Redes Disponíveis</string>
+    <string name="wifi_connected">Ligado</string>
+    <string name="wifi_already_connected">Já ligado a %s</string>
+    <string name="wifi_connecting">A ligar a %s…</string>
+    <string name="title_activity_wifi_pairing">Emparelhamento Wi-Fi</string>
+
+    <!-- WiFi Password Dialog -->
+    <string name="wifi_password_dialog_title">Ligar a %s</string>
+    <string name="wifi_password_message">Introduz a palavra-passe Wi-Fi:</string>
+    <string name="wifi_password_hint">Palavra-passe (opcional se guardada)</string>
+    <string name="wifi_connect_with_password">Ligar com Palavra-passe</string>
+    <string name="wifi_connect_saved">Ligar (Usar Guardada)</string>
+    <string name="wifi_password_empty_error">A palavra-passe não pode estar vazia</string>
+    <string name="wifi_cancel">Cancelar</string>
+
+    <!-- Menu Options -->
+    <string name="menu_manage_apps">Gerir Aplicações</string>
+    <string name="menu_manage_apps_desc">Ver aplicações instaladas no relógio</string>
+    <string name="menu_notifications">Notificações</string>
+    <string name="menu_notifications_desc">Escolher que aplicações enviam alertas</string>
+    <string name="menu_install_apk">Instalar APK</string>
+    <string name="menu_install_apk_desc">Enviar ficheiro .apk para o relógio</string>
+    <string name="menu_device_mgmt">Gestão do Dispositivo</string>
+    <string name="menu_device_mgmt_desc">Energia, poupança de bateria extrema e encontrar dispositivo</string>
+    <string name="menu_shutdown_watch">Desligar</string>
+    <string name="menu_shutdown_watch_desc">Desligar completamente o smartwatch</string>
+    <string name="menu_reboot_watch">Reiniciar</string>
+    <string name="menu_reboot_watch_desc">Reiniciar o smartwatch</string>
+    <string name="menu_lock_watch">Ativar poupança de bateria extrema</string>
+    <string name="menu_lock_watch_desc">Escurecer ecrã e restringir tarefas em segundo plano</string>
+    <string name="menu_find_watch">Encontrar Dispositivo</string>
+    <string name="menu_find_watch_desc">Reproduzir som alto no relógio</string>
+    <string name="menu_disconnect">Desligar</string>
+    <string name="menu_disconnect_desc">Parar serviço Bluetooth</string>
+    <string name="menu_connect">Ligar</string>
+    <string name="menu_connect_desc">Iniciar serviço e ligar</string>
+    <string name="menu_mirroring">Espelho de Ecrã</string>
+    <string name="menu_mirroring_desc">Transmitir ecrã e controlar remotamente</string>
+    <string name="menu_reset_all">Repor Tudo</string>
+    <string name="menu_reset_all_desc">Limpar definições e voltar ao início</string>
+    <string name="dialog_reset_all_title">Repor todas as definições?</string>
+    <string name="dialog_reset_all_message">Isto irá limpar todas as definições e voltar ao ecrã inicial. Queres continuar?</string>
+    <string name="dialog_reset_all_confirm">Repor Tudo</string>
+    <string name="dialog_reset_all_cancel">Cancelar</string>
+    <string name="dialog_reset_all_input_hint">Escreve \'sim\' para confirmar</string>
+    <string name="dialog_reset_all_error">Confirmação inválida. Por favor, escreve \'sim\'.</string>
+
+    <!-- Watch Automations -->
+    <string name="watch_automations_title">Automações do Relógio</string>
+    <string name="automation_boot_service_title">Iniciar Serviço ao Arrancar</string>
+    <string name="automation_boot_service_desc">Iniciar automaticamente o serviço RTOSify quando o telemóvel arranca</string>
+    <string name="automation_clipboard_title">Sincronizar Área de Transferência</string>
+    <string name="automation_clipboard_desc">Sincronizar automaticamente a área de transferência entre o telemóvel e o relógio quando ligado</string>
+    <string name="automation_wifi_title">Controlo Automático Wi-Fi</string>
+    <string name="automation_wifi_desc">O relógio ativa automaticamente o Wi-Fi quando o Bluetooth desliga e desativa quando religa</string>
+    <string name="automation_data_title">Dados Móveis Automáticos</string>
+    <string name="automation_data_desc">O relógio ativa automaticamente os dados móveis quando o Bluetooth desliga e desativa quando religa</string>
+    <string name="automation_bt_tether_title">Partilha Bluetooth Automática</string>
+    <string name="automation_bt_tether_desc">Ativar partilha BT do telemóvel e acesso à internet no relógio quando ligado</string>
+    <string name="automation_force_bt_title">Forçar Bluetooth Ativado</string>
+    <string name="automation_force_bt_desc">Reativar automaticamente o Bluetooth se for desativado</string>
+    <string name="automation_sharing_sync_title">Sincronização de Partilha</string>
+    <string name="automation_sharing_sync_desc">Encaminhar conteúdo partilhado (links, texto) entre telemóvel e relógio</string>
+    <string name="automation_keepalive_title">Manutenção Agressiva</string>
+    <string name="automation_keepalive_desc">Reiniciar serviços do relógio a cada 5 minutos para garantir ligação fiável</string>
+    <string name="automation_starred_contacts_title">Sincronizar Contactos Favoritos</string>
+    <string name="automation_starred_contacts_desc">Destacar e priorizar contactos favoritos no marcador do relógio</string>
+    <string name="menu_health_desc">Monitorizar métricas de saúde</string>
+    <string name="menu_alarms">Alarmes</string>
+    <string name="menu_alarms_desc">Gerir alarmes do relógio</string>
+    <string name="menu_terminal">Terminal</string>
+    <string name="menu_terminal_desc">Executar comandos shell no relógio</string>
+    <string name="menu_file_manager">Gestor de Ficheiros</string>
+    <string name="menu_file_manager_desc">Navegar e gerir ficheiros do relógio</string>
+    <string name="menu_watch_automation">Automações do Relógio</string>
+    <string name="menu_watch_automation_desc">Gerir tarefas e comportamentos automatizados do relógio</string>
+
+    <!-- Dialog: APK Upload -->
+    <string name="dialog_upload_apk_title">Enviar APK?</string>
+    <string name="dialog_upload_apk_message">Queres instalar esta aplicação no relógio?</string>
+    <string name="dialog_upload_apk_send">Enviar</string>
+    <string name="dialog_upload_apk_cancel">Cancelar</string>
+
+    <!-- Dialog: Device Management -->
+    <string name="dialog_device_mgmt_title">Gestão do Dispositivo</string>
+    <string name="dialog_shutdown_title">Desligar smartwatch?</string>
+    <string name="dialog_shutdown_message">O smartwatch será completamente desligado.</string>
+    <string name="dialog_shutdown_confirm">Desligar</string>
+    <string name="dialog_shutdown_cancel">Cancelar</string>
+    <string name="dialog_reboot_title">Reiniciar smartwatch?</string>
+    <string name="dialog_reboot_message">O smartwatch será reiniciado.</string>
+    <string name="dialog_reboot_confirm">Reiniciar</string>
+    <string name="dialog_find_watch_title">Encontrar Relógio</string>
+    <string name="dialog_find_watch_message">O relógio irá reproduzir um som alto. Usa isto para o localizar.</string>
+    <string name="dialog_find_watch_start">Iniciar Alarme</string>
+    <string name="dialog_find_watch_stop">Parar Alarme</string>
+
+    <!-- Dialog: Select Watch -->
+    <string name="dialog_select_watch_title">Selecionar Relógio</string>
+    <string name="device_no_name">Sem nome</string>
+    <string name="welcome_retry">Tentar Novamente</string>
+    <string name="welcome_scan_qr">Ler Código QR</string>
+
+    <!-- Upload Progress -->
+    <string name="upload_transferring">A transferir ficheiro…</string>
+    <string name="upload_complete_title">Envio Concluído</string>
+    <string name="upload_complete_message">O ficheiro foi enviado com sucesso para o relógio.</string>
+    <string name="upload_failed_title">Falha no Envio</string>
+    <string name="upload_failed_message">Ocorreu um erro durante a transferência. Por favor, verifica a ligação e tenta novamente.</string>
+
+    <!-- App List Activity -->
+    <string name="applist_requesting">A solicitar lista do relógio…</string>
+    <string name="applist_empty">Nenhuma aplicação de utilizador encontrada no relógio.</string>
+    <string name="applist_error_processing">Erro ao processar dados.</string>
+    <string name="applist_error_processing_list">Erro ao processar lista: %s</string>
+
+    <!-- Welcome Activity -->
+    <string name="welcome_permission_title">Permissão necessária.</string>
+    <string name="welcome_permission_message">Para mostrar o SSID da rede Wi-Fi ligada ao smartwatch, é necessária permissão de localização avançada. Para tal, seleciona \'Permitir sempre\' no próximo ecrã.</string>
+    <string name="welcome_permission_understood">Percebi</string>
+    <string name="welcome_permission_not_now">Agora não</string>
+
+    <string name="welcome_configuring">A configurar…</string>
+    <string name="welcome_searching">À procura do teu relógio…</string>
+    <string name="welcome_searching_desc">Certifica-te de que o teu relógio está emparelhado nas definições de Bluetooth.</string>
+    <string name="welcome_bt_disabled">O Bluetooth está desativado. Ativa-o para continuar.</string>
+    <string name="welcome_watch_found">Relógio encontrado: %s\nA finalizar configuração…</string>
+    <string name="welcome_no_paired_found">Nenhum relógio emparelhado encontrado.\nPor favor, emparelha o teu relógio nas definições de Bluetooth e reinicia a aplicação.</string>
+
+    <string name="welcome_invalid_mac">Endereço MAC inválido. Por favor, usa a aplicação do relógio atualizada.</string>
+    <string name="welcome_invalid_qr_format">Formato de Código QR inválido</string>
+    <string name="welcome_invalid_qr_data">Formato de Código QR inválido: %s</string>
+    <string name="welcome_bt_not_enabled">O Bluetooth não está ativado. Por favor, ativa-o e tenta novamente.</string>
+    <string name="welcome_bt_not_supported">Este dispositivo não suporta Bluetooth</string>
+    <string name="welcome_pairing_failed">Emparelhamento falhou. Por favor, tenta novamente.</string>
+    <string name="welcome_watch_not_found">Relógio não encontrado. Certifica-te de que está próximo e a mostrar o código QR.</string>
+    <string name="welcome_selection_cancelled">Seleção cancelada. Por favor, tenta novamente.</string>
+    <string name="welcome_watch_ready">Relógio emparelhado e pronto!\nA finalizar configuração…</string>
+    <string name="welcome_discovery_error">Não foi possível iniciar a descoberta Bluetooth</string>
+    <string name="welcome_bt_permission_denied">Permissão Bluetooth negada</string>
+    <string name="welcome_pairing_info">A emparelhar com o teu relógio...\nPor favor, confirma o pedido em ambos os dispositivos.</string>
+    <string name="welcome_pairing_start_error">Não foi possível iniciar o emparelhamento. O relógio está próximo?</string>
+    <string name="welcome_pairing_choice">Como gostarias de emparelhar o teu relógio?</string>
+    <string name="welcome_manual_selection">Seleção Manual</string>
+    <string name="welcome_qr_scan_instruction">Lê o Código QR no teu Relógio</string>
+    <string name="welcome_searching_qr">À procura do teu relógio...\nCertifica-te de que está a mostrar o código QR.</string>
+    <string name="welcome_finish">Concluir Configuração</string>
+
+    <string name="notification_apk_received_title">APK Recebido</string>
+    <string name="notification_apk_received_text">Toca para instalar</string>
+    <string name="notification_config_required_title">Configuração Necessária</string>
+    <string name="notification_config_required_text">Toca para permitir instalação</string>
+    <string name="notification_error_title">Erro</string>
+    <string name="notification_service_title">Smartwatch</string>
+
+    <!-- App Management and Notifications -->
+    <string name="applist_title">Aplicações Instaladas</string>
+    <string name="applist_loading_layout">A carregar lista…</string>
+    <string name="notif_settings_title">Notificações</string>
+    <string name="notif_mirroring_title">Encaminhamento de Notificações</string>
+    <string name="notif_mirroring_desc">Enviar notificações para o relógio</string>
+    <string name="notif_permission_required">Permissão de leitura necessária</string>
+    <string name="notif_permission_desc">A aplicação precisa de ler notificações do sistema para as enviar para o relógio. Toca abaixo para resolver.</string>
+    <string name="notif_grant_access">Conceder Acesso</string>
+    <string name="notif_apps_title">Aplicações</string>
+    <string name="notif_apps_loading">A carregar aplicações…</string>
+    <string name="notif_manage_apps_title">Gerir Aplicações</string>
+    <string name="notif_manage_apps_desc">Selecionar que aplicações podem enviar notificações para o relógio</string>
+    <string name="notif_manage_rules_title">Regras de Notificações</string>
+    <string name="notif_manage_rules_desc">Adicionar filtros para controlar que notificações são encaminhadas</string>
+    <string name="rule_add">Adicionar Regra</string>
+    <string name="rule_edit">Editar Regra</string>
+    <string name="rule_save">Guardar</string>
+    <string name="rule_package_required">O nome do pacote é obrigatório</string>
+    <string name="rule_delete_title">Apagar Regra</string>
+    <string name="rule_delete_msg">Tens a certeza de que queres apagar esta regra para %s?</string>
+    <string name="rule_title_filter">Título: %s</string>
+    <string name="rule_content_filter">Conteúdo: %s</string>
+    <string name="rule_no_filters">Sem filtros de padrão</string>
+    <string name="app_select_title">Selecionar Aplicação</string>
+    <string name="app_search_hint">Procurar aplicações…</string>
+    <string name="app_show_system">Mostrar aplicações do sistema</string>
+    <string name="notif_skip_screen_on_title">Ignorar quando ecrã ligado</string>
+    <string name="notif_skip_screen_on_desc">Não enviar alertas se estiveres a usar o telemóvel</string>
+    <string name="settings_notif_disconnect_title">Notificar ao desligar</string>
+    <string name="settings_notif_disconnect_desc">Alertar no relógio se perder a ligação ao telemóvel</string>
+    <string name="notif_forward_ongoing_title">Encaminhar notificações em curso</string>
+    <string name="notif_forward_ongoing_desc">Incluir notificações persistentes como leitores de música</string>
+    <string name="notif_forward_silent_title">Encaminhar notificações silenciosas</string>
+    <string name="notif_forward_silent_desc">Incluir notificações sem som ou vibração</string>
+    <string name="notif_wake_screen_title">Acordar ecrã com notificação</string>
+    <string name="notif_wake_screen_desc">Ligar o ecrã do relógio quando chega uma notificação</string>
+    <string name="notif_vibrate_title">Vibrar com notificação</string>
+    <string name="notif_vibrate_desc">Vibrar o relógio quando chega uma notificação</string>
+    <string name="notif_vibrate_silent_title">Vibrar em modo silencioso</string>
+    <string name="notif_vibrate_silent_desc">Vibrar mesmo se o relógio estiver em modo silencioso/DND</string>
+    <string name="notif_wake_screen_dnd_title">Acordar ecrã em DND</string>
+    <string name="notif_wake_screen_dnd_desc">Acordar o ecrã mesmo quando o Não Incomodar está ativo</string>
+    <string name="notif_settings_description">Nota: Estas definições geralmente não são necessárias, pois o sistema trata delas automaticamente.</string>
+    <string name="notif_general_settings">Definições Gerais</string>
+    <string name="notif_phone_calls_title">Encaminhar Chamadas Telefónicas</string>
+    <string name="notif_phone_calls_desc">Enviar alertas de chamadas recebidas para o relógio</string>
+    <string name="notif_behavior">Comportamento das Notificações</string>
+    <string name="notif_sound_title">Som de Notificação</string>
+    <string name="notif_sound_desc">Reproduzir som para notificações recebidas no relógio</string>
+    <string name="call_ringing_title">Tocar para Chamadas Telefónicas</string>
+    <string name="call_ringing_desc">Reproduzir toque para chamadas recebidas no relógio</string>
+    <string name="notif_sound_selector_title">Som de Notificação</string>
+    <string name="notif_sound_default">Predefinido</string>
+    <string name="notif_sound_change">Alterar Som</string>
+    <string name="notif_dynamic_island">Dynamic Island</string>
+    <string name="notif_style_android">Notificação Android</string>
+    <string name="notif_style_dynamic_island">Dynamic Island</string>
+    <string name="notif_style">Estilo de Notificação</string>
+    <string name="notif_style_desc">Escolher como as notificações aparecem no relógio</string>
+    <string name="notif_auto_collapse">Tempo para recolher automaticamente</string>
+    <string name="notif_unit_seconds">%d segundos</string>
+    <string name="notif_unit_dp">%d dp</string>
+    <string name="notif_unit_seconds_placeholder">5 segundos</string>
+    <string name="notif_unit_seconds_2">2s</string>
+    <string name="notif_unit_seconds_10">10s</string>
+    <string name="notif_unit_dp_8">8 dp</string>
+    <string name="notif_unit_dp_150">150 dp</string>
+    <string name="notif_unit_dp_40">40 dp</string>
+    <string name="di_vertical_pos">Posição Vertical (Y)</string>
+    <string name="di_width">Largura da Pílula</string>
+    <string name="di_height">Altura da Pílula</string>
+    <string name="di_text_size">Tamanho do Texto</string>
+    <string name="di_text_size_multiplier">%1$.1fx</string>
+    <string name="di_message_length_limit">Limitar Comprimento da Mensagem</string>
+    <string name="di_message_length_limit_desc">Truncar mensagens longas para 2 linhas</string>
+
+    <!-- Full Screen Settings -->
+    <string name="title_full_screen_settings">Definições de Ecrã Inteiro</string>
+    <string name="desc_full_screen_settings">Configurar o comportamento do estilo de notificação em ecrã inteiro no relógio.</string>
+    <string name="header_behavior">Comportamento</string>
+    <string name="lbl_stacking_enabled">Empilhar Notificações</string>
+    <string name="desc_stacking_enabled">Se ativado, múltiplas notificações serão empilhadas. Se desativado, novas notificações substituem as antigas.</string>
+    <string name="lbl_close_on_screen_off">Fechar com Ecrã Desligado</string>
+    <string name="desc_close_on_screen_off">Fechar automaticamente a notificação quando o ecrã do relógio se desliga.</string>
+    <string name="lbl_keep_screen_on">Manter Ecrã Ligado</string>
+    <string name="desc_keep_screen_on">Manter o ecrã do relógio ligado enquanto a notificação é exibida.</string>
+    <string name="notif_style_full_screen">Ecrã Inteiro</string>
+    <string name="btn_manage_full_screen">Gerir Ecrã Inteiro</string>
+    <string name="btn_manage_dynamic_island">Gerir Dynamic Island</string>
+    <string name="lbl_app_name_size">Tamanho do Nome da App e Ações</string>
+    <string name="lbl_title_size">Tamanho do Título</string>
+    <string name="lbl_content_size">Tamanho do Conteúdo</string>
+    <string name="lbl_auto_close">Fechar Notificação Automaticamente</string>
+    <string name="lbl_auto_close_timeout">Tempo limite: %d segundos</string>
+    <string name="lbl_text_size_value">%d sp</string>
+
+    <!-- Android Style Settings -->
+    <string name="notif_android_settings">Definições de Estilo Android</string>
+    <string name="in_app_reply_dialog_title">Diálogo de Resposta na App</string>
+    <string name="in_app_reply_dialog_desc">Usar um diálogo personalizado no relógio para respostas em vez da interface de resposta do sistema. Útil se as respostas nativas não estiverem a funcionar.</string>
+
+    <!-- Debugging -->
+    <string name="notif_debug_title">Depuração</string>
+    <string name="notif_debug_simulate">Simular Notificação</string>
+
+    <string name="menu_uninstall_app">Desinstalar</string>
+    <string name="dialog_uninstall_title">Desinstalar Aplicação?</string>
+    <string name="dialog_uninstall_message">Queres desinstalar %s do teu relógio?</string>
+    <string name="dialog_install_option_title">Instalar Aplicação</string>
+    <string name="dialog_install_option_apk">Escolher ficheiro APK</string>
+    <string name="dialog_install_option_extract">Extrair aplicação do Telemóvel</string>
+    <string name="apppicker_loading_phone">A carregar aplicações do telemóvel…</string>
+    <string name="apppicker_extract_error">Erro ao extrair APK</string>
+
+    <!-- Permissions Activity -->
+    <string name="perm_title">Permissões da Aplicação</string>
+    <string name="perm_granted">Concedida</string>
+    <string name="perm_not_granted">Não Concedida</string>
+    
+    <string name="perm_bluetooth">Bluetooth</string>
+    <string name="perm_bluetooth_desc">Necessário para procurar e ligar ao teu relógio.</string>
+    
+    <string name="perm_notifications">Acesso a Notificações</string>
+    <string name="perm_notifications_desc">Necessário para enviar notificações do telemóvel para o teu relógio.</string>
+    
+    <string name="perm_install">Instalar Aplicações Desconhecidas</string>
+    <string name="perm_install_desc">Usado para auto-atualizar a aplicação</string>
+    
+    <string name="perm_battery">Otimização da Bateria</string>
+    <string name="perm_battery_desc">Ajuda a aplicação a manter-se em execução em segundo plano</string>
+    
+    <string name="perm_shizuku">Shizuku</string>
+    <string name="perm_shizuku_desc">Usado para sincronização da área de transferência, aceder à pasta android/data</string>
+    
+    <string name="perm_root">Acesso Root</string>
+    <string name="perm_root_desc">Aceder à pasta android/data e outras funcionalidades avançadas</string>
+
+    <string name="perm_location">Serviços de Localização</string>
+    <string name="perm_location_desc">Usado para pesquisa Bluetooth, leitura de SSID Wi-Fi, encontrar dispositivo</string>
+    <string name="perm_location_bg">Localização em Segundo Plano</string>
+    <string name="perm_location_bg_desc">Ler SSID Wi-Fi e encontrar dispositivo em segundo plano</string>
+    
+    <string name="perm_post_notif">Publicar Notificações</string>
+    <string name="perm_post_notif_desc">Necessário para mostrar estado e alertas no teu telemóvel.</string>
+    
+    <string name="perm_camera">Acesso à Câmara</string>
+    <string name="perm_camera_desc">Necessário para ler o código QR do relógio.</string>
+    
+    <string name="perm_dnd">Acesso a Não Incomodar</string>
+    <string name="perm_dnd_desc">Usado para sincronizar estado DND entre dispositivos.</string>
+
+    <string name="perm_storage">Acesso ao Armazenamento</string>
+    <string name="perm_storage_desc">Usado para a funcionalidade de observador de ficheiros</string>
+
+    <string name="perm_call">Fazer Chamadas Telefónicas</string>
+    <string name="perm_call_desc">Usado para iniciar chamadas a partir do relógio.</string>
+    <string name="perm_calendar">Ler Calendário</string>
+    <string name="perm_calendar_desc">Usado para sincronizar eventos de calendário com o relógio.</string>
+    <string name="perm_contacts">Ler Contactos</string>
+    <string name="perm_contacts_desc">Usado para sincronizar contactos com o relógio.</string>
+    <string name="perm_phone_status">Estado do Telefone</string>
+    <string name="perm_phone_status_desc">Usado para detetar chamadas recebidas e mostrá-las no relógio.</string>
+    
+    <string name="perm_accessibility">Serviço de Acessibilidade</string>
+    <string name="perm_accessibility_desc">Usado para controlar o ecrã do teu telemóvel a partir do relógio.</string>
+    <string name="accessibility_service_description">Permite ao RTOSify controlar o ecrã do teu telemóvel a partir do relógio.</string>
+    
+    <string name="menu_sync_calendar">Sincronizar Calendário</string>
+    <string name="menu_sync_calendar_desc">Enviar os teus eventos de calendário para o relógio</string>
+    <string name="menu_sync_contacts">Sincronizar Contactos</string>
+    <string name="menu_sync_contacts_desc">Enviar os teus contactos para o relógio</string>
+    <string name="toast_sync_success">Sincronização de %s concluída com sucesso</string>
+    <string name="toast_sync_failed">Falha na sincronização de %s</string>
+
+    <string name="find_watch_alarm_stop">Parar</string>
+    <string name="find_phone_alarm_title">A encontrar Telemóvel</string>
+    <string name="find_phone_alarm_message">O relógio está à procura deste telemóvel!</string>
+    <string name="find_phone_alarm_stop">Parar</string>
+
+    <!-- Notification Actions -->
+    <string name="reply_label">Responder</string>
+
+    <!-- Health Data -->
+    <string name="menu_health_data">Dados de Saúde</string>
+    <string name="health_app_not_installed">Health Tracker não instalado</string>
+    <string name="health_app_install_reminder">Instala o Better Health Tracker no smartwatch para aceder a funcionalidades de saúde.</string>
+    <string name="health_title">Dados de Saúde</string>
+
+    <!-- Watch Face Management -->
+    <string name="menu_watchface">Mostradores</string>
+    <string name="wf_title">Gestor de Mostradores</string>
+    <string name="wf_tab_store">Loja</string>
+    <string name="wf_tab_local">Local</string>
+    <string name="wf_tab_watch">Relógio</string>
+    <string name="wf_download">Transferir</string>
+    <string name="wf_apply">Aplicar no Relógio</string>
+    <string name="wf_delete">Apagar</string>
+    <string name="wf_rename">Renomear</string>
+    <string name="wf_import">Importar do Dispositivo</string>
+    <string name="wf_loading">A carregar Mostradores…</string>
+    <string name="wf_error_load">Erro ao carregar loja</string>
+    <string name="wf_downloading">A transferir…</string>
+    <string name="health_steps">Passos</string>
+    <string name="health_no_data">Sem dados</string>
+    <string name="health_steps_title">Histórico de Passos</string>
+    <string name="health_hr_title">Histórico de Frequência Cardíaca</string>
+    <string name="health_oxygen_title">Histórico de Oxigénio no Sangue</string>
+    <string name="health_period_day">Dia</string>
+    <string name="health_period_week">Semana</string>
+    <string name="health_period_month">Mês</string>
+    <string name="health_daily_goal">Objetivo Diário</string>
+    <string name="health_goal_progress">%d%% concluído</string>
+    <string name="health_measure_now">Medir Agora</string>
+    <string name="health_measuring">A medir…</string>
+    <string name="health_settings">Definições de Saúde</string>
+    <string name="health_step_goal">Objetivo de Passos</string>
+    <string name="health_monitoring_interval">Intervalo de Monitorização (minutos)</string>
+    <string name="health_error_app_not_installed">Aplicação Better Health não instalada</string>
+    <string name="health_error_api_disabled">API de Saúde não ativada</string>
+    <string name="time_just_now">Agora mesmo</string>
+    <string name="time_minutes_ago">há %d min</string>
+    <string name="time_hours_ago">há %d h</string>
+    <string name="time_days_ago">há %d dias</string>
+
+    <!-- Gender options -->
+    <string-array name="gender_options">
+        <item>Masculino</item>
+        <item>Feminino</item>
+        <item>Outro</item>
+    </string-array>
+    <string name="perm_nearby_wifi">Dispositivos Wi-Fi Próximos</string>
+    <string name="perm_nearby_wifi_desc">Usado para transporte LAN.</string>
+    <string name="wifi_scanning">A procurar Wi-Fi no relógio…</string>
+
+    <string name="perm_restricted_title">Definição Restrita</string>
+    <string name="perm_restricted_desc">Esta definição está restrita pelo Android por segurança. Precisas de a ativar manualmente usando ADB.\n\nComando copiado para a área de transferência.</string>
+
+    <string name="perm_go_restricted_title">Permissão Restrita (Edição Go)</string>
+    <string name="perm_go_restricted_desc">Esta permissão está restrita no Android Go Edition. Podes tentar ativá-la mesmo assim, ou usar métodos manuais.</string>
+    <string name="perm_button_try_anyways">Tentar Mesmo Assim</string>
+    <string name="perm_button_copy_adb">Copiar Comando ADB</string>
+    <string name="perm_button_grant_root_shizuku">Ativar com Root/Shizuku</string>
+
+    <!-- Device Information -->
+    <string name="device_info_title">Informação do Dispositivo</string>
+    <string name="device_info_model">Modelo</string>
+    <string name="device_info_android">Android</string>
+    <string name="device_info_ram">RAM</string>
+    <string name="device_info_storage">Armazenamento</string>
+    <string name="device_info_processor">Processador</string>
+    <string name="device_info_cpu_usage">Utilização da CPU</string>
+    <string name="device_info_loading">A carregar…</string>
+    <string name="device_info_usage_format">%d%%</string>
+    <string name="device_info_storage_format">%1$s / %2$s</string>
+    <string name="device_info_ram_format">%1$s / %2$s</string>
+
+    <!-- Remote Monitoring & Control -->
+    <string name="remote_monitor_title">Monitorização &amp; Controlo Remoto</string>
+    <string name="remote_mirror_phone">Espelhar Telemóvel no Relógio</string>
+    <string name="remote_mirror_phone_desc">Transmitir ecrã deste telemóvel para o teu relógio</string>
+    <string name="remote_control_watch">Controlar Relógio a partir do Telemóvel</string>
+    <string name="remote_control_watch_desc">Ver e controlar ecrã do teu relógio a partir deste telemóvel</string>
+    <string name="remote_res_matching">Correspondência de Resolução</string>
+    <string name="remote_res_matching_desc">Ajustar automaticamente a resolução do relógio para corresponder à proporção do telemóvel durante o controlo</string>
+
+    <!-- Dynamic Island Customization -->
+    <string name="di_hide_idle">Ocultar quando inativo</string>
+    <string name="di_hide_idle_desc">Ocultar a pílula quando não há notificações ativas</string>
+    <string name="di_follow_dnd_title">Seguir Não Incomodar</string>
+    <string name="di_follow_dnd_desc">Não expandir notificações quando o DND está ativo</string>
+    <string name="di_hide_peak_title">Ocultar pico em app na lista negra</string>
+    <string name="di_hide_peak_desc">Ocultar completamente a dynamic island e impedir expansão em apps na lista negra</string>
+    <string name="di_appearance_title">Aparência</string>
+    <string name="di_appearance_desc">Personalizar fundo e opacidade</string>
+    <string name="di_background_title">Imagem de Fundo</string>
+    <string name="di_background_desc">Definir um fundo personalizado para a ilha</string>
+    <string name="di_select_image">Selecionar Imagem</string>
+    <string name="di_opacity">Opacidade / Brilho</string>
+    <string name="di_bg_type">Tipo de Fundo</string>
+    <string name="di_bg_type_image">Imagem</string>
+    <string name="di_bg_type_color">Cor Sólida</string>
+    <string name="di_select_color">Selecionar Cor</string>
+    <string name="di_color_picker_title">Seletor de Cor</string>
+    <string name="di_adjust_color">Ajustar Cor</string>
+    <string name="di_preview">Pré-visualização</string>
+    <string name="di_preview_pill">Recolhida</string>
+    <string name="di_preview_expanded">Expandida</string>
+    <string name="di_save_sync">Guardar &amp; Sincronizar</string>
+    <string name="di_crop_instruction">Arrasta e aperta para ajustar a imagem dentro do enquadramento.</string>
+    <string name="toast_bt_required">Bluetooth necessário. Por favor, ativa-o.</string>
+    <string name="toast_perm_calendar_not_granted">Permissão READ_CALENDAR não concedida</string>
+    <string name="toast_perm_contacts_not_granted">Permissão READ_CONTACTS não concedida</string>
+    <string name="toast_uninstall_sending">A enviar desinstalação: %s</string>
+    <string name="toast_no_calendar_events">Nenhum evento de calendário futuro encontrado</string>
+    <string name="toast_no_contacts_found">Nenhum contacto encontrado</string>
+    <string name="notif_waiting_channel">Notificação persistente - à espera de ligação</string>
+    <string name="notif_connected_channel">Notificação persistente - ligado</string>
+    <string name="notif_mirrored_channel">Notificações do telemóvel</string>
+    <string name="notif_battery_full_title">Bateria do Relógio Cheia</string>
+    <string name="notif_battery_low_title">Bateria do Relógio Fraca</string>
+    <string name="notif_battery_full_text">O relógio está totalmente carregado!</string>
+    <string name="notif_battery_low_text">A bateria do relógio está em %d%%.</string>
+    <string name="status_no_permission">Sem Permissão</string>
+    <string name="wifi_status_error">Erro Wifi</string>
+    <string name="toast_wifi_no_networks">Nenhuma rede Wi-Fi encontrada.</string>
+    <string name="wifi_security_secured">Protegida</string>
+    <string name="wifi_security_open">Aberta</string>
+    <string name="toast_dnd_sent_format">DND por %1$d %2$s enviado</string>
+    <string name="unit_hour">hora</string>
+    <string name="unit_hours">horas</string>
+    <string name="welcome_qr_scanned">QR Lido: %s</string>
+    <string name="welcome_discovery_started">Descoberta iniciada para: %s</string>
+    <string name="status_progress_format">%d%%</string>
+    <string name="status_failed">FALHOU</string>
+    <string name="status_fail_short">Falhou</string>
+    <string name="status_invalid_json">JSON Inválido</string>
+    <string name="terminal_title">Terminal RTOSify v1.0</string>
+    <string name="terminal_connecting">A ligar ao relógio…</string>
+    <string name="terminal_executing">A executar…</string>
+    <string name="terminal_changed_dir">Diretoria alterada para: %s</string>
+    <string name="terminal_exit_code_format">Código de saída: %1$d | Tempo: %2$dms | UID: %3$s (%4$s)</string>
+    <string name="terminal_perm_level">Nível de permissão: %s</string>
+    <string name="terminal_uid_format">UID: %s</string>
+    <string name="terminal_perm_shizuku">Shizuku (Acesso Shell)</string>
+    <string name="terminal_perm_root">Acesso Root</string>
+    <string name="terminal_perm_limited">Contexto da App (Limitado)</string>
+    <string name="terminal_warning_limited">⚠ Permissões limitadas - alguns comandos podem falhar</string>
+    <string name="terminal_disconnected">Desligado do relógio</string>
+    <string name="toast_command_copied">Comando copiado!</string>
+    <string name="toast_root_shizuku_required">Root ou Shizuku necessário.</string>
+    <string name="toast_granting_restricted">A conceder definições restritas…</string>
+    <string name="toast_granting_perm">A conceder permissão…</string>
+    <string name="toast_grant_failed">Falhou (Código: %d). Tenta ADB.</string>
+    <string name="toast_grant_failed_simple">Falhou (Código: %d).</string>
+    <string name="toast_grant_success">Permissão concedida!</string>
+    <string name="toast_user_service_not_connected">UserService não ligado. Tenta novamente.</string>
+    <string name="toast_open_settings_error">Falha ao abrir definições</string>
+    <string name="perm_shizuku_connected">UserService ligado com sucesso</string>
+    <string name="perm_shizuku_disconnected">UserService desligado</string>
+    <string name="perm_shizuku_bind_error">Falha ao vincular UserService: %s</string>
+    <string name="perm_restricted_check_error">Erro de Verificação Restrita</string>
+    <string name="toast_open_settings">Abrir Definições</string>
+    <string name="perm_activate_shizuku">Ativar com Shizuku</string>
+    <string name="health_hr_unit"> bpm</string>
+    <string name="health_oxygen_unit">%%</string>
+    <string name="health_dist_unit">%.1f km</string>
+    <string name="health_calories_unit">%d</string>
+    <string name="health_hr_label">Frequência Cardíaca (bpm)</string>
+    <string name="health_oxygen_label">Oxigénio no Sangue (%%)</string>
+    <string name="health_button_stop">Parar</string>
+    <string name="health_button_measure">Medir</string>
+    <string name="health_no_recent_data">Sem dados recentes</string>
+    <string name="health_sensor_contact">A verificar contacto do sensor…</string>
+    <string name="health_hardware_error">Hardware ocupado ou erro</string>
+    <string name="health_tracker_not_installed">App de monitorização não instalada</string>
+    <string name="health_measure_timeout">Tempo de medição esgotado</string>
+    <string name="health_error_prefix">Erro: %s</string>
+    <string name="health_not_on_wrist">O relógio não está no pulso</string>
+    <string name="health_settings_api_error">Por favor, ativa \'Settings API\' nas definições da aplicação de saúde</string>
+    <string name="battery_charging_full">Cheia</string>
+    <string name="battery_charging">A carregar</string>
+    <string name="battery_discharging">A descarregar</string>
+    <string name="battery_calculating">A calcular…</string>
+    <string name="battery_until_full">%s até encher</string>
+    <string name="battery_remaining">%s restantes</string>
+    <string name="battery_current_unit">%.1f mA</string>
+    <string name="battery_voltage_unit">%d mV</string>
+    <string name="battery_temp_unit">%.1f °C</string>
+    <string name="battery_temp_placeholder">-- °C</string>
+    <string name="battery_capacity_placeholder">-- mAh</string>
+    <string name="battery_sort_usage_time">Tempo de Utilização</string>
+    <string name="battery_sort_power">Bateria Usada (mAh)</string>
+    <string name="battery_sort_speed">Velocidade de Consumo (mA)</string>
+    <string name="battery_sort_by">Ordenar por %s</string>
+    <string name="default_device_name">Relógio</string>
+    <string name="battery_label_level">Nível da Bateria</string>
+    <string name="battery_label_current">Corrente (mA)</string>
+    <string name="battery_no_history">Nenhum histórico disponível</string>
+    <string name="battery_notify_below">Notificar abaixo de %d%%</string>
+
+    <string name="file_manager">Gestor de Ficheiros</string>
+    <string name="file_downloading">A transferir Ficheiro</string>
+    <string name="file_getting_from_watch">A obter %s do relógio…</string>
+    <string name="file_uploading">A enviar Ficheiro</string>
+    <string name="file_sending_to_watch">A enviar %s para o relógio…</string>
+    <string name="file_upload_confirm_title">Enviar Ficheiro</string>
+    <string name="file_upload_confirm_desc">Enviar este ficheiro para a diretoria atual no relógio?</string>
+    <string name="file_button_upload">Enviar</string>
+    <string name="file_delete_confirm_title">Apagar %s?</string>
+    <string name="file_delete_confirm_desc">Tens a certeza de que queres apagar este %s?</string>
+    <string name="file_type_directory">diretoria</string>
+    <string name="file_type_regular">ficheiro</string>
+    <string name="file_button_delete">Apagar</string>
+    <string name="file_upload_success_title">Envio Concluído</string>
+    <string name="file_upload_success_desc">Ficheiro transferido com sucesso!</string>
+    <string name="file_download_success_title">Transferência Concluída</string>
+    <string name="file_download_success_desc">Ficheiro guardado na pasta Downloads</string>
+    <string name="file_error_transfer">Ocorreu um erro durante a transferência.</string>
+    <string name="file_error_no_app">Nenhuma aplicação encontrada para abrir este ficheiro</string>
+    <string name="file_error_open">Erro ao abrir ficheiro: %s</string>
+    <string name="file_error_parse">Erro ao analisar lista de ficheiros: %s</string>
+    <string name="file_info_dir">Diretoria | %s</string>
+    <string name="file_info_regular">%1$s | %2$s</string>
+    <string name="action_copy">Copiar</string>
+    <string name="action_move">Mover</string>
+    <string name="action_download">Transferir</string>
+    <string name="action_delete">Apagar</string>
+    <string name="action_paste">Colar Aqui</string>
+    <string name="action_select_all">Selecionar Tudo</string>
+    <string name="action_rename">Renomear</string>
+    <string name="rename_title">Renomear Ficheiro</string>
+    <string name="rename_message">Introduz o novo nome para %s:</string>
+    <string name="rename_error_empty">O nome não pode estar vazio</string>
+    <string name="file_renamed">Ficheiro renomeado</string>
+    <string name="msg_copied_clipboard">%d ficheiros copiados para a área de transferência</string>
+    <string name="msg_moved_clipboard">%d ficheiros selecionados para mover</string>
+    <string name="msg_paste_success">Ficheiros colados com sucesso</string>
+    <string name="toast_shutdown_received">Comando de desligar recebido</string>
+    <string name="toast_reboot_received">Comando de reiniciar recebido</string>
+
+
+    <string name="adb_command_label">Comando ADB</string>
+    <string name="mirror_stop">Parar Espelhamento</string>
+    <string name="mirror_start">Iniciar Espelhamento</string>
+    <string name="mirror_requesting_watch">A solicitar ecrã do relógio…</string>
+    <string name="mirror_view_watch">Ver Ecrã do Relógio</string>
+    <string name="mirror_enable_touch">Ativar Controlo Tátil</string>
+    <string name="mirror_enable_touch_desc">Permitir controlar o relógio com toque</string>
+    <string name="mirror_match_aspect">Corresponder Proporção</string>
+    <string name="mirror_match_aspect_desc">Ajustar forma do ecrã sem redimensionamento total</string>
+
+    <string name="wf_local">Local</string>
+    <string name="wf_transferring">A transferir %s…</string>
+    <string name="wf_transfer_complete">Transferência concluída</string>
+    <string name="wf_setting">A definir mostrador: %s</string>
+    <string name="wf_import_success">%s importado</string>
+    <string name="wf_import_fail">Falha na importação: %s</string>
+
+    <string name="wf_moving_to">A mover %1$s para %2$s</string>
+    <string name="wf_folder_name_hint">Nome da pasta</string>
+    <string name="wf_create_folder_title">Criar Pasta</string>
+    <string name="wf_button_create">Criar</string>
+    <string name="wf_button_delete">Apagar</string>
+    <string name="wf_upload">Enviar</string>
+    <string name="wf_delete_confirm_count">Tens a certeza de que queres apagar %d mostradores?</string>
+    <string name="wf_header_downloaded">Transferidos</string>
+    <string name="wf_rename_folder_title">Renomear Pasta</string>
+    <string name="wf_rename_title">Renomear</string>
+    <string name="wf_delete_fail">Falha ao apagar: %s</string>
+    <string name="wf_rename_fail">Renomeação falhou</string>
+    <string name="wf_rename_fail_with_msg">Renomeação falhou: %s</string>
+    <string name="wf_no_faces_on_watch">Nenhum mostrador encontrado no relógio</string>
+
+    <string name="label_on">Ativar</string>
+    <string name="label_off">Desativar</string>
+
+    <string name="alarm_no_alarms">Nenhum alarme definido</string>
+    <string name="perm_title_placeholder">Título da Permissão</string>
+    <string name="perm_desc_placeholder">Descrição de onde é usado.</string>
+
+    <string name="battery_title">Detalhes da Bateria</string>
+    <string name="battery_current_label">Corrente</string>
+    <string name="battery_voltage_label">Tensão</string>
+    <string name="battery_temp_label">Temperatura</string>
+    <string name="battery_history_title">Histórico de Carga</string>
+    <string name="battery_current_draw_title">Consumo de Corrente (mA)</string>
+    <string name="battery_notifications_title">Notificações</string>
+    <string name="battery_full_charge_alert">Alerta de Carga Completa</string>
+    <string name="battery_full_charge_desc">Notificar quando a bateria atingir 100%</string>
+    <string name="battery_low_charge_alert">Alerta de Bateria Fraca</string>
+    <string name="battery_low_charge_desc">Notificar abaixo de %d%%</string>
+    <string name="battery_low_charge_desc_placeholder">Notificar abaixo de 15%</string>
+    <string name="battery_detailed_logging">Registo Detalhado</string>
+    <string name="battery_detailed_logging_desc">Registar corrente e uso de aplicações a cada 2 minutos</string>
+    <string name="battery_top_usage_title">Top de Utilização de Apps (24h)</string>
+    <string name="battery_sort_by_time">Ordenar por Tempo</string>
+    <string name="battery_usage_empty_msg">As estatísticas de uso podem exigir permissão.\nConfiguradas nas definições do sistema do relógio.</string>
+
+    <string name="health_prev_date">Anterior</string>
+    <string name="health_next_date">Seguinte</string>
+    <string name="health_current_value">Valor Atual</string>
+    <string name="health_measure_button">Medir</string>
+    <string name="health_total_stats">Estatísticas Totais</string>
+    <string name="health_label_steps">Passos</string>
+    <string name="health_label_distance">Distância</string>
+    <string name="health_label_calories">Calorias</string>
+    <string name="health_label_min">Mín</string>
+    <string name="health_label_avg">Méd</string>
+    <string name="health_label_max">Máx</string>
+    <string name="health_hr_short">Frequência Cardíaca</string>
+    <string name="health_oxygen_short">SpO2</string>
+
+    <string name="wf_name_placeholder">Nome do Mostrador</string>
+    <string name="wf_folder_name_placeholder">Nome da Pasta</string>
+    <string name="app_name_placeholder">Nome da Aplicação</string>
+    <string name="app_package_placeholder">com.exemplo.app</string>
+    <string name="terminal_input_hint">Introduz o comando…</string>
+
+    <!-- Project-wide/Common Toast Message Updates -->
+    <string name="toast_bt_not_enabled">O Bluetooth não está ativado. Por favor, ativa-o e tenta novamente.</string>
+    <string name="toast_setup_redirect_missing_perms">A redirecionar para configuração: Permissões em falta</string>
+    <string name="toast_service_started">Serviço Iniciado</string>
+    <string name="toast_service_stopped">Serviço Parado</string>
+    <string name="toast_dnd_mins_sent_format">DND por %d minutos enviado</string>
+
+    <!-- Alarms -->
+    <string name="alarm_edit_title">Editar Alarme</string>
+    <string name="alarm_add_title">Adicionar Alarme</string>
+    <string name="alarm_set_time">Definir Hora</string>
+    <string name="alarm_name_hint">Nome do alarme</string>
+    <string name="alarm_repeat_on">Repetir em</string>
+    <string name="alarm_label_optional">Etiqueta (Opcional)</string>
+    <string name="alarm_save">Guardar</string>
+    <string name="alarm_cancel">Cancelar</string>
+    <string name="alarm_delete_title">Apagar Alarme</string>
+    <string name="alarm_delete_confirm">Apagar alarme às %s?</string>
+    <string name="alarm_delete">Apagar</string>
+    <string name="alarm_once">Uma vez</string>
+    <string name="alarm_day_short_mon">S</string>
+    <string name="alarm_day_short_tue">T</string>
+    <string name="alarm_day_short_wed">Q</string>
+    <string name="alarm_day_short_thu">Q</string>
+    <string name="alarm_day_short_fri">S</string>
+    <string name="alarm_day_short_sat">S</string>
+    <string name="alarm_day_short_sun">D</string>
+
+    <!-- Health Dialog -->
+    <string name="health_body_specs">Especificações Corporais</string>
+    <string name="health_age_years">Idade (anos)</string>
+    <string name="health_gender">Género</string>
+    <string name="health_height_cm">Altura (cm)</string>
+    <string name="health_weight_kg">Peso (kg)</string>
+    <string name="health_background_monitoring">Monitorização em Segundo Plano</string>
+    <string name="health_use_instant_steps">Usar Passos Instantâneos (Atividade Principal)</string>
+    <string name="health_monitoring_title">Monitorização de Saúde</string>
+
+    <!-- Notification Rules -->
+    <string name="notif_app_priority">Prioridade Mínima</string>
+    <string name="notif_app_priority_desc">Apenas encaminhar notificações com esta prioridade ou superior</string>
+    <string name="notif_app_is_nav">Aplicação de Navegação</string>
+    <string name="notif_app_is_nav_desc">Tratar como navegação (afeta HUD/Espelhamento)</string>
+    <string name="priority_any">Qualquer (Predefinido)</string>
+    <string name="priority_low">Baixa +</string>
+    <string name="priority_default">Predefinida +</string>
+    <string name="priority_high">Alta</string>
+    
+    <string name="rule_package_name">Nome do Pacote</string>
+    <string name="rule_select_app">Selecionar</string>
+    <string name="rule_mode">Modo</string>
+    <string name="rule_whitelist">Lista Branca</string>
+    <string name="rule_blacklist">Lista Negra</string>
+    <string name="rule_patterns_title">Filtros de Padrão (opcional)</string>
+    <string name="rule_patterns_desc">Deixar vazio para corresponder a todas as notificações da aplicação</string>
+    <string name="rule_no_rules_desc">Nenhuma regra configurada.\nToca em + para adicionar uma regra.</string>
+    <string name="rule_loading_apps">A carregar aplicações…</string>
+    <string name="rule_title_pattern_hint">Padrão do Título</string>
+    <string name="rule_content_pattern_hint">Padrão do Conteúdo</string>
+    <string name="label_edit">Editar</string>
+    <string name="label_delete">Apagar</string>
+    <string name="dialog_remove_device_title">Remover Dispositivo</string>
+    <string name="dialog_remove_device_message">Tens a certeza de que queres remover %s? Terás de o emparelhar novamente para o usar.</string>
+    <string name="dialog_remove_device_confirm">Remover</string>
+
+    <!-- Network Communications -->
+    <string name="menu_network_comms">Comunicações de Rede</string>
+    <string name="menu_network_comms_desc">Configurar definições LAN/Internet</string>
+    <string name="network_settings_title">Comunicações de Rede</string>
+    <string name="network_test_configuration">Testar Configuração</string>
+    <string name="internet_test_title">Teste de Configuração de Internet</string>
+    <string name="internet_test_start">Iniciar Teste</string>
+    <string name="internet_test_signaling">Sinalização</string>
+    <string name="internet_test_stun">STUN</string>
+    <string name="internet_test_turn">TURN</string>
+    <string name="internet_test_log_title">Registos do Teste</string>
+    <string name="internet_test_connecting_signaling">A ligar ao servidor de Sinalização: %s</string>
+    <string name="internet_test_signaling_ok">Sinalização: Ligação estabelecida</string>
+    <string name="internet_test_signaling_fail">Sinalização: Falha na ligação: %s</string>
+    <string name="internet_test_stun_gathering">A recolher candidatos para STUN: %s</string>
+    <string name="internet_test_stun_candidate">STUN: Candidato encontrado (%s)</string>
+    <string name="internet_test_stun_ok">STUN: Candidato srflx recolhido com sucesso</string>
+    <string name="internet_test_stun_fail">STUN: Recolha falhou</string>
+    <string name="internet_test_turn_gathering">A recolher candidatos para TURN: %s</string>
+    <string name="internet_test_turn_candidate">TURN: Candidato encontrado (%s)</string>
+    <string name="internet_test_turn_ok">TURN: Candidato relay recolhido com sucesso</string>
+    <string name="internet_test_turn_fail">TURN: Recolha falhou (verificar credenciais)</string>
+    <string name="network_activation_rules_title">Regras de Ativação LAN</string>
+    <string name="network_activation_desc">Escolher quando usar LAN em vez de Bluetooth</string>
+    <string name="network_rule_disabled">Desativado</string>
+    <string name="network_rule_bt_fallback">Quando Bluetooth desligado</string>
+    <string name="network_rule_bt_fallback_desc">Recorrer a LAN se Bluetooth falhar</string>
+    <string name="network_rule_mainactivity">Quando a App está aberta</string>
+    <string name="network_rule_mainactivity_desc">LAN para transferências de alta velocidade apenas</string>
+    <string name="network_rule_bt_or_app">Quando BT desligado OU App aberta</string>
+    <string name="network_rule_bt_or_app_desc">Ativar LAN em qualquer uma das condições</string>
+    <string name="network_rule_bt_lan_fallback">Quando BT e LAN desligados</string>
+    <string name="network_rule_bt_lan_fallback_desc">Recorrer quando ambos BT e LAN estão indisponíveis</string>
+    <string name="network_rule_always">Sempre ativado</string>
+    <string name="network_rule_always_desc">Preferir sempre LAN em vez de Bluetooth</string>
+    <string name="network_status_title">Estado da Ligação</string>
+    <string name="network_pair_for_internet">Emparelhar para LAN/Internet</string>
+    <string name="network_pair_desc">Trocar chaves de encriptação para comunicação segura LAN/Internet</string>
+    <string name="network_encryption_info_title">Ligação Segura</string>
+    <string name="network_encryption_info_message">Todas as mensagens através de LAN/Internet são encriptadas com encriptação AES-256-GCM.\n\nA tua comunicação é segura e privada.</string>
+    <string name="network_encryption_finish">Percebi</string>
+    <string name="network_current_wifi">Rede Atual</string>
+    <string name="network_not_on_wifi">Não ligado a nenhuma rede</string>
+    <string name="status_bt_wifi_connected">BT+LAN Ligado</string>
+    <string name="status_wifi_connected">LAN Ligado</string>
+    <string name="network_encryption_keys">Chaves de encriptação trocadas via emparelhamento Bluetooth</string>
+    <string name="network_advanced_settings_title">Definições Avançadas</string>
+    <string name="network_internet_settings_title">Definições de Internet</string>
+    <string name="network_internet_desc">Configurar quando a aplicação deve usar a internet para ligar ao relógio. Requer um Servidor de Sinalização.</string>
+    <string name="network_signaling_url_hint">URL do Servidor de Sinalização</string>
+    <string name="network_fixed_ip_enabled">Usar IP Fixo</string>
+    <string name="network_fixed_ip_desc">Ligar diretamente a IP sem mDNS (útil para VPNs/Zerotier)</string>
+    <string name="network_fixed_ip_hint">Introduz o endereço IP (ex.: 10.1.1.2)</string>
+    <string name="network_stun_url_hint">URL do Servidor STUN</string>
+    <string name="network_turn_url_hint">URL do Servidor TURN (turn:host:porto)</string>
+    <string name="network_turn_username_hint">Nome de Utilizador TURN</string>
+    <string name="network_turn_password_hint">Palavra-passe TURN</string>
+
+    <!-- OTA Manager -->
+    <string name="ota_no_internet">Sem ligação à internet</string>
+    <string name="ota_check_failed_server">Verificação de atualização falhou: Erro de servidor %d</string>
+    <string name="ota_check_failed_generic">Verificação de atualização falhou: %s</string>
+    <string name="ota_no_artifacts">Nenhum artefacto de atualização encontrado</string>
+    <string name="ota_parse_error">Falha ao analisar informações de atualização</string>
+    <string name="ota_up_to_date">Estás atualizado (v%s)</string>
+    <string name="ota_update_available_title">Atualização Disponível: v%s</string>
+    <string name="ota_btn_update">Atualizar</string>
+    <string name="ota_btn_later">Mais Tarde</string>
+    <string name="ota_btn_dont_ask">Não perguntar novamente</string>
+    <string name="ota_checks_disabled_toast">Verificações de atualização desativadas</string>
+    <string name="ota_downloading_phone_title">A transferir Atualização do Telemóvel</string>
+    <string name="ota_downloading_watch_title">A transferir Atualização do Relógio</string>
+    <string name="ota_download_started">Iniciado: %s</string>
+    <string name="ota_watch_downloaded_transferring">Atualização do relógio transferida. A enviar...</string>
+    <string name="ota_install_failed">Falha na instalação: %s</string>
+    <string name="ota_sending_to_watch">A enviar atualização para o relógio...</string>
+
+    <!-- About Activity -->
+    <string name="about_version_format">Versão %s</string>
+    <string name="about_version_unknown">Versão Desconhecida</string>
+    <string name="about_auto_updates_title">Atualizações Automáticas</string>
+    <string name="about_auto_updates_desc">Verificar atualizações ao iniciar a aplicação</string>
+    <string name="about_check_update_button">Verificar Atualizações Agora</string>
+    <string name="about_website_button">Site do Programador</string>
+
+    <!-- File Observer -->
+    <string name="notif_file_observer_title">Observador de Ficheiros</string>
+    <string name="notif_file_observer_desc">Monitorizar pastas para novos ficheiros</string>
+
+    <!-- About Menu -->
+    <string name="menu_about">Sobre</string>
+    <string name="menu_about_desc">Versão &amp; Atualizações</string>
+
+    <!-- File Manager Menu -->
+    <string name="action_refresh">Atualizar</string>
+
+    <!-- Main Activity -->
+    <string name="dnd_custom_duration_hint">Minutos</string>
+    
+    <!-- LAN Pairing Activity -->
+    <string name="pairing_title">Emparelhamento LAN</string>
+    <string name="pairing_step_key_exchange">Passo 1: A trocar chaves de encriptação</string>
+    <string name="pairing_step_discovery">Passo 2: A descobrir dispositivo na rede</string>
+    <string name="pairing_step_connecting">Passo 3: A ligar via LAN</string>
+    <string name="pairing_step_testing">Passo 4: A verificar ligação segura</string>
+    <string name="pairing_complete">Emparelhamento LAN Bem-sucedido!</string>
+    <string name="pairing_failed">Falha no Emparelhamento LAN</string>
+    <string name="pairing_close">Concluir</string>
+    <string name="pairing_retry">Tentar Novamente</string>
+    <string name="pairing_found_device">Dispositivo encontrado em: %s</string>
+    <string name="pairing_test_success">Encriptação bidirecional verificada</string>
+    <string name="pairing_error_no_key">Falha ao gerar chave de encriptação</string>
+    <string name="pairing_error_key_ack">Dispositivo rejeitou a chave ou tempo limite excedido</string>
+    <string name="pairing_error_discovery">Não foi possível encontrar o dispositivo na rede local</string>
+    <string name="pairing_error_wifi">Não foi possível estabelecer ligação LAN</string>
+    <string name="pairing_error_test">Falha na verificação da encriptação</string>
+    <string name="pairing_error_lost">Ligação perdida</string>
+    <string name="wifi_already_paired">LAN Já Emparelhada</string>
+    <string name="wifi_repair">Re-emparelhar</string>
+    <string name="network_hq_lan_enabled">Stream de Alta Qualidade em LAN</string>
+    <string name="network_hq_lan_desc">Usar maior qualidade/taxa de fotogramas para a câmara e espelho de ecrã quando ligado via LAN</string>
+    <string name="camera_shutter">Obturador</string>
+    <string name="camera_record">Gravar</string>
+    <string name="camera_record_started">Gravação iniciada</string>
+    <string name="camera_record_stopped">Gravação parada</string>
+    
+    <!-- Widgets -->
+    <string name="widget_status_name">Estado da Ligação</string>
+    <string name="widget_health_name">Cartão de Saúde</string>
+
+    <!-- Hardcoded String Extractions -->
+    <string name="file_info_header">Tamanho | Modificado</string>
+    <string name="wifi_ssid_header">Nome SSID</string>
+    <string name="rule_whitelist_label">LISTA BRANCA</string>
+    <string name="wifi_label_colon">WiFi:</string>
+    <string name="wifi_status_not_connected">Não Ligado</string>
+    <string name="device_watch">Relógio</string>
+    <string name="label_mirror">Espelho</string>
+    <string name="placeholder_dash_2">--</string>
+    <string name="placeholder_dash_3">---</string>
+    <string name="health_label_short">Saúde</string>
+    <string name="dnd_label">DND</string>
+    <string name="battery_percent_placeholder">--%</string>
+    <string name="wifi">WiFi</string>
+    <string name="find_watch_title">A encontrar Relógio</string>
+    <string name="label_signal_default">Sinal: --</string>
+    <string name="network_label_ble">BLE</string>
+    <string name="status_calculating">Distância: A calcular...</string>
+    <string name="status_last_updated_waiting">Última atualização: A aguardar...</string>
+    <string name="device_phone_you">Telemóvel (Tu)</string>
+    <string name="action_ring_watch">Tocar Relógio</string>
+    <string name="action_stop_finding">Parar Procura</string>
+    <string name="action_share_location">Abrir no Maps</string>
+    <string name="label_transport">Transporte</string>
+    <string name="network_label_bluetooth">Bluetooth</string>
+    <string name="network_label_lan">LAN</string>
+    <string name="network_label_internet">Internet</string>
+    <string name="status_standby">Em espera</string>
+    <string name="status_paused_rule">Pausado por regra</string>
+    <string name="network_active_format">Ativo: %s</string>
+    <string name="network_connected_via">Ligado via %s</string>
+    <string name="wifi_status_disconnected">Desligado</string>
+    <string name="wifi_status_disabled">Wifi Desligado</string>
+    <string name="wifi_status_no_permission">Sem Permissão</string>
+    <string name="network_details_title">Detalhes da Rede</string>
+    <string name="network_details_phone">Telemóvel</string>
+    <string name="network_details_watch">Relógio</string>
+    <string name="network_label_network">Rede</string>
+    <string name="network_label_ip">Endereço IP</string>
+    <string name="label_na">N/D</string>
+    <string name="label_unknown">Desconhecido</string>
+    <string name="network_server_config">Configuração do Servidor</string>
+
+    <string name="find_dist_bt">Distância: ~%sm (Bluetooth)</string>
+    <string name="find_dist_gps_km">Distância: %.2f km (GPS)</string>
+    <string name="find_dist_gps_m">Distância: %.0f m (GPS)</string>
+    <string name="find_dist_waiting">Distância: À espera de localização...</string>
+    <string name="find_rssi_excellent">Excelente</string>
+    <string name="find_rssi_good">Bom</string>
+    <string name="find_rssi_fair">Razoável</string>
+    <string name="find_rssi_weak">Fraco</string>
+    <string name="find_rssi_very_weak">Muito Fraco</string>
+    <string name="find_signal_format">Sinal: %1$s (%2$d dBm)</string>
+    <string name="action_ring_stop">Parar Toque</string>
+    <string name="find_updated_waiting">Última atualização: À espera de dados...</string>
+    <string name="find_updated_format">Última atualização: %ds atrás</string>
+
+    <string name="toast_lan_config">LAN: %s</string>
+    <string name="toast_internet_config">Internet: %s</string>
+    <string name="status_connecting">A ligar…</string>
+
+    <!-- Privacy Policy -->
+    <string name="privacy_policy_title">Política de Privacidade</string>
+    <string name="privacy_policy_content">Para fornecer funcionalidades de comunicação de rede, esta aplicação recolhe endereços MAC de ambos os dispositivos para fins de identificação.\n\nTodos os dados do utilizador são encriptados de ponta a ponta, e as chaves de encriptação são armazenadas apenas nos teus dispositivos e nunca são partilhadas com os nossos servidores.</string>
+    <string name="privacy_policy_agree">Concordo</string>
+    <string name="privacy_policy_decline">Recusar</string>
+    
+    <!-- Bluetooth Transport Mode -->
+    <string name="bluetooth_transport_title">Modo de Transporte Bluetooth</string>
+    <string name="bluetooth_transport_desc">Escolher como o teu telemóvel se liga ao relógio via Bluetooth</string>
+    <string name="bt_transport_classic">Bluetooth Clássico (RFCOMM)</string>
+    <string name="bt_transport_classic_desc">Bluetooth tradicional. Transferência de dados mais rápida, ligação mais estável.</string>
+    <string name="bt_transport_ble">Bluetooth Low Energy (BLE)</string>
+    <string name="bt_transport_ble_desc">Menor consumo de energia, maior alcance.</string>
+    
+    <!-- Navigation Overlay Settings -->
+    <string name="nav_settings_title">Definições de Navegação</string>
+    <string name="nav_image_type">Tipo de Imagem</string>
+    <string name="nav_image_none">Nenhum</string>
+    <string name="nav_image_large_icon">Ícone Grande</string>
+    <string name="nav_image_big_picture">Imagem Grande</string>
+    
+    <string name="nav_text_type">Tipo de Texto</string>
+    <string name="nav_text_title">Título</string>
+    <string name="nav_text_content">Conteúdo</string>
+    <string name="nav_text_both">Ambos</string>
+    
+    <string name="nav_keep_screen_on">Manter Ecrã Ligado</string>
+    <string name="nav_keep_screen_on_desc">Manter o ecrã ativo enquanto a navegação está ativa</string>
+    <string name="nav_force_grey_bg">Forçar Fundo Cinzento</string>
+    <string name="nav_force_grey_bg_desc">Garantir que ícones a preto e branco são visíveis</string>
+    <string name="btn_manage_navigation">Gerir Navegação</string>
+    <string name="notif_navigation_title">Sobreposição de Navegação</string>
+    <string name="notif_navigation_desc">Exibir informações de navegação em ecrã inteiro sobre outras aplicações</string>
+    <string name="sharing_sync_preparing">A preparar para enviar...</string>
+    <string name="widget_config_title">Configuração do Widget</string>
+    <string name="widget_update_interval">Intervalo de Atualização (Minutos)</string>
+    <string name="widget_update_interval_desc">Com que frequência os dados do widget são atualizados (Mínimo 15 min)</string>
+    <string name="widget_save_config">Guardar Configuração</string>
+    <string name="transfer_status">Estado da Transferência</string>
+    <string name="view_file">Ver Ficheiro</string>
+    <string name="manage_settings">Gerir Definições</string>
+    <string name="find_device_finding_you">O Relógio está a Encontrar-te</string>
+    <string name="find_device_alarm_playing">Alarme alto está a tocar neste telemóvel</string>
+    <string name="terminal_shizuku_access">Shizuku (Acesso Shell)</string>
+    <string name="terminal_limited_perms">⚠ Permissões limitadas</string>
+    <string name="wifi_pairing_ready">Pronto para emparelhar</string>
+    <string name="toast_photo_capture_failed">Falha na captura de foto</string>
+    <string name="toast_text_shared">Texto partilhado no relógio</string>
+    <string name="toast_nothing_to_share">Nada para partilhar</string>
+    <string name="toast_no_file_to_share">Nenhum ficheiro para partilhar</string>
+    <string name="toast_transfer_complete">Transferência concluída</string>
+    <string name="toast_error_prefix">Erro: %s</string>
+    <string name="toast_min_interval_error">O intervalo mínimo é de 15 minutos</string>
+    <string name="toast_config_saved">Configuração Guardada</string>
+    <string name="btn_send_to_watch">Enviar para o Relógio</string>
+    <string name="initializing">A inicializar...</string>
+    <string name="no_apps_found">Nenhuma aplicação encontrada</string>
+    <string name="blacklisted_apps_title">Aplicações na Lista Negra</string>
+    <string name="di_settings_title">Definições da Dynamic Island</string>
+    <string name="di_auto_hide_always_show">Mostrar Sempre</string>
+    <string name="di_auto_hide_always_hide">Ocultar Sempre</string>
+    <string name="di_auto_hide_blacklisted">Ocultar em Apps na Lista Negra</string>
+    <string name="di_general_title">Geral</string>
+    <string name="di_general_desc">Escolher como as notificações são exibidas</string>
+    <string name="di_features_title">Ativação de Funcionalidades</string>
+    <string name="di_features_desc">Quando desativado, as funcionalidades usam notificações Android padrão</string>
+    <string name="di_show_calls_title">Mostrar Chamadas Telefónicas</string>
+    <string name="di_show_calls_desc">Exibir chamadas recebidas na Dynamic Island</string>
+    <string name="di_show_alarms_title">Mostrar Alarmes</string>
+    <string name="di_show_alarms_desc">Exibir notificações de alarme na Dynamic Island</string>
+    <string name="di_show_disconnect_title">Mostrar Notificação de Desconexão</string>
+    <string name="di_show_disconnect_desc">Exibir evento de desconexão na Dynamic Island</string>
+    <string name="di_show_media_title">Mostrar Controlos Multimédia</string>
+    <string name="di_show_media_desc">Exibir controlos de reprodução multimédia na Dynamic Island</string>
+    <string name="di_auto_hide_title">Comportamento de Ocultação Automática</string>
+    <string name="di_mode_label">Modo</string>
+    <string name="di_hide_with_notifs_title">Ocultar Mesmo Com Notificações Ativas</string>
+    <string name="di_hide_with_notifs_desc">Ocultar a Dynamic Island em apps na lista negra mesmo que haja notificações</string>
+    <string name="di_manage_blacklist">Gerir Aplicações na Lista Negra</string>
+    <string name="di_timeout_unit_seconds">%d segundos</string>
+    <string name="di_timeout_seconds">segundos</string>
+    <string name="error_location_disabled">Os serviços de localização estão desativados. Por favor, ativa a localização para usar Encontrar Dispositivo.</string>
+    <string name="di_close">Fechar</string>
+    <string name="di_clear_all">Limpar Tudo</string>
+    <string name="di_reply_hint">Escreve uma resposta…</string>
+    <string name="di_reply_to">Responder a %s</string>
+    <string name="di_send">Enviar</string>
+    <string name="di_cancel">Cancelar</string>
+    <string name="notification_phone_disconnected_title">Desligado</string>
+    <string name="notification_phone_disconnected_text">O telemóvel está fora de alcance ou desligado</string>
+
+    <!-- Notification Settings -->
+    <string name="notif_sim_title">Notificação de Teste</string>
+    <string name="notif_sim_text">Esta é uma notificação simulada das definições do RTOSify.</string>
+    <string name="notif_sim_sent">Notificação simulada enviada</string>
+    <string name="notif_sim_error">Erro ao enviar simulação: %1$s</string>
+
+    <!-- File Observer Settings -->
+    <string name="fo_delete_rule_title">Apagar Regra</string>
+    <string name="fo_delete_rule_msg">Tens a certeza de que queres apagar \'%1$s\'?</string>
+    <string name="fo_btn_delete">Apagar</string>
+    <string name="fo_btn_cancel">Cancelar</string>
+    <string name="fo_btn_save">Guardar</string>
+    <string name="fo_edit_rule_title">Editar Regra</string>
+    <string name="fo_add_rule_title">Adicionar Nova Regra</string>
+    <string name="fo_error_path_req">O caminho é obrigatório</string>
+    <string name="fo_error_type_req">Seleciona pelo menos um tipo de ficheiro</string>
+    <string name="fo_pick_icon_title">Selecionar Ícone da Aplicação</string>
+    <string name="fo_pick_icon_storage">Escolher do Armazenamento</string>
+    <string name="fo_pick_icon_clear">Limpar Ícone</string>
+    <string name="fo_error_no_picker">Nenhum seletor de imagem disponível</string>
+    <string name="fo_error_load_image">Falha ao carregar imagem</string>
+    <string name="fo_toolbar_title">Regras do Observador de Ficheiros</string>
+    <string name="fo_empty_state">Nenhuma regra adicionada. Toca em + para adicionar.</string>
+    <string name="fo_fab_add_rule">Adicionar Regra</string>
+    <string name="fo_hint_directory_path">Caminho da Diretoria</string>
+    <string name="fo_hint_pick_folder">Escolher Pasta</string>
+    <string name="fo_hint_notification_title">Título Personalizado da Notificação</string>
+    <string name="fo_icon_label">Ícone Personalizado (Opcional)</string>
+    <string name="fo_btn_choose_icon">Escolher Ícone</string>
+    <string name="fo_file_types_label">Tipos de Ficheiro a Observar:</string>
+    <string name="fo_type_image">Imagem</string>
+    <string name="fo_type_video">Vídeo</string>
+    <string name="fo_type_audio">Áudio</string>
+    <string name="fo_type_text">Texto</string>
+    <string name="fo_switch_recursive">Análise Recursiva</string>
+    <string name="fo_switch_send_to_watch">Enviar Ficheiro Completo para o Relógio (Auto)</string>
+    <string name="fo_send_to_watch_hint">Se desativado, apenas o texto da notificação é enviado.</string>
+
+    <!-- Bluetooth Service Status -->
+    <string name="status_wifi_off">Wifi Desligado</string>
+    <string name="status_wifi_error">Erro Wifi</string>
+    <string name="error_invalid_mac">Endereço MAC do dispositivo inválido</string>
+    <!-- File Manager Extras -->
+    <string name="file_requesting_preview">A solicitar pré-visualização...</string>
+    <string name="file_queue_added">Adicionado à fila (%d)</string>
+    <string name="file_transfer_processing">A processar %1$d/%2$d</string>
+    <string name="file_read_error">Falha ao ler ficheiro: %s</string>
+    <string name="file_transfer_cancelled">Transferência cancelada</string>
+    <string name="file_preview_error">Erro ao descodificar imagem</string>
+    <string name="file_preview_empty">Pré-visualização vazia recebida</string>
+    <string name="file_delete_confirm_multi">Tens a certeza de que queres apagar estes %d itens?</string>
+    <string name="file_rename_error">Renomeação falhou</string>
+    <string name="percent_format">%d%%</string>
+    <string name="di_global_opacity">Opacidade Global</string>
+
+    <!-- Network Settings Extras -->
+    <string name="network_bt_mode_changed">Modo Bluetooth: %s\nReliga para aplicar alterações</string>
+
+    <!-- Watch Face Extras -->
+    <string name="wf_import_failed_files">Falha ao importar ficheiros</string>
+    <string name="wf_transfer_failed">Falha na transferência</string>
+    <string name="percent_100">100%</string>
+    
+    <!-- Permission Extras -->
+    <string name="toast_native_bypass_enabled">Bypass de acesso nativo ativado</string>
+    <string name="toast_native_bypass_error">Falha no bypass de acesso nativo: Dispositivo incompatível</string>
+    <string name="perm_native_bypass_title">Bypass de Acesso Nativo</string>
+    <string name="perm_native_bypass_desc">Permitir acesso direto a Android/data (Experimental)</string>
+    <string name="perm_manage_storage_title">Gerir Todos os Ficheiros</string>
+    <string name="perm_manage_storage_desc">Usado para a funcionalidade de observador de ficheiros</string>
+    <string name="perm_overlay">Sobrepor a outras aplicações</string>
+    <string name="perm_overlay_desc">Necessário para iniciar atividades em segundo plano</string>
+    
+    <!-- Internet Test Extras -->
+    <string name="itest_candidate_found">Candidato encontrado: %s</string>
+    <string name="itest_timeout">Tempo limite excedido à espera de candidatos</string>
+    <string name="itest_stun_gathering_complete">Recolha STUN concluída</string>
+    <string name="itest_turn_gathering_complete">Recolha TURN concluída</string>
+    <string name="itest_start">A iniciar teste de conectividade à Internet...</string>
+    <string name="itest_target_mac">MAC do Dispositivo Alvo: %s</string>
+    <string name="itest_turn_skip">A saltar teste TURN (não configurado)</string>
+    <string name="itest_finish">Teste concluído.</string>
+
+
+    <string name="itest_ice_state">Estado ICE: %s</string>
+    <string name="itest_gathering_state">Estado da Recolha: %s</string>
+
+
+
+    <string name="health_value_format_no_decimals">%.0f</string>
+    <string name="battery_value_zero">0</string>
+
+
+
+    <!-- Dynamic Island Background Extras -->
+    <string name="di_bg_preview_user">Dynamic Island</string>
+    <string name="di_bg_preview_text">Texto de notificação de demonstração</string>
+    <string name="di_bg_toast_load_failed">Falha ao carregar imagem</string>
+    <string name="di_bg_toast_select_first">Por favor, seleciona primeiro uma imagem de fundo</string>
+    <string name="di_bg_toast_success">Fundo guardado e a sincronizar...</string>
+    <string name="di_bg_toast_service_disconnected">Serviço desligado. Reinicia o Bluetooth.</string>
+    <string name="toast_sent_to_watch">Definições enviadas para o relógio</string>
+
+    <string name="battery_time_m">%dm</string>
+    <string name="battery_time_h_m">%1$dh %2$dm</string>
+    <string name="di_blacklist_title">Aplicações na Lista Negra</string>
+
+    <string name="battery_history_hour_format">há %dh</string>
+    <string name="battery_percent_format">%d%%</string>
+
+
+
+    <string name="status_na">N/D</string>
+    <string name="file_selected_count">%d Selecionados</string>
+    <string name="file_items_count">%d itens</string>
+    <string name="file_size_0">0 B</string>
+    <string name="unit_b">B</string>
+    <string name="unit_kb">KB</string>
+    <string name="unit_mb">MB</string>
+    <string name="unit_gb">GB</string>
+    <string name="unit_tb">TB</string>
+    <string name="btn_close">Fechar</string>
+    <string name="btn_cancel">Cancelar</string>
+    <string name="btn_ok">OK</string>
+    <string name="wf_imported">Importado</string>
+    <string name="wf_other">Outro</string>
+    <string name="wf_root">&lt;raiz&gt;</string>
+    <string name="symbol_forward">›</string>
+    <string name="symbol_up">↑</string>
+    <string name="symbol_slash">/</string>
+    <string name="msg_error_loading_files">Erro ao carregar ficheiros</string>
+    <string name="msg_deleted_files">%d ficheiros apagados</string>
+
+    <!-- About Activity Extras -->
+    <string name="about_title">Sobre o RTOSify</string>
+
+    <!-- WiFi Pairing Extras -->
+    <string name="lbl_text_size_timeout">Tamanho do Texto e Tempo Limite</string>
+    <string name="status_checking">A verificar…</string>
+    <string name="lbl_vibration_strength">Intensidade da Vibração</string>
+    <string name="vibration_off">Desligada</string>
+    <string name="vibration_low">Baixa</string>
+    <string name="vibration_med">Média</string>
+    <string name="vibration_high">Alta</string>
+    <string name="lbl_vibration_pattern">Padrão de Vibração</string>
+    <string name="about_copyright">© 2026 AI LIFE. Todos os direitos reservados.</string>
+    <string name="about_companion_version_format">Companheiro: %s</string>
+    <string name="about_credit_label">Projeto Original:</string>
+    <string name="about_credit_original">projeto original de @GMB8281</string>
+    <string name="about_credit_original_link">https://gitlab.com/GMB8281/MarinovWatch</string>
+    <string name="ota_no_changelog">Nenhum registo de alterações disponível</string>
+    <string name="notif_only_chat_title">Permitir apenas notificações de chat</string>
+    <string name="notif_only_chat_desc">Apenas encaminhar notificações de estilo de mensagens</string>
+    <string name="lbl_rule_name">Nome da Regra</string>
+    <string name="lbl_rule_type_desc">Imagem, Vídeo (Recursivo)</string>
+    <string name="btn_use_this_folder">Usar Esta Pasta</string>
+    <!-- Video Helper -->
+    <string name="video_helper_title">Ajudante Vídeos Curtos</string>
+    <string name="video_helper_desc">Controlar aplicações de vídeos curtos a partir do relógio com gestos</string>
+    <string name="video_helper_settings_title">Definições do Ajudante Vídeos Curtos</string>
+    <string name="video_helper_swipes">Controlo por Deslizes</string>
+    <string name="video_helper_swipes_desc">Mapear deslizes do relógio para ações no telemóvel</string>
+    <string name="video_helper_tap">Controlo por Toque</string>
+    <string name="video_helper_tap_desc">Mapear toque no relógio para ações no telemóvel</string>
+    <string name="video_helper_hold">Controlo por Pressão &amp; Manter</string>
+    <string name="video_helper_hold_desc">Mapear pressão longa no relógio para ações no telemóvel</string>
+    <string name="video_helper_mapping_dpad">Teclas DPAD (Cima/Baixo)</string>
+    <string name="video_helper_mapping_swipe">Deslizes no Ecrã</string>
+    <string name="video_helper_mapping_none">Nenhum</string>
+    <string name="video_helper_mapping_media">Reproduzir/Pausa Multimédia</string>
+    <string name="video_helper_mapping_tap">Toque no Ecrã</string>
+    <string name="video_helper_mapping_key">Tecla Multimédia</string>
+    <string name="video_helper_double_tap">Controlo por Toque Duplo</string>
+    <string name="video_helper_double_tap_desc">Mapear toque duplo no relógio para ações no telemóvel</string>
+    <string name="video_helper_special_tap">Sequência de Toque Especial</string>
+    <string name="video_helper_special_tap_desc">Tocar uma vez e depois manter para ativar controlo de velocidade</string>
+    <string name="video_helper_mapping_center">Centro do Ecrã</string>
+    <string name="video_helper_mapping_right">Lado Direito</string>
+    <string name="video_helper_mapping_speed_control">Controlo de Velocidade (2.0x)</string>
+
+    <string name="vibration_pattern_default">Predefinido</string>
+    <string name="vibration_pattern_double_click">Duplo Clique</string>
+    <string name="vibration_pattern_long">Longo</string>
+    <string name="vibration_pattern_heartbeat">Batimento Cardíaco</string>
+    <string name="vibration_pattern_tick">Tique</string>
+    <string name="toast_requesting_ringtone_picker">A solicitar seletor de toque no relógio...</string>
+
+</resources>
+
