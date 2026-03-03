@@ -26,6 +26,10 @@ class DIBlacklistActivity : AppCompatActivity() {
     private lateinit var searchEdit: EditText
     private lateinit var showSystemAppsSwitch: MaterialSwitch
     private lateinit var adapter: DIBlacklistAdapter
+    private lateinit var btnSelectAll: View
+    private lateinit var btnSelectNone: View
+    private lateinit var btnInvertSelection: View
+    private lateinit var layoutLoadingApps: View
     
     private lateinit var devicePrefManager: DevicePrefManager
     private val activePrefs: SharedPreferences
@@ -47,6 +51,7 @@ class DIBlacklistActivity : AppCompatActivity() {
         override fun onServiceConnected(name: android.content.ComponentName?, service: android.os.IBinder?) {
             bluetoothService = (service as? BluetoothService.LocalBinder)?.getService()
             // Request apps once bound
+            layoutLoadingApps.visibility = View.VISIBLE
             bluetoothService?.requestWatchApps()
         }
 
@@ -83,6 +88,7 @@ class DIBlacklistActivity : AppCompatActivity() {
         }
 
         initViews()
+        setupSelectionButtons()
         setupSearch()
         setupSystemAppsToggle()
         setupRecyclerView()
@@ -92,6 +98,46 @@ class DIBlacklistActivity : AppCompatActivity() {
         recyclerView = findViewById(R.id.recyclerViewApps)
         searchEdit = findViewById(R.id.editTextSearch)
         showSystemAppsSwitch = findViewById(R.id.switchShowSystemApps)
+        btnSelectAll = findViewById(R.id.btnSelectAll)
+        btnSelectNone = findViewById(R.id.btnSelectNone)
+        btnInvertSelection = findViewById(R.id.btnInvertSelection)
+        layoutLoadingApps = findViewById(R.id.layoutLoadingApps)
+    }
+
+    private fun setupSelectionButtons() {
+        btnSelectAll.setOnClickListener {
+            bulkUpdateBlacklist { set ->
+                set.addAll(adapter.apps.map { it.packageName })
+            }
+        }
+        btnSelectNone.setOnClickListener {
+            bulkUpdateBlacklist { set ->
+                set.removeAll(adapter.apps.map { it.packageName }.toSet())
+            }
+        }
+        btnInvertSelection.setOnClickListener {
+            bulkUpdateBlacklist { set ->
+                adapter.apps.forEach { app ->
+                    if (set.contains(app.packageName)) {
+                        set.remove(app.packageName)
+                    } else {
+                        set.add(app.packageName)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun bulkUpdateBlacklist(updateAction: (MutableSet<String>) -> Unit) {
+        val currentBlacklist = activePrefs.getStringSet("di_blacklist_apps", emptySet())?.toMutableSet() ?: mutableSetOf()
+        updateAction(currentBlacklist)
+        activePrefs.edit().putStringSet("di_blacklist_apps", currentBlacklist).apply()
+
+        // Sync to watch
+        bluetoothService?.syncDynamicIslandSettings()
+        
+        // Refresh UI
+        adapter.reloadBlacklistedPackages(currentBlacklist)
     }
 
     private fun setupSearch() {
@@ -136,6 +182,7 @@ class DIBlacklistActivity : AppCompatActivity() {
     }
 
     private fun onAppsReceived(json: String) {
+        layoutLoadingApps.visibility = View.GONE
         try {
             val jsonArray = org.json.JSONArray(json)
             val apps = mutableListOf<AppInfo>()
@@ -189,10 +236,4 @@ class DIBlacklistActivity : AppCompatActivity() {
     }
 
 
-    data class AppInfo(
-        val name: String,
-        val packageName: String,
-        val icon: String?,
-        val isSystemApp: Boolean
-    )
 }

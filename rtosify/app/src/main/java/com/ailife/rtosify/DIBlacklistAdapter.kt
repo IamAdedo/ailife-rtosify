@@ -11,13 +11,19 @@ import android.util.Base64
 import androidx.recyclerview.widget.RecyclerView
 
 class DIBlacklistAdapter(
-    private var apps: List<DIBlacklistActivity.AppInfo>,
+    var apps: List<AppInfo>,
     private val blacklistedPackages: MutableSet<String>,
     private val onBlacklistChanged: (String, Boolean) -> Unit
 ) : RecyclerView.Adapter<DIBlacklistAdapter.ViewHolder>() {
 
-    fun updateList(newApps: List<DIBlacklistActivity.AppInfo>) {
+    fun updateList(newApps: List<AppInfo>) {
         apps = newApps
+        notifyDataSetChanged()
+    }
+
+    fun reloadBlacklistedPackages(newBlacklist: Set<String>) {
+        blacklistedPackages.clear()
+        blacklistedPackages.addAll(newBlacklist)
         notifyDataSetChanged()
     }
 
@@ -40,7 +46,7 @@ class DIBlacklistAdapter(
         private val appIcon: ImageView = itemView.findViewById(R.id.ivAppIcon)
         private val checkbox: MaterialCheckBox = itemView.findViewById(R.id.checkboxBlacklist)
 
-        fun bind(app: DIBlacklistActivity.AppInfo) {
+        fun bind(app: AppInfo) {
             appName.text = app.name
             packageName.text = app.packageName
             

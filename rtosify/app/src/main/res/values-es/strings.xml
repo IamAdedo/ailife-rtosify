@@ -632,8 +632,10 @@
     <string name="action_move">Mover</string>
     <string name="action_download">Descargar</string>
     <string name="action_delete">Eliminar</string>
-    <string name="action_paste">Pegar aquí</string>
     <string name="action_select_all">Seleccionar todo</string>
+    <string name="action_select_none">Seleccionar nada</string>
+    <string name="action_invert_selection">Invertir selección</string>
+    <string name="action_paste">Pegar aquí</string>
     <string name="action_rename">Renombrar</string>
     <string name="rename_title">Renombrar archivo</string>
     <string name="rename_message">Ingresa el nuevo nombre para %s:</string>

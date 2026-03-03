@@ -634,6 +634,8 @@
     <string name="action_delete">Delete</string>
     <string name="action_paste">Paste Here</string>
     <string name="action_select_all">Select All</string>
+    <string name="action_select_none">Select None</string>
+    <string name="action_invert_selection">Invert Selection</string>
     <string name="action_rename">Rename</string>
     <string name="rename_title">Rename File</string>
     <string name="rename_message">Enter new name for %s:</string>

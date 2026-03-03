@@ -24,6 +24,9 @@ class NotificationAppListActivity : AppCompatActivity() {
     private lateinit var editTextSearch: com.google.android.material.textfield.TextInputEditText
     private lateinit var switchShowSystemApps: MaterialSwitch
     private lateinit var layoutLoadingApps: View
+    private lateinit var btnSelectAll: View
+    private lateinit var btnSelectNone: View
+    private lateinit var btnInvertSelection: View
 
     private lateinit var devicePrefManager: DevicePrefManager
     private lateinit var globalPrefs: SharedPreferences
@@ -53,6 +56,7 @@ class NotificationAppListActivity : AppCompatActivity() {
         setupRecyclerView()
         setupSearch()
         setupSystemAppsToggle()
+        setupSelectionButtons()
 
         loadInstalledApps()
     }
@@ -70,6 +74,43 @@ class NotificationAppListActivity : AppCompatActivity() {
         editTextSearch = findViewById(R.id.editTextSearch)
         switchShowSystemApps = findViewById(R.id.switchShowSystemApps)
         layoutLoadingApps = findViewById(R.id.layoutLoadingApps)
+        btnSelectAll = findViewById(R.id.btnSelectAll)
+        btnSelectNone = findViewById(R.id.btnSelectNone)
+        btnInvertSelection = findViewById(R.id.btnInvertSelection)
+    }
+
+    private fun setupSelectionButtons() {
+        btnSelectAll.setOnClickListener {
+            bulkUpdateAllowed { set ->
+                set.addAll(appAdapter.currentList.map { it.packageName })
+            }
+        }
+        btnSelectNone.setOnClickListener {
+            bulkUpdateAllowed { set ->
+                set.removeAll(appAdapter.currentList.map { it.packageName }.toSet())
+            }
+        }
+        btnInvertSelection.setOnClickListener {
+            bulkUpdateAllowed { set ->
+                appAdapter.currentList.forEach { app ->
+                    if (set.contains(app.packageName)) {
+                        set.remove(app.packageName)
+                    } else {
+                        set.add(app.packageName)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun bulkUpdateAllowed(updateAction: (MutableSet<String>) -> Unit) {
+        val currentAllowed = activePrefs.getStringSet("allowed_notif_packages", emptySet())?.toMutableSet()
+                ?: mutableSetOf()
+        updateAction(currentAllowed)
+        activePrefs.edit().putStringSet("allowed_notif_packages", currentAllowed).apply()
+
+        // Refresh adapter
+        appAdapter.reloadAllowedPackages()
     }
 
     private var searchJob: Job? = null

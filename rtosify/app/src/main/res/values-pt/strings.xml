@@ -634,6 +634,8 @@
     <string name="action_delete">Apagar</string>
     <string name="action_paste">Colar Aqui</string>
     <string name="action_select_all">Selecionar Tudo</string>
+    <string name="action_select_none">Selecionar Nenhum</string>
+    <string name="action_invert_selection">Inverter Seleção</string>
     <string name="action_rename">Renomear</string>
     <string name="rename_title">Renomear Ficheiro</string>
     <string name="rename_message">Introduz o novo nome para %s:</string>

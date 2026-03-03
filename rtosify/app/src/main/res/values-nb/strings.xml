@@ -634,6 +634,8 @@
     <string name="action_delete">Slett</string>
     <string name="action_paste">Lim inn her</string>
     <string name="action_select_all">Velg alle</string>
+    <string name="action_select_none">Velg ingen</string>
+    <string name="action_invert_selection">Inverter valg</string>
     <string name="action_rename">Gi nytt navn</string>
     <string name="rename_title">Gi nytt navn til fil</string>
     <string name="rename_message">Skriv inn nytt navn for %s:</string>

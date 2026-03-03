@@ -1166,6 +1166,8 @@
     <string name="action_delete">删除</string>
     <string name="action_paste">粘贴到此处</string>
     <string name="action_select_all">全选</string>
+    <string name="action_select_none">全不选</string>
+    <string name="action_invert_selection">反选</string>
     <string name="action_rename">重命名</string>
     <string name="rename_title">重命名文件</string>
     <string name="rename_message">输入 %s 的新名称：</string>
