@@ -1,0 +1,581 @@
+<resources>
+    <string name="app_name">RTOSify-følgesvenn</string>
+
+    <string name="app_title">RTOSify</string>
+
+    <string name="status_searching">Søker…</string>
+    <string name="status_waiting">Venter…</string>
+    <string name="status_connected">Tilkoblet</string>
+    <string name="status_disconnected">Frakoblet</string>
+    <string name="status_stopped">Stoppet</string>
+    <string name="status_starting">Starter…</string>
+    <string name="status_verifying">Verifiserer…</string>
+    <string name="device_name_default">Enhet</string>
+
+    <string name="toast_watch_not_connected">Klokke er ikke tilkoblet.</string>
+    <string name="toast_bt_not_connected">Bluetooth er ikke tilkoblet</string>
+
+    <string name="phone_settings_title">Voluminnstillinger</string>
+    <string name="ringer_mode_title">Ringemodus</string>
+    <string name="ringer_mode_normal">Normal</string>
+    <string name="ringer_mode_vibrate">Vibrer</string>
+    <string name="ringer_mode_silent">Lydløs</string>
+    <string name="dnd_title">Ikke forstyrr</string>
+    <string name="volume_title">Volum</string>
+    <string name="loading_phone_settings">Laster innstillinger…</string>
+    <string name="error_loading_settings">Kunne ikke laste innstillinger</string>
+    <string name="toast_command_sent">Kommando sendt</string>
+    <string name="toast_upload_failed">Opplasting mislyktes.</string>
+    <string name="volume_channel_media">Media</string>
+    <string name="volume_channel_ring">Ringetone</string>
+    <string name="volume_channel_notification">Varsel</string>
+    <string name="volume_channel_alarm">Alarm</string>
+    <string name="volume_channel_system">System</string>
+
+    <string name="dnd_on">DND PÅ</string>
+    <string name="dnd_off">DND AV</string>
+    <string name="dnd_normal">Normal</string>
+
+    <string name="battery_placeholder">—%</string>
+
+    <string name="wifi_verifying">Verifiserer</string>
+    <string name="wifi_placeholder">---</string>
+
+    <string name="menu_disconnect">Koble fra</string>
+    <string name="menu_disconnect_desc">Stopp Bluetooth-tjeneste</string>
+    <string name="menu_connect">Koble til</string>
+    <string name="menu_connect_desc">Start tjeneste og koble til</string>
+    <string name="menu_mirroring">Skjermspeiling</string>
+    <string name="menu_mirroring_desc">Overfør skjerm og fjernstyr</string>
+    <string name="menu_reset_all">Tilbakestill alt</string>
+    <string name="menu_reset_all_desc">Tøm innstillinger og gå tilbake til start</string>
+    <string name="menu_notification_log">Varslingslogg</string>
+    <string name="menu_notification_log_desc">Se de siste 30 varslene</string>
+    <string name="notification_log_title">Varslingslogg</string>
+    <string name="notification_log_empty">Ingen varsler registrert</string>
+    <string name="notification_log_clear">Tøm logg</string>
+    <string name="dialog_reset_all_title">Tilbakestill alle innstillinger?</string>
+    <string name="dialog_reset_all_message">Dette vil slette alle innstillinger og gå tilbake til startsiden. Vil du fortsette?</string>
+    <string name="dialog_reset_all_confirm">Tilbakestill alt</string>
+    <string name="dialog_reset_all_cancel">Avbryt</string>
+
+    <string name="dialog_upload_apk_title">Send APK?</string>
+    <string name="dialog_upload_apk_message">Vil du installere denne appen på klokken?</string>
+    <string name="dialog_upload_apk_send">Send</string>
+    <string name="dialog_upload_apk_cancel">Avbryt</string>
+
+    <string name="dialog_shutdown_title">Slå av smartklokke?</string>
+    <string name="dialog_shutdown_message">Smartklokken vil bli fullstendig slått av.\n\nVil du fortsette?</string>
+    <string name="dialog_shutdown_confirm">Slå av</string>
+    <string name="dialog_shutdown_cancel">Avbryt</string>
+
+    <string name="dialog_select_watch_title">Velg klokke</string>
+    <string name="device_no_name">Uten navn</string>
+
+    <string name="upload_transferring">Overfører fil…</string>
+    <string name="upload_complete_title">Overføring fullført</string>
+    <string name="upload_complete_message">Filoverføring vellykket!</string>
+
+    <string name="welcome_permission_title">Tillatelse nødvendig.</string>
+    <string name="welcome_permission_message">For å vise SSID-en til Wi-Fi-nettverket som smartklokken er koblet til, kreves utvidet lokasjonstillatelse. For å gjøre dette, velg \'Tillat hele tiden\' på neste skjermbilde.</string>
+    <string name="welcome_permission_understood">Forstått</string>
+    <string name="welcome_permission_not_now">Ikke nå</string>
+
+    <string name="welcome_configuring">Konfigurerer…</string>
+    <string name="welcome_preparing">Vennligst vent mens vi klargjør klokken din.</string>
+
+    <string name="welcome_bt_not_supported">Denne enheten støtter ikke Bluetooth</string>
+    <string name="welcome_qr_scan_instruction">Skann denne QR-koden på telefonen din</string>
+    <string name="welcome_bt_disabled">Bluetooth er deaktivert. Vennligst aktiver det.</string>
+    <string name="welcome_pairing_waiting">Skann QR-koden på telefonen din\nVenter på sammenkobling…</string>
+    <string name="welcome_qr_gen_error">Kunne ikke generere QR-kode</string>
+    <string name="welcome_finish">Fullfør</string>
+
+    <string name="notification_apk_received_title">APK mottatt</string>
+    <string name="notification_apk_received_text">Trykk for å installere</string>
+    <string name="notification_config_required_title">Oppsett nødvendig</string>
+    <string name="notification_config_required_text">Trykk for å tillate installasjon</string>
+    <string name="notification_error_title">Feil</string>
+    <string name="notification_service_title">Smartklokke</string>
+    <string name="notification_phone_disconnected_title">Telefon frakoblet</string>
+    <string name="notification_phone_disconnected_text">Forbindelsen med telefonen din ble brutt.</string>
+
+    <string name="status_no_phone_found">Ingen telefon funnet.</string>
+    <string name="status_connecting_to">Kobler til %s…</string>
+    <string name="status_connected_to">Tilkoblet %s</string>
+    <string name="status_open_app_phone">Åpne appen på telefonen din og prøv igjen.</string>
+    <string name="applist_error_processing">Feil ved behandling av data.</string>
+
+    <string name="applist_title">Installerte apper</string>
+    <string name="applist_loading_layout">Laster liste…</string>
+    <string name="notif_settings_title">Varsler</string>
+    <string name="notif_mirroring_title">Speiling</string>
+    <string name="notif_mirroring_desc">Send varsler til klokken</string>
+    <string name="title_activity_mirror_settings">Speilingsinnstillinger</string>
+    <string name="notif_permission_required">Lesetillatelse nødvendig</string>
+    <string name="notif_permission_desc">Appen må lese systemvarsler for å sende dem til klokken. Trykk nedenfor for å løse dette.</string>
+    <string name="notif_grant_access">Gi tilgang</string>
+    <string name="notif_apps_title">Apper</string>
+    <string name="notif_apps_loading">Laster apper…</string>
+
+    <string name="perm_title">Tillatelser</string>
+    <string name="perm_granted">Gitt</string>
+    <string name="perm_not_granted">Ikke gitt</string>
+    
+    <string name="perm_bluetooth">Bluetooth</string>
+    <string name="perm_bluetooth_desc">Nødvendig for å skanne og koble til.</string>
+    
+    <string name="perm_install">Installer ukjente apper</string>
+    <string name="perm_install_desc">Brukes til å installere apper fra telefonen.</string>
+    
+    <string name="perm_shizuku">Shizuku</string>
+    <string name="perm_shizuku_desc">Brukes for å få tilgang til alle filer, synkronisere utklippstavle, slå av/starte enheten på nytt, kontrollere wifi/mobildata/bluetooth, installere/avinstallere apper, osv.</string>
+    
+    <string name="perm_root">Root-tilgang</string>
+    <string name="perm_root_desc">erstatter Shizuku mer permanent.</string>
+
+    <string name="perm_location">Stedstjenester</string>
+    <string name="perm_location_desc">Brukes til å lese WiFi SSID og finne enhet.</string>
+    <string name="perm_location_bg">Sted i bakgrunnen</string>
+    <string name="perm_location_bg_desc">Tillater lesing av WiFi SSID og finne enhet i bakgrunnen.</string>
+
+    <string name="find_watch_alarm_title">Finner klokke…</string>
+    <string name="find_watch_alarm_message">Høy lyd spilles. Trykk stopp når du finner den.</string>
+    <string name="find_watch_alarm_stop">Stopp</string>
+    <string name="menu_find_phone">Finn telefon</string>
+    <string name="menu_find_phone_desc">Finn tilkoblet telefon via kart</string>
+    <string name="menu_phone_settings">Voluminnstillinger</string>
+    <string name="menu_phone_settings_desc">Kontroller telefonens ringetone, DND og volum</string>
+    <string name="menu_phone_not_found">Telefon ikke tilkoblet</string>
+    <string name="dialog_find_watch_message">Dette vil spille en høy alarm på telefonen.</string>
+    <string name="dialog_find_watch_start">Start</string>
+    <string name="dialog_find_watch_stop">Stopp</string>
+
+    <string name="ringtone_picker_title">Velg varsellyd</string>
+    <string name="reply_label">Svar</string>
+    <string name="action_reply">Svar</string>
+    <string name="action_dismiss">Avvis</string>
+    <string name="reply_sender_me">Meg</string>
+    
+    <string name="perm_storage">Lagringstilgang</string>
+    <string name="perm_storage_desc">Brukes for å navigere og administrere filer.</string>
+    
+    <string name="perm_post_notif">Publiser varsler</string>
+    <string name="perm_post_notif_desc">Nødvendig for å vise Android-stilvarsler på klokken.</string>
+    
+    <string name="perm_dnd">Tilgang til Ikke forstyrr</string>
+    <string name="perm_dnd_desc">Brukes til å synkronisere DND-status mellom enheter.</string>
+
+    <string name="perm_calendar">Kalendersynkronisering</string>
+    <string name="perm_calendar_desc">Tillater lagring av mottatte hendelser i systemkalenderen.</string>
+    
+    <string name="perm_contacts">Kontaktsynkronisering</string>
+    <string name="perm_contacts_desc">Tillater lagring av mottatte kontakter i systemkontaktene.</string>
+
+    <string name="menu_dialer">Oppringing</string>
+    <string name="menu_dialer_desc">Foreta telefonsamtaler</string>
+    <string name="dialer_call">Ring</string>
+    <string name="dialer_delete">Slett</string>
+    <string name="dialer_calling">Ringer %s…</string>
+    <string name="nav_keypad">Tastatur</string>
+    <string name="nav_contacts">Kontakter</string>
+    <string name="search_contacts_hint">Søk etter kontakter…</string>
+
+    <string name="perm_watchface">Katalog for klokkeskjermer</string>
+    <string name="perm_watchface_desc">Nødvendig for å administrere og bruke klokkeskjermer direkte.</string>
+
+    <string name="perm_nearby_wifi">WiFi-enheter i nærheten</string>
+    <string name="perm_nearby_wifi_desc">Brukes til transport via LAN.</string>
+    
+    <string name="perm_accessibility">Tilgjengelighetstjeneste</string>
+    <string name="perm_accessibility_desc">Brukes til å styre klokkens skjerm fra telefonen.</string>
+    <string name="accessibility_service_description">Tillater RTOSify-følgesvenn å styre klokkens skjerm fra telefonen</string>
+
+    <string name="perm_usage_stats">Brukstilgang</string>
+    <string name="perm_usage_stats_desc">Brukes til å vise batteribruk per app.</string>
+
+    <string name="perm_battery">Batterioptimalisering</string>
+    <string name="perm_battery_desc">Hjelper appen å kjøre i bakgrunnen.</string>
+
+    <string name="perm_restricted_title">Begrenset innstilling</string>
+    <string name="perm_restricted_desc">Denne innstillingen er begrenset av Android av sikkerhetshensyn. Du må aktivere den manuelt via ADB.\n\nKommando kopiert til utklippstavlen.</string>
+
+    <string name="perm_go_restricted_title">Begrenset tillatelse (Go Edition)</string>
+    <string name="perm_go_restricted_desc">Denne tillatelsen er begrenset i Android Go Edition. Du kan prøve å aktivere den likevel eller bruke manuelle metoder.</string>
+    <string name="perm_button_try_anyways">Prøv likevel</string>
+    <string name="perm_button_copy_adb">Kopier ADB-kommando</string>
+    <string name="perm_button_grant_root_shizuku">Aktiver med Root/Shizuku</string>
+
+    <string name="bt_name_format">BT: %s</string>
+
+    <string name="remote_monitor_title">Fjernovervåking og kontroll</string>
+    <string name="remote_mirror_phone">Speil klokke til telefon</string>
+    <string name="remote_mirror_phone_desc">Overfør skjermen fra denne klokken til telefonen din</string>
+    <string name="remote_control_watch">Kontroller telefon fra klokke</string>
+    <string name="remote_control_watch_desc">Se og kontroller telefonskjermen din fra denne klokken</string>
+    <string name="remote_res_matching">Oppløsningstilpasning</string>
+    <string name="remote_res_matching_desc">Juster automatisk telefonens oppløsning for å matche klokkens sideforhold under kontroll</string>
+
+    <string name="round_screen_warning_title">Enhetskompatibilitet</string>
+    <string name="round_screen_warning_message">Rund skjerm oppdaget. Appen er ikke optimalisert for enheten din og funksjoner vil ikke fungere korrekt. Vennligst aktiver \'square inset\'-modus i enhetsinnstillingene for å sikre at innhold vises riktig.</string>
+    <string name="round_screen_warning_exit">Avslutt</string>
+    <string name="round_screen_warning_continue">Fortsett likevel</string>
+
+    <string name="perm_write_settings">Skriv systeminnstillinger</string>
+    <string name="perm_write_settings_desc">Brukes til å endre wifi-innstillinger.</string>
+    <string name="perm_overlay">Vis over andre apper</string>
+    <string name="perm_overlay_desc">Brukes for Dynamic Island-varseloverlegg.</string>
+    <string name="perm_battery_stats">Batteristatistikk</string>
+    <string name="perm_battery_stats_desc">Brukes for å få tilgang til faktisk batteriforbruk per app (Android 12+)</string>
+    <string name="perm_dump">System-dump</string>
+    <string name="perm_dump_desc">Brukes for direkte tilgang til systemstatistikk for robuste data (Metode 2)</string>
+    <string name="perm_lock_screen">Vis på låseskjerm</string>
+    <string name="perm_lock_screen_desc">Brukes for Dynamic Island på låseskjerm (Xiaomi/MIUI)</string>
+    <string name="perm_toast_lock_screen_instruction">Aktiver \'Vis på låseskjerm\' i Tillatelser</string>
+    <string name="perm_dialog_activation_method">Velg aktiveringsmetode:</string>
+    <string name="perm_button_activate_shizuku">Aktiver med Shizuku</string>
+    <string name="perm_toast_command_copied">Kommando kopiert! Kjør den på datamaskinen din.</string>
+    <string name="perm_toast_root_shizuku_required">Root eller Shizuku kreves.</string>
+    <string name="perm_toast_granting">Gir %1$s…</string>
+    <string name="perm_toast_user_service_not_connected">UserService ikke tilkoblet. Prøv igjen.</string>
+    <string name="perm_toast_granted">Tillatelse gitt!</string>
+    <string name="perm_toast_failed">Mislyktes (Kode: %1$d). Prøv via ADB.</string>
+
+    <string name="perm_toast_failed_open_settings">Kunne ikke åpne innstillinger</string>
+    <string name="perm_toast_command_copied_simple">Kommando kopiert!</string>
+
+    <string name="wifi_status_disconnected">Frakoblet</string>
+    <string name="wifi_status_disabled">WiFi deaktivert</string>
+    <string name="wifi_status_no_permission">Ingen tillatelse</string>
+    <string name="status_no_permission">Ingen tillatelse</string>
+    <string name="wifi_status_error">WiFi-feil</string>
+    <string name="wifi_status_connected">Tilkoblet</string>
+    <string name="toast_watch_face_set">Klokkeskjerm satt: %1$s</string>
+    <string name="toast_clipboard_updated">✅ Utklippstavle oppdatert på klokken</string>
+    <string name="toast_failed_update_clipboard">❌ Kunne ikke oppdatere utklippstavle: %1$s</string>
+    <string name="status_scanning">Skanner…</string>
+    <string name="status_started">Startet</string>
+    <string name="notif_main_icon_set">Hovedikon satt for varsel</string>
+    <string name="notif_messaging_style_applied">MessagingStyle brukt med %1$d meldinger</string>
+    <string name="notif_error_decoding_small_icon">Feil ved dekoding av lite ikon: %1$s</string>
+    <string name="notif_decoding_big_picture">Dekoder stort bilde: %1$d tegn</string>
+    <string name="notif_big_picture_decoded">Stort bilde dekodet: %1$dx%2$d</string>
+    <string name="notif_error_decoding_big_picture">Feil ved dekoding av stort bilde: %1$s</string>
+    <string name="notif_refreshed_locally">Varsel oppdatert lokalt for nøkkel: %1$s</string>
+    <string name="notif_executing_action">Utfører varselhandling: %1$s for varsel: %2$s</string>
+    <string name="notif_vibrate_failed">Kunne ikke vibrere: %1$s</string>
+    <string name="notif_screen_wake_requested">Skjermvekking forespurt via SCREEN_BRIGHT_WAKE_LOCK</string>
+    <string name="notif_error_waking_screen">Feil ved vekking av skjerm: %1$s</string>
+    <string name="notif_sending_reply">Sender varselsvar: \'%1$s\' for varsel: %2$s</string>
+    <string name="notif_dynamic_island_sent">Varsel sendt til Dynamic Island: %1$s</string>
+    <string name="notif_dynamic_island_service_started">DynamicIslandService startet</string>
+    <string name="notif_dynamic_island_service_stopped">DynamicIslandService stoppet</string>
+    <string name="notif_dynamic_island_service_start_failed">Kunne ikke starte DynamicIslandService: %1$s</string>
+    <string name="notif_dynamic_island_service_stop_failed">Kunne ikke stoppe DynamicIslandService: %1$s</string>
+    <string name="notif_dynamic_island_no_overlay_perm">Kunne ikke starte DynamicIslandService: Overleggstillatelse ikke gitt</string>
+    <string name="bt_service_destroying">BluetoothService blir ødelagt…</string>
+    <string name="bt_error_unbinding_user_service">Feil ved oppheving av binding til UserService: %1$s</string>
+    <string name="bt_error_decoding_base64_bitmap">Feil ved dekoding av base64-bitmap: %1$s</string>
+    <string name="bt_error_generating_preview">Feil ved generering av forhåndsvisning for %1$s: %2$s</string>
+    <string name="bt_successfully_copied_temp">Kopiert til midlertidig fil: %1$s, størrelse: %2$d</string>
+    <string name="bt_failed_copy_temp">Kunne ikke kopiere til midlertidig fil eller filen finnes ikke. kopiert=%1$b</string>
+    <string name="bt_error_load_restricted_bitmap">Kunne ikke laste bitmap fra begrenset bane %1$s: %2$s</string>
+    <string name="bt_shizuku_copy_attempt">Prøver Shizuku-kopi for ZIP-forhåndsvisning: %1$s -> %2$s</string>
+    <string name="bt_shizuku_copy_result">Shizuku-kopiresultat: %1$b</string>
+    <string name="bt_shizuku_copy_failed">Shizuku-kopi mislyktes</string>
+    <string name="bt_error_copy_remote_zip">Kunne ikke kopiere ekstern ZIP for forhåndsvisning: %1$s</string>
+    <string name="bt_error_extract_zip_preview">Feil ved utpakking av ZIP-forhåndsvisning: %1$s</string>
+    <string name="bt_error_foreground_app">Feil ved henting av app i forgrunnen: %1$s</string>
+    <string name="bt_starting_battery_history">Starter batterihistorikksporing. Detaljert: %1$b, Intervall: %2$dms</string>
+    <string name="bt_error_saving_battery_history">Feil ved lagring av batterihistorikk: %1$s</string>
+    <string name="bt_handling_battery_live">Håndterer direktedata for batteri</string>
+    <string name="bt_error_live_battery">Feil ved innsamling av direktedata for batteri: %1$s</string>
+    <string name="bt_handling_battery_static">Håndterer statiske batteridata</string>
+    <string name="bt_error_static_battery">Feil ved innsamling av statiske batteridata: %1$s</string>
+    <string name="bt_error_usage_stats_permission">Feil ved spørring av bruksstatistikk (sannsynlig manglende tillatelse): %1$s</string>
+    <string name="bt_success_reflection_stats">Suksess: Batteristatistikk hentet via refleksjon</string>
+    <string name="bt_error_reflection_stats">BatteryStatsManager via refleksjon mislyktes, prøver neste metode: %1$s</string>
+    <string name="bt_attempting_system_health">Prøver SystemHealthManager (Metode 2)…</string>
+    <string name="bt_requesting_health_snapshots">Ber om HealthStats for %1$d UID-er…</string>
+    <string name="bt_system_health_empty">SystemHealthManager returnerte gyldig statistikk, men kartet er tomt etter filtrering.</string>
+    <string name="bt_success_system_health">Suksess: Hentet %1$d elementer via SystemHealthManager</string>
+    <string name="bt_error_system_health">SystemHealthManager mislyktes: %1$s</string>
+    <string name="bt_skipping_system_health">Hopper over Metode 2: BATTERY_STATS-tillatelse ikke gitt.</string>
+    <string name="bt_attempting_direct_dumpsys">Prøver direkte dumpsys batterystats (Metode 3)…</string>
+    <string name="bt_success_direct_dumpsys">Suksess: Batteristatistikk hentet via direkte dumpsys</string>
+    <string name="bt_failed_direct_dumpsys">Direkte dumpsys mislyktes eller er tomt (Utdata: %1$d, Str: %2$d)</string>
+    <string name="bt_error_direct_dumpsys">Direkte dumpsys mislyktes: %1$s</string>
+    <string name="bt_skipping_direct_dumpsys">Hopper over Metode 3: DUMP-tillatelse ikke gitt.</string>
+    <string name="bt_attempting_shizuku_dumpsys">Prøver dumpsys via Shizuku/Root (Metode 4)…</string>
+    <string name="bt_success_shizuku_dumpsys">Suksess: Batteristatistikk hentet via Shizuku</string>
+    <string name="bt_error_shizuku_dumpsys">Dumpsys via Shizuku mislyktes: %1$s</string>
+    <string name="bt_success_root_dumpsys">Suksess: Batteristatistikk hentet via Root</string>
+    <string name="bt_error_root_dumpsys">Dumpsys via Root mislyktes: %1$s</string>
+    <string name="bt_fake_data_warning">BRUKER SIMULERTE BATTERIDATA!</string>
+    <string name="bt_fake_data_reason">Kunne ikke hente faktisk batteristatistikk via API, direkte dumpsys, Shizuku eller Root.</string>
+    <string name="bt_fake_data_estimated">Verdiene vist nedenfor er ESTIMERT basert på forgrunnstid + tilfeldig variasjon.</string>
+    <string name="bt_fake_data_log">BRUKER FAKE DATA for %1$s: Dreneringsrate=%2$f mAh/t, Estimert effekt=%3$f mAh</string>
+    <string name="bt_error_power_profile">Feil ved henting av kapasitet via PowerProfile: %1$s</string>
+    <string name="bt_error_capacity_dimen">Feil ved henting av kapasitet via dimensjoner: %1$s</string>
+    <string name="bt_incoming_call">Innkommende anrop: %1$s (%2$s)</string>
+    <string name="bt_call_state_changed">Anropsstatus endret: %1$s</string>
+    <string name="bt_mirror_start">Speiling start: isRequest=%1$b, bredde=%2$d, høyde=%3$d, modus=%4$s</string>
+    <string name="bt_mirror_request_received">Speilingsforespørsel mottatt: %1$dx%2$d modus=%3$s</string>
+    <string name="bt_mirror_aspect_matching">Sideforholdstilpasning: Fysisk=%1$dx%2$d, Målforhold=%3$f</string>
+    <string name="bt_mirror_setting_res">Setter oppløsning til %1$dx%2$d (modus=%3$s)</string>
+    <string name="bt_mirror_refresh_signal">Speiling kjører, sender oppdateringssignal</string>
+    <string name="bt_mirror_remote_res_change">Mottatt ekstern oppløsningsendring: %1$dx%2$d</string>
+    <string name="bt_incoming_mirror_stream">Innkommende speilingsstrøm: %1$dx%2$d</string>
+    <string name="bt_mirror_frame_received">Speilingsramme mottatt: størrelse=%1$dB, nøkkelramme=%2$b</string>
+    <string name="bt_forwarding_touch_event">Videresender berøringshendelse til tilgjengelighetstjeneste: handling=%1$d, x=%2$f, y=%3$f</string>
+    <string name="bt_executing_shell">Utfører shell-kommando: %1$s</string>
+    <string name="bt_shell_already_running">Kommando kjører allerede for økt %1$s</string>
+    <string name="bt_shell_command_completed">Kommando fullført (UID: %1$d)</string>
+    <string name="bt_error_executing_command">Feil ved utføring av kommando: %1$s</string>
+    <string name="bt_canceling_shell">Avbryter shell-kommando: %1$s</string>
+    <string name="bt_handling_permission_info">Håndterer forespørsel om tillatelsesinfo</string>
+    <string name="bt_permission_info_sent">Tillatelsesinfo sendt: nivå=%1$s, uid=%2$d</string>
+    <string name="bt_error_permission_info">Feil ved henting av tillatelsesinfo: %1$s</string>
+    <string name="sync_calendar_toast">Synkroniserte %1$d nye kalenderhendelser til systemet</string>
+    <string name="sync_calendar_error">Feil ved lagring av kalenderhendelser: %1$s</string>
+    <string name="sync_contacts_toast">Synkroniserte %1$d nye kontakter til systemet</string>
+    <string name="sync_contacts_error">Feil ved lagring av kontakter: %1$s</string>
+    <string name="perm_write_calendar_denied">WRITE_CALENDAR-tillatelse ikke gitt</string>
+    <string name="perm_write_contacts_denied">WRITE_CONTACTS-tillatelse ikke gitt</string>
+    <string name="calendar_no_system_found">Ingen systemkalender funnet for lagring</string>
+    <string name="reset_app_stopped">Bluetooth-tjeneste stoppet</string>
+    <string name="notif_channel_disconnection_alert">Frakoblingsvarsel</string>
+    <string name="notif_channel_apk">APK-er</string>
+    <string name="notif_channel_wait">Vedvarende varsel - venter på tilkobling</string>
+    <string name="notif_channel_connected">Vedvarende varsel - tilkoblet</string>
+    <string name="notif_channel_mirrored">Telefonvarsler</string>
+    <string name="menu_media_control">Mediekontroll</string>
+    <string name="menu_media_control_desc">Kontroller telefonavspilling</string>
+    <string name="menu_alarms">Alarmer</string>
+    <string name="menu_alarms_desc">Administrer alarmer</string>
+    <string name="alarm_no_alarms">Ingen alarmer</string>
+    <string name="menu_camera">Kamera</string>
+    <string name="menu_camera_desc">Fjernutløser</string>
+    <string name="toast_service_started">Tjeneste startet</string>
+    <string name="toast_service_stopped">Tjeneste stoppet</string>
+    <string name="toast_phone_not_connected">Telefon ikke tilkoblet</string>
+    <string name="status_connecting">Kobler til…</string>
+    <string name="alarm_add_title">Legg til alarm</string>
+    <string name="alarm_edit_title">Rediger alarm</string>
+    <string name="alarm_save">Lagre</string>
+    <string name="alarm_cancel">Avbryt</string>
+    <string name="alarm_delete_title">Slett alarm</string>
+    <string name="alarm_delete_message">Slett alarm kl. %1$s?</string>
+    <string name="alarm_delete_confirm">Slett</string>
+    <string name="alarm_once">Én gang</string>
+    <string name="alarm_set_time">Still tid</string>
+    <string name="alarm_repeat">Gjenta</string>
+    <string name="alarm_label">Etikett</string>
+    <string name="alarm_name_hint">Alarmnavn</string>
+    <string name="alarm_label_hint">Alarmetikett</string>
+    <string name="alarm_day_monday_short">M</string>
+    <string name="alarm_day_tuesday_short">T</string>
+    <string name="alarm_day_wednesday_short">O</string>
+    <string name="alarm_day_thursday_short">T</string>
+    <string name="alarm_day_friday_short">F</string>
+    <string name="alarm_day_saturday_short">L</string>
+    <string name="alarm_day_sunday_short">S</string>
+    <string name="alarm_dismiss">Avvis</string>
+    <string name="alarm_snooze">Slumre</string>
+    <string name="alarm_notification_title">Alarm</string>
+    <string name="alarm_notification_ringing">Alarmen ringer</string>
+    <string name="alarm_channel_name">Alarmer</string>
+    <string name="alarm_channel_desc">Alarmvarsler</string>
+    <string name="call_incoming">Innkommende anrop</string>
+    <string name="call_reject">Avvis</string>
+    <string name="call_answer">Svar</string>
+    <string name="call_unknown">Ukjent</string>
+    <string name="camera_waiting_video">Venter på video…</string>
+    <string name="camera_shutter">Utløser</string>
+    <string name="camera_viewfinder">Søker</string>
+    <string name="alarm_snooze_10min">Slumre (10 min)</string>
+    <string name="alarm_default_label">Våkn opp</string>
+    <string name="mirror_start">Start speiling</string>
+    <string name="mirror_control_phone">Kontroller telefon</string>
+    <string name="mirror_enable_touch">Aktiver berøring</string>
+    <string name="mirror_res_matching">Oppl.tilpasning</string>
+    <string name="mirror_aspect_match">Sideforholdstilp.</string>
+    <string name="welcome_btn_finished">Oppsett fullført</string>
+    <string name="welcome_btn_already_paired">Allerede paret</string>
+    <string name="main_bt_prefix">BT: %1$s</string>
+    <string name="main_turn_service_on">Slå på tjeneste</string>
+    <string name="main_service">Tjeneste</string>
+    <string name="dialer_empty_number">Tomt nummer</string>
+    <string name="main_bt_placeholder">BT: ---</string>
+    <string name="call_answered">Besvart</string>
+    <string name="toast_not_connected">Ikke tilkoblet</string>
+    <string name="media_vol_label">VOL</string>
+    <string name="media_btn_play">Spill</string>
+    <string name="media_vol_up_desc">Øk volum</string>
+    <string name="media_vol_down_desc">Senk volum</string>
+    <string name="media_play_pause_desc">Spill/Pause</string>
+    <string name="media_prev_desc">Forrige spor</string>
+    <string name="media_next_desc">Neste spor</string>
+    <string name="media_album_art_desc">Albumkunst</string>
+    <string name="media_no_media">Ingen media spilles</string>
+    <string name="media_unknown_artist">Ukjent artist</string>
+    <string name="menu_video_helper">Kortvideo-assistent</string>
+    <string name="menu_video_helper_desc">Bevegelseskontroll for videoer</string>
+    <string name="video_helper_title">Kortvideo-assistent</string>
+    <string name="video_helper_tutorial">Veiledning</string>
+    <string name="video_helper_gesture_active">Bevegelsesgjenkjenning aktiv</string>
+    <string name="video_helper_tutorial_swipe_up">Sveip OPP: Neste video</string>
+    <string name="video_helper_tutorial_swipe_down">Sveip NED: Forrige video</string>
+    <string name="video_helper_tutorial_tap">Ett trykk: Spill/Pause</string>
+    <string name="video_helper_tutorial_double_tap">Dobbeltrykk: Lik</string>
+    <string name="video_helper_tutorial_desc">Utfør bevegelser på skjermen for å kontrollere telefonen</string>
+    <string name="mirror_stop">Stopp speiling</string>
+    <string name="mirror_requesting">Ber om telefonskjerm…</string>
+    <string name="status_phone_not_connected">Telefon ikke tilkoblet</string>
+    <string name="status_phone_connected">Tilkoblet telefon</string>
+    <string name="mirror_notif_title">Skjermspeiling</string>
+    <string name="mirror_notif_text">Speiler skjerm…</string>
+    
+    <string name="di_close">Lukk</string>
+    <string name="di_clear_all">Tøm alle</string>
+    <string name="di_reply_hint">Skriv svaret ditt…</string>
+    <string name="di_reply_to">Svar til %1$s</string>
+    <string name="di_send">Send</string>
+    <string name="di_cancel">Avbryt</string>
+    <string name="di_channel_name">Dynamic Island</string>
+    <string name="di_channel_desc">Dynamic Island-varseloverlegg</string>
+    <string name="di_active_title">Dynamic Island aktiv</string>
+    <string name="di_active_desc">Viser varsler</string>
+    <string name="di_alarm_triggered">Alarm</string>
+    <string name="network_stun_url_hint">STUN-server-URL</string>
+    <string name="network_turn_url_hint">TURN-server-URL (turn:vert:port)</string>
+    <string name="network_turn_username_hint">TURN-brukernavn</string>
+    <string name="network_turn_password_hint">TURN-passord</string>
+    <string name="camera_record">Ta opp</string>
+    <string name="widget_media_name">Mediekontroll</string>
+    <string name="widget_dashboard_name">Dashbord</string>
+    <string name="title_notification_history">Varslingshistorikk</string>
+    <string name="text_no_notifications">Ingen nylige varsler</string>
+
+    <string name="find_phone_title">Finner telefon</string>
+    <string name="label_signal">Signal: --</string>
+    <string name="status_calculating">Beregner…</string>
+    <string name="status_last_updated_waiting">Sist oppdatert: Venter…</string>
+    <string name="device_phone">Telefon</string>
+    <string name="device_watch">Klokke</string>
+    <string name="action_ring_phone">Ring telefon</string>
+    <string name="action_stop_finding">Slutt å lete</string>
+    <string name="label_transport">Transport</string>
+    <string name="label_transport_bt">BT</string>
+    <string name="label_link">Lenke</string>
+    <string name="label_mirror">Speil</string>
+    <string name="label_volume">Volum</string>
+    <string name="label_plus">+</string>
+    <string name="label_minus">-</string>
+    <string name="media_album_art">Albumkunst</string>
+    <string name="media_volume_label">VOLUM</string>
+    <string name="media_no_media_short">Ingen media</string>
+    <string name="battery_percent_placeholder">--%</string>
+    <string name="label_not_connected">Ikke tilkoblet</string>
+    <string name="media_time_placeholder">0:00</string>
+
+    <string name="find_device_watch_you">Klokke (deg)</string>
+    <string name="find_device_dist_bt">Avstand: ~%sm (Bluetooth)</string>
+    <string name="find_device_dist_gps_km">Avstand: %.2f km (GPS)</string>
+    <string name="find_device_dist_gps_m">Avstand: %.0f m (GPS)</string>
+    <string name="find_device_dist_waiting">Avstand: Venter på posisjon…</string>
+    <string name="find_device_signal_format">Signal: %1$s (%2$d dBm)</string>
+    <string name="find_device_rssi_excellent">Utmerket</string>
+    <string name="find_device_rssi_good">God</string>
+    <string name="find_device_rssi_fair">Akseptabel</string>
+    <string name="find_device_rssi_weak">Svak</string>
+    <string name="find_device_rssi_very_weak">Veldig svak</string>
+    <string name="find_device_updated_format">Sist oppdatert: %ds siden</string>
+    <string name="action_ring_stop">Slutt å ringe</string>
+    <string name="action_open_maps">Åpne i Kart</string>
+
+    <string name="transport_bt">BT</string>
+    <string name="transport_ble">BLE</string>
+    <string name="transport_lan">LAN</string>
+    <string name="transport_internet">Internett</string>
+    <string name="status_connected_via">Tilkoblet via %s</string>
+    <string name="automation_sharing_sync_title">Synkroniser deling</string>
+    <string name="sharing_sync_preparing">Klargjør for sending…</string>
+    <string name="transfer_status">Overføringsstatus</string>
+    <string name="view_file">Vis fil</string>
+    <string name="btn_send_to_phone">Send til telefon</string>
+    <string name="toast_text_shared_phone">Tekst delt med telefonen</string>
+    <string name="toast_nothing_to_share">Ingenting å dele</string>
+    <string name="toast_no_file_to_share">Ingen fil å dele</string>
+    <string name="toast_transfer_complete">Overføring fullført</string>
+    <string name="toast_error_prefix">Feil: %s</string>
+    <string name="toast_install_failed">Kunne ikke starte installasjon: %s</string>
+    <string name="toast_shutdown_received">Avslutningskommando mottatt</string>
+    <string name="toast_reboot_received">Omstartskommando mottatt</string>
+    <string name="toast_lock_received">Ultrabatterisparing aktivert</string>
+    <string name="toast_find_device">Finn enhet: %s</string>
+    <string name="toast_uninstalled">Avinstallert: %s</string>
+    <string name="toast_uninstalling">Avinstallerer: %s</string>
+    <string name="camera_front">Front</string>
+    <string name="camera_back">Bak</string>
+    <string name="call_end">Avslutt samtale</string>
+    <string name="upload_apk_title">Sender APK</string>
+    <string name="upload_to_watch">Overfører fil til klokken…</string>
+    <string name="upload_to_phone">Overfører fil til telefonen…</string>
+    <string name="upload_receiving_from_phone">Mottar fra telefonen…</string>
+    <string name="upload_sending_to_phone">Sender til telefonen…</string>
+    <string name="initializing">Initialiserer…</string>
+    <string name="error_location_disabled">Stedstjenester deaktivert. Aktiver sted for å bruke Finn enhet.</string>
+    
+    <string name="title_activity_watch_automation">Klokkeautomatisering</string>
+    <string name="menu_watch_automation">Klokkeautomatisering</string>
+    <string name="menu_watch_automation_desc">Innstillinger for tjenestens keepalive</string>
+    <string name="automation_keepalive_title">Aggressiv keepalive</string>
+    <string name="automation_keepalive_desc">Starter tjenester periodisk på nytt hvert 5. minutt for å sikre stabil tilkobling. Kan påvirke batterilevetiden.</string>
+    <string name="automation_keepalive_warning">Denne funksjonen vekker enheten din hvert 5. minutt.</string>
+
+    <string name="notification_file_detected_title">Ny fil oppdaget</string>
+    <string name="notification_file_play_audio">Spill</string>
+    <string name="notification_file_pause_audio">Pause</string>
+    <string name="notification_file_stop_audio">Stopp</string>
+    <string name="notification_file_download">Last ned</string>
+    <string name="notification_file_downloading">Laster ned %d%%</string>
+    <string name="notification_file_view">Vis</string>
+
+    <string name="fullscreen_downloading">Laster ned…</string>
+    <string name="fullscreen_downloading_progress">Laster ned… %d%%</string>
+    <string name="fullscreen_download_failed">Nedlasting mislyktes</string>
+
+    <string name="percent_format">%d%%</string>
+    <string name="percent_100">100%%</string>
+
+    <string name="msg_requesting_download">Ber om nedlasting…</string>
+    <string name="msg_ios_notif_enabled">iOS-varsler aktivert</string>
+    <string name="msg_native_bypass_enabled">Native Bypass aktivert - Kompatibel kjerne oppdaget</string>
+    <string name="msg_error_zwj_bypass">Feil: Kjernen støtter ikke ZWJ Bypass.</string>
+    <string name="symbol_plus">+</string>
+    <string name="digit_0">0</string>
+    <string name="digit_1">1</string>
+    <string name="digit_2">2</string>
+    <string name="digit_3">3</string>
+    <string name="digit_4">4</string>
+    <string name="digit_5">5</string>
+    <string name="digit_6">6</string>
+    <string name="digit_7">7</string>
+    <string name="digit_8">8</string>
+    <string name="digit_9">9</string>
+    <string name="perm_native_bypass_title">Native Bypass-tilgang</string>
+    <string name="perm_native_bypass_desc">Setter inn spesialtegn for å omgå stibegrensninger (Android/data).</string>
+    <string name="msg_userservice_not_connected">UserService ikke tilkoblet. Prøv igjen.</string>
+    <string name="msg_permission_granted">Tillatelse gitt!</string>
+    <string name="msg_permission_failed">Mislyktes (Kode: %d). Prøv via ADB.</string>
+    <string name="msg_error_format">Feil: %s</string>
+    <string name="file_new_detected">Ny fil oppdaget</string>
+    <string name="file_download">Last ned</string>
+    <string name="file_dismiss">Avvis</string>
+    <string name="perm_title_placeholder">Tillatelsestittel</string>
+    <string name="perm_desc_placeholder">Beskrivelse av hvor den brukes.</string>
+    <string name="perm_granted_label">Gitt</string>
+    <string name="transport_internet_webrtc">Internett (WebRTC)</string>
+    <string name="transport_wifi_intranet">WiFi Intranett</string>
+</resources>
