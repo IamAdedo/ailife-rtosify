@@ -13,8 +13,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/call_unknown"
-        android:textColor="?attr/colorOnSurface"
-        android:textSize="22sp"
+        android:textColor="@android:color/white"
+        android:textAppearance="?attr/textAppearanceHeadlineMedium"
         android:textStyle="bold"
         android:gravity="center"
         android:maxLines="2"
@@ -25,8 +25,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="000 000 000"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:textSize="16sp"
+        android:textColor="#AAAAAA"
+        android:textAppearance="?attr/textAppearanceBodyMedium"
         android:layout_marginTop="4dp"
         android:gravity="center" />
 
@@ -35,42 +35,47 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/call_incoming"
-        android:textColor="@android:color/holo_green_light"
-        android:textSize="12sp"
-        android:layout_marginTop="12dp"
-        android:textStyle="italic" />
+        android:textColor="#4CAF50"
+        android:textAppearance="?attr/textAppearanceLabelLarge"
+        android:layout_marginTop="16dp"
+        android:textStyle="bold" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
-        android:layout_marginTop="24dp">
+        android:layout_marginTop="32dp"
+        xmlns:app="http://schemas.android.com/apk/res-auto">
 
-        <ImageButton
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/btn_reject"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:background="@android:drawable/btn_default"
-            android:backgroundTint="@android:color/holo_red_dark"
-            android:src="@android:drawable/ic_menu_close_clear_cancel"
-            android:scaleType="centerInside"
-            android:padding="12dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:backgroundTint="@color/call_reject"
+            app:srcCompat="@drawable/ic_call_end"
+            app:fabCustomSize="64dp"
+            app:maxImageSize="28dp"
+            app:tint="@android:color/white"
+            app:borderWidth="0dp"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.App.Circle"
             android:contentDescription="@string/call_reject" />
 
         <Space
-            android:layout_width="24dp"
+            android:layout_width="32dp"
             android:layout_height="wrap_content" />
 
-        <ImageButton
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/btn_answer"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:background="@android:drawable/btn_default"
-            android:backgroundTint="@android:color/holo_green_dark"
-            android:src="@android:drawable/ic_menu_call"
-            android:scaleType="centerInside"
-            android:padding="12dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:backgroundTint="@color/call_answer"
+            app:srcCompat="@drawable/ic_call_answer"
+            app:fabCustomSize="64dp"
+            app:maxImageSize="28dp"
+            app:tint="@android:color/white"
+            app:borderWidth="0dp"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.App.Circle"
             android:contentDescription="@string/call_answer" />
 
     </LinearLayout>

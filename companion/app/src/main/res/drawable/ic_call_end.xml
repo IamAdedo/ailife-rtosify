@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Group scales path to 75%, centered in viewport, so icon never clips the circle edges -->
+    <group
+        android:pivotX="12"
+        android:pivotY="12"
+        android:scaleX="0.88"
+        android:scaleY="0.88">
+        <path
+            android:fillColor="#000000"
+            android:pathData="M12,9c-1.6,0 -3.15,0.25 -4.6,0.72v3.1c0,0.39 -0.23,0.74 -0.58,0.9 -0.96,0.43 -1.84,1.02 -2.61,1.72C4.03,15.62 3.7,15.75 3.38,15.75c-0.34,0 -0.66,-0.13 -0.91,-0.38l-1.99,-1.99C0.3,13.2 0.18,12.94 0.18,12.66c0,-0.28 0.11,-0.54 0.3,-0.72C3.98,8.48 7.8,6.72 12,6.72s8.02,1.76 11.52,5.22c0.19,0.18 0.3,0.44 0.3,0.72c0,0.28 -0.11,0.54 -0.3,0.72l-1.99,1.99c-0.25,0.25 -0.57,0.38 -0.91,0.38c-0.32,0 -0.65,-0.13 -0.93,-0.38 -0.77,-0.7 -1.65,-1.29 -2.61,-1.72 -0.35,-0.16 -0.58,-0.51 -0.58,-0.9V9.72C15.15,9.25 13.6,9 12,9z" />
+    </group>
+</vector>

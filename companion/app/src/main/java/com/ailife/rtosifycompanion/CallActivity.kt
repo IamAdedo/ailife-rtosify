@@ -9,7 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.view.WindowManager
-import android.widget.ImageButton
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import android.widget.TextView
 import android.widget.Toast
 
@@ -75,11 +75,11 @@ class CallActivity : AppCompatActivity() {
         tvName.text = name
         tvNumber.text = number
 
-        findViewById<ImageButton>(R.id.btn_reject).setOnClickListener {
+        findViewById<FloatingActionButton>(R.id.btn_reject).setOnClickListener {
             rejectCall()
         }
 
-        findViewById<ImageButton>(R.id.btn_answer).setOnClickListener {
+        findViewById<FloatingActionButton>(R.id.btn_answer).setOnClickListener {
             answerCall()
         }
 
