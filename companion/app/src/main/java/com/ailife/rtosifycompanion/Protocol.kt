@@ -418,7 +418,8 @@ data class SettingsUpdateData(
         val fullScreenStackingEnabled: Boolean? = null,
         val fullScreenDismissOnScreenOff: Boolean? = null,
         val vibrationStrength: Int? = null, // 1=Low, 2=Medium, 3=High
-        val vibrationPattern: Int? = null, // 0=Default, 1=Double, 2=Long
+        val vibrationPattern: Int? = null, // 0=Default, 1=Double, 2=Long, 3=Heartbeat, 4=Tick, 5=Custom
+        val vibrationCustomLength: Int? = null, // ms, used when vibrationPattern is 5
         val fullScreenAppNameSize: Int? = null,
         val fullScreenTitleSize: Int? = null,
         val fullScreenContentSize: Int? = null,

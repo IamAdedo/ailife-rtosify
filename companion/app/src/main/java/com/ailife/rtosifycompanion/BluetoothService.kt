@@ -2235,6 +2235,10 @@ class BluetoothService : Service() {
                 prefs.edit().putInt("vibration_pattern", it).apply()
                 Log.d(TAG, "Vibration Pattern setting updated: $it")
             }
+            settings.vibrationCustomLength?.let {
+                prefs.edit().putInt("vibration_custom_length", it).apply()
+                Log.d(TAG, "Vibration Custom Length setting updated: $it")
+            }
 
             // Apply updated settings to TransportManager if they changed
             val rule = settings.internetActivationRule ?: prefs.getInt("internet_activation_rule", 0)
@@ -5316,9 +5320,10 @@ class BluetoothService : Service() {
                     if (vibrator?.hasVibrator() == true) {
                         // Custom Vibration Logic
                         val strength = prefs.getInt("vibration_strength", 2) // 0=Off, 1=Low, 2=Med, 3=High
-                        val patternIdx = prefs.getInt("vibration_pattern", 0) // 0=Default, 1=Double, 2=Long, 3=Heartbeat, 4=Tick
+                        val patternIdx = prefs.getInt("vibration_pattern", 0) // 0=Default, 1=Double, 2=Long, 3=Heartbeat, 4=Tick, 5=Custom
+                        val customLength = prefs.getInt("vibration_custom_length", 200)
 
-                         Log.d(TAG, "performNotificationAlert: Vibrate enabled. Strength=$strength, Pattern=$patternIdx")
+                         Log.d(TAG, "performNotificationAlert: Vibrate enabled. Strength=$strength, Pattern=$patternIdx, CustomLength=$customLength")
                          if (strength > 0) {
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && vibrator.hasAmplitudeControl()) {
                                 // Map strength to Amplitude (1-255)
@@ -5338,6 +5343,8 @@ class BluetoothService : Service() {
                                     3 -> android.os.VibrationEffect.createWaveform(longArrayOf(100, 80, 120), intArrayOf(amp, 0, (amp * 0.8).toInt()), -1)
                                     // 4: Tick
                                     4 -> android.os.VibrationEffect.createOneShot(30, amp)
+                                    // 5: Custom
+                                    5 -> android.os.VibrationEffect.createOneShot(customLength.toLong(), amp)
                                     // 0: Default (Two pulses of 250ms)
                                     else -> android.os.VibrationEffect.createWaveform(longArrayOf(250, 250, 250), intArrayOf(amp, 0, amp), -1)
                                 }
@@ -5351,6 +5358,7 @@ class BluetoothService : Service() {
                                     2 -> longArrayOf(0, 600)
                                     3 -> longArrayOf(0, 100, 80, 120)
                                     4 -> longArrayOf(0, 30)
+                                    5 -> longArrayOf(0, customLength.toLong())
                                     else -> longArrayOf(0, 250, 250, 250)
                                 }
                                 vibrator.vibrate(pattern, -1)

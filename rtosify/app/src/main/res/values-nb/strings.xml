@@ -1257,6 +1257,8 @@
     <string name="vibration_pattern_long">Lang</string>
     <string name="vibration_pattern_heartbeat">Hjerteslag</string>
     <string name="vibration_pattern_tick">Tikk</string>
+    <string name="vibration_pattern_custom">Egendefinert</string>
+    <string name="vibration_custom_length">Egendefinert vibreringslengde</string>
     <string name="toast_requesting_ringtone_picker">Ber om ringetonevelger på klokke…</string>
 
 </resources>

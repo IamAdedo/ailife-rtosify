@@ -1257,6 +1257,8 @@
     <string name="vibration_pattern_long">Long</string>
     <string name="vibration_pattern_heartbeat">Heartbeat</string>
     <string name="vibration_pattern_tick">Tick</string>
+    <string name="vibration_pattern_custom">Custom</string>
+    <string name="vibration_custom_length">Custom Vibration Length</string>
     <string name="toast_requesting_ringtone_picker">Requesting ringtone picker on watch...</string>
 
 </resources>

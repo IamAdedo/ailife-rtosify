@@ -1257,6 +1257,8 @@
     <string name="vibration_pattern_long">Longo</string>
     <string name="vibration_pattern_heartbeat">Batimento Cardíaco</string>
     <string name="vibration_pattern_tick">Tique</string>
+    <string name="vibration_pattern_custom">Personalizado</string>
+    <string name="vibration_custom_length">Duração da Vibração Personalizada</string>
     <string name="toast_requesting_ringtone_picker">A solicitar seletor de toque no relógio...</string>
 
 </resources>

@@ -1762,6 +1762,7 @@ class BluetoothService : Service() {
                 vibrateInSilentEnabled = activePrefs.getBoolean("vibrate_silent_enabled", false),
                 vibrationStrength = activePrefs.getInt("vibration_strength", 2),
                 vibrationPattern = activePrefs.getInt("vibration_pattern", 0),
+                vibrationCustomLength = activePrefs.getInt("vibration_custom_length", 200),
                 notificationSoundEnabled = activePrefs.getBoolean("notification_sound_enabled", false),
                 phoneCallRingingEnabled = activePrefs.getBoolean("phone_call_ringing_enabled", false),
                 notificationSoundUri = activePrefs.getString("notification_sound_uri", null),

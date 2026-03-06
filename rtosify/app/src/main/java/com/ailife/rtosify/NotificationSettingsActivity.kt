@@ -50,6 +50,9 @@ class NotificationSettingsActivity : AppCompatActivity() {
 
     private lateinit var seekVibrationStrength: Slider
     private lateinit var spinnerVibrationPattern: Spinner
+    private lateinit var layoutCustomVibration: LinearLayout
+    private lateinit var sliderCustomVibration: Slider
+    private lateinit var tvCustomVibrationValue: TextView
 
     private lateinit var spinnerNotifStyle: Spinner
 
@@ -213,12 +216,17 @@ class NotificationSettingsActivity : AppCompatActivity() {
         }
 
         // Vibration Pattern
+        layoutCustomVibration = findViewById(R.id.layoutCustomVibration)
+        sliderCustomVibration = findViewById(R.id.sliderCustomVibration)
+        tvCustomVibrationValue = findViewById(R.id.tvCustomVibrationValue)
+
         val patterns = arrayOf(
             getString(R.string.vibration_pattern_default),
             getString(R.string.vibration_pattern_double_click),
             getString(R.string.vibration_pattern_long),
             getString(R.string.vibration_pattern_heartbeat),
-            getString(R.string.vibration_pattern_tick)
+            getString(R.string.vibration_pattern_tick),
+            getString(R.string.vibration_pattern_custom)
         )
         val patternAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, patterns)
         patternAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
@@ -226,14 +234,34 @@ class NotificationSettingsActivity : AppCompatActivity() {
         
         val patternIdx = activePrefs.getInt("vibration_pattern", 0)
         spinnerVibrationPattern.setSelection(patternIdx)
+
+        val customLength = activePrefs.getInt("vibration_custom_length", 200)
+        sliderCustomVibration.value = customLength.toFloat()
+        tvCustomVibrationValue.text = "${customLength}ms"
+        
+        updateCustomVibrationVisibility(patternIdx)
         
         spinnerVibrationPattern.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
              override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                  activePrefs.edit().putInt("vibration_pattern", position).apply()
+                 updateCustomVibrationVisibility(position)
                  sendSettingsUpdate()
              }
              override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
+
+        sliderCustomVibration.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                tvCustomVibrationValue.text = "${value.toInt()}ms"
+            }
+        }
+        sliderCustomVibration.addOnSliderTouchListener(object : Slider.OnSliderTouchListener {
+            override fun onStartTrackingTouch(slider: Slider) {}
+            override fun onStopTrackingTouch(slider: Slider) {
+                activePrefs.edit().putInt("vibration_custom_length", slider.value.toInt()).apply()
+                sendSettingsUpdate()
+            }
+        })
 
         // Notification Sound
         switchNotifSound.isChecked = activePrefs.getBoolean("notification_sound_enabled", false)
@@ -258,6 +286,10 @@ class NotificationSettingsActivity : AppCompatActivity() {
             sendBroadcast(intent)
             Toast.makeText(this, getString(R.string.toast_requesting_ringtone_picker), Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun updateCustomVibrationVisibility(position: Int) {
+        layoutCustomVibration.visibility = if (position == 5) View.VISIBLE else View.GONE
     }
 
     private fun sendSettingsUpdate() {

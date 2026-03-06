@@ -427,7 +427,49 @@
                              android:layout_height="wrap_content"
                              android:minHeight="48dp"
                              android:layout_marginTop="8dp"/>
-                    </LinearLayout>
+
+                         <LinearLayout
+                             android:id="@+id/layoutCustomVibration"
+                             android:layout_width="match_parent"
+                             android:layout_height="wrap_content"
+                             android:orientation="vertical"
+                             android:layout_marginTop="12dp"
+                             android:visibility="gone">
+
+                             <TextView
+                                 android:layout_width="wrap_content"
+                                 android:layout_height="wrap_content"
+                                 android:text="@string/vibration_custom_length"
+                                 android:textSize="14sp"
+                                 android:textColor="?android:attr/textColorPrimary"/>
+
+                              <LinearLayout
+                                  android:layout_width="match_parent"
+                                  android:layout_height="wrap_content"
+                                  android:orientation="horizontal"
+                                  android:gravity="center_vertical"
+                                  android:layout_marginTop="4dp">
+
+                                  <com.google.android.material.slider.Slider
+                                      android:id="@+id/sliderCustomVibration"
+                                      android:layout_width="0dp"
+                                      android:layout_height="wrap_content"
+                                      android:layout_weight="1"
+                                      android:valueFrom="50"
+                                      android:valueTo="2000"
+                                      android:value="200"
+                                      android:stepSize="10"/>
+
+                                  <TextView
+                                      android:id="@+id/tvCustomVibrationValue"
+                                      android:layout_width="wrap_content"
+                                      android:layout_height="wrap_content"
+                                      android:layout_marginStart="8dp"
+                                      android:textSize="14sp"
+                                      android:textColor="?android:attr/textColorSecondary"/>
+                             </LinearLayout>
+                         </LinearLayout>
+                     </LinearLayout>
 
                     <!-- Switch: Notification Sound -->
                     <LinearLayout
