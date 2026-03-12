@@ -144,6 +144,11 @@ class BluetoothService : Service() {
     @Volatile private var isTransferring: Boolean = false
     @Volatile private var isTransferCancelled: Boolean = false
 
+    fun cancelTransfer() {
+        isTransferCancelled = true
+        Log.i(TAG, "Transfer cancellation requested by user")
+    }
+
     // File Reception Variables
     private var receiveFile: File? = null
     private var receiveFileOutputStream: FileOutputStream? = null

@@ -91,6 +91,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private var uploadTitleText: TextView? = null
     private var uploadIconView: ImageView? = null
     private var uploadOkButton: MaterialButton? = null
+    private var uploadCancelButton: MaterialButton? = null
 
     private val connection =
             object : ServiceConnection {
@@ -754,8 +755,13 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         uploadTitleText = dialogView.findViewById(R.id.tvUploadTitle)
         uploadIconView = dialogView.findViewById(R.id.imgUploadIcon)
         uploadOkButton = dialogView.findViewById(R.id.btnUploadOk)
+        uploadCancelButton = dialogView.findViewById(R.id.btnUploadCancel)
 
         uploadOkButton?.setOnClickListener { dismissUploadDialog() }
+        uploadCancelButton?.setOnClickListener {
+            bluetoothService?.cancelTransfer()
+            dismissUploadDialog()
+        }
         uploadDialog = MaterialAlertDialogBuilder(this).setView(dialogView).setCancelable(false).create()
         uploadDialog?.show()
     }
@@ -777,6 +783,7 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 uploadPercentageText?.setTextColor(Color.GREEN)
                 uploadProgressBar?.visibility = View.GONE
                 uploadOkButton?.visibility = View.VISIBLE
+                uploadCancelButton?.visibility = View.GONE
             }
             -1 -> {
                 dismissUploadDialog()
@@ -789,6 +796,8 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private fun dismissUploadDialog() {
         uploadDialog?.dismiss()
         uploadDialog = null
+        uploadCancelButton = null
+        uploadOkButton = null
     }
 
     private fun updateLocalBtName() {

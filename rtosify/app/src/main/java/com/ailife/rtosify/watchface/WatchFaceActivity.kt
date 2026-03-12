@@ -458,6 +458,7 @@ class WatchFaceActivity : AppCompatActivity(), BluetoothService.ServiceCallback 
                 progressDialog?.show()
                 
                 view.findViewById<android.widget.Button>(R.id.btnUploadCancel).setOnClickListener {
+                    android.util.Log.d("WatchFace", "Cancel button clicked in dialog. bluetoothService is null: ${bluetoothService == null}")
                     bluetoothService?.cancelTransfer()
                     transferQueue.clear()
                     isProcessingQueue = false

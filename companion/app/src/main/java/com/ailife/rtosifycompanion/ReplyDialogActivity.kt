@@ -6,6 +6,7 @@ import android.view.WindowManager
 import android.widget.EditText
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.enableEdgeToEdge
 import com.google.android.material.button.MaterialButton
 
 class ReplyDialogActivity : AppCompatActivity() {
@@ -19,7 +20,7 @@ class ReplyDialogActivity : AppCompatActivity() {
     private var actionKey: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        androidx.activity.enableEdgeToEdge()
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_reply_dialog)
 

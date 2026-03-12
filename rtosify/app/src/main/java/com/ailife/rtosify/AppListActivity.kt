@@ -54,6 +54,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private var uploadTitleText: TextView? = null
     private var uploadIconView: ImageView? = null
     private var uploadOkButton: MaterialButton? = null
+    private var uploadCancelButton: MaterialButton? = null
 
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
@@ -277,8 +278,13 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         uploadTitleText = dialogView.findViewById(R.id.tvUploadTitle)
         uploadIconView = dialogView.findViewById(R.id.imgUploadIcon)
         uploadOkButton = dialogView.findViewById(R.id.btnUploadOk)
+        uploadCancelButton = dialogView.findViewById(R.id.btnUploadCancel)
 
         uploadOkButton?.setOnClickListener { dismissUploadDialog() }
+        uploadCancelButton?.setOnClickListener {
+            bluetoothService?.cancelTransfer()
+            dismissUploadDialog()
+        }
         uploadDialog = MaterialAlertDialogBuilder(this).setView(dialogView).setCancelable(false).create()
         uploadDialog?.show()
     }
@@ -299,6 +305,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 uploadIconView?.setColorFilter(android.graphics.Color.GREEN)
                 uploadPercentageText?.setTextColor(android.graphics.Color.GREEN)
                 uploadProgressBar?.visibility = View.GONE
+                uploadCancelButton?.visibility = View.GONE
                 uploadOkButton?.visibility = View.VISIBLE
             }
             -1 -> {
@@ -309,6 +316,7 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 uploadIconView?.setColorFilter(android.graphics.Color.RED)
                 uploadPercentageText?.text = getString(R.string.status_failed)
                 uploadPercentageText?.setTextColor(android.graphics.Color.RED)
+                uploadCancelButton?.visibility = View.GONE
                 uploadOkButton?.visibility = View.VISIBLE
                 uploadOkButton?.text = getString(android.R.string.ok)
             }
@@ -318,6 +326,8 @@ class AppListActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private fun dismissUploadDialog() {
         uploadDialog?.dismiss()
         uploadDialog = null
+        uploadCancelButton = null
+        uploadOkButton = null
         // Reload the list after successful upload (delay to ensure the watch processed)
         FetchAppsAfterDelay()
     }

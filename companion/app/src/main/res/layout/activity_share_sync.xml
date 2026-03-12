@@ -46,4 +46,13 @@
         android:text="0%"
         android:layout_marginTop="4dp" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnShareCancel"
+        style="?android:attr/borderlessButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="@android:string/cancel"
+        android:textColor="#FF5252" />
+
 </LinearLayout>

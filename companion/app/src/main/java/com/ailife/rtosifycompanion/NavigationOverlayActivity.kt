@@ -9,6 +9,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.enableEdgeToEdge
 
 class NavigationOverlayActivity : AppCompatActivity() {
 
@@ -19,7 +20,7 @@ class NavigationOverlayActivity : AppCompatActivity() {
     private lateinit var rootLayout: View
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        androidx.activity.enableEdgeToEdge()
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_navigation_overlay)
         

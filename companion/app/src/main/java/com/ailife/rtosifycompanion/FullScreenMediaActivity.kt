@@ -27,6 +27,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.VideoView
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
+import androidx.core.view.updateLayoutParams
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.platform.ComposeView
 import com.ailife.rtosifycompanion.ui.MediaWaveSlider
@@ -136,7 +138,7 @@ class FullScreenMediaActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        androidx.activity.enableEdgeToEdge()
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
         // Make full screen and immersive

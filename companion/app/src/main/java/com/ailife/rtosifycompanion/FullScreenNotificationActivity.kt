@@ -16,6 +16,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.enableEdgeToEdge
 import com.ailife.rtosifycompanion.ProtocolHelper
 import com.ailife.rtosifycompanion.BluetoothService
 import com.ailife.rtosifycompanion.NotificationData
@@ -86,7 +87,7 @@ class FullScreenNotificationActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        androidx.activity.enableEdgeToEdge()
+        enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_full_screen_notification)
 

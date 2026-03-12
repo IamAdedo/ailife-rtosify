@@ -21,6 +21,7 @@ class ShareToWatchActivity : AppCompatActivity(), BluetoothService.ServiceCallba
     private lateinit var tvShareStatus: TextView
     private lateinit var tvSharePercentage: TextView
     private lateinit var progressBarShare: LinearProgressIndicator
+    private var btnShareCancel: com.google.android.material.button.MaterialButton? = null
     
     private var bluetoothService: BluetoothService? = null
     private var isBound = false
@@ -49,6 +50,11 @@ class ShareToWatchActivity : AppCompatActivity(), BluetoothService.ServiceCallba
         tvShareStatus = findViewById(R.id.tvShareStatus)
         tvSharePercentage = findViewById(R.id.tvSharePercentage)
         progressBarShare = findViewById(R.id.progressBarShare)
+        btnShareCancel = findViewById(R.id.btnShareCancel)
+        btnShareCancel?.setOnClickListener {
+            bluetoothService?.cancelTransfer()
+            finish()
+        }
 
         val serviceIntent = Intent(this, BluetoothService::class.java)
         bindService(serviceIntent, connection, BIND_AUTO_CREATE)
@@ -103,6 +109,7 @@ class ShareToWatchActivity : AppCompatActivity(), BluetoothService.ServiceCallba
             progressBarShare.progress = progress
             tvSharePercentage.text = "$progress%"
             if (progress >= 100) {
+                btnShareCancel?.visibility = View.GONE
                 Toast.makeText(this, getString(R.string.toast_transfer_complete), Toast.LENGTH_SHORT).show()
                 finish()
             }

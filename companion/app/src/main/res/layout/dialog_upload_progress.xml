@@ -70,4 +70,15 @@
         android:layout_marginTop="16dp"
         android:visibility="gone"/>
 
+    <!-- Botão Cancelar (visível durante a transferência) -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnUploadCancel"
+        style="?android:attr/borderlessButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@android:string/cancel"
+        android:textColor="#FF5252"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="8dp"/>
+
 </LinearLayout>
