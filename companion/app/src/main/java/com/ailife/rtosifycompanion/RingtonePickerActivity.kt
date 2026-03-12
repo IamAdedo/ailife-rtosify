@@ -18,6 +18,14 @@ class RingtonePickerActivity : Activity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        if (this is androidx.activity.ComponentActivity || this is androidx.fragment.app.FragmentActivity) {
+             // RingtonePickerActivity extends Activity, not ComponentActivity
+        }
+        // Actually, enableEdgeToEdge is an extension function on ComponentActivity.
+        // RingtonePickerActivity extends Activity.
+        // I should change it to extend ComponentActivity if I want to use it easily,
+        // or just use manual flags. 
+        // But since it has no UI of its own, it doesn't matter much.
         super.onCreate(savedInstanceState)
         
         Log.d(TAG, "Opening ringtone picker")

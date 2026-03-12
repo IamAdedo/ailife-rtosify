@@ -117,6 +117,10 @@ class FileObserverSettingsActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
+        val appBarLayout = findViewById<android.view.View>(R.id.appBarLayout)
+        val recyclerViewRules = findViewById<android.view.View>(R.id.recyclerViewRules)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, recyclerViewRules)
+
         prefs = getSharedPreferences("file_observer_prefs", Context.MODE_PRIVATE)
 
         recyclerView = findViewById(R.id.recyclerViewRules)

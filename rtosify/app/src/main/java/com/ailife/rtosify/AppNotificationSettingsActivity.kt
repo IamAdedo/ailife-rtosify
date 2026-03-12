@@ -49,6 +49,10 @@ class AppNotificationSettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_app_notification_settings)
+        
+        val appBarLayout = findViewById<View>(R.id.appBarLayout)
+        val nestedScrollView = findViewById<View>(R.id.nestedScrollView)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, nestedScrollView)
 
         pkgName = intent.getStringExtra("EXTRA_PACKAGE_NAME") ?: return finish()
         appName = intent.getStringExtra("EXTRA_APP_NAME") ?: pkgName

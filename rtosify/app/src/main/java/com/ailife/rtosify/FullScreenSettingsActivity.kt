@@ -33,6 +33,11 @@ class FullScreenSettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_full_screen_settings)
+        
+        val appBarLayout = findViewById<android.view.View>(R.id.appBarLayout)
+        val nestedScrollView = findViewById<android.view.View>(R.id.nestedScrollView)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, nestedScrollView)
+
         setupToolbar()
 
         devicePrefManager = DevicePrefManager(this)

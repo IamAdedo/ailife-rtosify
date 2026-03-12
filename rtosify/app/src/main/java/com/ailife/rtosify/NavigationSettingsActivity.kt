@@ -30,6 +30,10 @@ class NavigationSettingsActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
+        val appBarLayout = findViewById<android.view.View>(R.id.appBarLayout)
+        val nestedScrollView = findViewById<android.view.View>(R.id.nestedScrollView)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, nestedScrollView)
+
         devicePrefManager = DevicePrefManager(this)
 
         initViews()

@@ -19,8 +19,16 @@ class ReplyDialogActivity : AppCompatActivity() {
     private var actionKey: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        androidx.activity.enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_reply_dialog)
+
+        val rootLayout = findViewById<android.view.View>(R.id.reply_root)
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(rootLayout) { v, insets ->
+            val systemBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+            insets
+        }
 
         // Make activity full screen and dialog-like
         window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT)

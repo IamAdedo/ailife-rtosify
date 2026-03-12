@@ -52,6 +52,10 @@ class DynamicIslandBackgroundActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_dynamic_island_background)
+        
+        val appBarLayout = findViewById<View>(R.id.appBarLayout)
+        val nestedScrollView = findViewById<View>(R.id.nestedScrollView)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, nestedScrollView)
 
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)

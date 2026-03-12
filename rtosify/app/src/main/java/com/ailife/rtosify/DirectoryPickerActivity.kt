@@ -64,6 +64,10 @@ class DirectoryPickerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_directory_picker)
 
+        val appBarLayout = findViewById<View>(R.id.appBarLayout)
+        val contentLayout = findViewById<View>(R.id.contentLayout)
+        EdgeToEdgeUtils.applyEdgeToEdgeWithToolbar(this, appBarLayout, contentLayout)
+
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)

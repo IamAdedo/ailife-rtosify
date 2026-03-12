@@ -19,14 +19,11 @@ class NavigationOverlayActivity : AppCompatActivity() {
     private lateinit var rootLayout: View
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        androidx.activity.enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_navigation_overlay)
         
-        // Hide status bar for immersive experience
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_FULLSCREEN,
-            WindowManager.LayoutParams.FLAG_FULLSCREEN
-        )
+        EdgeToEdgeUtils.applyEdgeToEdge(this, findViewById(R.id.nav_overlay_root))
 
         initViews()
         handleIntent()

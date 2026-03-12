@@ -86,8 +86,11 @@ class FullScreenNotificationActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        androidx.activity.enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_full_screen_notification)
+
+        EdgeToEdgeUtils.applyEdgeToEdge(this, findViewById(R.id.rootLayout))
 
         initViews()
         val filter = IntentFilter().apply {

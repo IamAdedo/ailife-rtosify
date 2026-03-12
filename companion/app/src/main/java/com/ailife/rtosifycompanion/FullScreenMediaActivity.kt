@@ -136,21 +136,13 @@ class FullScreenMediaActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        androidx.activity.enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        // Make full screen
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_FULLSCREEN,
-            WindowManager.LayoutParams.FLAG_FULLSCREEN
-        )
-        window.decorView.systemUiVisibility = (
-            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-            or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-            or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-            or View.SYSTEM_UI_FLAG_FULLSCREEN
-            or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-        )
+        // Make full screen and immersive
+        val windowInsetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+        windowInsetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        windowInsetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
         setupUI()
         parseIntent()
@@ -266,6 +258,16 @@ class FullScreenMediaActivity : ComponentActivity() {
             setOnClickListener { finish() }
         }
         rootContainer.addView(closeButton)
+        
+        // Handle insets for close button
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(closeButton) { v, insets ->
+            val systemBars = insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            v.updateLayoutParams<FrameLayout.LayoutParams> {
+                topMargin = dpToPx(16) + systemBars.top
+                marginEnd = dpToPx(16) + systemBars.right
+            }
+            insets
+        }
     }
 
     private fun parseIntent() {
