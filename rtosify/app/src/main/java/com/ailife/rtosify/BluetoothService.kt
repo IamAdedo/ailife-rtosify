@@ -1688,7 +1688,8 @@ class BluetoothService : Service() {
         
         // Update device name if present
     if (info.deviceName != null && info.deviceName != "Unknown") {
-        val mac = transportManager.status.value.deviceMac
+        // Use the selected (bonded) MAC as the stable key, not the transport MAC which may be a rotating BLE address
+        val mac = devicePrefManager.getSelectedDeviceMac() ?: transportManager.status.value.deviceMac
         android.util.Log.d(TAG, "handleDeviceInfoUpdate: received name='${info.deviceName}' for MAC='$mac'")
         if (mac != null) {
             devicePrefManager.updateDeviceName(mac, info.deviceName)
