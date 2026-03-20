@@ -1175,6 +1175,13 @@
 
     <string name="battery_history_hour_format">Hace %dh</string>
     <string name="battery_percent_format">%d%%</string>
+    <string name="battery_power_label">Potencia</string>
+    <string name="battery_power_unit">%.0f mW</string>
+    <string name="battery_power_placeholder">-- mW</string>
+    <string name="battery_capacity_custom_dialog_title">Establecer capacidad de diseño</string>
+    <string name="battery_capacity_custom_hint">Capacidad (mAh)</string>
+    <string name="battery_capacity_reset">Restablecer</string>
+    <string name="battery_capacity_custom_indicator"> (personalizado)</string>
 
     <string name="status_na">N/D</string>
     <string name="file_selected_count">%d seleccionados</string>

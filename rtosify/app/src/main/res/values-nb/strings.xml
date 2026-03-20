@@ -1181,6 +1181,13 @@
 
     <string name="battery_history_hour_format">%dh siden</string>
     <string name="battery_percent_format">%d%%</string>
+    <string name="battery_power_label">Effekt</string>
+    <string name="battery_power_unit">%.0f mW</string>
+    <string name="battery_power_placeholder">-- mW</string>
+    <string name="battery_capacity_custom_dialog_title">Angi designkapasitet</string>
+    <string name="battery_capacity_custom_hint">Kapasitet (mAh)</string>
+    <string name="battery_capacity_reset">Tilbakestill</string>
+    <string name="battery_capacity_custom_indicator"> (tilpasset)</string>
 
 
 

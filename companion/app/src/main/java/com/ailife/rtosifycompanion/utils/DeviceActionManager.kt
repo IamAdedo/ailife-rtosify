@@ -117,10 +117,15 @@ class DeviceActionManager(
     fun setWifiEnabled(enabled: Boolean) {
         Log.i(TAG, "Setting WiFi enabled: $enabled")
 
+        val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        if (wifiManager.isWifiEnabled == enabled) {
+            Log.i(TAG, "WiFi already in desired state: $enabled")
+            return
+        }
+
         // 1. Legacy direct toggle if possible (< Q)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             try {
-                val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
                 @Suppress("DEPRECATION")
                 if (wifiManager.setWifiEnabled(enabled)) {
                     Log.i(TAG, "Successfully toggled WiFi via WifiManager")

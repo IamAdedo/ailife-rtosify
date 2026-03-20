@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-RTOSify is a Bluetooth-based notification mirroring system split into two independent Android applications:
+RTOSify is a multi-transport notification mirroring system split into two independent Android applications:
 
-- **Phone App** (`rtosify/`): Captures notifications from an Android phone and sends them to a smartwatch via Bluetooth
+- **Phone App** (`rtosify/`): Captures notifications from an Android phone and sends them to a smartwatch
 - **Watch Companion App** (`companion/`): Receives and displays notifications on a smartwatch from the phone
 
 Both apps use identical communication protocol and can switch roles (phone/watch mode), but are typically deployed as separate applications on different devices.
@@ -83,21 +83,23 @@ The heart of RTOSify is `Protocol.kt` (identical in both apps), which defines a 
 - Health Data: `HEALTH_DATA_UPDATE`, `REQUEST_HEALTH_HISTORY`
 - Shell Commands: `EXECUTE_SHELL_COMMAND`, `SHELL_COMMAND_RESPONSE`
 
-### Bluetooth Architecture
+### Communication Architecture
 
-**Phone App (Bluetooth Client)**:
-- `BluetoothService.kt`: Manages Bluetooth connection, scans for watch devices, sends notifications
-- Runs as foreground service for persistent connection
-- Listens to `MyNotificationListener` for new notifications
-- Sends notifications as JSON over Bluetooth RFCOMM
+Both apps have a `communication/` package implementing a pluggable multi-transport system:
 
-**Watch App (Bluetooth Server)**:
-- `BluetoothService.kt`: Accepts Bluetooth connections, receives notifications, displays them
-- Runs as foreground service, waits for phone connections
-- Receives JSON messages and creates Android notifications
-- Sends status updates (battery, WiFi, DND) back to phone
+- **`CommunicationTransport`** (`Transport.kt`): Interface implemented by all transports (`connect`, `send`, `receive`, `disconnect`)
+- **`TransportManager`**: Orchestrates all transports with auto-reconnection, selects active transport based on availability and Network Settings rules
+- **`BluetoothTransport`**: Classic Bluetooth RFCOMM — UUID `00001101-0000-1000-8000-00805f9b34fb`, primary transport
+- **`BleTransport`**: BLE-based data transport using GATT
+- **`WifiIntranetTransport`**: TCP socket over local WiFi network, preferred for high-bandwidth operations like screen mirroring
+- **`WebRtcTransport`**: Internet transport via WebRTC with `SignalingClient` for peer negotiation
+- **`MdnsDiscovery`**: Discovers devices on the local network via mDNS/NSD
 
-Both use UUID: `00001101-0000-1000-8000-00805f9b34fb` for RFCOMM communication.
+`BluetoothService.kt` (foreground service in both apps) is the top-level coordinator: it uses `TransportManager` to send/receive protocol messages and calls `handleReceivedMessage()` for dispatch.
+
+**BLE stack** (`ble/` package): `BleGattServer`/`BleGattClient` for GATT connections, `BleDataGattServer`/`BleDataGattClient` for chunked data transfer, `BleRssiMonitor` for proximity detection.
+
+**Encryption**: `security/EncryptionManager` encrypts messages in transit; `TransportManager` holds a reference and applies it before sending.
 
 ### Notification System
 
@@ -184,6 +186,20 @@ Both apps use `SharedPreferences` for settings:
 - `watchface/` package: Store, download, and install watch faces
 - File browser for watch face management
 
+**Companion-only features**:
+- `AncsClient.kt`: Apple Notification Center Service client (for iOS device notifications)
+- `NotificationLogManager` / `NotificationLogActivity`: Persistent log of all received notifications
+- `BluetoothPanManager`: Bluetooth PAN tethering for sharing phone internet to watch
+- `MediaControlActivity`: Watch-side media playback controls
+- Widgets: `DashboardWidget`, `MediaWidget`, `NotificationLogWidget`
+
+**Phone-only features**:
+- `FileObserverManager`: Watches filesystem paths and triggers rules on file changes
+- `MediaSessionListener`: Tracks active media sessions for sync to watch
+- `NotificationCache`: Caches active notifications for reconnection sync
+- `utils/OtaManager.kt`: OTA update delivery to watch
+- `widget/StatusWidget`, `widget/HealthWidget`: Home screen widgets
+
 ## Language & Internationalization
 
 The codebase supports multiple languages:
@@ -217,12 +233,12 @@ Key libraries used:
 3. Add helper function in `ProtocolHelper` (e.g., `createMyMessage()`)
 4. Handle message in `BluetoothService.handleReceivedMessage()` (both apps)
 
-### Modifying Bluetooth Communication
+### Modifying Communication
 
-- **Phone App**: Edit `BluetoothService.kt` in `rtosify/`
-- **Watch App**: Edit `BluetoothService.kt` in `companion/`
-- Both services have similar structure but inverted roles (client vs server)
-- Message handling is in `handleReceivedMessage()` method
+- **Transport selection logic**: Edit `TransportManager.kt` in the `communication/` package
+- **Adding a new transport**: Implement `CommunicationTransport` interface, register in `TransportManager`
+- **Message handling**: `BluetoothService.handleReceivedMessage()` in both apps — `BluetoothService` receives from `TransportManager.incomingMessages` flow
+- **BLE proximity**: Edit `ble/BleRssiMonitor.kt`
 
 ### Adding Shizuku/Root Features
 

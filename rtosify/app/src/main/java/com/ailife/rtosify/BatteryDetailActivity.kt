@@ -7,9 +7,13 @@ import android.content.ServiceConnection
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.IBinder
+import android.text.InputType
 import android.view.View
-import android.widget.ImageButton
 import android.widget.TextView
+import com.google.android.material.card.MaterialCardView
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import com.google.android.material.slider.Slider
 import com.google.android.material.progressindicator.CircularProgressIndicator
 import com.google.android.material.color.MaterialColors
@@ -39,7 +43,9 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
     private lateinit var tvVoltage: TextView
     private lateinit var tvTemperature: TextView
     private lateinit var tvCapacity: TextView
+    private lateinit var tvPower: TextView
     private lateinit var tvRemainingTime: TextView
+    private var customDesignCapacity: Int = 0
     private lateinit var chartBattery: LineChart
     private lateinit var switchNotifyFull: MaterialSwitch
     private lateinit var switchNotifyLow: MaterialSwitch
@@ -152,7 +158,11 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         tvVoltage = findViewById(R.id.tvVoltage)
         tvTemperature = findViewById(R.id.tvTemperature)
         tvCapacity = findViewById(R.id.tvCapacity)
+        tvPower = findViewById(R.id.tvPower)
         tvRemainingTime = findViewById(R.id.tvRemainingTime)
+
+        val cardCapacity = findViewById<MaterialCardView>(R.id.cardCapacity)
+        cardCapacity.setOnClickListener { showCapacityDialog() }
         chartBattery = findViewById(R.id.chartBattery)
         btnSortUsage = findViewById(R.id.btnSortUsage)
         btnSortUsage.setOnClickListener { showSortMenu() }
@@ -240,12 +250,58 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
         val notifyLow = activePrefs.getBoolean("batt_notify_low", false)
         val detailedLog = activePrefs.getBoolean("batt_detailed_log", false)
         val lowThreshold = activePrefs.getInt("batt_low_threshold", 15)
+        customDesignCapacity = activePrefs.getInt("batt_design_capacity", 0)
 
         switchNotifyFull.isChecked = notifyFull
         switchNotifyLow.isChecked = notifyLow
         switchDetailedLog.isChecked = detailedLog
         seekbarLowThreshold.value = lowThreshold.toFloat()
         tvLowThresholdTitle.text = getString(R.string.battery_notify_below, lowThreshold)
+    }
+
+    private fun showCapacityDialog() {
+        val inputLayout = TextInputLayout(this, null, com.google.android.material.R.attr.textInputOutlinedStyle).apply {
+            hint = getString(R.string.battery_capacity_custom_hint)
+            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+            val padding = (16 * resources.displayMetrics.density).toInt()
+            setPadding(padding, padding / 2, padding, 0)
+        }
+        val editText = TextInputEditText(inputLayout.context).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER
+            if (customDesignCapacity > 0) setText(customDesignCapacity.toString())
+        }
+        inputLayout.addView(editText)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.battery_capacity_custom_dialog_title)
+            .setView(inputLayout)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                val value = editText.text.toString().toIntOrNull() ?: 0
+                customDesignCapacity = value
+                activePrefs.edit { putInt("batt_design_capacity", value) }
+                currentBatteryData?.let { data ->
+                    val displayCapacity = if (customDesignCapacity > 0) customDesignCapacity else data.capacity.toInt()
+                    if (displayCapacity > 0) {
+                        val suffix = if (customDesignCapacity > 0) getString(R.string.battery_capacity_custom_indicator) else ""
+                        tvCapacity.text = getString(R.string.battery_capacity_unit, displayCapacity.toString()) + suffix
+                    } else {
+                        tvCapacity.text = getString(R.string.battery_capacity_placeholder)
+                    }
+                }
+            }
+            .setNeutralButton(R.string.battery_capacity_reset) { _, _ ->
+                customDesignCapacity = 0
+                activePrefs.edit { putInt("batt_design_capacity", 0) }
+                currentBatteryData?.let { data ->
+                    if (data.capacity > 0) {
+                        tvCapacity.text = getString(R.string.battery_capacity_unit, data.capacity.toInt().toString())
+                    } else {
+                        tvCapacity.text = getString(R.string.battery_capacity_placeholder)
+                    }
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun saveAndSendSettings() {
@@ -334,6 +390,10 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
             tvCurrentNow.text = String.format(Locale.getDefault(), getString(R.string.battery_current_unit), displayCurrent)
             tvVoltage.text = getString(R.string.battery_voltage_unit, mergedData.voltage)
 
+            // Power = V * I (voltage in mV -> V, current in mA -> result in mW)
+            val powerMw = (mergedData.voltage / 1000.0) * displayCurrent
+            tvPower.text = String.format(Locale.getDefault(), getString(R.string.battery_power_unit), powerMw)
+
             if (mergedData.temperature != 0) {
                 val tempC = mergedData.temperature / 10.0
                 tvTemperature.text = String.format(Locale.getDefault(), getString(R.string.battery_temp_unit), tempC)
@@ -341,12 +401,10 @@ class BatteryDetailActivity : AppCompatActivity(), BluetoothService.ServiceCallb
                 tvTemperature.text = getString(R.string.battery_temp_placeholder)
             }
 
-            if (mergedData.capacity > 0) {
-                tvCapacity.text =
-                        getString(
-                                R.string.battery_capacity_unit,
-                                mergedData.capacity.toInt().toString()
-                        )
+            val displayCapacity = if (customDesignCapacity > 0) customDesignCapacity else mergedData.capacity.toInt()
+            if (displayCapacity > 0) {
+                val suffix = if (customDesignCapacity > 0) getString(R.string.battery_capacity_custom_indicator) else ""
+                tvCapacity.text = getString(R.string.battery_capacity_unit, displayCapacity.toString()) + suffix
             } else {
                 tvCapacity.text = getString(R.string.battery_capacity_placeholder)
             }
