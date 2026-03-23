@@ -35,6 +35,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.card.MaterialCardView
+import org.woheller69.freeDroidWarn.FreeDroidWarn
+
 
 class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
@@ -168,7 +170,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             startWatchMirroring()
         }
 
+        FreeDroidWarn.showWarningOnUpgrade(this, BuildConfig.VERSION_CODE)
     }
+
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

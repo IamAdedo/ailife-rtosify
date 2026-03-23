@@ -46,6 +46,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.woheller69.freeDroidWarn.FreeDroidWarn
+
 
 class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
@@ -248,7 +250,9 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
             startPhoneMirroring()
         }
 
+        FreeDroidWarn.showWarningOnUpgrade(this, BuildConfig.VERSION_CODE)
     }
+
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

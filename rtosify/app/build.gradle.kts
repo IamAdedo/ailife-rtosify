@@ -89,4 +89,5 @@ dependencies {
     // WebRTC & WebSocket for Internet Transport
     implementation("io.github.webrtc-sdk:android:114.5735.02")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.github.woheller69:FreeDroidWarn:V1.+")
 }
