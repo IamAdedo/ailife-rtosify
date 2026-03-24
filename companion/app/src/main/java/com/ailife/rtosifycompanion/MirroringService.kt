@@ -163,7 +163,7 @@ class MirroringService : Service() {
                     }
 
                     // Re-setup codec and virtual display
-                    setupCodec(newW, newH)
+                    val (scaledW, scaledH) = setupCodec(newW, newH)
                     val currentCodec = codec
                     if (currentCodec == null) {
                         Log.e(TAG, "Failed to setup codec during refresh")
@@ -172,7 +172,7 @@ class MirroringService : Service() {
                     val surface = currentCodec.createInputSurface()
                     virtualDisplay = mediaProjection?.createVirtualDisplay(
                         "MirroringDisplay",
-                        newW, newH, lastDpi,
+                        scaledW, scaledH, lastDpi,
                         DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
                         surface, null, handler
                     )
@@ -213,12 +213,12 @@ class MirroringService : Service() {
             }
         }, handler)
 
-        setupCodec(width, height)
-        
+        val (scaledW, scaledH) = setupCodec(width, height)
+
         val surface = codec?.createInputSurface()
         virtualDisplay = mediaProjection?.createVirtualDisplay(
             "MirroringDisplay",
-            width, height, dpi,
+            scaledW, scaledH, dpi,
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
             surface, null, handler
         )
@@ -235,7 +235,7 @@ class MirroringService : Service() {
         }.start()
     }
 
-    private fun setupCodec(width: Int, height: Int) {
+    private fun setupCodec(width: Int, height: Int): Pair<Int, Int> {
         // Dynamic scaling: Target ~360px on the shortest side for watch performance (or higher for HQ)
         val targetShortSide = if (highQualityMode) 480 else 360
         val isPortrait = height > width
@@ -273,14 +273,16 @@ class MirroringService : Service() {
             codec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
             codec?.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
             Log.d(TAG, "Codec configured: ${scaledWidth}x${scaledHeight}, ${bitrate/1000}kbps, ${frameRate}fps")
-            
+
             // Notify listener about actual encoding resolution
             onResolutionChange?.invoke(scaledWidth, scaledHeight, 0)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to configure codec: ${e.message}")
             // Fallback to safe default if scaling fails
             fallbackSetupCodec()
+            return Pair(320, 568)
         }
+        return Pair(scaledWidth, scaledHeight)
     }
 
     private fun fallbackSetupCodec() {
