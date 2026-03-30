@@ -9,6 +9,8 @@ import android.content.ServiceConnection
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Base64
@@ -210,9 +212,14 @@ class CameraActivity : AppCompatActivity() {
             .setContentValues(contentValues)
             .build()
 
-        recording = videoCapture.output
+        val pendingRecording = videoCapture.output
             .prepareRecording(this, mediaStoreOutputOptions)
-            .start(ContextCompat.getMainExecutor(this)) { recordEvent ->
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            pendingRecording.withAudioEnabled()
+        }
+
+        recording = pendingRecording.start(ContextCompat.getMainExecutor(this)) { recordEvent ->
                 when (recordEvent) {
                     is VideoRecordEvent.Start -> {
                         btnRecord.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF444444.toInt())

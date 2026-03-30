@@ -373,6 +373,9 @@
     <string name="perm_camera">Camera Access</string>
     <string name="perm_camera_desc">Required to scan the watch\'s QR code.</string>
     
+    <string name="perm_microphone">Microphone</string>
+    <string name="perm_microphone_desc">Required to record audio with video.</string>
+    
     <string name="perm_dnd">Do Not Disturb Access</string>
     <string name="perm_dnd_desc">Used to sync DND status between devices.</string>
 

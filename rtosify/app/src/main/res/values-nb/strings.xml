@@ -373,6 +373,9 @@
     <string name="perm_camera">Kameratilgang</string>
     <string name="perm_camera_desc">Nødvendig for å skanne klokkens QR-kode.</string>
     
+    <string name="perm_microphone">Mikrofon</string>
+    <string name="perm_microphone_desc">Nødvendig for å ta opp lyd med video.</string>
+    
     <string name="perm_dnd">Tilgang til Ikke forstyrr</string>
     <string name="perm_dnd_desc">Brukes til å synkronisere DND-status mellom enheter.</string>
 

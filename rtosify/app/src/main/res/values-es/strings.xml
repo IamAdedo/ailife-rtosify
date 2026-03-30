@@ -372,6 +372,9 @@
 
     <string name="perm_camera">Acceso a la cámara</string>
     <string name="perm_camera_desc">Requerido para escanear el código QR del reloj.</string>
+    
+    <string name="perm_microphone">Micrófono</string>
+    <string name="perm_microphone_desc">Necesario para grabar audio con video.</string>
 
     <string name="perm_dnd">Acceso a No molestar</string>
     <string name="perm_dnd_desc">Usado para sincronizar el estado DND entre dispositivos.</string>

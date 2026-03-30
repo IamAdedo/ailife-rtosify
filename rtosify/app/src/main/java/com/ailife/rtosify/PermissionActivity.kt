@@ -288,6 +288,16 @@ class PermissionActivity : AppCompatActivity() {
                 )
         )
 
+        // 10b. Microphone
+        perms.add(
+            PermissionItem(
+                "MICROPHONE",
+                getString(R.string.perm_microphone),
+                getString(R.string.perm_microphone_desc),
+                checkPerm(Manifest.permission.RECORD_AUDIO)
+            )
+        )
+
         // 11. DND Access
         val notifManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val hasDnd =
@@ -561,6 +571,7 @@ class PermissionActivity : AppCompatActivity() {
                 }
             }
             "CAMERA" -> requestPermissions(arrayOf(Manifest.permission.CAMERA), 106)
+            "MICROPHONE" -> requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 116)
             "DND" -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)

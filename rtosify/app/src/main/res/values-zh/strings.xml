@@ -326,6 +326,9 @@
     <string name="perm_camera">相机访问</string>
     <string name="perm_camera_desc">扫描手表二维码所需。</string>
     
+    <string name="perm_microphone">麦克风</string>
+    <string name="perm_microphone_desc">录制视频时需要录制音频。</string>
+    
     <string name="perm_dnd">勿扰访问</string>
     <string name="perm_dnd_desc">用于在设备间同步勿扰状态。</string>
 
