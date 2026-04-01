@@ -2,6 +2,8 @@
 
 > Mirror your phone's world to your wrist. Notifications, files, health, media, calls, and more — all in sync, over any connection.
 
+![banner](https://gitlab.com/ailife8881/rtosify/-/raw/master/images/banner.png)
+
 ---
 
 ## Table of Contents
@@ -39,11 +41,6 @@ RTOSify is a two-app Android system that bridges your Android phone and an Andro
 
 The two apps communicate over **Bluetooth, BLE, WiFi (LAN), or the internet (WebRTC)** — automatically choosing the best available link.
 
-| Phone Dashboard | Watch Dashboard |
-|:---:|:---:|
-| ![Phone Home](https://gitlab.com/ailife8881/rtosify/-/raw/master/images/home-phone.jpg?ref_type=heads) | ![Watch Home](https://gitlab.com/ailife8881/rtosify/-/raw/master/images/home-watch.png?ref_type=heads) |
-
----
 
 ## Requirements
 
