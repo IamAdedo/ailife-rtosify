@@ -10,4 +10,12 @@
     <color name="upload">#FBC600</color>
     <color name="call_answer">#4CAF50</color>
     <color name="call_reject">#F44336</color>
+
+    <!-- Widget Adaptive Colors -->
+    <color name="widget_background">#212121</color>
+    <color name="widget_background_media">#CC000000</color>
+    <color name="widget_text_primary">#FFFFFF</color>
+    <color name="widget_text_secondary">#AAAAAA</color>
+    <color name="widget_divider">#44FFFFFF</color>
+    <color name="widget_button_background">#444444</color>
 </resources>
