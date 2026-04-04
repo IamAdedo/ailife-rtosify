@@ -376,7 +376,7 @@
     <string name="menu_alarms">Alarmes</string>
     <string name="menu_alarms_desc">Gerir alarmes</string>
     <string name="alarm_no_alarms">Sem alarmes</string>
-    <string name="menu_camera">Câmara</string>
+    <string name="menu_camera">Câmera</string>
     <string name="menu_camera_desc">Obturador Remoto</string>
     <string name="toast_service_started">Serviço Iniciado</string>
     <string name="toast_service_stopped">Serviço Parado</string>
