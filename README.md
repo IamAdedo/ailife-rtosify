@@ -61,6 +61,12 @@ Both devices must have the apps installed. The phone uses the **RTOSify** app; t
 - Install **RTOSify** on your Android phone.
 - Install **RTOSify Companion** on your Android smartwatch.
 
+[GitLab](https://gitlab.com/ailife8881/rtosify/-/releases)
+
+[ApkPure](https://apkpure.com/p/com.ailife.rtosify)
+
+[UpToDown](https://rtosify.en.uptodown.com/android)
+
 ### 2. Pair the devices
 
 **On your phone:**
