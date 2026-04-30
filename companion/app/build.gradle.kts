@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ailife.rtosifycompanion"
+    namespace = "com.iamadedo.watchapp"
     compileSdk = 36
     buildFeatures {
         buildConfig = true
@@ -13,7 +13,7 @@ android {
         compose = true
     }
     defaultConfig {
-        applicationId = "com.ailife.rtosifycompanion"
+        applicationId = "com.iamadedo.watchapp"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
