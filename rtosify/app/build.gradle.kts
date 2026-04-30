@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ailife.rtosify"
+    namespace = "com.iamadedo.phoneapp"
     compileSdk = 36
     buildFeatures {
         buildConfig = true
@@ -12,7 +12,7 @@ android {
         aidl = true
     }
     defaultConfig {
-        applicationId = "com.ailife.rtosify"
+        applicationId = "com.iamadedo.phoneapp"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
