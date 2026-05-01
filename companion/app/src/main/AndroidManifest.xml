@@ -173,8 +173,8 @@
             android:enabled="true"
             android:exported="true">
             <intent-filter>
-                <action android:name="com.ailife.rtosifycompanion.ACTION_DND_ON" />
-                <action android:name="com.ailife.rtosifycompanion.ACTION_DND_OFF" />
+                <action android:name="com.iamadedo.watchapp.ACTION_DND_ON" />
+                <action android:name="com.iamadedo.watchapp.ACTION_DND_OFF" />
             </intent-filter>
         </receiver>
 
@@ -183,9 +183,9 @@
             android:enabled="true"
             android:exported="true">
             <intent-filter>
-                <action android:name="com.ailife.rtosifycompanion.ALARM_TRIGGER" />
-                <action android:name="com.ailife.rtosifycompanion.DISMISS_ALARM" />
-                <action android:name="com.ailife.rtosifycompanion.SNOOZE_ALARM" />
+                <action android:name="com.iamadedo.watchapp.ALARM_TRIGGER" />
+                <action android:name="com.iamadedo.watchapp.DISMISS_ALARM" />
+                <action android:name="com.iamadedo.watchapp.SNOOZE_ALARM" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
@@ -195,7 +195,7 @@
             android:enabled="true"
             android:exported="true">
             <intent-filter>
-                <action android:name="com.ailife.rtosifycompanion.ACTION_KEEPALIVE_TRIGGER" />
+                <action android:name="com.iamadedo.watchapp.ACTION_KEEPALIVE_TRIGGER" />
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
@@ -341,7 +341,7 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.ailife.rtosifycompanion.widget.ACTION_MEDIA_UPDATE" />
+                <action android:name="com.iamadedo.watchapp.widget.ACTION_MEDIA_UPDATE" />
             </intent-filter>
 
             <meta-data
@@ -356,7 +356,7 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.ailife.rtosifycompanion.widget.ACTION_DASHBOARD_UPDATE" />
+                <action android:name="com.iamadedo.watchapp.widget.ACTION_DASHBOARD_UPDATE" />
             </intent-filter>
 
             <meta-data
@@ -371,7 +371,7 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.ailife.rtosifycompanion.widget.ACTION_NOTIFICATION_LOG_UPDATE" />
+                <action android:name="com.iamadedo.watchapp.widget.ACTION_NOTIFICATION_LOG_UPDATE" />
             </intent-filter>
 
             <meta-data
@@ -395,6 +395,39 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- ══════════════════════════════════════════════════════════════════ -->
+        <!-- NEW FEATURES                                                       -->
+        <!-- ══════════════════════════════════════════════════════════════════ -->
+
+        <!-- Emergency SOS countdown screen -->
+        <activity
+            android:name=".SosActivity"
+            android:exported="false"
+            android:showOnLockScreen="true"
+            android:turnScreenOn="true"
+            android:keepScreenOn="true"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
+        <!-- Workout tracking screen -->
+        <activity
+            android:name=".WorkoutActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
+        <!-- Guided breathing / mindfulness screen -->
+        <activity
+            android:name=".MindfulnessActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.NoActionBar" />
+
+        <!-- Fall detection foreground service -->
+        <service
+            android:name=".FallDetectionService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
 
     </application>
 </manifest>

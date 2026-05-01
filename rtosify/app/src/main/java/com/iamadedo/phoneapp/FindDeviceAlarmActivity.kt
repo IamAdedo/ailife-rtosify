@@ -1,0 +1,130 @@
+package com.iamadedo.phoneapp
+
+import android.content.BroadcastReceiver
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.ServiceConnection
+import android.media.AudioManager
+import android.media.Ringtone
+import android.media.RingtoneManager
+import android.os.Build
+import android.os.Bundle
+import android.os.IBinder
+import android.os.Vibrator
+import android.util.Log
+import android.view.View
+import android.view.WindowManager
+import com.google.android.material.button.MaterialButton
+import androidx.appcompat.app.AppCompatActivity
+
+class FindDeviceAlarmActivity : AppCompatActivity() {
+
+    private var bluetoothService: BluetoothService? = null
+    private var isBound = false
+    private var findDeviceRingtone: Ringtone? = null
+
+    private val serviceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            val binder = service as? BluetoothService.LocalBinder
+            bluetoothService = binder?.getService()
+            isBound = true
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            bluetoothService = null
+            isBound = false
+        }
+    }
+
+    private val stopAlarmReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "com.iamadedo.phoneapp.STOP_ALARM") {
+                Log.i("FindDeviceAlarm", "Stop alarm broadcast received")
+                stopAlarmAndFinish()
+            }
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        // Ensure the screen turns on and shows over lockscreen
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        )
+
+        setContentView(R.layout.activity_find_device_alarm)
+        val rootLayout = findViewById<View>(R.id.rootLayout)
+        EdgeToEdgeUtils.applyEdgeToEdge(this, rootLayout)
+
+        val btnStopAlarm = findViewById<MaterialButton>(R.id.btnStopAlarm)
+        btnStopAlarm.setOnClickListener {
+            stopAlarmAndNotify()
+        }
+
+        registerReceiver(stopAlarmReceiver, IntentFilter("com.iamadedo.phoneapp.STOP_ALARM"), RECEIVER_EXPORTED)
+        startAlarm()
+        bindToBluetoothService()
+    }
+
+    private fun startAlarm() {
+        try {
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+            audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxVolume, 0)
+
+            val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+
+            findDeviceRingtone = RingtoneManager.getRingtone(this, alarmUri).apply {
+                @Suppress("DEPRECATION") streamType = AudioManager.STREAM_ALARM
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    isLooping = true
+                }
+                play()
+            }
+            Log.i("FindDeviceAlarm", "Alarm started at max volume")
+        } catch (e: Exception) {
+            Log.e("FindDeviceAlarm", "Error starting alarm: ${e.message}")
+        }
+    }
+
+    private fun stopAlarmAndNotify() {
+        // Notify the watch that the phone alarm has been silenced
+        bluetoothService?.sendFindPhoneCommand(false)
+        stopAlarmAndFinish()
+    }
+
+    private fun stopAlarmAndFinish() {
+        findDeviceRingtone?.stop()
+        findDeviceRingtone = null
+        finish()
+    }
+
+    private fun bindToBluetoothService() {
+        val intent = Intent(this, BluetoothService::class.java)
+        bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        findDeviceRingtone?.stop()
+        try {
+            unregisterReceiver(stopAlarmReceiver)
+        } catch (e: Exception) {
+            // Not registered
+        }
+        if (isBound) {
+            unbindService(serviceConnection)
+            isBound = false
+        }
+    }
+
+    override fun onBackPressed() {
+        stopAlarmAndNotify()
+    }
+}

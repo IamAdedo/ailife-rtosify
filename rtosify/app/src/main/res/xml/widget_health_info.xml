@@ -6,6 +6,6 @@
     android:minResizeWidth="180dp"
     android:minResizeHeight="90dp"
     android:updatePeriodMillis="1800000"
-    android:configure="com.ailife.rtosify.widget.WidgetConfigActivity"
+    android:configure="com.iamadedo.phoneapp.widget.WidgetConfigActivity"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen" />

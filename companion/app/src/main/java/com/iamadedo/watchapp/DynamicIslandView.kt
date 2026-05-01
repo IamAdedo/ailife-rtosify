@@ -1,0 +1,3384 @@
+package com.iamadedo.watchapp
+
+import android.animation.AnimatorSet
+import android.animation.ValueAnimator
+import android.content.Context
+import android.graphics.*
+import android.graphics.Outline
+import android.graphics.drawable.GradientDrawable
+import android.text.InputType
+import android.util.Base64
+import android.util.Log
+import android.view.Gravity
+import android.view.View
+import android.view.MotionEvent
+import android.view.ViewOutlineProvider
+import android.view.ViewGroup
+import android.view.animation.DecelerateInterpolator
+import android.widget.*
+import android.content.res.ColorStateList
+import android.media.MediaPlayer
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import androidx.core.view.setPadding
+import com.google.android.material.progressindicator.LinearProgressIndicator
+import com.google.android.material.slider.Slider
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.appcompat.view.ContextThemeWrapper
+import android.content.DialogInterface
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.ComposeView
+import com.iamadedo.watchapp.ui.MediaWaveSlider
+import com.iamadedo.watchapp.ui.theme.SmartwatchTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.lifecycle.findViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.findViewTreeViewModelStoreOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.findViewTreeSavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+
+class DynamicIslandView(context: Context) : FrameLayout(context) {
+
+    companion object {
+        private const val TAG = "DynamicIslandView"
+        private const val PILL_HEIGHT_COLLAPSED_DP = 40
+        private const val PILL_HEIGHT_EXPANDED_DP = 80
+        private const val PILL_WIDTH_COLLAPSED_DP = 150
+        private const val PILL_WIDTH_EXPANDED_DP = 380
+        private var ICON_SIZE_DP = 36
+        private var STACKED_ICON_SIZE_DP = 28
+        private const val CORNER_RADIUS_DP = 20f
+    }
+
+    var onNotificationClick: ((NotificationData) -> Unit)? = null
+    var onNotificationDismiss: ((NotificationData) -> Unit)? = null
+    var onNotificationReply: ((NotificationData, String) -> Unit)? = null
+    var onActionClick: ((NotificationData, NotificationActionData) -> Unit)? = null
+    var onPillClick: (() -> Unit)? = null
+    var onClearAllClicked: (() -> Unit)? = null
+    var onOpenFullScreenViewer: ((NotificationData) -> Unit)? = null
+
+    private val pillContainer: FrameLayout
+    private val contentContainer: LinearLayout
+    private val iconContainer: LinearLayout
+    private val expandedContainer: ScrollView
+    private val expandedList: LinearLayout
+    private val closeContainer: LinearLayout
+    private var backgroundImageView: ImageView // New Background View
+    
+    private var pillHeightCollapsed = PILL_HEIGHT_COLLAPSED_DP
+    private var pillWidthCollapsed = PILL_WIDTH_COLLAPSED_DP
+    private var pillHeightExpanded = PILL_HEIGHT_EXPANDED_DP
+    private var pillWidthExpanded = PILL_WIDTH_EXPANDED_DP
+
+    private var startY: Float = 0f
+
+    private var currentState: State = State.IDLE
+    
+    // Media playback tracking
+    private var mediaProgressHandler: Handler? = null
+    private var mediaStartTime: Long = 0
+    private var mediaStartPosition: Long = 0
+    private var mediaDuration: Long = 0
+    private var isMediaPlaying: Boolean = false
+    private var lastAlbumArtBase64: String? = null
+    private var cachedAlbumBitmap: Bitmap? = null
+    
+    // Compose states for MediaWaveSlider
+    private var diSliderValue = mutableFloatStateOf(0f)
+    private var diIsPlaying = mutableStateOf(false)
+    private var diDuration = mutableLongStateOf(0L)
+
+    // File media playback
+    private var currentAudioPlayer: MediaPlayer? = null
+    private var currentVideoView: VideoView? = null
+
+    private enum class State {
+        IDLE,
+        DISCONNECTED,
+        DISCONNECTED_EXPANDED,
+        CHARGING,
+        PHONE_CALL,
+        ALARM,
+        MEDIA_PLAYING,
+        MEDIA_EXPANDED,
+        NOTIFICATION_EXPANDED,
+        NOTIFICATION_COLLAPSED,
+        LIST_EXPANDED
+    }
+
+    // Text settings
+    private var textSizeMultiplier: Float = 1.0f
+    private var limitMessageLength: Boolean = true
+
+    // Background settings
+    private var backgroundMode: Int = 0 // 0=Image, 1=Color
+    private var solidColor: Int = Color.parseColor("#1C1C1E")
+    private var currentGlobalAlpha: Float = 1.0f
+
+    private fun getGlobalAlpha(): Float {
+        val prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+        return prefs.getInt("di_global_opacity", 100) / 100f
+    }
+
+
+    // Media suppression
+    
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        val lifecycleOwner = context as? androidx.lifecycle.LifecycleOwner
+        val viewModelStoreOwner = context as? androidx.lifecycle.ViewModelStoreOwner
+        val savedStateRegistryOwner = context as? androidx.savedstate.SavedStateRegistryOwner
+
+        lifecycleOwner?.let { this.setViewTreeLifecycleOwner(it) }
+        viewModelStoreOwner?.let { this.setViewTreeViewModelStoreOwner(it) }
+        savedStateRegistryOwner?.let { this.setViewTreeSavedStateRegistryOwner(it) }
+    }
+    private var suppressedMediaTitle: String? = null
+    private var suppressedMediaArtist: String? = null
+    
+    // Active media tracking (to avoid stale closures)
+    private var activeMediaTitle: String? = null
+    private var activeMediaArtist: String? = null
+    private var isExpandedShowingMedia: Boolean = false
+
+    private fun checkMediaSuppression(title: String?, artist: String?): Boolean {
+        // If we don't have active media, nothing to suppress against
+        if (suppressedMediaTitle == null) return false
+
+        val t = title ?: "Unknown Title"
+        val a = artist ?: "Unknown Artist"
+
+        // Exact match -> Suppressed
+        if (t == suppressedMediaTitle && a == suppressedMediaArtist) return true
+        
+        // If we are suppressing a specific valid song, don't let "Unknown" override it (transient protection)
+        // But if the NEW title is also Unknown, we should probably just treat it as Suppressed to avoid flicker
+        if ((t == "Unknown Title" || t == "Unknown") && 
+            suppressedMediaTitle != "Unknown Title" && 
+            suppressedMediaTitle != "Unknown") {
+            return true
+        }
+
+        // New valid session detected -> Reset suppression
+        suppressedMediaTitle = null
+        suppressedMediaArtist = null
+        return false
+    }
+
+    fun isMediaSuppressed(title: String?, artist: String?): Boolean {
+        return checkMediaSuppression(title, artist)
+    }
+
+    init {
+        layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+        clipChildren = false
+        clipToPadding = false
+
+        // Main pill container
+        pillContainer =
+                FrameLayout(context).apply {
+                    layoutParams =
+                            LayoutParams(dpToPx(pillWidthCollapsed), dpToPx(pillHeightCollapsed))
+                                    .apply { gravity = Gravity.CENTER_HORIZONTAL }
+                    background = createPillBackground()
+                    outlineProvider = ViewOutlineProvider.BACKGROUND
+                    clipToOutline = true
+
+                    elevation = dpToPx(8).toFloat()
+                    clipChildren = false
+                    clipToPadding = false
+                    setOnClickListener {
+                        if (currentState == State.NOTIFICATION_COLLAPSED ||
+                                        currentState == State.NOTIFICATION_EXPANDED ||
+                                        currentState == State.LIST_EXPANDED ||
+                                        currentState == State.MEDIA_PLAYING ||
+                                        currentState == State.MEDIA_EXPANDED) {
+                            onPillClick?.invoke()
+                        }
+                    }
+                }
+        
+        // Background Image View
+        backgroundImageView = ImageView(context).apply {
+             layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+             scaleType = ImageView.ScaleType.CENTER_CROP
+             alpha = 1.0f
+        }
+        pillContainer.addView(backgroundImageView)
+        updateBackground()
+
+        // Content container (for text/icons)
+        contentContainer =
+                LinearLayout(context).apply {
+                    layoutParams =
+                            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                    val hPadding = dpToPx(pillHeightCollapsed * 0.3f)
+                    val vPadding = dpToPx(pillHeightCollapsed * 0.2f)
+                    setPadding(hPadding, vPadding, hPadding, vPadding)
+                }
+
+        // Icon container (for stacked notification icons)
+        iconContainer =
+                LinearLayout(context).apply {
+                    layoutParams =
+                            LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT)
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                    visibility = GONE
+                }
+
+        // Close UI (for expanded list)
+        closeContainer =
+                LinearLayout(context).apply {
+                    layoutParams =
+                            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                    visibility = GONE
+                    val vPadding = dpToPx(pillHeightCollapsed * 0.1f)
+                    val hPadding = dpToPx(pillHeightCollapsed * 0.3f)
+                    setPadding(hPadding, vPadding, hPadding, vPadding)
+
+                    val closeText =
+                            TextView(context).apply {
+                                text = context.getString(R.string.di_close)
+                                textSize = pillHeightCollapsed * 0.35f
+                                setTextColor(Color.WHITE)
+                                typeface = Typeface.DEFAULT_BOLD
+                            }
+
+                    val arrow =
+                            TextView(context).apply {
+                                text = " ▴" // Small up arrow
+                                textSize = pillHeightCollapsed * 0.35f
+                                setTextColor(Color.WHITE)
+                            }
+
+                    addView(closeText)
+                    addView(arrow)
+
+                    setOnClickListener {
+                        onPillClick?.invoke()
+                    }
+                }
+
+        // Expanded list container
+        expandedList =
+                LinearLayout(context).apply {
+                    layoutParams =
+                            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                    orientation = LinearLayout.VERTICAL
+                }
+
+        expandedContainer =
+                ScrollView(context).apply {
+                    layoutParams =
+                            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                                    .apply {
+                                        topMargin = dpToPx(60)
+                                    } // Pill height (40dp) + extra spacing (20dp)
+                    visibility = GONE
+                    
+                    // Wrapper to resolve "only one direct child" scroller issue
+                    val wrapper = FrameLayout(context).apply {
+                        tag = "scroll_wrapper"
+                    }
+                    wrapper.addView(expandedList)
+                    addView(wrapper)
+                }
+
+        pillContainer.addView(contentContainer)
+        pillContainer.addView(iconContainer)
+        pillContainer.addView(closeContainer)
+
+        addView(pillContainer)
+        addView(expandedContainer)
+    }
+
+    private fun createPillBackground(): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            // Always use dark background for the pill itself as a base
+            setColor(Color.parseColor("#1C1C1E"))
+            cornerRadius = dpToPx(CORNER_RADIUS_DP).toFloat()
+        }
+    }
+    private var initialTouchX = 0f
+    private var initialTouchY = 0f
+    private var isDraggingUp = false
+    private val touchSlop = androidx.core.view.ViewConfigurationCompat.getScaledPagingTouchSlop(android.view.ViewConfiguration.get(context))
+
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        // Only intercept if expanded and we are at the bottom of the content
+        if (expandedContainer.visibility != VISIBLE) {
+            return super.onInterceptTouchEvent(ev)
+        }
+
+        when (ev.action) {
+            MotionEvent.ACTION_DOWN -> {
+                initialTouchX = ev.rawX
+                initialTouchY = ev.rawY
+                isDraggingUp = false
+                // Let child handle down, but we track point
+                super.onInterceptTouchEvent(ev)
+                return false
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val deltaY = ev.rawY - initialTouchY
+                val deltaX = ev.rawX - initialTouchX
+                
+                // Check if moving UP significantly and Vertical movement is DOMINANT
+                // (deltaY must be negative and larger than deltaX)
+                if (deltaY < -touchSlop && Math.abs(deltaY) > Math.abs(deltaX) * 2) {
+                     // Check if at bottom
+                     if (!expandedContainer.canScrollVertically(1)) {
+                         isDraggingUp = true
+                         return true // Intercept!
+                     }
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                isDraggingUp = false
+            }
+        }
+        return super.onInterceptTouchEvent(ev)
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (!isDraggingUp && expandedContainer.visibility != VISIBLE) {
+             return super.onTouchEvent(event)
+        }
+
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                initialTouchY = event.rawY
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                val deltaY = event.rawY - initialTouchY
+                // Only handle upward drag (negative delta)
+                if (deltaY < 0) {
+                     // Damped translation for visual feedback
+                     expandedContainer.translationY = deltaY * 0.5f 
+                     // Fade out
+                     val progress = Math.min(1f, Math.abs(deltaY) / dpToPx(200).toFloat())
+                     expandedContainer.alpha = 1f - progress
+                     return true
+                }
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                if (isDraggingUp) {
+                    val deltaY = event.rawY - initialTouchY
+                    val threshold = dpToPx(60)
+                    
+                    if (deltaY < -threshold) {
+                        // Collapse
+                        onPillClick?.invoke()
+                    } else {
+                        // Reset animation
+                        expandedContainer.animate()
+                            .translationY(0f)
+                            .alpha(1f)
+                            .setDuration(200)
+                            .start()
+                    }
+                    isDraggingUp = false
+                    return true
+                }
+            }
+        }
+        return super.onTouchEvent(event)
+    }
+
+
+    fun showIdleState(transportType: String = "") {
+        if (currentState == State.IDLE) return
+        currentState = State.IDLE
+        
+        stopMediaProgressAnimation() // Clean up media animation
+
+        expandedContainer.visibility = GONE
+        pillContainer.alpha = currentGlobalAlpha
+        closeContainer.visibility = GONE
+        contentContainer.visibility = VISIBLE
+        iconContainer.visibility = GONE
+
+        animateToCollapsed {
+            updateBackground()
+            resetContentPadding()
+            contentContainer.removeAllViews()
+
+            // Show connected state with correct transport icons
+            showConnectedState(transportType)
+        }
+    }
+
+    fun showDisconnectedState() {
+        if (currentState == State.DISCONNECTED) return
+        currentState = State.DISCONNECTED
+
+        expandedContainer.visibility = GONE
+        pillContainer.alpha = currentGlobalAlpha
+        closeContainer.visibility = GONE
+        contentContainer.visibility = VISIBLE
+        iconContainer.visibility = GONE
+
+        animateToCollapsed {
+            updateBackground()
+            resetContentPadding()
+            contentContainer.removeAllViews()
+            val container =
+                    LinearLayout(context).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER
+                    }
+
+            // Watch icon
+            val iconSize = dpToPx(pillHeightCollapsed * 0.6f)
+            val watchIcon =
+                    ImageView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
+                        setImageResource(R.drawable.ic_smartwatch)
+                        setColorFilter(Color.GRAY)
+                    }
+
+            // Crossed line visual
+            val crossLine =
+                    object : View(context) {
+                                override fun onDraw(canvas: Canvas) {
+                                    super.onDraw(canvas)
+                                    val paint =
+                                            Paint().apply {
+                                                isAntiAlias = true
+                                                strokeWidth = dpToPx(1.5f).toFloat()
+                                            }
+                                    val w = width.toFloat()
+                                    val h = height.toFloat()
+
+                                    // Draw gray horizontal line
+                                    paint.color = Color.GRAY
+                                    canvas.drawLine(0f, h / 2f, w, h / 2f, paint)
+
+                                    // Draw red cross in the middle
+                                    paint.color = Color.RED
+                                    paint.strokeWidth = dpToPx(2).toFloat()
+                                    val crossSize = dpToPx(4).toFloat()
+                                    canvas.drawLine(
+                                            w / 2f - crossSize,
+                                            h / 2f - crossSize,
+                                            w / 2f + crossSize,
+                                            h / 2f + crossSize,
+                                            paint
+                                    )
+                                    canvas.drawLine(
+                                            w / 2f + crossSize,
+                                            h / 2f - crossSize,
+                                            w / 2f - crossSize,
+                                            h / 2f + crossSize,
+                                            paint
+                                    )
+                                }
+                            }
+                            .apply {
+                                layoutParams =
+                                        LinearLayout.LayoutParams(dpToPx(20), dpToPx(10)).apply {
+                                            marginStart = dpToPx(2)
+                                            marginEnd = dpToPx(2)
+                                        }
+                            }
+
+            // Phone icon
+            val phoneIcon =
+                    ImageView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
+                        setImageResource(R.drawable.ic_smartphone)
+                        setColorFilter(Color.GRAY)
+                    }
+
+            container.addView(watchIcon)
+            container.addView(crossLine)
+            container.addView(phoneIcon)
+            contentContainer.addView(container)
+        }
+    }
+
+    fun showExpandedDisconnected() {
+        currentState = State.DISCONNECTED_EXPANDED
+
+        expandedContainer.visibility = GONE
+        iconContainer.visibility = GONE
+        closeContainer.visibility = GONE
+        contentContainer.visibility = VISIBLE
+        contentContainer.removeAllViews()
+
+        // Create disconnected content layout
+        val disconnectedLayout = LinearLayout(context).apply {
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dpToPx(16), dpToPx(8), dpToPx(16), dpToPx(8))
+
+            // Disconnect icon on the left
+            val iconContainer = FrameLayout(context).apply {
+                layoutParams = LinearLayout.LayoutParams(dpToPx(ICON_SIZE_DP), dpToPx(ICON_SIZE_DP)).apply {
+                    marginEnd = dpToPx(12)
+                }
+            }
+
+            val iconBackground = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#424242"))
+            }
+
+            val iconView = ImageView(context).apply {
+                layoutParams = FrameLayout.LayoutParams(dpToPx(ICON_SIZE_DP * 0.7f), dpToPx(ICON_SIZE_DP * 0.7f)).apply {
+                    gravity = Gravity.CENTER
+                }
+                setImageResource(R.drawable.ic_smartphone)
+                setColorFilter(Color.GRAY)
+            }
+
+            val crossLine = object : View(context) {
+                override fun onDraw(canvas: Canvas) {
+                    super.onDraw(canvas)
+                    val paint = Paint().apply {
+                        isAntiAlias = true
+                        color = Color.RED
+                        strokeWidth = dpToPx(2).toFloat()
+                    }
+                    canvas.drawLine(0f, 0f, width.toFloat(), height.toFloat(), paint)
+                    canvas.drawLine(width.toFloat(), 0f, 0f, height.toFloat(), paint)
+                }
+            }.apply {
+                layoutParams = FrameLayout.LayoutParams(dpToPx(ICON_SIZE_DP), dpToPx(ICON_SIZE_DP))
+            }
+
+            iconContainer.background = iconBackground
+            iconContainer.addView(iconView)
+            iconContainer.addView(crossLine)
+            addView(iconContainer)
+
+            // Text content
+            val textContainer = LinearLayout(context).apply {
+                layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+                orientation = LinearLayout.VERTICAL
+            }
+
+            val titleView = TextView(context).apply {
+                text = context.getString(R.string.notification_phone_disconnected_title)
+                textSize = getScaledTextSize(14f)
+                setTextColor(Color.WHITE)
+                typeface = Typeface.DEFAULT_BOLD
+            }
+
+            val subtitleView = TextView(context).apply {
+                text = context.getString(R.string.notification_phone_disconnected_text)
+                textSize = getScaledTextSize(12f)
+                setTextColor(Color.parseColor("#AAAAAA"))
+            }
+
+            textContainer.addView(titleView)
+            textContainer.addView(subtitleView)
+            addView(textContainer)
+        }
+
+        contentContainer.addView(disconnectedLayout)
+
+        // Animate to expanded size
+        animateToExpanded {
+            updateBackground()
+        }
+    }
+
+    fun showConnectedState(transportType: String = "") {
+        currentState = State.IDLE // Or a new state if needed, but IDLE implies connected active
+        expandedContainer.visibility = GONE
+        pillContainer.alpha = currentGlobalAlpha
+        closeContainer.visibility = GONE
+        contentContainer.visibility = VISIBLE
+        iconContainer.visibility = GONE
+
+        animateToCollapsed {
+            updateBackground()
+            resetContentPadding()
+            contentContainer.removeAllViews()
+            val iconSize = dpToPx(pillHeightCollapsed * 0.6f)
+            val container = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER
+            }
+            
+            // Show all active connection types
+            val hasBluetooth = transportType.contains("BT") || transportType.contains("BLE") || transportType.contains("Bluetooth")
+            val hasLan = transportType.contains("LAN") || transportType.contains("WiFi")
+            val hasInternet = transportType.contains("Internet")
+
+            val activeCount = listOf(hasBluetooth, hasLan, hasInternet).count { it }
+            val iconMargin = if (activeCount > 1) dpToPx(4) else 0
+
+            if (hasBluetooth) {
+                container.addView(ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(iconSize, iconSize).apply {
+                        if (hasLan || hasInternet) marginEnd = iconMargin
+                    }
+                    setImageResource(R.drawable.ic_bluetooth)
+                    setColorFilter(Color.parseColor("#30D158"))
+                })
+            }
+
+            if (hasLan) {
+                container.addView(ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(iconSize, iconSize).apply {
+                        if (hasInternet) marginEnd = iconMargin
+                    }
+                    setImageResource(R.drawable.ic_wifi)
+                    setColorFilter(Color.parseColor("#30D158"))
+                })
+            }
+
+            if (hasInternet) {
+                container.addView(ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
+                    setImageResource(R.drawable.ic_globe)
+                    setColorFilter(Color.parseColor("#30D158"))
+                })
+            }
+
+            // Fallback if no connection type detected but still "connected"
+            if (!hasBluetooth && !hasLan && !hasInternet) {
+                container.addView(ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(iconSize, iconSize)
+                    setImageResource(R.drawable.ic_bluetooth)
+                    setColorFilter(Color.parseColor("#30D158"))
+                })
+            }
+            contentContainer.addView(container)
+        }
+    }
+
+    fun showChargingState(batteryPercent: Int, animate: Boolean = false) {
+        if (currentState == State.CHARGING && !animate) {
+            // Just update the percentage
+            updateChargingDisplay(batteryPercent)
+            return
+        }
+        currentState = State.CHARGING
+
+        expandedContainer.visibility = GONE
+        pillContainer.alpha = currentGlobalAlpha
+        contentContainer.visibility = VISIBLE
+        closeContainer.visibility = GONE
+
+        contentContainer.removeAllViews()
+        iconContainer.visibility = GONE
+        contentContainer.setPadding(0) // Remove padding so progress ring can reach edges
+
+        // Pill-shaped progress background
+        val progressContainer =
+                FrameLayout(context).apply {
+                    layoutParams =
+                            LinearLayout.LayoutParams(
+                                    LayoutParams.MATCH_PARENT,
+                                    LayoutParams.MATCH_PARENT
+                            )
+                }
+
+        // Pill-shaped progress indicator
+        val progressRing = createPillProgress(if (animate) 0 else batteryPercent)
+        progressRing.tag = "progress_ring"
+
+        // Battery percentage text (centered)
+        val percentText =
+                TextView(context).apply {
+                    layoutParams =
+                            FrameLayout.LayoutParams(
+                                            LayoutParams.WRAP_CONTENT,
+                                            LayoutParams.WRAP_CONTENT
+                                    )
+                                    .apply { gravity = Gravity.CENTER }
+                    text = if (animate) "0%" else "$batteryPercent%"
+                    textSize = 16f
+                    setTextColor(Color.WHITE)
+                    tag = "percent_text"
+                }
+
+        progressContainer.addView(progressRing)
+        progressContainer.addView(percentText)
+        contentContainer.addView(progressContainer)
+
+        if (animate) {
+            val animator = ValueAnimator.ofFloat(0f, batteryPercent.toFloat())
+            animator.duration = 1500
+            animator.interpolator = DecelerateInterpolator()
+            animator.addUpdateListener { animation ->
+                val value = animation.animatedValue as Float
+                // Update text
+                percentText.text = "${value.toInt()}%"
+                // Update ring (we need a way to set its percent)
+                val ring = progressRing as? Any
+                try {
+                    val setter = ring?.javaClass?.getMethod("setPercent", Float::class.java)
+                    setter?.invoke(ring, value)
+                } catch (e: Exception) {
+                    // Fallback or handle differently if needed
+                }
+            }
+            animator.start()
+        }
+
+        animateToCollapsed {
+            updateBackground()
+        }
+    }
+
+    private fun updateChargingDisplay(batteryPercent: Int) {
+        // Find the progress container (first child of contentContainer)
+        val progressContainer = contentContainer.getChildAt(0) as? FrameLayout
+        val percentText = progressContainer?.findViewWithTag<TextView>("percent_text")
+        percentText?.text = "$batteryPercent%"
+
+        // Update progress ring
+        val oldProgress = progressContainer?.findViewWithTag<View>("progress_ring")
+        if (oldProgress != null) {
+            progressContainer.removeView(oldProgress)
+            val newProgress = createPillProgress(batteryPercent)
+            newProgress.tag = "progress_ring"
+            progressContainer.addView(newProgress, 0) // Add at index 0 so text stays on top
+        }
+    }
+
+    private fun createPillProgress(initialPercent: Int): View {
+        return object : View(context) {
+                    private var currentPercent: Float = initialPercent.toFloat()
+
+                    fun setPercent(percent: Float) {
+                        currentPercent = percent
+                        invalidate()
+                    }
+
+                    override fun onDraw(canvas: Canvas) {
+                        super.onDraw(canvas)
+
+                        val width = width.toFloat()
+                        val height = height.toFloat()
+                        if (width <= 0 || height <= 0) return
+
+                        val strokeWidth = dpToPx(3).toFloat()
+                        val radius = height / 2f
+
+                        // Draw filled background showing battery level
+                        val fillPaint =
+                                Paint().apply {
+                                    isAntiAlias = true
+                                    style = Paint.Style.FILL
+                                    color = Color.parseColor("#30D158") // Green fill
+                                    alpha = 80 // Semi-transparent
+                                }
+
+                        // Calculate fill width based on percentage
+                        val fillWidth = width * (currentPercent / 100f)
+                        val fillPath =
+                                Path().apply {
+                                    val rect = RectF(0f, 0f, fillWidth, height)
+                                    addRoundRect(rect, radius, radius, Path.Direction.CW)
+                                }
+                        canvas.drawPath(fillPath, fillPaint)
+
+                        // Draw outline stroke
+                        val strokePaint =
+                                Paint().apply {
+                                    isAntiAlias = true
+                                    style = Paint.Style.STROKE
+                                    this.strokeWidth = strokeWidth
+                                    color = Color.parseColor("#30D158") // Green
+                                    strokeCap = Paint.Cap.ROUND
+                                }
+
+                        // Create pill-shaped path with stroke inset
+                        val outlinePath =
+                                Path().apply {
+                                    val halfStroke = strokeWidth / 2f
+                                    val rect =
+                                            RectF(
+                                                    halfStroke,
+                                                    halfStroke,
+                                                    width - halfStroke,
+                                                    height - halfStroke
+                                            )
+                                    addRoundRect(
+                                            rect,
+                                            radius - halfStroke,
+                                            radius - halfStroke,
+                                            Path.Direction.CW
+                                    )
+                                }
+
+                        // Draw the pill outline
+                        canvas.drawPath(outlinePath, strokePaint)
+                    }
+                }
+                .apply {
+                    layoutParams =
+                            FrameLayout.LayoutParams(
+                                    LayoutParams.MATCH_PARENT,
+                                    LayoutParams.MATCH_PARENT
+                            )
+                }
+    }
+
+    fun expandWithNotification(notif: NotificationData) {
+        currentState = State.NOTIFICATION_EXPANDED
+
+        expandedContainer.visibility = GONE
+        iconContainer.visibility = GONE
+        closeContainer.visibility = GONE
+        contentContainer.visibility = VISIBLE
+        contentContainer.removeAllViews()
+
+        // Create notification content layout BEFORE animation
+        val notifLayout = createNotificationExpandedLayout(notif)
+        contentContainer.addView(notifLayout)
+
+        // Now animate to show it
+        updateBackground()
+        animateToExpanded {}
+    }
+
+    private fun createNotificationExpandedLayout(notif: NotificationData): View {
+        Log.d(TAG, "createNotificationExpandedLayout for ${notif.title}: fileType=${notif.fileType}, isMedia= ${notif.isMediaPlaying}")
+        val rootLayout = LinearLayout(context).apply {
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+            orientation = LinearLayout.VERTICAL
+        }
+
+        // Header Row (Icon + Text)
+        val headerRow = LinearLayout(context).apply {
+            layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dpToPx(16), dpToPx(8), dpToPx(16), dpToPx(8))
+
+            // Sender/App icon on the left
+            val iconFrame =
+                    FrameLayout(context).apply {
+                        layoutParams =
+                                LinearLayout.LayoutParams(
+                                                dpToPx(ICON_SIZE_DP),
+                                                dpToPx(ICON_SIZE_DP)
+                                        )
+                                        .apply { marginEnd = dpToPx(12) }
+                    }
+
+            // Main icon (sender or app icon)
+            val mainIcon =
+                    ImageView(context).apply {
+                        layoutParams =
+                                FrameLayout.LayoutParams(dpToPx(ICON_SIZE_DP), dpToPx(ICON_SIZE_DP))
+                        scaleType = ImageView.ScaleType.CENTER_CROP
+
+                        // Priority: Group Icon (if group chat) > Sender Icon > Large Icon > Small Icon
+                        val iconBitmap =
+                                when {
+                                    notif.isGroupConversation && notif.groupIcon != null ->
+                                            decodeBase64ToBitmap(notif.groupIcon)
+                                    notif.isGroupConversation && notif.largeIcon != null ->
+                                            decodeBase64ToBitmap(notif.largeIcon)
+                                    notif.senderIcon != null ->
+                                            decodeBase64ToBitmap(notif.senderIcon)
+                                    notif.groupIcon != null -> decodeBase64ToBitmap(notif.groupIcon)
+                                    notif.largeIcon != null -> decodeBase64ToBitmap(notif.largeIcon)
+                                    notif.smallIcon != null -> decodeBase64ToBitmap(notif.smallIcon)
+                                    else -> null
+                                }
+
+                        if (iconBitmap != null) {
+                            setImageBitmap(getCircularBitmap(iconBitmap))
+                        } else {
+                            val defaultRes = when(notif.fileType) {
+                                "image" -> android.R.drawable.ic_menu_gallery
+                                "video" -> android.R.drawable.ic_menu_slideshow
+                                "audio" -> android.R.drawable.ic_lock_silent_mode_off
+                                "text" -> android.R.drawable.ic_menu_edit
+                                else -> android.R.drawable.ic_dialog_info
+                            }
+                            setImageResource(defaultRes)
+                        }
+                    }
+            iconFrame.addView(mainIcon)
+
+            // Small overlay icon at bottom right
+            if (notif.fileType != null || (notif.smallIcon != null && (notif.senderIcon != null || notif.groupIcon != null || notif.largeIcon != null))) {
+                val smallIconView =
+                        ImageView(context).apply {
+                            layoutParams =
+                                    FrameLayout.LayoutParams(dpToPx(18), dpToPx(18)).apply {
+                                        gravity = Gravity.BOTTOM or Gravity.END
+                                    }
+                            scaleType = ImageView.ScaleType.FIT_CENTER
+                            setPadding(dpToPx(2), dpToPx(2), dpToPx(2), dpToPx(2))
+                            
+                            val typeRes = when(notif.fileType) {
+                                "image" -> android.R.drawable.ic_menu_gallery
+                                "video" -> android.R.drawable.ic_menu_slideshow
+                                "audio" -> android.R.drawable.ic_lock_silent_mode_off
+                                "text" -> android.R.drawable.ic_menu_edit
+                                else -> null
+                            }
+                            
+                            if (typeRes != null) {
+                                setImageResource(typeRes)
+                            } else {
+                                notif.smallIcon?.let { iconStr ->
+                                    decodeBase64ToBitmap(iconStr)?.let {
+                                        setImageBitmap(getCircularBitmap(it))
+                                    }
+                                }
+                            }
+                            
+                            background =
+                                    GradientDrawable().apply {
+                                        shape = GradientDrawable.OVAL
+                                        setColor(Color.parseColor("#333333"))
+                                        setStroke(dpToPx(2), Color.parseColor("#1C1C1E"))
+                                    }
+                        }
+                iconFrame.addView(smallIconView)
+            }
+            
+            addView(iconFrame)
+
+            // Text content (title and text)
+            val textContainer =
+                    LinearLayout(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+                        orientation = LinearLayout.VERTICAL
+                    }
+
+            // Title
+            val titleView =
+                    TextView(context).apply {
+                        layoutParams =
+                                LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                        text = notif.title
+                        textSize = getScaledTextSize(14f)
+                        setTextColor(Color.WHITE)
+                        maxLines = 1
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        // Slide animation from center
+                        alpha = 0f
+                        translationX = 50f
+                        animate().alpha(1f).translationX(0f).setDuration(300).start()
+                    }
+
+            // Content text
+            val contentTextView =
+                    TextView(context).apply {
+                        layoutParams =
+                                LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                        text = notif.text
+                        textSize = getScaledTextSize(12f)
+                        setTextColor(Color.parseColor("#AAAAAA"))
+                        maxLines = getAdaptiveMaxLines(2)
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        // Slide animation from center
+                        alpha = 0f
+                        translationX = 50f
+                        animate()
+                                .alpha(1f)
+                                .translationX(0f)
+                                .setDuration(300)
+                                .setStartDelay(100)
+                                .start()
+                    }
+
+            textContainer.addView(titleView)
+            textContainer.addView(contentTextView)
+
+            // Text content (preview) for text files
+            if (!notif.textContent.isNullOrBlank()) {
+                val textPreview =
+                        TextView(context).apply {
+                            layoutParams =
+                                    LinearLayout.LayoutParams(
+                                                    LayoutParams.MATCH_PARENT,
+                                                    LayoutParams.WRAP_CONTENT
+                                            )
+                                            .apply {
+                                                topMargin = dpToPx(8)
+                                            }
+                            text = notif.textContent
+                            textSize = getScaledTextSize(14f)
+                            setTextColor(Color.WHITE)
+                            setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12))
+                            background = GradientDrawable().apply {
+                                shape = GradientDrawable.RECTANGLE
+                                cornerRadius = dpToPx(16).toFloat()
+                                setColor(Color.parseColor("#333333"))
+                            }
+                            maxLines = 10
+                            ellipsize = android.text.TextUtils.TruncateAt.END
+                            // Slide animation from center
+                            alpha = 0f
+                            translationY = 20f
+                            animate()
+                                    .alpha(1f)
+                                    .translationY(0f)
+                                    .setDuration(300)
+                                    .setStartDelay(100)
+                                    .start()
+                        }
+                textContainer.addView(textPreview)
+            }
+
+            addView(textContainer)
+        }
+        rootLayout.addView(headerRow)
+        
+        // Media Player Container
+        if (notif.isMediaPlaying && notif.localFilePath != null) {
+            // Clean up any existing media players
+            releaseMediaPlayers()
+
+            val mediaContainer = FrameLayout(context).apply {
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+            }
+
+            if (notif.fileType == "video") {
+                val videoView = VideoView(context).apply {
+                    layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(200))
+
+                    // Add media controller for playback controls
+                    val mediaController = MediaController(context)
+                    mediaController.setAnchorView(this)
+                    setMediaController(mediaController)
+
+                    setVideoPath(notif.localFilePath)
+
+                    // Wait for media to be prepared before starting
+                    setOnPreparedListener { mp ->
+                        Log.d(TAG, "Video prepared, starting playback")
+                        mp.start()
+                    }
+
+                    setOnErrorListener { mp, what, extra ->
+                        Log.e(TAG, "Video playback error: what=$what, extra=$extra")
+                        true // Handled
+                    }
+
+                    setOnCompletionListener {
+                        Log.d(TAG, "Video playback completed")
+                        seekTo(0)
+                        start() // Loop video or just pause? Requirement says "progress reset to 0 and play button update to play". 
+                        // Actually standard VideoView behavior stops on completion.
+                        // But we want to explicitly reset so next "start()" works from 0.
+                        // The UI for video is handled by MediaController usually, but here we might need to handle it if we had custom controls.
+                        // However, the issue described "video needs to re download to pla again" suggests we need to properly handle the completion state.
+                        // Let's just log and ensure state is clean.
+                        // Actually, the main fix for "re-download" is in DynamicIslandService.
+                        // For video in expanded layout, it uses MediaController which handles replay well usually.
+                        // But let's be explicit:
+                        seekTo(0) 
+                        // We might need to handle custom 'play' button if we had one, but this uses MediaController.
+                        // The user said "video needs to re download". This is likely because the "Play" button in the NOTIFICATION LIST ITEM (which triggers this view) 
+                        // thinks it needs to download again.
+                    }
+                }
+                currentVideoView = videoView
+                mediaContainer.addView(videoView)
+
+            } else if (notif.fileType == "audio") {
+                // Audio player UI
+                val audioLayout = LinearLayout(context).apply {
+                    layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16))
+                    setBackgroundColor(Color.parseColor("#1C1C1E"))
+                }
+
+                // Audio icon
+                val audioIcon = ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(dpToPx(48), dpToPx(48))
+                    setImageResource(android.R.drawable.ic_lock_silent_mode_off)
+                    setColorFilter(Color.WHITE)
+                }
+                audioLayout.addView(audioIcon)
+
+                // Now Playing label
+                val nowPlaying = TextView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                        topMargin = dpToPx(8)
+                    }
+                    text = "Now Playing"
+                    setTextColor(Color.parseColor("#AAAAAA"))
+                    textSize = 12f
+                }
+                audioLayout.addView(nowPlaying)
+
+                // File name
+                val fileName = TextView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                        topMargin = dpToPx(4)
+                    }
+                    text = notif.localFilePath?.substringAfterLast("/") ?: "Unknown"
+                    setTextColor(Color.WHITE)
+                    textSize = 14f
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
+                }
+                audioLayout.addView(fileName)
+
+                // Control buttons row
+                val controlsRow = LinearLayout(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT).apply {
+                        topMargin = dpToPx(12)
+                    }
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                }
+
+                // Create MediaPlayer for audio
+                val audioPlayer = MediaPlayer().apply {
+                    try {
+                        setDataSource(context, Uri.parse(notif.localFilePath))
+                        setOnPreparedListener { mp ->
+                            Log.d(TAG, "Audio prepared, starting playback")
+                            mp.start()
+                        }
+                        setOnErrorListener { mp, what, extra ->
+                            Log.e(TAG, "Audio playback error: what=$what, extra=$extra")
+                            true
+                        }
+                        setOnCompletionListener {
+                            Log.d(TAG, "Audio playback completed")
+                            // Reset UI
+                            seekTo(0)
+                            // Find the play/pause button in the layout
+                            val playBtn = controlsRow.getChildAt(0) as? ImageView
+                            playBtn?.setImageResource(android.R.drawable.ic_media_play)
+                            // We don't set isMediaPlaying = false comfortably here because we want to stay in "player mode" just paused.
+                            // But if we want to reset to 0, we just did seekTo(0).
+                        }
+                        prepareAsync()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to set audio data source", e)
+                    }
+                }
+                currentAudioPlayer = audioPlayer
+
+                // Play/Pause button
+                val playPauseBtn = ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(dpToPx(48), dpToPx(48))
+                    setImageResource(android.R.drawable.ic_media_pause)
+                    setColorFilter(Color.WHITE)
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(Color.parseColor("#333333"))
+                    }
+                    setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12))
+
+                    setOnClickListener {
+                        try {
+                            if (audioPlayer.isPlaying) {
+                                audioPlayer.pause()
+                                setImageResource(android.R.drawable.ic_media_play)
+                            } else {
+                                audioPlayer.start()
+                                setImageResource(android.R.drawable.ic_media_pause)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error toggling audio playback", e)
+                        }
+                    }
+                }
+                controlsRow.addView(playPauseBtn)
+
+                // Stop button
+                val stopBtn = ImageView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(dpToPx(48), dpToPx(48)).apply {
+                        marginStart = dpToPx(16)
+                    }
+                    setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
+                    setColorFilter(Color.WHITE)
+                    background = GradientDrawable().apply {
+                        shape = GradientDrawable.OVAL
+                        setColor(Color.parseColor("#333333"))
+                    }
+                    setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12))
+
+                    setOnClickListener {
+                        try {
+                            audioPlayer.stop()
+                            audioPlayer.release()
+                            currentAudioPlayer = null
+                            notif.isMediaPlaying = false
+                            expandWithNotification(notif)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error stopping audio", e)
+                        }
+                    }
+                }
+                controlsRow.addView(stopBtn)
+
+                audioLayout.addView(controlsRow)
+                mediaContainer.addView(audioLayout)
+            }
+            rootLayout.addView(mediaContainer)
+        }
+
+        return rootLayout
+    }
+
+    private fun releaseMediaPlayers() {
+        stopMediaProgressAnimation()
+        try {
+            currentAudioPlayer?.let {
+                if (it.isPlaying) it.stop()
+                it.release()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error releasing audio player", e)
+        }
+        currentAudioPlayer = null
+
+        try {
+            currentVideoView?.stopPlayback()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping video", e)
+        }
+        currentVideoView = null
+    }
+
+    fun handleFileDownloadComplete(notif: NotificationData, path: String) {
+        notif.isDownloading = false
+        notif.isMediaPlaying = true
+        notif.localFilePath = path
+
+        Log.d(TAG, "File download complete for ${notif.title}, starting playback")
+
+        // Start playback immediately
+        startFilePlayback(notif)
+
+        // Refresh current view in-place without collapsing
+        when (currentState) {
+            State.LIST_EXPANDED -> {
+                // Rebuild only this item's parent list
+                expandedList.removeAllViews()
+                val queue = (context as? android.app.Service)?.let { null }
+                // Trigger list refresh via callback
+                onFilePlaybackStarted?.invoke(notif)
+            }
+            State.NOTIFICATION_EXPANDED -> {
+                // Rebuild the expanded single notification
+                contentContainer.removeAllViews()
+                contentContainer.addView(createNotificationExpandedLayout(notif))
+            }
+            else -> {
+                // Not visible, just start playback
+            }
+        }
+    }
+
+    // Callback for service to refresh the list
+    var onFilePlaybackStarted: ((NotificationData) -> Unit)? = null
+
+    // Track current download progress views for updates
+    private var currentDownloadProgressBar: LinearProgressIndicator? = null
+    private var currentDownloadLabel: TextView? = null
+
+    fun updateDownloadProgress(notif: NotificationData, progress: Int) {
+        currentDownloadProgressBar?.progress = progress
+        currentDownloadLabel?.text = "Downloading... $progress%"
+    }
+
+    private fun startFilePlayback(notif: NotificationData) {
+        releaseMediaPlayers()
+
+        val filePath = notif.localFilePath ?: return
+
+        if (notif.fileType == "audio") {
+            try {
+                currentAudioPlayer = MediaPlayer().apply {
+                    setDataSource(context, Uri.parse(filePath))
+                    setOnPreparedListener { mp ->
+                        Log.d(TAG, "Audio prepared, starting playback")
+                        mp.start()
+                    }
+                    setOnErrorListener { _, what, extra ->
+                        Log.e(TAG, "Audio playback error: what=$what, extra=$extra")
+                        true
+                    }
+                    setOnCompletionListener {
+                        Log.d(TAG, "Audio playback completed")
+                        // For the list item playback (blind playback), we usually want to reset state so the icon goes back to play.
+                        notif.isMediaPlaying = false
+                        currentAudioPlayer = null
+                        onFilePlaybackStarted?.invoke(notif) // Refresh list to show Play icon again
+                    }
+                    prepareAsync()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start audio playback", e)
+            }
+        }
+        // Video playback is handled inline by VideoView in createNotificationExpandedLayout
+    }
+
+    fun collapseToIcons(notifications: List<NotificationData>) {
+        releaseMediaPlayers()
+        currentState = State.NOTIFICATION_COLLAPSED
+
+        // Animate list out before hiding
+        expandedContainer
+                .animate()
+                .alpha(0f)
+                .translationY(-dpToPx(20).toFloat())
+                .setDuration(300)
+                .withEndAction {
+                    expandedContainer.visibility = GONE
+                    updateBackground()
+                    pillContainer.alpha = currentGlobalAlpha
+                    closeContainer.visibility = GONE
+
+                    contentContainer.removeAllViews()
+                    contentContainer.visibility = GONE
+                    iconContainer.visibility = VISIBLE
+                    iconContainer.removeAllViews()
+
+                    // Show up to 3 stacked icons, then "+N"
+                    val maxIcons = 3
+                    val iconsToShow = notifications.take(maxIcons)
+
+                    iconsToShow.forEachIndexed { index, notif ->
+                        val icon =
+                                ImageView(context).apply {
+                                    layoutParams =
+                                            LinearLayout.LayoutParams(
+                                                            dpToPx(STACKED_ICON_SIZE_DP),
+                                                            dpToPx(STACKED_ICON_SIZE_DP)
+                                                    )
+                                                    .apply {
+                                                        if (index == 0) {
+                                                            marginStart =
+                                                                    (dpToPx(pillHeightCollapsed) -
+                                                                            dpToPx(
+                                                                                    STACKED_ICON_SIZE_DP
+                                                                            )) / 2
+                                                        } else {
+                                                            marginStart =
+                                                                    -dpToPx(
+                                                                            STACKED_ICON_SIZE_DP / 2
+                                                                    )
+                                                        }
+                                                    }
+                                    scaleType = ImageView.ScaleType.CENTER_CROP
+                                    elevation = (maxIcons - index).toFloat() * dpToPx(2)
+
+                                    val iconBitmap =
+                                            when {
+                                                notif.isGroupConversation && notif.groupIcon != null ->
+                                                        decodeBase64ToBitmap(notif.groupIcon)
+                                                notif.isGroupConversation && notif.largeIcon != null ->
+                                                        decodeBase64ToBitmap(notif.largeIcon)
+                                                notif.senderIcon != null ->
+                                                        decodeBase64ToBitmap(notif.senderIcon)
+                                                notif.groupIcon != null ->
+                                                        decodeBase64ToBitmap(notif.groupIcon)
+                                                notif.largeIcon != null ->
+                                                        decodeBase64ToBitmap(notif.largeIcon)
+                                                notif.smallIcon != null ->
+                                                        decodeBase64ToBitmap(notif.smallIcon)
+                                                else -> null
+                                            }
+
+                                    if (iconBitmap != null) {
+                                        setImageBitmap(getCircularBitmap(iconBitmap))
+                                    } else {
+                                        setImageResource(android.R.drawable.ic_dialog_info)
+                                    }
+
+                                    background =
+                                            GradientDrawable().apply {
+                                                shape = GradientDrawable.OVAL
+                                                val strokeWidth =
+                                                        Math.max(
+                                                                1,
+                                                                dpToPx(STACKED_ICON_SIZE_DP / 14f)
+                                                        )
+                                                setStroke(strokeWidth, Color.WHITE)
+                                            }
+                                }
+                        iconContainer.addView(icon)
+                    }
+
+                    if (notifications.size > maxIcons) {
+                        val moreText =
+                                TextView(context).apply {
+                                    layoutParams =
+                                            LinearLayout.LayoutParams(
+                                                            dpToPx(STACKED_ICON_SIZE_DP),
+                                                            dpToPx(STACKED_ICON_SIZE_DP)
+                                                    )
+                                                    .apply {
+                                                        marginStart =
+                                                                -dpToPx(STACKED_ICON_SIZE_DP / 2)
+                                                    }
+                                    text = "+${notifications.size - maxIcons}"
+                                    textSize = (STACKED_ICON_SIZE_DP * 0.4f)
+                                    setTextColor(Color.WHITE)
+                                    gravity = Gravity.CENTER
+                                    background =
+                                            GradientDrawable().apply {
+                                                shape = GradientDrawable.OVAL
+                                                setColor(Color.parseColor("#FF9500"))
+                                                val strokeWidth =
+                                                        Math.max(
+                                                                1,
+                                                                dpToPx(STACKED_ICON_SIZE_DP / 14f)
+                                                        )
+                                                setStroke(strokeWidth, Color.WHITE)
+                                            }
+                                }
+                        iconContainer.addView(moreText)
+                    }
+
+                    animateToCollapsed {}
+                }
+                .start()
+    }
+
+    fun expandToList(notifications: List<NotificationData>) {
+        val wrapper = expandedContainer.findViewWithTag<FrameLayout>("scroll_wrapper")
+        wrapper?.findViewWithTag<View>("media_expanded_layout")?.visibility = GONE
+        expandedList.visibility = VISIBLE
+
+        // If already in list view, just update the list items
+        if (currentState == State.LIST_EXPANDED) {
+            expandedList.removeAllViews()
+            notifications.forEach { notif ->
+                val itemView = createNotificationListItem(notif)
+                if (itemView.parent != null) {
+                    Log.w("DynamicIslandView", "View already has parent: ${itemView.parent} - forcing remove")
+                    (itemView.parent as? ViewGroup)?.removeView(itemView)
+                }
+                expandedList.addView(itemView)
+            }
+
+            if (notifications.size > 1) {
+                addClearAllButton()
+            }
+            return
+        }
+
+        currentState = State.LIST_EXPANDED
+
+        // Hide pill content and show list instead
+        contentContainer.visibility = GONE
+        iconContainer.visibility = GONE
+
+        // Collapse pill back to small size
+        animateToCollapsed {
+            updateBackground()
+            // Once pill is small, show the list with animation
+            expandedContainer.alpha = 0f
+            expandedContainer.translationY = -dpToPx(20).toFloat()
+            expandedContainer.visibility = VISIBLE
+            expandedList.removeAllViews()
+
+            notifications.forEach { notif ->
+                val itemView = createNotificationListItem(notif)
+                if (itemView.parent != null) {
+                    Log.w("DynamicIslandView", "View already has parent (secondary): ${itemView.parent} - forcing remove")
+                    (itemView.parent as? ViewGroup)?.removeView(itemView)
+                }
+                expandedList.addView(itemView)
+            }
+
+            if (notifications.size > 1) {
+                addClearAllButton()
+            }
+
+            expandedContainer.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(200)
+                    .start()
+            // Show Close UI in pill
+            contentContainer.visibility = GONE
+            iconContainer.visibility = GONE
+            closeContainer.visibility = VISIBLE
+
+            expandedContainer.animate().alpha(1f).translationY(0f).setDuration(300).start()
+        }
+    }
+
+    private fun addClearAllButton() {
+        val clearAllBtn =
+                TextView(context).apply {
+                    layoutParams =
+                            LinearLayout.LayoutParams(
+                                            LayoutParams.MATCH_PARENT,
+                                            LayoutParams.WRAP_CONTENT
+                                    )
+                                    .apply {
+                                        topMargin = dpToPx(8)
+                                        bottomMargin = dpToPx(16)
+                                    }
+                    text = context.getString(R.string.di_clear_all)
+                    textSize = getScaledTextSize(14f)
+                    setTextColor(Color.WHITE)
+                    gravity = Gravity.CENTER
+                    setPadding(dpToPx(12))
+                    background =
+                            GradientDrawable().apply {
+                                shape = GradientDrawable.RECTANGLE
+                                cornerRadius = dpToPx(12).toFloat()
+                                setColor(Color.parseColor("#3A3A3C"))
+                            }
+                    setOnClickListener { onClearAllClicked?.invoke() }
+                }
+        expandedList.addView(clearAllBtn)
+    }
+
+    fun updateNotificationQueue(notifications: List<NotificationData>) {
+        if (currentState == State.NOTIFICATION_COLLAPSED) {
+            collapseToIcons(notifications)
+        } else if (currentState == State.LIST_EXPANDED) {
+            expandToList(notifications)
+        }
+    }
+
+    private fun createNotificationListItem(notif: NotificationData): View {
+        var startX = 0f
+        var startXTime = 0L
+        return LinearLayout(context).apply {
+            layoutParams =
+                    LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                        bottomMargin = dpToPx(8)
+                    }
+            orientation = LinearLayout.VERTICAL
+            setPadding(dpToPx(16))
+            background =
+                    GradientDrawable().apply {
+                        shape = GradientDrawable.RECTANGLE
+                        cornerRadius = dpToPx(12).toFloat()
+                        setColor(Color.parseColor("#2C2C2E"))
+                    }
+
+            // Top row: icon + title + dismiss button
+            val topRow =
+                    LinearLayout(context).apply {
+                        layoutParams =
+                                LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                    }
+
+            // Icon with FrameLayout for overlay support
+            val iconFrame =
+                    FrameLayout(context).apply {
+                        layoutParams =
+                                LinearLayout.LayoutParams(dpToPx(32), dpToPx(32)).apply {
+                                    marginEnd = dpToPx(8)
+                                }
+                    }
+
+            val icon =
+                    ImageView(context).apply {
+                        layoutParams =
+                                FrameLayout.LayoutParams(dpToPx(32), dpToPx(32))
+                        scaleType = ImageView.ScaleType.CENTER_CROP
+
+                        val iconBitmap =
+                                when {
+                                    notif.isGroupConversation && notif.groupIcon != null ->
+                                            decodeBase64ToBitmap(notif.groupIcon)
+                                    notif.isGroupConversation && notif.largeIcon != null ->
+                                            decodeBase64ToBitmap(notif.largeIcon)
+                                    notif.senderIcon != null ->
+                                            decodeBase64ToBitmap(notif.senderIcon)
+                                    notif.groupIcon != null -> decodeBase64ToBitmap(notif.groupIcon)
+                                    notif.largeIcon != null -> decodeBase64ToBitmap(notif.largeIcon)
+                                    notif.smallIcon != null -> decodeBase64ToBitmap(notif.smallIcon)
+                                    else -> null
+                                }
+
+                        if (iconBitmap != null) {
+                            setImageBitmap(getCircularBitmap(iconBitmap))
+                        } else {
+                            setImageResource(android.R.drawable.ic_dialog_info)
+                        }
+                    }
+            iconFrame.addView(icon)
+
+            // Small overlay icon at bottom right
+            if (notif.fileType != null || (notif.smallIcon != null && (notif.senderIcon != null || notif.groupIcon != null || notif.largeIcon != null))) {
+                val smallIcon =
+                        ImageView(context).apply {
+                            layoutParams =
+                                    FrameLayout.LayoutParams(dpToPx(16), dpToPx(16)).apply {
+                                        gravity = Gravity.BOTTOM or Gravity.END
+                                    }
+                            scaleType = ImageView.ScaleType.FIT_CENTER
+                            setPadding(dpToPx(2), dpToPx(2), dpToPx(2), dpToPx(2))
+                            
+                            // Load based on file type OR base64
+                            val typeRes = when(notif.fileType) {
+                                "image" -> android.R.drawable.ic_menu_gallery
+                                "video" -> android.R.drawable.ic_menu_slideshow
+                                "audio" -> android.R.drawable.ic_lock_silent_mode_off
+                                "text" -> android.R.drawable.ic_menu_edit
+                                else -> null
+                            }
+                            
+                            if (typeRes != null) {
+                                setImageResource(typeRes)
+                            } else {
+                                notif.smallIcon?.let { iconStr ->
+                                    decodeBase64ToBitmap(iconStr)?.let {
+                                        setImageBitmap(getCircularBitmap(it))
+                                    }
+                                }
+                            }
+                            
+                            background =
+                                    GradientDrawable().apply {
+                                        shape = GradientDrawable.OVAL
+                                        setColor(Color.parseColor("#333333"))
+                                        setStroke(dpToPx(1), Color.parseColor("#1C1C1E"))
+                                    }
+                        }
+                iconFrame.addView(smallIcon)
+            }
+
+            topRow.addView(iconFrame)
+
+            val title =
+                    TextView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+                        text = notif.title
+                        textSize = getScaledTextSize(14f)
+                        setTextColor(Color.WHITE)
+                        maxLines = 1
+                    }
+            topRow.addView(title)
+
+            // No dismiss button - using swipe gesture instead
+
+            addView(topRow)
+
+            val content =
+                    TextView(context).apply {
+                        layoutParams =
+                                LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                                        .apply { topMargin = dpToPx(4) }
+                        text = notif.text
+                        textSize = getScaledTextSize(13f)
+                        setTextColor(Color.parseColor("#AAAAAA"))
+                        maxLines = getAdaptiveMaxLines(3)
+                    }
+            addView(content)
+
+            // Text content (preview)
+            if (!notif.textContent.isNullOrBlank()) {
+                val textPreview = TextView(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                        topMargin = dpToPx(4)
+                        setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+                    }
+                    text = notif.textContent
+                    textSize = getScaledTextSize(12f)
+                    setTextColor(Color.WHITE)
+                    setBackgroundResource(android.R.drawable.edit_text)
+                    backgroundTintList = android.content.res.ColorStateList.valueOf(Color.parseColor("#333333"))
+                    maxLines = 5
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                }
+                addView(textPreview)
+            }
+
+            // Video player or thumbnail preview
+            if (notif.fileType == "video" && notif.isMediaPlaying && notif.localFilePath != null) {
+                // Show VideoView for playing video
+                val videoContainer = FrameLayout(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(180))
+                        .apply {
+                            topMargin = dpToPx(8)
+                            gravity = Gravity.CENTER
+                        }
+                    clipToOutline = true
+                    outlineProvider = object : ViewOutlineProvider() {
+                        override fun getOutline(view: View, outline: Outline) {
+                            outline.setRoundRect(0, 0, view.width, view.height, dpToPx(8).toFloat())
+                        }
+                    }
+                }
+
+                val videoView = VideoView(context).apply {
+                    layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT).apply {
+                        gravity = Gravity.CENTER
+                    }
+                    setVideoPath(notif.localFilePath)
+                    setOnPreparedListener { mp ->
+                        Log.d(TAG, "Video prepared in list, starting playback")
+                        mp.start()
+                    }
+                    setOnErrorListener { _, what, extra ->
+                        Log.e(TAG, "Video playback error: what=$what, extra=$extra")
+                        true
+                    }
+                    setOnCompletionListener {
+                        Log.d(TAG, "Video playback completed")
+                        notif.isMediaPlaying = false
+                        onFilePlaybackStarted?.invoke(notif) // Refresh to show play button
+                    }
+                }
+                currentVideoView = videoView
+                videoContainer.addView(videoView)
+                addView(videoContainer)
+
+            } else if (notif.bigPicture != null) {
+                // Show thumbnail preview
+                decodeBase64ToBitmap(notif.bigPicture!!)?.let { bitmap ->
+                    val maxHeight = dpToPx(200)
+                    val aspectRatio = bitmap.width.toFloat() / bitmap.height.toFloat()
+                    val calculatedHeight = if (aspectRatio > 0) {
+                        minOf(maxHeight, (dpToPx(pillWidthExpanded - 32) / aspectRatio).toInt())
+                    } else {
+                        maxHeight
+                    }
+
+                    val bigPictureView = ImageView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, calculatedHeight)
+                            .apply { topMargin = dpToPx(8) }
+                        scaleType = ImageView.ScaleType.FIT_CENTER
+                        adjustViewBounds = true
+                        setImageBitmap(bitmap)
+                        clipToOutline = true
+                        outlineProvider = object : ViewOutlineProvider() {
+                            override fun getOutline(view: View, outline: Outline) {
+                                outline.setRoundRect(0, 0, view.width, view.height, dpToPx(8).toFloat())
+                            }
+                        }
+                        // Click to open full screen viewer for images and videos
+                        // Note: actual click handling is now done via setOnTouchListener (swipe logic)
+                        // inside createNotificationListItem to avoid conflict.
+                        tag = "big_picture_view"
+                    }
+                    addView(bigPictureView)
+                }
+            }
+
+            // Media bar for video/audio files
+            if (notif.fileType == "video" || notif.fileType == "audio") {
+                val mediaContainer = LinearLayout(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                        topMargin = dpToPx(8)
+                    }
+                    orientation = LinearLayout.VERTICAL
+                    setPadding(dpToPx(12), dpToPx(10), dpToPx(12), dpToPx(10))
+                    background = GradientDrawable().apply {
+                        cornerRadius = dpToPx(12).toFloat()
+                        setColor(Color.parseColor("#3A3A3C"))
+                    }
+                }
+
+                // Top row with controls
+                val controlsRow = LinearLayout(context).apply {
+                    layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER_VERTICAL
+                }
+
+                if (notif.isMediaPlaying && notif.localFilePath != null) {
+                    // Now Playing state
+                    val pauseIcon = ImageView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(dpToPx(36), dpToPx(36))
+                        setImageResource(android.R.drawable.ic_media_pause)
+                        setColorFilter(Color.WHITE)
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(Color.parseColor("#0A84FF"))
+                        }
+                        setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+                    }
+                    controlsRow.addView(pauseIcon)
+
+                    val nowPlayingLabel = TextView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply {
+                            marginStart = dpToPx(12)
+                        }
+                        text = if (notif.fileType == "video") "Playing Video" else "Playing Audio"
+                        textSize = getScaledTextSize(13f)
+                        setTextColor(Color.WHITE)
+                    }
+                    controlsRow.addView(nowPlayingLabel)
+
+                    // Stop button
+                    val stopIcon = ImageView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(dpToPx(32), dpToPx(32))
+                        setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
+                        setColorFilter(Color.parseColor("#FF6B6B"))
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(Color.parseColor("#333333"))
+                        }
+                        setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+                        setOnClickListener {
+                            releaseMediaPlayers()
+                            notif.isMediaPlaying = false
+                            notif.localFilePath = null
+                            onFilePlaybackStarted?.invoke(notif)
+                        }
+                    }
+                    controlsRow.addView(stopIcon)
+
+                    // Pause/resume toggle - works for both audio and video
+                    pauseIcon.setOnClickListener {
+                        try {
+                            val audioPlayer = currentAudioPlayer
+                            val videoPlayer = currentVideoView
+
+                            if (audioPlayer != null) {
+                                if (audioPlayer.isPlaying) {
+                                    audioPlayer.pause()
+                                    pauseIcon.setImageResource(android.R.drawable.ic_media_play)
+                                    nowPlayingLabel.text = "Paused"
+                                } else {
+                                    audioPlayer.start()
+                                    pauseIcon.setImageResource(android.R.drawable.ic_media_pause)
+                                    nowPlayingLabel.text = "Playing Audio"
+                                }
+                            } else if (videoPlayer != null) {
+                                if (videoPlayer.isPlaying) {
+                                    videoPlayer.pause()
+                                    pauseIcon.setImageResource(android.R.drawable.ic_media_play)
+                                    nowPlayingLabel.text = "Paused"
+                                } else {
+                                    videoPlayer.start()
+                                    pauseIcon.setImageResource(android.R.drawable.ic_media_pause)
+                                    nowPlayingLabel.text = "Playing Video"
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error toggling playback", e)
+                        }
+                    }
+
+                    mediaContainer.addView(controlsRow)
+
+                    // Wavy Slider (Compose)
+                    val composeSlider = ComposeView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(48)).apply {
+                            topMargin = dpToPx(8)
+                        }
+                        setContent {
+                            SmartwatchTheme {
+                                MediaWaveSlider(
+                                    value = diSliderValue.floatValue,
+                                    onValueChange = { newValue ->
+                                        diSliderValue.floatValue = newValue
+                                    },
+                                    isPlaying = diIsPlaying.value,
+                                    onValueChangeFinished = {
+                                        try {
+                                            val audioPlayer = currentAudioPlayer
+                                            val videoPlayer = currentVideoView
+                                            if (audioPlayer != null) {
+                                                val seekPos = (audioPlayer.duration * diSliderValue.floatValue / 100).toInt()
+                                                audioPlayer.seekTo(seekPos)
+                                            } else if (videoPlayer != null) {
+                                                val seekPos = (videoPlayer.duration * diSliderValue.floatValue / 100).toInt()
+                                                videoPlayer.seekTo(seekPos)
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "Error seeking", e)
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    mediaContainer.addView(composeSlider)
+
+                    // Update progress periodically - keeps running as long as media player exists
+                    val progressHandler = Handler(Looper.getMainLooper())
+                    val updateProgress = object : Runnable {
+                        override fun run() {
+                            try {
+                                val audioPlayer = currentAudioPlayer
+                                val videoPlayer = currentVideoView
+
+                                diIsPlaying.value = (audioPlayer?.isPlaying ?: false) || (videoPlayer?.isPlaying ?: false)
+
+                                // Update progress for audio
+                                if (audioPlayer != null) {
+                                    val duration = audioPlayer.duration
+                                    val position = audioPlayer.currentPosition
+                                    if (duration > 0) {
+                                        diSliderValue.floatValue = (position * 100f / duration).coerceIn(0f, 100f)
+                                    }
+                                    // Keep running as long as player exists
+                                    progressHandler.postDelayed(this, 500)
+                                    return
+                                }
+
+                                // Update progress for video
+                                if (videoPlayer != null) {
+                                    val duration = videoPlayer.duration
+                                    val position = videoPlayer.currentPosition
+                                    if (duration > 0) {
+                                        diSliderValue.floatValue = (position * 100f / duration).coerceIn(0f, 100f)
+                                    }
+                                    // Keep running as long as player exists
+                                    progressHandler.postDelayed(this, 500)
+                                    return
+                                }
+
+                                // No player, stop updating
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error updating progress", e)
+                                // Still try to reschedule if player exists
+                                if (currentAudioPlayer != null || currentVideoView != null) {
+                                    progressHandler.postDelayed(this, 500)
+                                }
+                            }
+                        }
+                    }
+                    progressHandler.post(updateProgress)
+
+                    // Stop updates when view is detached
+                    composeSlider.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                        override fun onViewAttachedToWindow(v: View) {}
+                        override fun onViewDetachedFromWindow(v: View) {
+                            progressHandler.removeCallbacksAndMessages(null)
+                        }
+                    })
+
+
+
+                } else {
+                    // Play/download state
+                    val playIcon = ImageView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(dpToPx(36), dpToPx(36))
+                        setImageResource(android.R.drawable.ic_media_play)
+                        setColorFilter(Color.WHITE)
+                        background = GradientDrawable().apply {
+                            shape = GradientDrawable.OVAL
+                            setColor(Color.parseColor("#0A84FF"))
+                        }
+                        setPadding(dpToPx(8), dpToPx(8), dpToPx(6), dpToPx(8))
+                    }
+                    controlsRow.addView(playIcon)
+
+                    val playLabel = TextView(context).apply {
+                        layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply {
+                            marginStart = dpToPx(12)
+                        }
+                        text = if (notif.fileType == "video") "Play Video" else "Play Audio"
+                        textSize = getScaledTextSize(13f)
+                        setTextColor(Color.WHITE)
+                    }
+                    controlsRow.addView(playLabel)
+
+                    mediaContainer.addView(controlsRow)
+
+                    if (notif.isDownloading) {
+                        playIcon.visibility = View.GONE
+                        playLabel.text = "Downloading... ${notif.downloadProgress}%"
+
+                        // Download progress bar
+                        val downloadProgress = LinearProgressIndicator(ContextThemeWrapper(context, R.style.Theme_Smartwatch)).apply {
+                            layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(4)).apply {
+                                topMargin = dpToPx(8)
+                            }
+                            max = 100
+                            progress = notif.downloadProgress
+                            setIndicatorColor(Color.parseColor("#0A84FF"))
+                            setTrackColor(Color.parseColor("#330A84FF"))
+                        }
+                        mediaContainer.addView(downloadProgress)
+
+                        // Store references for updates
+                        currentDownloadProgressBar = downloadProgress
+                        currentDownloadLabel = playLabel
+                    }
+
+                    mediaContainer.setOnClickListener {
+                        if (!notif.isDownloading) {
+                            notif.isDownloading = true
+                            playIcon.visibility = View.GONE
+                            playLabel.text = "Downloading... 0%"
+
+                            // Add progress bar dynamically
+                            val downloadProgress = LinearProgressIndicator(ContextThemeWrapper(context, R.style.Theme_Smartwatch)).apply {
+                                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(4)).apply {
+                                    topMargin = dpToPx(8)
+                                }
+                                max = 100
+                                progress = 0
+                                setIndicatorColor(Color.parseColor("#0A84FF"))
+                                setTrackColor(Color.parseColor("#330A84FF"))
+                            }
+                            mediaContainer.addView(downloadProgress)
+                            currentDownloadProgressBar = downloadProgress
+                            currentDownloadLabel = playLabel
+
+                            onActionClick?.invoke(notif, NotificationActionData("Play", "rtosify_play_" + notif.key))
+                        }
+                    }
+                }
+
+                addView(mediaContainer)
+            }
+
+            // Media actions removed here to avoid duplication with the styled action buttons below.
+
+            // Chat messages
+            if (notif.messages.isNotEmpty()) {
+                val messagesContainer =
+                        LinearLayout(context).apply {
+                            layoutParams =
+                                    LinearLayout.LayoutParams(
+                                                    LayoutParams.MATCH_PARENT,
+                                                    LayoutParams.WRAP_CONTENT
+                                            )
+                                            .apply { topMargin = dpToPx(8) }
+                            orientation = LinearLayout.VERTICAL
+                        }
+
+                notif.messages.takeLast(2).forEach { message ->
+                    val messageLayout =
+                            LinearLayout(context).apply {
+                                layoutParams =
+                                        LinearLayout.LayoutParams(
+                                                        LayoutParams.MATCH_PARENT,
+                                                        LayoutParams.WRAP_CONTENT
+                                                )
+                                                .apply { bottomMargin = dpToPx(4) }
+                                orientation = LinearLayout.HORIZONTAL
+                                gravity = Gravity.CENTER_VERTICAL
+                            }
+
+                    // Determine if this message is from self
+                    val msgSenderName = message.senderName
+                    val isMe = msgSenderName == null ||
+                               msgSenderName == notif.selfName ||
+                               msgSenderName.equals("Me", ignoreCase = true) ||
+                               msgSenderName.equals("You", ignoreCase = true)
+
+                    // Use selfIcon for own messages, senderIcon for others
+                    val iconBase64 = if (isMe) notif.selfIcon ?: message.senderIcon else message.senderIcon
+                    iconBase64?.let { base64Icon ->
+                        decodeBase64ToBitmap(base64Icon)?.let { iconBitmap ->
+                            val senderIconView =
+                                    ImageView(context).apply {
+                                        layoutParams =
+                                                LinearLayout.LayoutParams(dpToPx(24), dpToPx(24))
+                                                        .apply { marginEnd = dpToPx(8) }
+                                        scaleType = ImageView.ScaleType.CENTER_CROP
+                                        setImageBitmap(getCircularBitmap(iconBitmap))
+                                    }
+                            messageLayout.addView(senderIconView)
+                        }
+                    }
+
+                    val messageTextView =
+                            TextView(context).apply {
+                                layoutParams =
+                                        LinearLayout.LayoutParams(
+                                                LayoutParams.WRAP_CONTENT,
+                                                LayoutParams.WRAP_CONTENT
+                                        )
+                                text =
+                                        if (message.senderName != null)
+                                                "${message.senderName}: ${message.text}"
+                                        else message.text
+                                textSize = getScaledTextSize(11f)
+                                setTextColor(Color.parseColor("#CCCCCC"))
+                                maxLines = getAdaptiveMaxLines(2)
+                                ellipsize = android.text.TextUtils.TruncateAt.END
+                                background =
+                                        GradientDrawable().apply {
+                                            cornerRadius = dpToPx(8).toFloat()
+                                            setColor(Color.parseColor("#3A3A3C"))
+                                        }
+                                setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4))
+                            }
+                    messageLayout.addView(messageTextView)
+                    messagesContainer.addView(messageLayout)
+                }
+                addView(messagesContainer)
+            }
+
+            // Action buttons
+            if (notif.actions.isNotEmpty()) {
+                val actionRow =
+                        LinearLayout(context).apply {
+                            layoutParams =
+                                    LayoutParams(
+                                                    LayoutParams.MATCH_PARENT,
+                                                    LayoutParams.WRAP_CONTENT
+                                            )
+                                            .apply { topMargin = dpToPx(12) }
+                            orientation = LinearLayout.HORIZONTAL
+                        }
+
+                notif.actions.forEachIndexed { index, action ->
+                    val actionBtn =
+                            TextView(context).apply {
+                                layoutParams =
+                                        LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+                                                .apply {
+                                                    if (index < notif.actions.size - 1) {
+                                                        marginEnd = dpToPx(8)
+                                                    }
+                                                }
+                                text = action.title
+                                textSize = getScaledTextSize(12f)
+                                setTextColor(Color.WHITE)
+                                gravity = Gravity.CENTER
+                                setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+                                background =
+                                        GradientDrawable().apply {
+                                            cornerRadius = dpToPx(16).toFloat()
+                                            setColor(Color.parseColor("#3A3A3C"))
+                                        }
+
+                                setOnClickListener {
+                                    if (action.isReplyAction) {
+                                        showReplyDialog(notif)
+                                    } else {
+                                        // Execute action
+                                        val intent =
+                                                android.content.Intent(
+                                                                BluetoothService
+                                                                        .ACTION_CMD_EXECUTE_ACTION
+                                                        )
+                                                        .apply {
+                                                            putExtra(
+                                                                    BluetoothService
+                                                                            .EXTRA_NOTIF_KEY,
+                                                                    notif.key
+                                                            )
+                                                            putExtra(
+                                                                    BluetoothService
+                                                                            .EXTRA_ACTION_KEY,
+                                                                    action.actionKey
+                                                            )
+                                                            setPackage(context.packageName)
+                                                        }
+                                        context.sendBroadcast(intent)
+                                        onNotificationDismiss?.invoke(notif)
+                                    }
+                                }
+                            }
+                    actionRow.addView(actionBtn)
+                }
+
+                addView(actionRow)
+            }
+
+            // Swipe right to dismiss gesture
+            val swipeListener = createSwipeDismissListener(this, notif) {
+                // On Click listener for the row (standard expanded state behavior - usually just logs or collapses)
+                // If we want the whole row to be clickable to open the app, we can do it here.
+                // For now, let's keep the default behavior which is just handling the swipe.
+                // If the user taps the row (not the image), maybe we should toggle something?
+                // The original code v.performClick calls the OnClickListener set on "itemView",
+                // but we didn't see an OnClickListener set on "this" (LinearLayout) explicitly in createNotificationListItem,
+                // except the buttons inside it.
+                // However, let's allow it to perform click if any.
+                this.performClick()
+            }
+            setOnTouchListener(swipeListener)
+
+            // Apply same swipe listener to bigPicture view if it exists, but with specific click action
+            findViewWithTag<ImageView>("big_picture_view")?.let { imgView ->
+                imgView.setOnTouchListener(createSwipeDismissListener(this, notif) {
+                    onOpenFullScreenViewer?.invoke(notif)
+                    // Trigger a proper collapse via pill click logic which updates state in service
+                    // If we just animate, the logical state might remain expanded.
+                    // Assuming onPillClick toggles expansion off if currently expanded.
+                    onPillClick?.invoke() 
+                })
+            }
+        }
+    }
+
+    private fun createSwipeDismissListener(
+        rowView: View, 
+        notif: NotificationData, 
+        onClick: () -> Unit
+    ): View.OnTouchListener {
+        return object : View.OnTouchListener {
+            var startX = 0f
+            var startY = 0f
+            var startXTime = 0L
+
+            override fun onTouch(v: View, event: MotionEvent): Boolean {
+                 when (event.action) {
+                    MotionEvent.ACTION_DOWN -> {
+                        startX = event.rawX
+                        startY = event.rawY
+                        startXTime = System.currentTimeMillis()
+                        // Important: logic to allow parent scrollview to scroll vertical
+                        // but catch horizontal here. 
+                        return true 
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val deltaX = event.rawX - startX
+                        val deltaY = event.rawY - startY
+
+                        // Determine if horizontal or vertical swipe
+                        if (kotlin.math.abs(deltaX) > kotlin.math.abs(deltaY) &&
+                                        kotlin.math.abs(deltaX) > 20
+                        ) {
+                            // Horizontal swipe confirmed - prevent parent from intercepting
+                            rowView.parent.requestDisallowInterceptTouchEvent(true)
+
+                            // Only allow swiping right (positive deltaX)
+                            if (deltaX > 0) {
+                                rowView.translationX = deltaX
+                                val safeWidth = if (rowView.width > 0) rowView.width else dpToPx(300)
+                                rowView.alpha = 1f - (deltaX / safeWidth.toFloat()) * 0.5f
+                            }
+                            return true
+                        } else {
+                            // Not a clear horizontal swipe - let parent (ScrollView) handle it
+                            return false
+                        }
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        val deltaX = event.rawX - startX
+                        val duration = System.currentTimeMillis() - startXTime
+                        val safeWidth = if (rowView.width > 0) rowView.width else dpToPx(300)
+
+                        // Allow parent to intercept again
+                        rowView.parent.requestDisallowInterceptTouchEvent(false)
+
+                        // If it's a click (minimal move)
+                        if (kotlin.math.abs(deltaX) < 15 && kotlin.math.abs(event.rawY - startY) < 15) {
+                            rowView.translationX = 0f
+                            rowView.alpha = 1f
+                            v.playSoundEffect(android.view.SoundEffectConstants.CLICK)
+                            onClick() // Execute the specific click action
+                            return true
+                        } else {
+                            // Was it a dismiss swipe?
+                            val shouldDismiss =
+                                    deltaX > safeWidth * 0.4f || (deltaX > 100 && duration < 300)
+
+                            if (shouldDismiss) {
+                                rowView.animate()
+                                        .translationX(safeWidth.toFloat())
+                                        .alpha(0f)
+                                        .setDuration(200)
+                                        .withEndAction { onNotificationDismiss?.invoke(notif) }
+                                        .start()
+                            } else {
+                                // Snap back
+                                rowView.animate().translationX(0f).alpha(1f).setDuration(200).start()
+                            }
+                            return true
+                        }
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        rowView.parent.requestDisallowInterceptTouchEvent(false)
+                        rowView.animate().translationX(0f).alpha(1f).setDuration(200).start()
+                        return true
+                    }
+                    else -> return false
+                }
+            }
+        }
+    }
+
+
+    private fun showReplyDialog(notif: NotificationData) {
+        val input =
+                EditText(context).apply {
+                    hint = context.getString(R.string.di_reply_hint)
+                    inputType = InputType.TYPE_CLASS_TEXT
+                    setTextColor(Color.WHITE)
+                    setHintTextColor(Color.LTGRAY)
+                    setPadding(dpToPx(16), dpToPx(16), dpToPx(16), dpToPx(16))
+                    background =
+                            GradientDrawable().apply {
+                                cornerRadius = dpToPx(8).toFloat()
+                                setColor(Color.parseColor("#3A3A3C"))
+                            }
+                }
+
+        val container =
+                FrameLayout(context).apply {
+                    setPadding(dpToPx(16), dpToPx(8), dpToPx(16), dpToPx(8))
+                    addView(input)
+                }
+
+        val dialog =
+                MaterialAlertDialogBuilder(ContextThemeWrapper(context, R.style.Theme_Smartwatch))
+                        .setTitle(context.getString(R.string.di_reply_to, notif.title))
+                        .setView(container)
+                        .setPositiveButton(context.getString(R.string.di_send)) { _, _ ->
+                            val replyText = input.text.toString()
+                            if (replyText.isNotEmpty()) {
+                                onNotificationReply?.invoke(notif, replyText)
+                            }
+                        }
+                        .setNegativeButton(context.getString(R.string.di_cancel), null)
+                        .create()
+
+        dialog.window?.setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+        dialog.show()
+    }
+
+    private fun animateToCollapsed(onEnd: () -> Unit) {
+        // Ensure close container is hidden
+        closeContainer.visibility = GONE
+
+        // Only show content container if NOT in expanded media state (which uses close UI)
+        // And NOT in notification collapsed state (which implies iconContainer usage)
+        if (currentState != State.MEDIA_EXPANDED && currentState != State.NOTIFICATION_COLLAPSED) {
+            contentContainer.visibility = VISIBLE
+        }
+        
+        val targetWidth = dpToPx(pillWidthCollapsed)
+        val targetHeight = dpToPx(pillHeightCollapsed)
+        animateSize(
+                pillContainer,
+                pillContainer.width,
+                targetWidth,
+                pillContainer.height,
+                targetHeight,
+                onEnd
+        )
+    }
+
+    private fun animateToExpanded(onEnd: () -> Unit) {
+        val targetWidth = dpToPx(pillWidthExpanded)
+        val targetHeight = dpToPx(pillHeightExpanded)
+        animateSize(
+                pillContainer,
+                pillContainer.width,
+                targetWidth,
+                pillContainer.height,
+                targetHeight,
+                onEnd
+        )
+    }
+
+    private fun animateSize(
+            view: View,
+            fromWidth: Int,
+            toWidth: Int,
+            fromHeight: Int,
+            toHeight: Int,
+            onEnd: () -> Unit = {}
+    ) {
+        val widthAnimator = ValueAnimator.ofInt(fromWidth, toWidth)
+        val heightAnimator = ValueAnimator.ofInt(fromHeight, toHeight)
+
+        widthAnimator.addUpdateListener { animation ->
+            val lp = view.layoutParams
+            lp.width = animation.animatedValue as Int
+            view.layoutParams = lp
+        }
+
+        heightAnimator.addUpdateListener { animation ->
+            val lp = view.layoutParams
+            lp.height = animation.animatedValue as Int
+            view.layoutParams = lp
+        }
+
+        val animatorSet = AnimatorSet()
+        animatorSet.playTogether(widthAnimator, heightAnimator)
+        animatorSet.duration = 300
+        animatorSet.interpolator = DecelerateInterpolator()
+        animatorSet.addListener(
+                object : android.animation.Animator.AnimatorListener {
+                    private var hasEnded = false
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        if (!hasEnded) {
+                            hasEnded = true
+                            onEnd()
+                        }
+                    }
+                    override fun onAnimationStart(animation: android.animation.Animator) {}
+                    override fun onAnimationCancel(animation: android.animation.Animator) {
+                        if (!hasEnded) {
+                            hasEnded = true
+                            onEnd()
+                        }
+                    }
+                    override fun onAnimationRepeat(animation: android.animation.Animator) {}
+                }
+        )
+        animatorSet.start()
+    }
+
+    private fun animateWidth(view: View, from: Int, to: Int, onEnd: () -> Unit = {}) {
+        val animator = ValueAnimator.ofInt(from, to)
+        animator.addUpdateListener { animation ->
+            val lp = view.layoutParams
+            lp.width = animation.animatedValue as Int
+            view.layoutParams = lp
+        }
+        animator.addListener(
+                object : android.animation.Animator.AnimatorListener {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        onEnd()
+                    }
+                    override fun onAnimationStart(animation: android.animation.Animator) {}
+                    override fun onAnimationCancel(animation: android.animation.Animator) {}
+                    override fun onAnimationRepeat(animation: android.animation.Animator) {}
+                }
+        )
+        animator.duration = 300
+        animator.interpolator = DecelerateInterpolator()
+        animator.start()
+    }
+
+    private fun animateHeight(view: View, from: Int, to: Int, onEnd: () -> Unit = {}) {
+        val animator = ValueAnimator.ofInt(from, to)
+        animator.addUpdateListener { animation ->
+            val lp = view.layoutParams
+            lp.height = animation.animatedValue as Int
+            view.layoutParams = lp
+        }
+        animator.addListener(
+                object : android.animation.Animator.AnimatorListener {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        onEnd()
+                    }
+                    override fun onAnimationStart(animation: android.animation.Animator) {}
+                    override fun onAnimationCancel(animation: android.animation.Animator) {}
+                    override fun onAnimationRepeat(animation: android.animation.Animator) {}
+                }
+        )
+        animator.duration = 300
+        animator.interpolator = DecelerateInterpolator()
+        animator.start()
+    }
+
+    private fun decodeBase64ToBitmap(base64: String): Bitmap? {
+        if (base64 == lastAlbumArtBase64 && cachedAlbumBitmap != null) {
+            return cachedAlbumBitmap
+        }
+        return try {
+            val bytes = Base64.decode(base64, Base64.NO_WRAP)
+            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            if (bitmap != null) {
+                lastAlbumArtBase64 = base64
+                cachedAlbumBitmap = bitmap
+            }
+            bitmap
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to decode bitmap: ${e.message}")
+            null
+        }
+    }
+
+    private fun getCircularBitmap(bitmap: Bitmap): Bitmap {
+        val size = Math.min(bitmap.width, bitmap.height)
+        val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+
+        val paint =
+                Paint().apply {
+                    isAntiAlias = true
+                    color = Color.WHITE
+                }
+
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
+
+        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+
+        val srcRect =
+                Rect(
+                        (bitmap.width - size) / 2,
+                        (bitmap.height - size) / 2,
+                        (bitmap.width + size) / 2,
+                        (bitmap.height + size) / 2
+                )
+        val dstRect = Rect(0, 0, size, size)
+
+        canvas.drawBitmap(bitmap, srcRect, dstRect, paint)
+
+        return output
+    }
+
+    fun updateDimensions(width: Int, height: Int) {
+        pillWidthCollapsed = width
+        pillHeightCollapsed = height
+
+        // Update icon sizes relative to new height
+        ICON_SIZE_DP = (height * 0.9f).toInt()
+        STACKED_ICON_SIZE_DP = (height * 0.7f).toInt()
+
+        // Re-scale expanded height if needed, keeping it larger than collapsed
+        pillHeightExpanded = Math.max(PILL_HEIGHT_EXPANDED_DP, height + 40)
+
+        // Update current pill if not expanded
+        if (currentState != State.NOTIFICATION_EXPANDED && currentState != State.LIST_EXPANDED) {
+            val params = pillContainer.layoutParams as LayoutParams
+            params.width = dpToPx(pillWidthCollapsed)
+            params.height = dpToPx(pillHeightCollapsed)
+            pillContainer.layoutParams = params
+            pillContainer.background = createPillBackground()
+
+            // Update contentContainer padding
+            val hPadding = dpToPx(pillHeightCollapsed * 0.3f)
+            val vPadding = dpToPx(pillHeightCollapsed * 0.2f)
+            contentContainer.setPadding(hPadding, vPadding, hPadding, vPadding)
+
+            // Update closeContainer scaling
+            val cvPadding = dpToPx(pillHeightCollapsed * 0.1f)
+            val chPadding = dpToPx(pillHeightCollapsed * 0.3f)
+            closeContainer.setPadding(chPadding, cvPadding, chPadding, cvPadding)
+            for (i in 0 until closeContainer.childCount) {
+                val child = closeContainer.getChildAt(i)
+                if (child is TextView) {
+                    child.textSize = pillHeightCollapsed * 0.35f
+                }
+            }
+        }
+    }
+
+    private fun resetContentPadding() {
+        val hPadding = dpToPx(pillHeightCollapsed * 0.3f)
+        val vPadding = dpToPx(pillHeightCollapsed * 0.2f)
+        contentContainer.setPadding(hPadding, vPadding, hPadding, vPadding)
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return (dp * context.resources.displayMetrics.density).toInt()
+    }
+
+    private fun dpToPx(dp: Float): Int {
+        return (dp * context.resources.displayMetrics.density).toInt()
+    }
+
+    /**
+     * Update text settings from SharedPreferences
+     */
+    fun updateTextSettings(multiplier: Float, limitLength: Boolean) {
+        textSizeMultiplier = multiplier
+        limitMessageLength = limitLength
+        Log.d(TAG, "Text settings updated: multiplier=$multiplier, limitLength=$limitLength")
+    }
+
+    /**
+     * Get scaled text size based on multiplier
+     */
+    private fun getScaledTextSize(baseSize: Float): Float {
+        return baseSize * textSizeMultiplier
+    }
+
+    /**
+     * Get adaptive max lines based on message length setting
+     */
+    private fun getAdaptiveMaxLines(defaultMaxLines: Int): Int {
+        return if (limitMessageLength) defaultMaxLines else Int.MAX_VALUE
+    }
+    
+    /**
+     * Show incoming phone call in Dynamic Island
+     */
+    fun showPhoneCall(number: String, contactName: String?, isRinging: Boolean) {
+        currentState = State.PHONE_CALL
+        expandedContainer.visibility = GONE
+        contentContainer.visibility = VISIBLE
+        closeContainer.visibility = GONE
+        iconContainer.visibility = GONE
+        contentContainer.removeAllViews()
+        resetContentPadding()
+        
+        val callContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dpToPx(12), 0, dpToPx(12), 0)
+        }
+        
+        if (isRinging) {
+            // [Left] Answer button
+            callContainer.addView(TextView(context).apply {
+                layoutParams = LinearLayout.LayoutParams(dpToPx(44), dpToPx(44))
+                text = "✓"
+                setTextColor(Color.WHITE)
+                textSize = getScaledTextSize(18f)
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#34C759"))
+                    shape = GradientDrawable.OVAL
+                }
+                setOnClickListener { onCallAction?.invoke("answer") }
+            })
+        } else {
+            // Active call icon
+            callContainer.addView(TextView(context).apply {
+                layoutParams = LinearLayout.LayoutParams(dpToPx(44), dpToPx(44))
+                text = "📞"
+                textSize = getScaledTextSize(14f)
+                gravity = Gravity.CENTER
+            })
+        }
+        
+        // [Center] Name and Number
+        val infoContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+            gravity = Gravity.CENTER
+            setPadding(dpToPx(8), 0, dpToPx(8), 0)
+        }
+        
+        // Caller name or number
+        infoContainer.addView(TextView(context).apply {
+            text = contactName ?: number
+            setTextColor(Color.WHITE)
+            textSize = getScaledTextSize(13f)
+            gravity = Gravity.CENTER
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+        })
+        
+        // Number (if we have contact name)
+        if (contactName != null) {
+            infoContainer.addView(TextView(context).apply {
+                text = number
+                setTextColor(Color.parseColor("#8E8E93"))
+                textSize = getScaledTextSize(10f)
+                gravity = Gravity.CENTER
+                maxLines = 1
+            })
+        }
+        
+        callContainer.addView(infoContainer)
+        
+        if (isRinging) {
+            // [Right] Reject button
+            callContainer.addView(TextView(context).apply {
+                layoutParams = LinearLayout.LayoutParams(dpToPx(44), dpToPx(44))
+                text = "✕"
+                setTextColor(Color.WHITE)
+                textSize = getScaledTextSize(18f)
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#FF3B30"))
+                    shape = GradientDrawable.OVAL
+                }
+                setOnClickListener { onCallAction?.invoke("reject") }
+            })
+        } else {
+            // Hang up button
+            callContainer.addView(TextView(context).apply {
+                layoutParams = LinearLayout.LayoutParams(dpToPx(44), dpToPx(44))
+                text = "End"
+                setTextColor(Color.WHITE)
+                textSize = getScaledTextSize(10f)
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#FF3B30"))
+                    shape = GradientDrawable.OVAL
+                }
+                setOnClickListener { onCallAction?.invoke("reject") }
+            })
+        }
+        
+        contentContainer.addView(callContainer)
+        if (isRinging) {
+            animateToExpanded {
+                updateBackground()
+            }
+        } else {
+            updateBackground()
+        }
+    }
+    
+    // Callback for call actions
+
+    
+    /**
+     * Show alarm in Dynamic Island
+     */
+    fun showAlarm(alarmTime: String, alarmLabel: String?) {
+        currentState = State.ALARM
+        expandedContainer.visibility = GONE
+        contentContainer.visibility = VISIBLE
+        closeContainer.visibility = GONE
+        iconContainer.visibility = GONE
+        contentContainer.removeAllViews()
+        resetContentPadding()
+        
+        val alarmContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dpToPx(12), 0, dpToPx(12), 0)
+        }
+        
+        // [Left] Snooze button
+        alarmContainer.addView(TextView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(dpToPx(44), dpToPx(44))
+            text = "⏰"
+            setTextColor(Color.WHITE)
+            textSize = getScaledTextSize(18f)
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#FF9500")) // Orange for snooze
+                shape = GradientDrawable.OVAL
+            }
+            setOnClickListener { onAlarmAction?.invoke("snooze") }
+        })
+        
+        // [Center] Label and Time
+        val infoContainer = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+            gravity = Gravity.CENTER
+            setPadding(dpToPx(8), 0, dpToPx(8), 0)
+        }
+        
+        infoContainer.addView(TextView(context).apply {
+            text = alarmTime
+            setTextColor(Color.WHITE)
+            textSize = getScaledTextSize(14f)
+            gravity = Gravity.CENTER
+            setTypeface(null, Typeface.BOLD)
+        })
+        
+        if (!alarmLabel.isNullOrBlank()) {
+            infoContainer.addView(TextView(context).apply {
+                text = alarmLabel
+                setTextColor(Color.parseColor("#8E8E93"))
+                textSize = getScaledTextSize(10f)
+                gravity = Gravity.CENTER
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            })
+        }
+        
+        alarmContainer.addView(infoContainer)
+        
+        // [Right] Dismiss button
+        alarmContainer.addView(TextView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(dpToPx(44), dpToPx(44))
+            text = "✕"
+            setTextColor(Color.WHITE)
+            textSize = getScaledTextSize(18f)
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#FF3B30"))
+                shape = GradientDrawable.OVAL
+            }
+            setOnClickListener { onAlarmAction?.invoke("dismiss") }
+        })
+        
+        contentContainer.addView(alarmContainer)
+        animateToExpanded {
+            updateBackground()
+        }
+    }
+    
+    fun showMediaState(title: String?, artist: String?, isPlaying: Boolean, albumArtBase64: String?) {
+        // Update active tracking
+        activeMediaTitle = title
+        activeMediaArtist = artist
+
+        if (checkMediaSuppression(title, artist)) {
+            // Media suppressed. 
+            // If we are currently in a media state, revert to idle.
+            // If we are in another state (e.g. notification list), do nothing (don't force idle).
+            if (currentState == State.MEDIA_PLAYING || currentState == State.MEDIA_EXPANDED) {
+                 showIdleState()
+            }
+            return
+        }
+
+        if (title == null || title.isEmpty() || title == "Unknown") {
+            showIdleState("")
+            return
+        }
+        
+        // Show collapsed media state
+        currentState = State.MEDIA_PLAYING
+        
+        // Stop any progress animation from expanded view
+        stopMediaProgressAnimation()
+        
+        expandedContainer.visibility = GONE
+        
+        // Also hide the media expanded layout if it was showing
+        val wrapper = expandedContainer.findViewWithTag<FrameLayout>("scroll_wrapper")
+        wrapper?.findViewWithTag<FrameLayout>("media_expanded_layout")?.visibility = GONE
+        
+        contentContainer.visibility = VISIBLE
+        closeContainer.visibility = GONE
+        iconContainer.visibility = GONE
+        contentContainer.removeAllViews()
+        contentContainer.setPadding(0) // Fill background
+        
+        // Ensure pill is at collapsed size
+        animateToCollapsed {
+            // Restore custom background first to ensure shape
+            updateBackground()
+            
+            // Overlay album art if available
+            if (albumArtBase64 != null) {
+                val albumBitmap = decodeBase64ToBitmap(albumArtBase64)
+                if (albumBitmap != null) {
+                    backgroundImageView.setImageBitmap(albumBitmap)
+                    backgroundImageView.alpha = 0.5f // Dim for media player
+                    backgroundImageView.visibility = VISIBLE
+                }
+            }
+
+            contentContainer.removeAllViews() // Clear again just in case overlap during animation
+            
+            val mediaContainer = FrameLayout(context).apply {
+                layoutParams = LayoutParams(dpToPx(pillWidthCollapsed), dpToPx(pillHeightCollapsed))
+            }
+            
+            // Content overlay
+            val contentLayout = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            
+            // Play/Pause button on the left
+            val playPauseBtn = TextView(context).apply {
+                layoutParams = LinearLayout.LayoutParams(dpToPx(40), LayoutParams.MATCH_PARENT)
+                text = if (isPlaying) "⏸" else "▶"
+                setTextColor(Color.WHITE)
+                textSize = getScaledTextSize(16f)
+                gravity = Gravity.CENTER
+                setOnClickListener { onMediaAction?.invoke(if (isPlaying) "pause" else "play", 0L) }
+            }
+            contentLayout.addView(playPauseBtn)
+            
+            // Scrolling title (Marquee)
+            val titleView = TextView(context).apply {
+                layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginEnd = dpToPx(10)
+                }
+                text = title
+                setTextColor(Color.WHITE)
+                textSize = getScaledTextSize(11f)
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.MARQUEE
+                marqueeRepeatLimit = -1
+                isSingleLine = true
+                isSelected = true // Start marquee
+            }
+            contentLayout.addView(titleView)
+            
+            mediaContainer.addView(contentLayout)
+            contentContainer.addView(mediaContainer)
+        }
+    }
+    
+    fun expandWithMedia(title: String?, artist: String?, isPlaying: Boolean, albumArtBase64: String?, 
+                        position: Long = 0, duration: Long = 0, volume: Int = 0) {
+        // Update active tracking
+        activeMediaTitle = title
+        activeMediaArtist = artist
+
+        // Check for suppression (closed by user)
+        if (checkMediaSuppression(title, artist)) {
+             if (currentState == State.MEDIA_EXPANDED || currentState == State.MEDIA_PLAYING) {
+                showIdleState()
+            }
+            return
+        }
+
+        val isAlreadyMediaExpanded = currentState == State.MEDIA_EXPANDED
+        
+        // Store playback state for progress animation
+        this.isMediaPlaying = isPlaying
+        this.mediaDuration = duration
+        this.diDuration.longValue = duration
+        if (isPlaying && !isAlreadyMediaExpanded) {
+            mediaStartTime = System.currentTimeMillis()
+            mediaStartPosition = position
+        }
+        
+        val wrapper = expandedContainer.findViewWithTag<FrameLayout>("scroll_wrapper") ?: return
+        expandedList.visibility = GONE
+        
+        var mediaLayout = wrapper.findViewWithTag<FrameLayout>("media_expanded_layout")
+        
+        // If already expanded, just update the views
+        if (isAlreadyMediaExpanded && mediaLayout != null) {
+            updateExpandedMediaUI(mediaLayout, title, artist, isPlaying, albumArtBase64, position, duration, volume)
+            return
+        }
+        
+        currentState = State.MEDIA_EXPANDED
+
+        // Initialize or Clear media layout
+        if (mediaLayout == null) {
+            mediaLayout = FrameLayout(context).apply {
+                tag = "media_expanded_layout"
+                layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+            }
+            wrapper.addView(mediaLayout)
+        } else {
+            mediaLayout.removeAllViews()
+        }
+        
+        mediaLayout.visibility = VISIBLE
+        
+        // CRITICAL: Forcefully hide pill content - do this BEFORE animation
+        contentContainer.visibility = GONE
+        iconContainer.visibility = GONE
+        
+        // Collapse pill and show close UI like notifications
+        animateToCollapsed {
+            // Restore custom background first to ensure shape
+            updateBackground()
+            
+            // Overlay album art if available
+            if (albumArtBase64 != null) {
+                val albumBitmap = decodeBase64ToBitmap(albumArtBase64)
+                if (albumBitmap != null) {
+                    backgroundImageView.setImageBitmap(albumBitmap)
+                    backgroundImageView.alpha = 0.5f // Dim for media player
+                    backgroundImageView.visibility = VISIBLE
+                }
+            }
+
+            closeContainer.visibility = VISIBLE
+           
+            val currentMediaLayout = wrapper.findViewWithTag<FrameLayout>("media_expanded_layout") ?: return@animateToCollapsed
+            currentMediaLayout.removeAllViews()
+            currentMediaLayout.background = null
+
+            val mainLayout = LinearLayout(context).apply {
+                tag = "media_main_layout"
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                gravity = Gravity.CENTER_HORIZONTAL
+                // Dark overlay background (only if we have art, otherwise parent has solid bg)
+                if (albumArtBase64 != null) {
+                    setBackgroundColor(Color.parseColor("#CC000000")) // 80% dark overlay
+                }
+            }
+
+            // Album art as background layer (behind content)
+            if (albumArtBase64 != null) {
+                val albumBitmap = decodeBase64ToBitmap(albumArtBase64)
+                if (albumBitmap != null) {
+                    val bgView = object : ImageView(context) {
+                        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+                            // Report 0 height only if the parent is not forcing a height (measurement phase)
+                            val heightMode = MeasureSpec.getMode(heightMeasureSpec)
+                            if (heightMode == MeasureSpec.EXACTLY) {
+                                super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+                            } else {
+                                setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), 0)
+                            }
+                        }
+                    }.apply {
+                        tag = "media_background"
+                        layoutParams = FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+                        scaleType = ImageView.ScaleType.CENTER_CROP
+                        setImageBitmap(albumBitmap)
+                    }
+                    currentMediaLayout.addView(bgView)
+                }
+            } else {
+                // Solid dark background if no art
+                currentMediaLayout.setBackgroundColor(Color.parseColor("#1C1C1E"))
+            }
+
+            val headerLayout = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(8))
+            }
+            
+            val titleView = TextView(context).apply {
+                tag = "media_title"
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+                text = title ?: "Unknown Title"
+                setTextColor(Color.WHITE)
+                textSize = getScaledTextSize(18f)
+                setTypeface(null, android.graphics.Typeface.BOLD)
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            }
+            headerLayout.addView(titleView)
+            
+            val artistView = TextView(context).apply {
+                tag = "media_artist"
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+                text = artist ?: "Unknown Artist"
+                setTextColor(Color.LTGRAY)
+                textSize = getScaledTextSize(14f)
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            }
+            headerLayout.addView(artistView)
+            
+            mainLayout.addView(headerLayout)
+
+            // Progress Bar
+            val progressLayout = LinearLayout(context).apply {
+                tag = "media_progress_layout"
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                setPadding(dpToPx(12), 0, dpToPx(12), dpToPx(12))
+                visibility = if (duration > 0) VISIBLE else GONE
+            }
+
+            val progressBar = ComposeView(context).apply {
+                tag = "media_progress_bar"
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, dpToPx(48)) // Increased height for wave
+                setContent {
+                    SmartwatchTheme {
+                        MediaWaveSlider(
+                            value = diSliderValue.floatValue,
+                            onValueChange = { newValue ->
+                                diSliderValue.floatValue = newValue
+                            },
+                            isPlaying = diIsPlaying.value,
+                            onValueChangeFinished = {
+                                val newPos = (diSliderValue.floatValue / 100 * diDuration.longValue)
+                                onMediaAction?.invoke("seek", newPos.toLong())
+                            }
+                        )
+                    }
+                }
+            }
+            progressLayout.addView(progressBar)
+
+            val timeLayout = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+            }
+
+            val posText = TextView(context).apply {
+                tag = "media_position"
+                layoutParams = LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+                text = formatTime(position)
+                setTextColor(Color.LTGRAY)
+                textSize = getScaledTextSize(10f)
+            }
+            timeLayout.addView(posText)
+
+            val durText = TextView(context).apply {
+                tag = "media_duration"
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
+                text = formatTime(duration)
+                setTextColor(Color.LTGRAY)
+                textSize = getScaledTextSize(10f)
+            }
+            timeLayout.addView(durText)
+
+            progressLayout.addView(timeLayout)
+            mainLayout.addView(progressLayout)
+            
+            // Playback Controls
+            val playbackLayout = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                gravity = Gravity.CENTER
+                setPadding(dpToPx(12), 0, dpToPx(12), dpToPx(8))
+            }
+            
+            val prevBtn = createControlButton("⏮", 24f) { onMediaAction?.invoke("prev", 0L) }
+            playbackLayout.addView(prevBtn)
+            
+            val playPauseBtn = createControlButton(if (isPlaying) "⏸" else "▶", 32f) { 
+                onMediaAction?.invoke(if (isPlaying) "pause" else "play", 0L) 
+            }.apply {
+                tag = "media_play_pause"
+            }
+            playbackLayout.addView(playPauseBtn)
+            
+            val nextBtn = createControlButton("⏭", 24f) { onMediaAction?.invoke("next", 0L) }
+            playbackLayout.addView(nextBtn)
+            
+            mainLayout.addView(playbackLayout)
+            
+            // Volume Controls - Larger touch targets for watch
+            val volumeLayout = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+                gravity = Gravity.CENTER
+                setPadding(dpToPx(12), dpToPx(4), dpToPx(12), dpToPx(8))
+            }
+            
+            val volLabel = TextView(context).apply {
+                text = "Volume"
+                textSize = getScaledTextSize(12f)
+                setTextColor(Color.LTGRAY)
+                layoutParams = LinearLayout.LayoutParams(dpToPx(60), LayoutParams.WRAP_CONTENT)
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            volumeLayout.addView(volLabel)
+            
+            val volDownBtn = createControlButton("−", 28f) { 
+                onMediaAction?.invoke("vol_down", 0L) 
+            }.apply {
+                layoutParams = LinearLayout.LayoutParams(0, dpToPx(50), 1f)
+                maxWidth = dpToPx(70)
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#4D2C2C2E")) // Semi-transparent
+                    cornerRadius = dpToPx(8).toFloat()
+                }
+                (layoutParams as LinearLayout.LayoutParams).marginEnd = dpToPx(8)
+            }
+            volumeLayout.addView(volDownBtn)
+            
+            val volText = TextView(context).apply {
+                tag = "media_volume_text"
+                text = "$volume%"
+                textSize = getScaledTextSize(14f)
+                setTextColor(Color.WHITE)
+                layoutParams = LinearLayout.LayoutParams(dpToPx(50), LayoutParams.WRAP_CONTENT)
+                gravity = Gravity.CENTER
+            }
+            volumeLayout.addView(volText)
+            
+            val volUpBtn = createControlButton("+", 28f) { 
+                onMediaAction?.invoke("vol_up", 0L) 
+            }.apply {
+                layoutParams = LinearLayout.LayoutParams(0, dpToPx(50), 1f)
+                maxWidth = dpToPx(70)
+                background = GradientDrawable().apply {
+                    setColor(Color.parseColor("#4D2C2C2E")) // Semi-transparent
+                    cornerRadius = dpToPx(8).toFloat()
+                }
+                (layoutParams as LinearLayout.LayoutParams).marginStart = dpToPx(8)
+            }
+            volumeLayout.addView(volUpBtn)
+            
+            mainLayout.addView(volumeLayout)
+            currentMediaLayout.addView(mainLayout)
+
+            // Close Button (Dismiss until session change)
+            val closeBtn = TextView(context).apply {
+                layoutParams = FrameLayout.LayoutParams(dpToPx(30), dpToPx(30)).apply {
+                    gravity = Gravity.TOP or Gravity.END
+                    topMargin = dpToPx(8)
+                    marginEnd = dpToPx(8)
+                }
+                text = "✕"
+                setTextColor(Color.parseColor("#AAAAAA"))
+                textSize = getScaledTextSize(14f)
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Color.parseColor("#99000000")) // Semi-transparent black
+                }
+                setOnClickListener {
+                    // Use active class variables to ensure we suppress the CURRENT title, 
+                    // not the one captured when this closure was created.
+                    suppressedMediaTitle = activeMediaTitle ?: "Unknown Title"
+                    suppressedMediaArtist = activeMediaArtist ?: "Unknown Artist"
+                    showIdleState()
+                    onCollapse?.invoke()
+                }
+            }
+            currentMediaLayout.addView(closeBtn)
+            
+            // Smooth fade-in animation
+            expandedContainer.visibility = VISIBLE
+            expandedContainer.alpha = 0f
+            expandedContainer.translationY = -dpToPx(10).toFloat()
+            expandedContainer.animate()
+                    .alpha(1f)
+                    .translationY(0f)
+                    .setDuration(300)
+                    .setInterpolator(DecelerateInterpolator())
+                    .start()
+                   
+            // Start progress animation if playing
+            if (isPlaying) {
+                startMediaProgressAnimation()
+            }
+        }
+    }
+    
+    private fun startMediaProgressAnimation() {
+        mediaProgressHandler?.removeCallbacksAndMessages(null)
+        if (mediaProgressHandler == null) {
+            mediaProgressHandler = Handler(Looper.getMainLooper())
+        }
+        
+        val updateProgress = object : Runnable {
+            override fun run() {
+                if (isMediaPlaying && mediaDuration > 0) {
+                    val elapsed = System.currentTimeMillis() - mediaStartTime
+                    val currentPos = mediaStartPosition + elapsed
+                    
+                    val wrapper = expandedContainer.findViewWithTag<FrameLayout>("scroll_wrapper")
+                    val mediaLayout = wrapper?.findViewWithTag<FrameLayout>("media_expanded_layout")
+                    
+                    diIsPlaying.value = isMediaPlaying
+                    if (currentPos <= mediaDuration) {
+                        diSliderValue.floatValue = (currentPos * 100f / mediaDuration).coerceIn(0f, 100f)
+                    }
+                    mediaLayout?.findViewWithTag<TextView>("media_position")?.text = formatTime(currentPos)
+                    
+                    if (currentPos < mediaDuration) {
+                        mediaProgressHandler?.postDelayed(this, 500) // Update every 500ms
+                    }
+                }
+            }
+        }
+        mediaProgressHandler?.post(updateProgress)
+    }
+    
+    private fun stopMediaProgressAnimation() {
+        mediaProgressHandler?.removeCallbacksAndMessages(null)
+    }
+
+    private fun updateExpandedMediaUI(wrapper: View, title: String?, artist: String?, isPlaying: Boolean, 
+                                     albumArtBase64: String?, position: Long, duration: Long, volume: Int) {
+        // Update playback state for progress animation
+        val wasPlaying = this.isMediaPlaying
+        this.isMediaPlaying = isPlaying
+        this.mediaDuration = duration
+        this.diDuration.longValue = duration
+        
+        if (isPlaying && !wasPlaying) {
+            // Started playing
+            mediaStartTime = System.currentTimeMillis()
+            mediaStartPosition = position
+            startMediaProgressAnimation()
+        } else if (!isPlaying && wasPlaying) {
+            // Paused
+            stopMediaProgressAnimation()
+        } else if (isPlaying) {
+            // Playing - update position reference if provided position changed significantly
+            val elapsed = System.currentTimeMillis() - mediaStartTime
+            val estimatedPos = mediaStartPosition + elapsed
+            if (Math.abs(estimatedPos - position) > 2000) { // More than 2s difference
+                mediaStartTime = System.currentTimeMillis()
+                mediaStartPosition = position
+            }
+        }
+        
+        // Update cover art if changed
+        val currentBg = wrapper.findViewWithTag<ImageView>("media_background")
+        if (albumArtBase64 != null) {
+            val albumBitmap = decodeBase64ToBitmap(albumArtBase64)
+            if (albumBitmap != null && currentBg != null) {
+                currentBg.setImageBitmap(albumBitmap)
+            }
+        }
+        
+        wrapper.findViewWithTag<TextView>("media_title")?.text = title ?: "Unknown Title"
+        wrapper.findViewWithTag<TextView>("media_artist")?.text = artist ?: "Unknown Artist"
+        wrapper.findViewWithTag<TextView>("media_play_pause")?.apply {
+            text = if (isPlaying) "⏸" else "▶"
+            setOnClickListener { onMediaAction?.invoke(if (isPlaying) "pause" else "play", 0L) }
+        }
+        
+        wrapper.findViewWithTag<View>("media_progress_layout")?.visibility = if (duration > 0) VISIBLE else GONE
+        diIsPlaying.value = isPlaying
+        if (duration > 0) {
+            if (!isPlaying) {
+                diSliderValue.floatValue = (position * 100f / duration).coerceIn(0f, 100f)
+            }
+        }
+        if (!isPlaying) {
+            wrapper.findViewWithTag<TextView>("media_position")?.text = formatTime(position)
+        }
+        wrapper.findViewWithTag<TextView>("media_duration")?.text = formatTime(duration)
+        
+        wrapper.findViewWithTag<TextView>("media_volume_text")?.text = "$volume%"
+
+        // Indicate that media UI is being shown (for background priority)
+        isExpandedShowingMedia = true
+    }
+
+    private fun formatTime(ms: Long): String {
+        val seconds = (ms / 1000) % 60
+        val minutes = (ms / (1000 * 60)) % 60
+        val hours = (ms / (1000 * 60 * 60)) % 24
+        return if (hours > 0) {
+            String.format("%d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format("%d:%02d", minutes, seconds)
+        }
+    }
+    
+    private fun createControlButton(icon: String, size: Float, onClick: () -> Unit): TextView {
+        return TextView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(dpToPx(60), dpToPx(60))
+            text = icon
+            setTextColor(Color.WHITE)
+            textSize = getScaledTextSize(size)
+            gravity = Gravity.CENTER
+            setOnClickListener { onClick() }
+            
+            // Basic ripple effect
+            val outValue = android.util.TypedValue()
+            context.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, outValue, true)
+            setBackgroundResource(outValue.resourceId)
+        }
+    }
+    
+    // Callbacks
+    var onAlarmAction: ((String) -> Unit)? = null
+    var onMediaAction: ((String, Long) -> Unit)? = null
+    var onCallAction: ((String) -> Unit)? = null
+    var onCollapse: (() -> Unit)? = null
+
+    private fun performNotificationAction(notif: NotificationData, action: NotificationActionData) {
+        onActionClick?.invoke(notif, action)
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        releaseMediaPlayers()
+    }
+
+    fun updateBackground() {
+        try {
+            val prefs = context.getSharedPreferences("AppPrefs", Context.MODE_PRIVATE)
+            backgroundMode = prefs.getInt("di_background_mode", 0)
+            solidColor = prefs.getInt("di_background_color", Color.parseColor("#1C1C1E"))
+            val opacity = prefs.getInt("di_background_opacity", 255)
+            currentGlobalAlpha = prefs.getInt("di_global_opacity", 100) / 100f
+            
+            pillContainer.background = createPillBackground()
+            pillContainer.alpha = currentGlobalAlpha
+
+            if (backgroundMode == 1) { // Color
+                backgroundImageView.setImageDrawable(android.graphics.drawable.ColorDrawable(solidColor))
+                backgroundImageView.alpha = opacity / 255f
+                backgroundImageView.visibility = View.VISIBLE
+                return
+            }
+
+            val file = java.io.File(context.filesDir, "di_background.webp")
+            if (file.exists()) {
+                val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                if (bitmap != null) {
+                    backgroundImageView.setImageBitmap(bitmap)
+                    backgroundImageView.alpha = opacity / 255f
+                    backgroundImageView.visibility = View.VISIBLE
+                } else {
+                     backgroundImageView.visibility = View.GONE
+                }
+            } else {
+                backgroundImageView.visibility = View.GONE
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error updating background: ${e.message}")
+        }
+    }
+}

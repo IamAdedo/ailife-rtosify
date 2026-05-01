@@ -61,7 +61,7 @@
                         android:layout_height="150dp"
                         android:background="#000000">
 
-                        <com.ailife.rtosify.DynamicIslandView
+                        <com.iamadedo.phoneapp.DynamicIslandView
                             android:id="@+id/dynamicIslandPreview"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
@@ -102,7 +102,7 @@
                 android:textSize="18sp"
                 android:layout_marginBottom="16dp"/>
 
-            <com.ailife.rtosify.ColorWheelView
+            <com.iamadedo.phoneapp.ColorWheelView
                 android:id="@+id/colorWheel"
                 android:layout_width="280dp"
                 android:layout_height="280dp"

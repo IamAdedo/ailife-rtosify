@@ -54,7 +54,7 @@
                 android:background="#000000">
 
                 <!-- The real view from the watch, used as preview -->
-                <com.ailife.rtosify.DynamicIslandView
+                <com.iamadedo.phoneapp.DynamicIslandView
                     android:id="@+id/dynamicIslandPreview"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent" />

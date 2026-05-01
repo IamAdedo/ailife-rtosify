@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="24dp"
+    android:background="#CC0000">
+
+    <TextView
+        android:id="@+id/tv_sos_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="SOS"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:letterSpacing="0.2"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:id="@+id/tv_sos_countdown"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="20"
+        android:textColor="#FFFFFF"
+        android:textSize="72sp"
+        android:textStyle="bold" />
+
+    <ProgressBar
+        android:id="@+id/progress_sos"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        android:progressTint="#FFFFFF"
+        android:progressBackgroundTint="#99FFFFFF" />
+
+    <TextView
+        android:id="@+id/tv_sos_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/sos_calling"
+        android:textColor="#FFDDDD"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:layout_marginBottom="32dp" />
+
+    <Button
+        android:id="@+id/btn_sos_cancel"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="@string/sos_cancel"
+        android:textColor="#CC0000"
+        android:backgroundTint="#FFFFFF"
+        android:textStyle="bold"
+        android:textSize="16sp" />
+
+</LinearLayout>

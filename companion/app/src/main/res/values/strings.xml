@@ -608,4 +608,47 @@
     <string name="perm_granted_label">Granted</string>
     <string name="transport_internet_webrtc">Internet (WebRTC)</string>
     <string name="transport_wifi_intranet">WiFi Intranet</string>
+
+    <!-- Fall Detection -->
+    <string name="fall_detection_active">Fall detection active</string>
+    <string name="fall_detected_title">Fall detected!</string>
+    <string name="fall_detected_body">Are you OK? Tap to dismiss or SOS will be sent in 30s.</string>
+    <string name="fall_im_ok">I\'m OK</string>
+
+    <!-- Emergency SOS -->
+    <string name="sos_title">Emergency SOS</string>
+    <string name="sos_calling">Calling emergency services…</string>
+    <string name="sos_contacting_emergency">Contacting emergency services…</string>
+    <string name="sos_cancel">Cancel</string>
+    <string name="sos_countdown_hint">Hold Cancel to abort</string>
+
+    <!-- Workout -->
+    <string name="workout_pause">Pause</string>
+    <string name="workout_resume">Resume</string>
+    <string name="workout_stop">Stop</string>
+    <string name="workout_elapsed">Elapsed</string>
+    <string name="workout_heart_rate">Heart Rate</string>
+    <string name="workout_zone">Zone</string>
+    <string name="workout_pace">Pace</string>
+    <string name="workout_distance">Distance</string>
+    <string name="workout_calories">Calories</string>
+    <string name="workout_cadence">Cadence</string>
+
+    <!-- Mindfulness / Breathing -->
+    <string name="mindfulness_title">Breathing Exercise</string>
+    <string name="mindfulness_measuring_hrv">Measuring baseline…</string>
+    <string name="breathe_in">Breathe in</string>
+    <string name="breathe_out">Breathe out</string>
+    <string name="hold">Hold</string>
+    <string name="hrv_label">HRV</string>
+    <string name="mindfulness_stop">End</string>
+
+    <!-- Noise Monitor -->
+    <string name="noise_alert_title">Loud environment</string>
+    <string name="noise_alert_body">Sustained noise above 85 dB. Consider ear protection.</string>
+
+    <!-- Medication -->
+    <string name="med_reminder_title">Medication reminder</string>
+    <string name="med_taken">Taken</string>
+    <string name="med_skip">Skip</string>
 </resources>

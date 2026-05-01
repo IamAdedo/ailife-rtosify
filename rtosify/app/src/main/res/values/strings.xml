@@ -1271,7 +1271,47 @@
     <string name="vibration_custom_length">Custom Vibration Length</string>
     <string name="toast_requesting_ringtone_picker">Requesting ringtone picker on watch...</string>
 
-</resources>
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- NEW FEATURES                                                           -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
 
+    <!-- Emergency SOS (phone side) -->
+    <string name="sos_phone_notif_title">SOS triggered from watch</string>
+    <string name="sos_phone_notif_body">Calling emergency services and alerting contacts.</string>
+    <string name="sos_contacting_emergency">Contacting emergency services…</string>
+
+    <!-- Fall detection (phone side) -->
+    <string name="fall_alert_notif_title">Possible fall detected on watch</string>
+    <string name="fall_alert_notif_body">Your watch may have detected a fall. Check on the wearer.</string>
+
+    <!-- Medication -->
+    <string name="med_reminder_title">Medication reminder</string>
+    <string name="med_taken">Taken</string>
+    <string name="med_skip">Skip</string>
+    <string name="med_adherence_label">Adherence (7 days)</string>
+    <string name="med_add">Add medication</string>
+    <string name="med_name_hint">Medication name</string>
+    <string name="med_dosage_hint">Dosage (e.g. 10 mg)</string>
+
+    <!-- Workout (phone side display) -->
+    <string name="workout_live_title">Workout in progress</string>
+    <string name="workout_summary_title">Workout summary</string>
+    <string name="workout_distance_label">Distance</string>
+    <string name="workout_calories_label">Calories</string>
+    <string name="workout_avg_hr_label">Avg HR</string>
+    <string name="workout_duration_label">Duration</string>
+
+    <!-- Sleep -->
+    <string name="sleep_score_label">Sleep score</string>
+    <string name="sleep_deep_label">Deep</string>
+    <string name="sleep_rem_label">REM</string>
+    <string name="sleep_light_label">Light</string>
+    <string name="sleep_awake_label">Awake</string>
+
+    <!-- Noise -->
+    <string name="noise_alert_title">Loud environment detected</string>
+    <string name="noise_alert_body">Sustained noise above 85 dB — consider ear protection.</string>
+
+</resources>
 
 

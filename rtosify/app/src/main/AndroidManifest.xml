@@ -395,7 +395,7 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.ailife.rtosify.widget.ACTION_WIDGET_UPDATE" />
+                <action android:name="com.iamadedo.phoneapp.widget.ACTION_WIDGET_UPDATE" />
             </intent-filter>
 
             <meta-data
@@ -410,7 +410,7 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="com.ailife.rtosify.widget.ACTION_WIDGET_HEALTH_UPDATE" />
+                <action android:name="com.iamadedo.phoneapp.widget.ACTION_WIDGET_HEALTH_UPDATE" />
             </intent-filter>
 
             <meta-data
@@ -428,6 +428,19 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- ══════════════════════════════════════════════════════════════════ -->
+        <!-- NEW FEATURES                                                       -->
+        <!-- ══════════════════════════════════════════════════════════════════ -->
+
+        <!-- Medication alarm receiver -->
+        <receiver
+            android:name=".MedicationAlarmReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.iamadedo.phoneapp.MED_ALARM" />
+            </intent-filter>
+        </receiver>
 
     </application>
 </manifest>
