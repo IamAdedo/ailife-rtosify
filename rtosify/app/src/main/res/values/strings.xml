@@ -1312,6 +1312,29 @@
     <string name="noise_alert_title">Loud environment detected</string>
     <string name="noise_alert_body">Sustained noise above 85 dB — consider ear protection.</string>
 
+    <!-- Huawei-inspired additions -->
+    <string name="vo2max_label">VO₂Max</string>
+    <string name="activity_rings_title">Activity Rings</string>
+    <string name="rings_move">Move</string>
+    <string name="rings_exercise">Exercise</string>
+    <string name="rings_stand">Stand</string>
+    <string name="sedentary_reminder_title">Time to move!</string>
+    <string name="sedentary_reminder_body">You\'ve been still for a while. Take a short walk.</string>
+    <string name="stand_reminder_title">Stand up!</string>
+    <string name="stand_reminder_body">Stand and move for at least a minute this hour.</string>
+    <string name="weather_title">Weather</string>
+    <string name="moon_phase_label">Moon Phase</string>
+    <string name="family_health_title">Family Health</string>
+    <string name="respiratory_rate_label">Respiratory Rate</string>
+    <string name="premature_beat_alert_title">Irregular heartbeat detected</string>
+    <string name="recovery_time_label">Recommended recovery</string>
+    <string name="smart_alarm_label">Smart Alarm</string>
+    <string name="auto_workout_detected">Workout auto-detected</string>
+    <string name="hr_recovery_label">HR Recovery (1 min)</string>
+    <string name="fitness_level_label">Fitness Level</string>
+    <string name="sleep_breathing_label">Breathing Quality</string>
+    <string name="nap_detected_label">Nap detected</string>
+
 </resources>
 
 

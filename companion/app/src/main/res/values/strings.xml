@@ -651,4 +651,59 @@
     <string name="med_reminder_title">Medication reminder</string>
     <string name="med_taken">Taken</string>
     <string name="med_skip">Skip</string>
+
+    <!-- Stopwatch -->
+    <string name="stopwatch_start">Start</string>
+    <string name="stopwatch_stop">Stop</string>
+    <string name="stopwatch_lap">Lap</string>
+    <string name="stopwatch_reset">Reset</string>
+
+    <!-- Activity Rings -->
+    <string name="rings_move">Move</string>
+    <string name="rings_exercise">Exercise</string>
+    <string name="rings_stand">Stand</string>
+    <string name="sedentary_reminder_title">Time to move!</string>
+    <string name="stand_reminder_title">Stand up!</string>
+
+    <!-- Weather -->
+    <string name="weather_sunny">Sunny</string>
+    <string name="weather_cloudy">Cloudy</string>
+    <string name="weather_rain">Rain</string>
+    <string name="weather_snow">Snow</string>
+    <string name="weather_thunderstorm">Thunderstorm</string>
+    <string name="weather_uv_index">UV Index</string>
+    <string name="weather_humidity">Humidity</string>
+
+    <!-- White noise / sleep sounds -->
+    <string name="sleep_sound_white_noise">White Noise</string>
+    <string name="sleep_sound_pink_noise">Pink Noise</string>
+    <string name="sleep_sound_rain">Rain</string>
+    <string name="sleep_sound_ocean">Ocean</string>
+    <string name="sleep_sound_brown_noise">Brown Noise</string>
+
+    <!-- VO2Max / fitness -->
+    <string name="vo2max_label">VO₂Max</string>
+    <string name="fitness_level_poor">Poor</string>
+    <string name="fitness_level_fair">Fair</string>
+    <string name="fitness_level_good">Good</string>
+    <string name="fitness_level_excellent">Excellent</string>
+    <string name="fitness_level_superior">Superior</string>
+    <string name="hr_recovery_label">HR Recovery</string>
+    <string name="recovery_time_label">Recovery time</string>
+
+    <!-- Premature beat -->
+    <string name="premature_beat_title">Irregular heartbeat</string>
+    <string name="premature_beat_body">Your watch detected irregular beats. Consult a doctor if persistent.</string>
+
+    <!-- Smart alarm -->
+    <string name="smart_alarm_label">Smart Alarm</string>
+    <string name="smart_alarm_window_hint">Wake window (minutes before alarm)</string>
+
+    <!-- Respiratory -->
+    <string name="respiratory_rate_label">Respiratory Rate</string>
+    <string name="breaths_per_min">brpm</string>
+
+    <!-- Family health -->
+    <string name="family_health_title">Family Health</string>
+    <string name="add_family_member">Add member</string>
 </resources>

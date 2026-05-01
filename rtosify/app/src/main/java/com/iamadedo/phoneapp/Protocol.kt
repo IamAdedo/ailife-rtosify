@@ -227,6 +227,50 @@ object MessageType {
     // ── Medication ────────────────────────────────────────────────────────────
     const val MED_REMINDER = "med_reminder"
     const val MED_CONFIRM = "med_confirm"
+
+    // ── Huawei-inspired: Advanced Sleep ───────────────────────────────────────
+    const val SLEEP_BREATHING_QUALITY = "sleep_breathing_quality"   // respiratory rate + abnormal breathing during sleep
+    const val SLEEP_NAP_DETECTED = "sleep_nap_detected"             // daytime nap auto-detection
+    const val SLEEP_TIP = "sleep_tip"                               // science-based hygiene tip push
+    const val SLEEP_WHITE_NOISE_START = "sleep_white_noise_start"   // start white noise / soundscape on watch
+    const val SLEEP_WHITE_NOISE_STOP = "sleep_white_noise_stop"
+    const val SMART_ALARM = "smart_alarm"                           // wake in lightest sleep within window
+
+    // ── Huawei-inspired: Cardiac & Respiratory ────────────────────────────────
+    const val PREMATURE_BEAT_ALERT = "premature_beat_alert"         // PPG-based premature beat detection
+    const val RESPIRATORY_RATE = "respiratory_rate"                 // breaths-per-minute measurement
+    const val HR_BROADCAST = "hr_broadcast"                         // broadcast HR to BLE peripherals (e.g. chest strap apps)
+
+    // ── Huawei-inspired: Fitness & VO2Max ────────────────────────────────────
+    const val VO2MAX_UPDATE = "vo2max_update"                       // estimated VO2Max from workout data
+    const val RUNNING_ABILITY_INDEX = "running_ability_index"       // composite running score
+    const val HR_RECOVERY = "hr_recovery"                           // HR drop 1-min post exercise
+    const val RECOVERY_TIME = "recovery_time"                       // recommended rest hours
+    const val WORKOUT_EVALUATION = "workout_evaluation"             // post-workout data-driven evaluation
+    const val AUTO_WORKOUT_DETECT = "auto_workout_detect"           // watch auto-detected a workout type
+
+    // ── Huawei-inspired: Activity & Sedentary ────────────────────────────────
+    const val SEDENTARY_REMINDER = "sedentary_reminder"             // prolonged sitting alert
+    const val STAND_REMINDER = "stand_reminder"                     // hourly stand/move reminder
+    const val ACTIVITY_RINGS_UPDATE = "activity_rings_update"       // Move / Exercise / Stand ring progress
+    const val ACTIVITY_GOAL_SET = "activity_goal_set"               // set Move/Exercise/Stand targets
+
+    // ── Huawei-inspired: Weather & Astronomy ─────────────────────────────────
+    const val WEATHER_UPDATE = "weather_update"                     // push weather to watch (current + forecast)
+    const val MOON_PHASE_UPDATE = "moon_phase_update"               // moonrise, moonset, phase
+    const val SUNRISE_SUNSET_UPDATE = "sunrise_sunset_update"
+
+    // ── Huawei-inspired: Utility ──────────────────────────────────────────────
+    const val TORCH_CONTROL = "torch_control"                       // turn watch screen white (torch mode)
+    const val STOPWATCH_CONTROL = "stopwatch_control"
+    const val COUNTDOWN_TIMER_CONTROL = "countdown_timer_control"
+    const val LOCK_SCREEN_PASSWORD = "lock_screen_password"         // set/clear watch lock PIN
+    const val AUTO_BRIGHTNESS = "auto_brightness"                   // ambient light sensor-driven brightness
+    const val BRIGHTNESS_SET = "brightness_set"                     // manual brightness level 1-5
+
+    // ── Huawei-inspired: Family / Health Community ────────────────────────────
+    const val FAMILY_MEMBER_HEALTH = "family_member_health"         // share/receive health data with family
+    const val FAMILY_HEALTH_REQUEST = "family_health_request"
 }
 
 data class NavigationInfoData(
@@ -1518,7 +1562,255 @@ object ProtocolHelper {
 
     fun createMedConfirm(confirm: MedConfirmData): ProtocolMessage =
         ProtocolMessage(type = MessageType.MED_CONFIRM, data = gson.toJsonTree(confirm).asJsonObject)
+
+    // ── Huawei-inspired: Advanced Sleep ───────────────────────────────────────
+    fun createSleepBreathingQuality(data: SleepBreathingData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.SLEEP_BREATHING_QUALITY, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createSleepNapDetected(data: SleepNapData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.SLEEP_NAP_DETECTED, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createSleepTip(tip: String): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("tip", tip)
+        return ProtocolMessage(type = MessageType.SLEEP_TIP, data = d)
+    }
+
+    fun createSleepWhiteNoiseStart(soundType: String): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("soundType", soundType)
+        return ProtocolMessage(type = MessageType.SLEEP_WHITE_NOISE_START, data = d)
+    }
+
+    fun createSleepWhiteNoiseStop(): ProtocolMessage =
+        ProtocolMessage(type = MessageType.SLEEP_WHITE_NOISE_STOP)
+
+    fun createSmartAlarm(data: SmartAlarmData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.SMART_ALARM, data = gson.toJsonTree(data).asJsonObject)
+
+    // ── Huawei-inspired: Cardiac & Respiratory ────────────────────────────────
+    fun createPrematureBeatAlert(data: PrematureBeatData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.PREMATURE_BEAT_ALERT, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createRespiratoryRate(data: RespiratoryRateData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.RESPIRATORY_RATE, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createHrBroadcast(hrBpm: Int): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("hrBpm", hrBpm)
+        return ProtocolMessage(type = MessageType.HR_BROADCAST, data = d)
+    }
+
+    // ── Huawei-inspired: Fitness & VO2Max ────────────────────────────────────
+    fun createVo2MaxUpdate(data: Vo2MaxData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.VO2MAX_UPDATE, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createRunningAbilityIndex(data: RunningAbilityData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.RUNNING_ABILITY_INDEX, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createHrRecovery(data: HrRecoveryData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.HR_RECOVERY, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createRecoveryTime(hours: Int): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("recommendedRestHours", hours)
+        return ProtocolMessage(type = MessageType.RECOVERY_TIME, data = d)
+    }
+
+    fun createWorkoutEvaluation(data: WorkoutEvaluationData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.WORKOUT_EVALUATION, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createAutoWorkoutDetect(workoutType: String): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("detectedType", workoutType)
+        return ProtocolMessage(type = MessageType.AUTO_WORKOUT_DETECT, data = d)
+    }
+
+    // ── Huawei-inspired: Activity & Sedentary ────────────────────────────────
+    fun createSedentaryReminder(): ProtocolMessage =
+        ProtocolMessage(type = MessageType.SEDENTARY_REMINDER)
+
+    fun createStandReminder(): ProtocolMessage =
+        ProtocolMessage(type = MessageType.STAND_REMINDER)
+
+    fun createActivityRingsUpdate(data: ActivityRingsData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.ACTIVITY_RINGS_UPDATE, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createActivityGoalSet(data: ActivityGoalData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.ACTIVITY_GOAL_SET, data = gson.toJsonTree(data).asJsonObject)
+
+    // ── Huawei-inspired: Weather & Astronomy ─────────────────────────────────
+    fun createWeatherUpdate(data: WeatherData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.WEATHER_UPDATE, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createMoonPhaseUpdate(data: MoonPhaseData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.MOON_PHASE_UPDATE, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createSunriseSunsetUpdate(data: SunriseSunsetData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.SUNRISE_SUNSET_UPDATE, data = gson.toJsonTree(data).asJsonObject)
+
+    // ── Huawei-inspired: Utility ──────────────────────────────────────────────
+    fun createTorchControl(on: Boolean): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("on", on)
+        return ProtocolMessage(type = MessageType.TORCH_CONTROL, data = d)
+    }
+
+    fun createStopwatchControl(action: String): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("action", action)   // "START","STOP","RESET","LAP"
+        return ProtocolMessage(type = MessageType.STOPWATCH_CONTROL, data = d)
+    }
+
+    fun createCountdownTimerControl(action: String, durationSeconds: Int = 0): ProtocolMessage {
+        val d = JsonObject()
+        d.addProperty("action", action)   // "START","STOP","RESET"
+        d.addProperty("durationSeconds", durationSeconds)
+        return ProtocolMessage(type = MessageType.COUNTDOWN_TIMER_CONTROL, data = d)
+    }
+
+    fun createLockScreenPassword(pin: String): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("pin", pin)
+        return ProtocolMessage(type = MessageType.LOCK_SCREEN_PASSWORD, data = d)
+    }
+
+    fun createAutoBrightness(enabled: Boolean): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("enabled", enabled)
+        return ProtocolMessage(type = MessageType.AUTO_BRIGHTNESS, data = d)
+    }
+
+    fun createBrightnessSet(level: Int): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("level", level.coerceIn(1, 5))
+        return ProtocolMessage(type = MessageType.BRIGHTNESS_SET, data = d)
+    }
+
+    // ── Huawei-inspired: Family Health ───────────────────────────────────────
+    fun createFamilyMemberHealth(data: FamilyHealthData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.FAMILY_MEMBER_HEALTH, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createFamilyHealthRequest(memberId: String): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("memberId", memberId)
+        return ProtocolMessage(type = MessageType.FAMILY_HEALTH_REQUEST, data = d)
+    }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Huawei-inspired data classes
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Advanced Sleep
+data class SleepBreathingData(
+    val respiratoryRateBreathsPerMin: Float,
+    val abnormalEvents: Int = 0,        // count of breathing irregularities
+    val breathingScore: Int = 0         // 0-100
+)
+
+data class SleepNapData(
+    val startTime: Long,
+    val endTime: Long,
+    val durationMinutes: Int
+)
+
+data class SmartAlarmData(
+    val targetWakeTime: Long,           // latest acceptable wake time (epoch ms)
+    val windowMinutes: Int = 30,        // minutes before targetWakeTime to start watching
+    val enabled: Boolean = true
+)
+
+// Cardiac & Respiratory
+data class PrematureBeatData(
+    val eventsPerHour: Float,
+    val classification: String,         // "OCCASIONAL", "FREQUENT", "BIGEMINY"
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+data class RespiratoryRateData(
+    val breathsPerMinute: Float,
+    val context: String = "REST",       // "REST", "SLEEP", "EXERCISE"
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+// Fitness & VO2Max
+data class Vo2MaxData(
+    val vo2MaxMlKgMin: Float,           // mL/kg/min
+    val fitnessLevel: String,           // "POOR","FAIR","GOOD","EXCELLENT","SUPERIOR"
+    val estimatedFromWorkout: Boolean = true
+)
+
+data class RunningAbilityData(
+    val index: Int,                     // 0-100 composite score
+    val paceProjection5km: Int,         // seconds
+    val paceProjection10km: Int
+)
+
+data class HrRecoveryData(
+    val hrAtPeakBpm: Int,
+    val hrAt1MinBpm: Int,
+    val dropBpm: Int,
+    val classification: String          // "EXCELLENT","GOOD","AVERAGE","POOR"
+)
+
+data class WorkoutEvaluationData(
+    val workoutType: String,
+    val durationMinutes: Int,
+    val avgHrBpm: Int,
+    val peakHrBpm: Int,
+    val zoneDistribution: Map<Int, Int>,    // zone -> minutes
+    val vo2MaxEstimate: Float?,
+    val recoveryHours: Int,
+    val overallScore: Int               // 0-100
+)
+
+// Activity Rings
+data class ActivityRingsData(
+    val moveCaloriesBurned: Int,
+    val moveCaloriesGoal: Int,
+    val exerciseMinutes: Int,
+    val exerciseGoalMinutes: Int,
+    val standHours: Int,
+    val standGoalHours: Int
+)
+
+data class ActivityGoalData(
+    val moveCaloriesGoal: Int,
+    val exerciseGoalMinutes: Int,
+    val standGoalHours: Int
+)
+
+// Weather & Astronomy
+data class WeatherData(
+    val locationName: String,
+    val currentTempC: Float,
+    val conditionCode: String,          // "SUNNY","CLOUDY","RAIN","SNOW","THUNDERSTORM"
+    val humidity: Int,
+    val uvIndex: Int,
+    val forecast: List<WeatherForecastDay>
+)
+
+data class WeatherForecastDay(
+    val dayOffset: Int,                 // 0=today, 1=tomorrow …
+    val highTempC: Float,
+    val lowTempC: Float,
+    val conditionCode: String
+)
+
+data class MoonPhaseData(
+    val moonriseTime: Long,             // epoch ms, 0 if no moonrise today
+    val moonsetTime: Long,
+    val phasePercent: Float,            // 0=new, 50=half, 100=full
+    val phaseName: String               // "NEW","WAXING_CRESCENT","FIRST_QUARTER","WAXING_GIBBOUS","FULL","WANING_GIBBOUS","LAST_QUARTER","WANING_CRESCENT"
+)
+
+data class SunriseSunsetData(
+    val sunriseTime: Long,
+    val sunsetTime: Long,
+    val goldenHourMorning: Long,
+    val goldenHourEvening: Long
+)
+
+// Family Health Community
+data class FamilyHealthData(
+    val memberId: String,
+    val memberName: String,
+    val heartRateBpm: Int?,
+    val bloodOxygen: Int?,
+    val steps: Int,
+    val sleepScore: Int?,
+    val lastUpdated: Long = System.currentTimeMillis()
+)
 data class RingtonePickerResponseData(
     val uri: String,
     val name: String

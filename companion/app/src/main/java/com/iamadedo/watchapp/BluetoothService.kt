@@ -1617,6 +1617,74 @@ class BluetoothService : Service() {
             MessageType.SET_DYNAMIC_ISLAND_BACKGROUND -> handleSetDynamicIslandBackground(message)
             MessageType.SET_DYNAMIC_ISLAND_COLOR -> handleSetDynamicIslandColor(message)
             MessageType.PHONE_SETTINGS_UPDATE -> handlePhoneSettingsUpdate(message)
+
+            // ── Huawei-inspired: Advanced Sleep ──────────────────────────────
+            MessageType.SLEEP_WHITE_NOISE_START -> {
+                val soundType = message.data?.get("soundType")?.asString ?: "WHITE_NOISE"
+                sleepWhiteNoisePlayer.play(soundType)
+            }
+            MessageType.SLEEP_WHITE_NOISE_STOP -> sleepWhiteNoisePlayer.stop()
+            MessageType.SLEEP_TIP -> {
+                val tip = message.data?.get("tip")?.asString ?: return
+                showSleepTipNotification(tip)
+            }
+            MessageType.SMART_ALARM -> {
+                val data = gson.fromJson(message.data, SmartAlarmData::class.java)
+                smartAlarmManager.schedule(data)
+            }
+
+            // ── Huawei-inspired: Fitness ──────────────────────────────────────
+            MessageType.CUSTOM_WORKOUT_PUSH -> {
+                val data = gson.fromJson(message.data, CustomWorkoutData::class.java)
+                pendingCustomWorkout = data
+                showCustomWorkoutNotification(data)
+            }
+            MessageType.ACTIVITY_GOAL_SET -> {
+                val data = gson.fromJson(message.data, ActivityGoalData::class.java)
+                activityRingsManager.applyGoal(data)
+            }
+
+            // ── Huawei-inspired: Utility ──────────────────────────────────────
+            MessageType.TORCH_CONTROL -> {
+                val on = message.data?.get("on")?.asBoolean ?: false
+                if (on) startActivity(android.content.Intent(this, TorchActivity::class.java)
+                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            }
+            MessageType.STOPWATCH_CONTROL -> {
+                val action = message.data?.get("action")?.asString ?: return
+                when (action) {
+                    "START" -> StopwatchActivity.start()
+                    "STOP"  -> StopwatchActivity.stop()
+                    "RESET" -> StopwatchActivity.reset()
+                    "LAP"   -> StopwatchActivity.lap()
+                }
+            }
+            MessageType.AUTO_BRIGHTNESS -> {
+                val enabled = message.data?.get("enabled")?.asBoolean ?: true
+                setAutoBrightness(enabled)
+            }
+            MessageType.BRIGHTNESS_SET -> {
+                val level = message.data?.get("level")?.asInt ?: 3
+                setManualBrightness(level)
+            }
+            MessageType.LOCK_SCREEN_PASSWORD -> {
+                val pin = message.data?.get("pin")?.asString ?: ""
+                saveLockPin(pin)
+            }
+
+            // ── Huawei-inspired: Weather & Astronomy ──────────────────────────
+            MessageType.WEATHER_UPDATE -> handleWeatherUpdate(message)
+            MessageType.MOON_PHASE_UPDATE -> handleMoonPhaseUpdate(message)
+            MessageType.SUNRISE_SUNSET_UPDATE -> handleSunriseSunsetUpdate(message)
+
+            // ── Huawei-inspired: Family Health ────────────────────────────────
+            MessageType.FAMILY_MEMBER_HEALTH -> handleFamilyMemberHealth(message)
+
+            // ── Huawei-inspired: Sedentary / Stand reminders ──────────────────
+            MessageType.SEDENTARY_REMINDER -> showSedentaryReminderNotification()
+            MessageType.STAND_REMINDER -> showStandReminderNotification()
+            MessageType.ACTIVITY_RINGS_UPDATE -> handleActivityRingsUpdate(message)
+
             else -> Log.w(TAG, "Unknown message type: ${message.type}")
         }
     }
@@ -6980,5 +7048,117 @@ class BluetoothService : Service() {
             state.downloadProgress = progress
             updateAudioNotification(fileKey, notifId, fileData)
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Huawei-inspired feature managers (lazy init, companion side)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private val sleepWhiteNoisePlayer by lazy { SleepWhiteNoisePlayer(this) }
+    private val smartAlarmManager by lazy { SmartAlarmManager(this) }
+    private val activityRingsManager by lazy {
+        ActivityRingsManager(this) { msg -> serviceScope.launch { sendMessage(msg) } }
+    }
+    private var pendingCustomWorkout: CustomWorkoutData? = null
+
+    private fun showSleepTipNotification(tip: String) {
+        val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val notif = androidx.core.app.NotificationCompat.Builder(this, "health_channel")
+            .setContentTitle("Sleep tip")
+            .setContentText(tip)
+            .setSmallIcon(R.drawable.ic_smartwatch)
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_LOW)
+            .build()
+        nm.notify(7701, notif)
+    }
+
+    private fun showCustomWorkoutNotification(data: CustomWorkoutData) {
+        val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val notif = androidx.core.app.NotificationCompat.Builder(this, "health_channel")
+            .setContentTitle("Workout ready: ${data.name}")
+            .setContentText("${data.intervals.size} intervals — tap to start")
+            .setSmallIcon(R.drawable.ic_smartwatch)
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        nm.notify(7702, notif)
+    }
+
+    private fun showSedentaryReminderNotification() {
+        val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val notif = androidx.core.app.NotificationCompat.Builder(this, "health_channel")
+            .setContentTitle("Time to move!")
+            .setContentText("You've been still for a while. Take a short walk.")
+            .setSmallIcon(R.drawable.ic_smartwatch)
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        nm.notify(7703, notif)
+    }
+
+    private fun showStandReminderNotification() {
+        val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val notif = androidx.core.app.NotificationCompat.Builder(this, "health_channel")
+            .setContentTitle("Stand up!")
+            .setContentText("Stand and move for at least a minute this hour.")
+            .setSmallIcon(R.drawable.ic_smartwatch)
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        nm.notify(7704, notif)
+    }
+
+    private fun handleWeatherUpdate(message: ProtocolMessage) {
+        Log.d(TAG, "Weather update received: ${message.data?.get("conditionCode")?.asString}")
+        // Store locally; WatchFace / widgets read from SharedPreferences
+        getSharedPreferences("weather_cache", MODE_PRIVATE).edit()
+            .putString("last_weather", message.data?.toString()).apply()
+    }
+
+    private fun handleMoonPhaseUpdate(message: ProtocolMessage) {
+        Log.d(TAG, "Moon phase: ${message.data?.get("phaseName")?.asString}")
+        getSharedPreferences("weather_cache", MODE_PRIVATE).edit()
+            .putString("last_moon", message.data?.toString()).apply()
+    }
+
+    private fun handleSunriseSunsetUpdate(message: ProtocolMessage) {
+        Log.d(TAG, "Sun data received")
+        getSharedPreferences("weather_cache", MODE_PRIVATE).edit()
+            .putString("last_sun", message.data?.toString()).apply()
+    }
+
+    private fun handleFamilyMemberHealth(message: ProtocolMessage) {
+        Log.d(TAG, "Family health update received: ${message.data}")
+    }
+
+    private fun handleActivityRingsUpdate(message: ProtocolMessage) {
+        Log.d(TAG, "Activity rings: ${message.data}")
+    }
+
+    private fun setAutoBrightness(enabled: Boolean) {
+        try {
+            val mode = if (enabled)
+                android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC
+            else
+                android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL
+            android.provider.Settings.System.putInt(
+                contentResolver,
+                android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE, mode
+            )
+        } catch (e: Exception) { Log.e(TAG, "setAutoBrightness: ${e.message}") }
+    }
+
+    private fun setManualBrightness(level: Int) {
+        try {
+            // Map 1-5 to 0-255
+            val brightness = ((level - 1) / 4f * 255).toInt().coerceIn(0, 255)
+            android.provider.Settings.System.putInt(
+                contentResolver,
+                android.provider.Settings.System.SCREEN_BRIGHTNESS, brightness
+            )
+        } catch (e: Exception) { Log.e(TAG, "setManualBrightness: ${e.message}") }
+    }
+
+    private fun saveLockPin(pin: String) {
+        getSharedPreferences("security_prefs", MODE_PRIVATE).edit()
+            .putString("lock_pin", pin).apply()
+        Log.d(TAG, "Lock PIN updated")
     }
 }

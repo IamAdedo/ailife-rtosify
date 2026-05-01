@@ -1131,6 +1131,53 @@ class BluetoothService : Service() {
             MessageType.REQUEST_FILE_DOWNLOAD -> handleRequestFileDownload(message)
             MessageType.RESPONSE_RINGTONE_PICKER -> handleRingtonePickerResponse(message)
             MessageType.VIDEO_HELPER_GESTURE -> handleVideoHelperGesture(message)
+
+            // ── Huawei-inspired: Safety ───────────────────────────────────────
+            MessageType.SOS_TRIGGERED -> handleSosTriggered(message)
+            MessageType.FALL_ALERT -> handleFallAlert(message)
+            MessageType.FALL_DISMISSED -> Log.d(TAG, "Fall alert dismissed by user")
+            MessageType.CRASH_ALERT -> handleCrashAlert(message)
+            MessageType.HEALTH_ALERT -> handleHealthAlert(message)
+
+            // ── Huawei-inspired: Health data from watch ───────────────────────
+            MessageType.SLEEP_SESSION_END -> handleSleepSessionEnd(message)
+            MessageType.SLEEP_BREATHING_QUALITY -> handleSleepBreathing(message)
+            MessageType.SLEEP_NAP_DETECTED -> handleNapDetected(message)
+            MessageType.PREMATURE_BEAT_ALERT -> handlePrematureBeatAlert(message)
+            MessageType.RESPIRATORY_RATE -> handleRespiratoryRate(message)
+            MessageType.STRESS_LEVEL -> handleStressLevel(message)
+            MessageType.CYCLE_LOG -> handleCycleLog(message)
+            MessageType.NOISE_ALERT -> handleNoiseAlert(message)
+            MessageType.HANDWASH_EVENT -> handleHandwashEvent(message)
+            MessageType.MINDFULNESS_SESSION -> handleMindfulnessSession(message)
+            MessageType.VITALS_RESPONSE -> handleVitalsResponse(message)
+            MessageType.TEMP_DATA -> handleTempData(message)
+
+            // ── Huawei-inspired: Fitness ──────────────────────────────────────
+            MessageType.WORKOUT_START -> handleWorkoutStart(message)
+            MessageType.WORKOUT_PAUSE -> handleWorkoutPause()
+            MessageType.WORKOUT_RESUME -> handleWorkoutResume()
+            MessageType.WORKOUT_END -> handleWorkoutEnd(message)
+            MessageType.WORKOUT_METRIC -> handleWorkoutMetric(message)
+            MessageType.RUNNING_METRICS -> handleRunningMetrics(message)
+            MessageType.SWIM_METRICS -> handleSwimMetrics(message)
+            MessageType.TRAINING_LOAD -> handleTrainingLoad(message)
+            MessageType.VO2MAX_UPDATE -> handleVo2MaxUpdate(message)
+            MessageType.HR_RECOVERY -> handleHrRecovery(message)
+            MessageType.WORKOUT_EVALUATION -> handleWorkoutEvaluation(message)
+            MessageType.AUTO_WORKOUT_DETECT -> handleAutoWorkoutDetect(message)
+            MessageType.ACTIVITY_RINGS_UPDATE -> handleActivityRingsUpdate(message)
+
+            // ── Huawei-inspired: Family Health ────────────────────────────────
+            MessageType.FAMILY_HEALTH_REQUEST -> handleFamilyHealthRequest(message)
+            MessageType.MED_CONFIRM -> handleMedConfirm(message)
+
+            // ── Huawei-inspired: Utility from watch ───────────────────────────
+            MessageType.COMPASS_DATA -> handleCompassData(message)
+            MessageType.BARO_DATA -> handleBaroData(message)
+            MessageType.WAYPOINT_ADD -> handleWaypointAdd(message)
+            MessageType.LOCATION_UPDATE -> handleLocationUpdate(message)
+
             else -> Log.d(TAG, "Unknown message type: ${message.type}")
         }
     }
@@ -4248,6 +4295,240 @@ class BluetoothService : Service() {
         } else {
             transportManager.setDiscoveredLocalMac(mac)
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Huawei-inspired feature handlers (phone side)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private fun handleSosTriggered(message: ProtocolMessage) {
+        Log.w(TAG, "SOS triggered from watch — initiating emergency protocol")
+        try {
+            val data = gson.fromJson(message.data, SosTriggerData::class.java)
+            // Show high-priority notification
+            val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+            val notif = androidx.core.app.NotificationCompat.Builder(this, "sos_channel")
+                .setContentTitle(getString(R.string.sos_phone_notif_title))
+                .setContentText(getString(R.string.sos_phone_notif_body))
+                .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
+                .build()
+            nm.notify(9911, notif)
+            // Dial emergency services
+            val callIntent = android.content.Intent(android.content.Intent.ACTION_CALL).apply {
+                setData(android.net.Uri.parse("tel:112"))
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            try { startActivity(callIntent) } catch (e: Exception) {
+                Log.e(TAG, "Could not auto-dial emergency: ${e.message}")
+            }
+        } catch (e: Exception) { Log.e(TAG, "handleSosTriggered: ${e.message}") }
+    }
+
+    private fun handleFallAlert(message: ProtocolMessage) {
+        Log.w(TAG, "Fall alert received from watch")
+        val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val notif = androidx.core.app.NotificationCompat.Builder(this, "health_alerts")
+            .setContentTitle(getString(R.string.fall_alert_notif_title))
+            .setContentText(getString(R.string.fall_alert_notif_body))
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+            .build()
+        nm.notify(9912, notif)
+    }
+
+    private fun handleCrashAlert(message: ProtocolMessage) {
+        Log.w(TAG, "Crash alert received")
+        handleFallAlert(message) // Same UX — notify + escalate
+    }
+
+    private fun handleHealthAlert(message: ProtocolMessage) {
+        try {
+            val data = gson.fromJson(message.data, HealthAlertData::class.java)
+            Log.w(TAG, "Health alert: ${data.alertType} value=${data.value}")
+            val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+            val notif = androidx.core.app.NotificationCompat.Builder(this, "health_alerts")
+                .setContentTitle("Health Alert: ${data.alertType.replace('_', ' ')}")
+                .setContentText("Value: ${data.value} (threshold: ${data.threshold})")
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                .build()
+            nm.notify(data.alertType.hashCode(), notif)
+        } catch (e: Exception) { Log.e(TAG, "handleHealthAlert: ${e.message}") }
+    }
+
+    private fun handleSleepSessionEnd(message: ProtocolMessage) {
+        try {
+            val data = gson.fromJson(message.data, SleepSessionData::class.java)
+            Log.d(TAG, "Sleep session ended. Score=${data.score}, Deep=${data.deepMinutes}min")
+            // Persist and update HealthWidget
+            val intent = android.content.Intent("com.iamadedo.phoneapp.widget.ACTION_WIDGET_HEALTH_UPDATE")
+            sendBroadcast(intent)
+        } catch (e: Exception) { Log.e(TAG, "handleSleepSessionEnd: ${e.message}") }
+    }
+
+    private fun handleSleepBreathing(message: ProtocolMessage) {
+        Log.d(TAG, "Sleep breathing quality received: ${message.data}")
+    }
+
+    private fun handleNapDetected(message: ProtocolMessage) {
+        try {
+            val data = gson.fromJson(message.data, SleepNapData::class.java)
+            Log.d(TAG, "Nap detected: ${data.durationMinutes} min")
+        } catch (e: Exception) { Log.e(TAG, "handleNapDetected: ${e.message}") }
+    }
+
+    private fun handlePrematureBeatAlert(message: ProtocolMessage) {
+        try {
+            val data = gson.fromJson(message.data, PrematureBeatData::class.java)
+            Log.w(TAG, "Premature beat: ${data.classification} @ ${data.eventsPerHour}/hr")
+            val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+            val notif = androidx.core.app.NotificationCompat.Builder(this, "health_alerts")
+                .setContentTitle("Irregular heartbeat detected")
+                .setContentText("Classification: ${data.classification} — consult a doctor if persistent.")
+                .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
+                .build()
+            nm.notify(8801, notif)
+        } catch (e: Exception) { Log.e(TAG, "handlePrematureBeatAlert: ${e.message}") }
+    }
+
+    private fun handleRespiratoryRate(message: ProtocolMessage) {
+        Log.d(TAG, "Respiratory rate received: ${message.data}")
+    }
+
+    private fun handleStressLevel(message: ProtocolMessage) {
+        Log.d(TAG, "Stress level received: ${message.data}")
+    }
+
+    private fun handleCycleLog(message: ProtocolMessage) {
+        Log.d(TAG, "Cycle log received: ${message.data}")
+    }
+
+    private fun handleNoiseAlert(message: ProtocolMessage) {
+        try {
+            val data = gson.fromJson(message.data, NoiseAlertData::class.java)
+            Log.d(TAG, "Noise alert: ${data.peakDb} dB for ${data.durationSeconds}s")
+            val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+            val notif = androidx.core.app.NotificationCompat.Builder(this, "health_alerts")
+                .setContentTitle(getString(R.string.noise_alert_title))
+                .setContentText(getString(R.string.noise_alert_body))
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
+                .build()
+            nm.notify(8802, notif)
+        } catch (e: Exception) { Log.e(TAG, "handleNoiseAlert: ${e.message}") }
+    }
+
+    private fun handleHandwashEvent(message: ProtocolMessage) {
+        Log.d(TAG, "Handwash event recorded at ${System.currentTimeMillis()}")
+    }
+
+    private fun handleMindfulnessSession(message: ProtocolMessage) {
+        Log.d(TAG, "Mindfulness session complete: ${message.data}")
+    }
+
+    private fun handleVitalsResponse(message: ProtocolMessage) {
+        Log.d(TAG, "Vitals snapshot received: ${message.data}")
+    }
+
+    private fun handleTempData(message: ProtocolMessage) {
+        Log.d(TAG, "Temp data received: ${message.data}")
+    }
+
+    private fun handleWorkoutStart(message: ProtocolMessage) {
+        Log.d(TAG, "Workout started on watch: ${message.data}")
+    }
+
+    private fun handleWorkoutPause() { Log.d(TAG, "Workout paused") }
+    private fun handleWorkoutResume() { Log.d(TAG, "Workout resumed") }
+
+    private fun handleWorkoutEnd(message: ProtocolMessage) {
+        Log.d(TAG, "Workout ended: ${message.data}")
+        val intent = android.content.Intent("com.iamadedo.phoneapp.widget.ACTION_WIDGET_HEALTH_UPDATE")
+        sendBroadcast(intent)
+    }
+
+    private fun handleWorkoutMetric(message: ProtocolMessage) {
+        // High-frequency — only log at verbose level
+    }
+
+    private fun handleRunningMetrics(message: ProtocolMessage) {
+        Log.d(TAG, "Running metrics: ${message.data}")
+    }
+
+    private fun handleSwimMetrics(message: ProtocolMessage) {
+        Log.d(TAG, "Swim metrics: ${message.data}")
+    }
+
+    private fun handleTrainingLoad(message: ProtocolMessage) {
+        Log.d(TAG, "Training load: ${message.data}")
+    }
+
+    private fun handleVo2MaxUpdate(message: ProtocolMessage) {
+        try {
+            val data = gson.fromJson(message.data, Vo2MaxData::class.java)
+            Log.d(TAG, "VO2Max update: ${data.vo2MaxMlKgMin} mL/kg/min (${data.fitnessLevel})")
+        } catch (e: Exception) { Log.e(TAG, "handleVo2MaxUpdate: ${e.message}") }
+    }
+
+    private fun handleHrRecovery(message: ProtocolMessage) {
+        Log.d(TAG, "HR recovery: ${message.data}")
+    }
+
+    private fun handleWorkoutEvaluation(message: ProtocolMessage) {
+        Log.d(TAG, "Workout evaluation: ${message.data}")
+    }
+
+    private fun handleAutoWorkoutDetect(message: ProtocolMessage) {
+        val type = message.data?.get("detectedType")?.asString ?: return
+        Log.d(TAG, "Watch auto-detected workout: $type")
+        val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val notif = androidx.core.app.NotificationCompat.Builder(this, "general")
+            .setContentTitle("${type.lowercase().replaceFirstChar { it.uppercase() }} detected")
+            .setContentText("Your watch detected a workout. Check the watch to start tracking.")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
+            .build()
+        nm.notify(8803, notif)
+    }
+
+    private fun handleActivityRingsUpdate(message: ProtocolMessage) {
+        Log.d(TAG, "Activity rings update: ${message.data}")
+        val intent = android.content.Intent("com.iamadedo.phoneapp.widget.ACTION_WIDGET_HEALTH_UPDATE")
+        sendBroadcast(intent)
+    }
+
+    private fun handleFamilyHealthRequest(message: ProtocolMessage) {
+        val memberId = message.data?.get("memberId")?.asString ?: return
+        val fm = FamilyHealthManager(this)
+        val snap = fm.getSnapshot(memberId) ?: return
+        serviceScope.launch { sendMessage(ProtocolHelper.createFamilyMemberHealth(snap)) }
+    }
+
+    private fun handleMedConfirm(message: ProtocolMessage) {
+        try {
+            val data = gson.fromJson(message.data, MedConfirmData::class.java)
+            MedicationManager(this).recordAdherence(data.medId, data.action)
+            Log.d(TAG, "Med confirm: ${data.medId} → ${data.action}")
+        } catch (e: Exception) { Log.e(TAG, "handleMedConfirm: ${e.message}") }
+    }
+
+    private fun handleCompassData(message: ProtocolMessage) {
+        Log.d(TAG, "Compass: ${message.data?.get("bearingDegrees")?.asFloat}°")
+    }
+
+    private fun handleBaroData(message: ProtocolMessage) {
+        Log.d(TAG, "Baro: ${message.data}")
+    }
+
+    private fun handleWaypointAdd(message: ProtocolMessage) {
+        Log.d(TAG, "Waypoint added: ${message.data}")
+    }
+
+    private fun handleLocationUpdate(message: ProtocolMessage) {
+        // Feed into workout GPS accumulation if workout active
+        Log.d(TAG, "Location update from watch: ${message.data}")
     }
 
 }
