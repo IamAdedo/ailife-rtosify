@@ -1314,4 +1314,121 @@
     <string name="vibration_custom_length">自定义振动时长</string>
     <string name="toast_requesting_ringtone_picker">正在请求手表铃声选择器...</string>
 
+    <!-- 紧急SOS / SOS (phone side) -->
+    <string name="sos_phone_notif_title">手表触发了紧急SOS</string>
+    <string name="sos_phone_notif_body">正在拨打急救电话并通知紧急联系人。</string>
+    <string name="sos_contacting_emergency">正在联系紧急服务…</string>
+
+    <!-- 跌倒检测 / Fall Detection (phone side) -->
+    <string name="fall_alert_notif_title">手表可能检测到跌倒</string>
+    <string name="fall_alert_notif_body">请检查佩戴者的情况。</string>
+
+    <!-- 药物提醒 / Medication -->
+    <string name="med_reminder_title">用药提醒</string>
+    <string name="med_taken">已服用</string>
+    <string name="med_skip">跳过</string>
+    <string name="med_adherence_label">服药依从性（7天）</string>
+    <string name="med_add">添加药物</string>
+    <string name="med_name_hint">药物名称</string>
+    <string name="med_dosage_hint">剂量（例如：10毫克）</string>
+
+    <!-- 运动 / Workout (phone side) -->
+    <string name="workout_live_title">运动进行中</string>
+    <string name="workout_summary_title">运动总结</string>
+    <string name="workout_distance_label">距离</string>
+    <string name="workout_calories_label">卡路里</string>
+    <string name="workout_avg_hr_label">平均心率</string>
+    <string name="workout_duration_label">时长</string>
+
+    <!-- 睡眠 / Sleep -->
+    <string name="sleep_score_label">睡眠评分</string>
+    <string name="sleep_deep_label">深睡</string>
+    <string name="sleep_rem_label">快速眼动</string>
+    <string name="sleep_light_label">浅睡</string>
+    <string name="sleep_awake_label">清醒</string>
+
+    <!-- 噪音 / Noise -->
+    <string name="noise_alert_title">检测到高噪音环境</string>
+    <string name="noise_alert_body">噪音持续超过85分贝，建议使用听力保护设备。</string>
+
+    <!-- 每日准备度 / Daily Readiness (Pixel Watch) -->
+    <string name="daily_readiness_title">每日状态评分</string>
+    <string name="cardio_load_label">心肺负荷</string>
+    <string name="target_load_label">目标训练量</string>
+    <string name="morning_briefing_title">早安摘要</string>
+
+    <!-- 脉搏丧失 / Loss of Pulse -->
+    <string name="loss_of_pulse_title">手表未检测到脉搏</string>
+    <string name="loss_of_pulse_body">正在联系急救服务，这可能是心脏急症。</string>
+
+    <!-- 个人记录 / Personal Record -->
+    <string name="personal_record_title">新个人记录！</string>
+
+    <!-- 铁人三项 / Triathlon -->
+    <string name="triathlon_title">铁人三项</string>
+
+    <!-- 能量评分 / Energy Score (Samsung) -->
+    <string name="energy_score_label">能量评分</string>
+
+    <!-- 体成分 / Body Composition (Samsung) -->
+    <string name="body_composition_title">体成分分析</string>
+
+    <!-- AGEs -->
+    <string name="ages_index_label">糖化指数</string>
+
+    <!-- FTP -->
+    <string name="ftp_label">功能阈值功率</string>
+
+    <!-- 打鼾 / Snoring -->
+    <string name="snoring_alert_title">昨晚检测到打鼾</string>
+    <string name="snoring_alert_body">检测到%d次打鼾，如持续发生请考虑睡眠检测。</string>
+
+    <!-- 跑步教练 / Running Coach -->
+    <string name="running_coach_title">跑步教练</string>
+
+    <!-- 就寝模式 / Bedtime Mode -->
+    <string name="bedtime_mode_active">就寝模式已启动</string>
+    <string name="bedtime_mode_inactive">就寝模式已结束</string>
+
+    <!-- VO2Max / 活动环 -->
+    <string name="vo2max_label">最大摄氧量</string>
+    <string name="activity_rings_title">活动环</string>
+    <string name="rings_move">动</string>
+    <string name="rings_exercise">练</string>
+    <string name="rings_stand">站</string>
+    <string name="sedentary_reminder_title">该动一动了！</string>
+    <string name="sedentary_reminder_body">您已久坐，建议起身走走。</string>
+    <string name="stand_reminder_title">站起来！</string>
+    <string name="stand_reminder_body">本小时内请站立并活动至少一分钟。</string>
+
+    <!-- 天气 / Weather -->
+    <string name="weather_title">天气</string>
+    <string name="moon_phase_label">月相</string>
+
+    <!-- 家庭健康 / Family Health -->
+    <string name="family_health_title">家庭健康</string>
+
+    <!-- 呼吸频率 -->
+    <string name="respiratory_rate_label">呼吸频率</string>
+
+    <!-- 早搏 -->
+    <string name="premature_beat_alert_title">检测到心律不齐</string>
+
+    <!-- 恢复时间 -->
+    <string name="recovery_time_label">建议恢复时间</string>
+
+    <!-- 智能闹钟 -->
+    <string name="smart_alarm_label">智能闹钟</string>
+
+    <!-- 自动检测运动 -->
+    <string name="auto_workout_detected">自动检测到运动</string>
+
+    <!-- 心率恢复 -->
+    <string name="hr_recovery_label">1分钟心率恢复</string>
+    <string name="fitness_level_label">体能等级</string>
+
+    <!-- 睡眠呼吸 -->
+    <string name="sleep_breathing_label">呼吸质量</string>
+    <string name="nap_detected_label">检测到小憩</string>
+
 </resources>
