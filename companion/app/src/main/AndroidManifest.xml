@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- ============================================================ -->
-    <!-- PERMISSÕES -->
+    <!-- PERMISSIONs -->
     <!-- ============================================================ -->
 
     <!-- Bluetooth (Legado - Android 11 e inferior) -->
