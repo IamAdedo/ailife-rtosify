@@ -538,6 +538,25 @@ class BluetoothService : Service() {
 
                             if (notifData != null) {
                                 sendMessage(ProtocolHelper.createNotificationPosted(notifData))
+                                // Generate AI suggested replies for messages that support inline reply
+                                if (notifData.hasReply == true && !notifData.text.isNullOrBlank()) {
+                                    serviceScope.launch {
+                                        try {
+                                            val replies = suggestedRepliesGenerator.generate(
+                                                appName    = notifData.appName ?: "",
+                                                senderName = notifData.title ?: "",
+                                                messageText = notifData.text ?: ""
+                                            )
+                                            val replyData = SuggestedReplyData(
+                                                notificationKey = notifData.key ?: "",
+                                                suggestions     = replies
+                                            )
+                                            sendMessage(ProtocolHelper.createSuggestedReply(replyData))
+                                        } catch (e: Exception) {
+                                            Log.d(TAG, "Suggested reply generation skipped: ${e.message}")
+                                        }
+                                    }
+                                }
                             }
                         }
                         ACTION_SEND_REMOVE_TO_WATCH -> {
@@ -4468,7 +4487,18 @@ class BluetoothService : Service() {
     }
 
     private fun handleWorkoutMetric(message: ProtocolMessage) {
-        // High-frequency — only log at verbose level
+        // High-frequency — store latest snapshot for widget without logging every tick
+        try {
+            val data = gson.fromJson(message.data, WorkoutMetricData::class.java)
+            getSharedPreferences("workout_live", Context.MODE_PRIVATE).edit()
+                .putLong("elapsed_seconds", data.elapsedSeconds)
+                .putInt("heart_rate", data.heartRate ?: 0)
+                .putInt("hr_zone", data.heartRateZone ?: 0)
+                .putFloat("distance_km", data.distanceKm)
+                .putInt("calories", data.calories)
+                .putInt("cadence", data.cadence ?: 0)
+                .apply()
+        } catch (e: Exception) { /* ignore parse errors on high-freq messages */ }
     }
 
     private fun handleRunningMetrics(message: ProtocolMessage) {
@@ -4683,10 +4713,15 @@ class BluetoothService : Service() {
         sendBroadcast(mediaIntent)
     }
 
+    private val transcriptManager by lazy {
+        TranscriptManager(this) { msg -> serviceScope.launch { sendMessage(msg) } }
+    }
+
+    private val suggestedRepliesGenerator by lazy { SuggestedRepliesGenerator(this) }
+
     private fun handleTranscriptRequest() {
-        Log.d(TAG, "Transcript request from watch — feature requires microphone on phone")
-        // Placeholder: in full impl, start SpeechRecognizer on phone
-        // and stream results back via TRANSCRIPT_RESULT
+        Log.d(TAG, "Transcript request from watch — toggling live transcript")
+        transcriptManager.toggle()
     }
 
 }
