@@ -1227,6 +1227,26 @@ class BluetoothService : Service() {
             return START_NOT_STICKY
         }
 
+        if (intent?.action == AntiLostManager.ACTION_DISMISS) {
+            antiLostManager.dismiss()
+            return START_NOT_STICKY
+        }
+
+        if (intent?.action == "com.iamadedo.watchapp.SHOW_PULSE_ALERT") {
+            // Show loss-of-pulse confirmation UI
+            val nm = getSystemService(NotificationManager::class.java)
+            val notif = androidx.core.app.NotificationCompat.Builder(this, "sos_channel")
+                .setContentTitle(getString(R.string.loss_of_pulse_title))
+                .setContentText(getString(R.string.loss_of_pulse_body))
+                .setSmallIcon(R.drawable.ic_smartwatch)
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
+                .setCategory(androidx.core.app.NotificationCompat.CATEGORY_ALARM)
+                .setOngoing(true)
+                .build()
+            nm.notify(9910, notif)
+            return START_NOT_STICKY
+        }
+
         if (intent?.action == ACTION_RESTART_BLE_ADVERTISING) {
             Log.i(TAG, "Restarting BLE advertising as requested")
             serviceScope.launch {
