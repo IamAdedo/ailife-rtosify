@@ -598,4 +598,165 @@
     <string name="video_helper_tutorial_tap">单击：播放/暂停</string>
     <string name="video_helper_tutorial_double_tap">双击：点赞</string>
     <string name="video_helper_tutorial_desc">在屏幕上执行手势来控制手机</string>
+
+    <!-- 跌倒检测 / Fall Detection -->
+    <string name="fall_detection_active">跌倒检测已启动</string>
+    <string name="fall_detected_title">检测到跌倒！</string>
+    <string name="fall_detected_body">您还好吗？请点击取消，否则将在30秒后发送SOS。</string>
+    <string name="fall_im_ok">我没事</string>
+
+    <!-- 紧急SOS / Emergency SOS -->
+    <string name="sos_title">紧急SOS</string>
+    <string name="sos_calling">正在拨打急救电话…</string>
+    <string name="sos_contacting_emergency">正在联系紧急服务…</string>
+    <string name="sos_cancel">取消</string>
+    <string name="sos_countdown_hint">长按取消以中止</string>
+
+    <!-- 运动 / Workout -->
+    <string name="workout_pause">暂停</string>
+    <string name="workout_resume">继续</string>
+    <string name="workout_stop">停止</string>
+    <string name="workout_elapsed">已用时间</string>
+    <string name="workout_heart_rate">心率</string>
+    <string name="workout_zone">心率区间</string>
+    <string name="workout_pace">配速</string>
+    <string name="workout_distance">距离</string>
+    <string name="workout_calories">卡路里</string>
+    <string name="workout_cadence">步频</string>
+
+    <!-- 冥想 / Mindfulness -->
+    <string name="mindfulness_title">呼吸练习</string>
+    <string name="mindfulness_measuring_hrv">正在测量基准…</string>
+    <string name="breathe_in">吸气</string>
+    <string name="breathe_out">呼气</string>
+    <string name="hold">保持</string>
+    <string name="hrv_label">心率变异性</string>
+    <string name="mindfulness_stop">结束</string>
+
+    <!-- 噪音监测 / Noise Monitor -->
+    <string name="noise_alert_title">高噪音环境</string>
+    <string name="noise_alert_body">噪音持续超过85分贝，建议使用听力保护设备。</string>
+
+    <!-- 药物提醒 / Medication -->
+    <string name="med_reminder_title">用药提醒</string>
+    <string name="med_taken">已服用</string>
+    <string name="med_skip">跳过</string>
+
+    <!-- 秒表 / Stopwatch -->
+    <string name="stopwatch_start">开始</string>
+    <string name="stopwatch_stop">停止</string>
+    <string name="stopwatch_lap">计圈</string>
+    <string name="stopwatch_reset">重置</string>
+
+    <!-- 活动环 / Activity Rings -->
+    <string name="rings_move">动</string>
+    <string name="rings_exercise">练</string>
+    <string name="rings_stand">站</string>
+    <string name="sedentary_reminder_title">该动一动了！</string>
+    <string name="stand_reminder_title">站起来！</string>
+
+    <!-- 天气 / Weather -->
+    <string name="weather_sunny">晴天</string>
+    <string name="weather_cloudy">多云</string>
+    <string name="weather_rain">雨天</string>
+    <string name="weather_snow">雪天</string>
+    <string name="weather_thunderstorm">雷暴</string>
+    <string name="weather_uv_index">紫外线指数</string>
+    <string name="weather_humidity">湿度</string>
+
+    <!-- 睡眠音效 / Sleep sounds -->
+    <string name="sleep_sound_white_noise">白噪音</string>
+    <string name="sleep_sound_pink_noise">粉噪音</string>
+    <string name="sleep_sound_rain">雨声</string>
+    <string name="sleep_sound_ocean">海浪声</string>
+    <string name="sleep_sound_brown_noise">棕噪音</string>
+
+    <!-- VO2Max / 体能 -->
+    <string name="vo2max_label">最大摄氧量</string>
+    <string name="fitness_level_poor">较差</string>
+    <string name="fitness_level_fair">一般</string>
+    <string name="fitness_level_good">良好</string>
+    <string name="fitness_level_excellent">优秀</string>
+    <string name="fitness_level_superior">卓越</string>
+    <string name="hr_recovery_label">心率恢复</string>
+    <string name="recovery_time_label">建议恢复时间</string>
+
+    <!-- 早搏检测 / Premature beat -->
+    <string name="premature_beat_title">检测到心律不齐</string>
+    <string name="premature_beat_body">您的手表检测到异常心跳，如持续出现请就医。</string>
+
+    <!-- 智能闹钟 / Smart alarm -->
+    <string name="smart_alarm_label">智能闹钟</string>
+    <string name="smart_alarm_window_hint">起床窗口（分钟）</string>
+
+    <!-- 呼吸频率 / Respiratory -->
+    <string name="respiratory_rate_label">呼吸频率</string>
+    <string name="breaths_per_min">次/分</string>
+
+    <!-- 家庭健康 / Family health -->
+    <string name="family_health_title">家庭健康</string>
+    <string name="add_family_member">添加成员</string>
+
+    <!-- 每日准备度 / Daily Readiness (Pixel Watch) -->
+    <string name="daily_readiness_title">每日状态评分</string>
+    <string name="readiness_push">状态良好，可以高强度训练</string>
+    <string name="readiness_moderate">适合中等强度训练</string>
+    <string name="readiness_recover">建议优先休息恢复</string>
+    <string name="cardio_load_label">心肺负荷</string>
+    <string name="target_load_label">目标训练量</string>
+    <string name="morning_briefing_title">早安</string>
+
+    <!-- 脉搏丧失检测 / Loss of Pulse (Pixel Watch) -->
+    <string name="loss_of_pulse_title">未检测到脉搏</string>
+    <string name="loss_of_pulse_body">正在联系急救服务，点击取消。</string>
+
+    <!-- 个人记录 / Personal Record -->
+    <string name="personal_record_title">新个人记录！</string>
+
+    <!-- 铁人三项 / Triathlon -->
+    <string name="triathlon_title">铁人三项</string>
+    <string name="triathlon_swim">游泳</string>
+    <string name="triathlon_bike">骑行</string>
+    <string name="triathlon_run">跑步</string>
+    <string name="triathlon_t1">T1换项</string>
+    <string name="triathlon_t2">T2换项</string>
+    <string name="triathlon_next_segment">下一项目</string>
+    <string name="triathlon_finish">完成</string>
+
+    <!-- 能量评分 / Energy Score (Samsung) -->
+    <string name="energy_score_label">能量评分</string>
+
+    <!-- 体成分 / Body Composition (Samsung) -->
+    <string name="body_composition_title">体成分分析</string>
+    <string name="body_fat_label">体脂率</string>
+    <string name="muscle_mass_label">肌肉量</string>
+    <string name="bc_measure">测量</string>
+    <string name="bc_done">完成</string>
+    <string name="bc_measuring">请保持静止，测量中…</string>
+    <string name="bc_complete">测量完成</string>
+    <string name="bc_result_format">体脂: %.1f%% · 肌肉: %.1fkg · BMI: %.1f · 基础代谢: %d千卡</string>
+
+    <!-- AGEs / 糖化指数 -->
+    <string name="ages_index_label">糖化指数</string>
+
+    <!-- 功能阈值功率 / FTP -->
+    <string name="ftp_label">功能阈值功率</string>
+
+    <!-- 打鼾检测 / Snoring (Samsung) -->
+    <string name="snoring_alert_title">昨晚检测到打鼾</string>
+
+    <!-- 紧急警报 / Emergency Siren -->
+    <string name="emergency_siren_label">紧急求救警报</string>
+
+    <!-- 跑步教练 / Running Coach (Samsung) -->
+    <string name="running_coach_title">跑步教练</string>
+    <string name="good_form_cue">姿势良好！</string>
+    <string name="cadence_low_cue">请提高步频</string>
+    <string name="cadence_high_cue">请降低步频</string>
+    <string name="overstriding_cue">请缩短步幅</string>
+
+    <!-- 就寝模式 / Bedtime Mode (WearOS) -->
+    <string name="bedtime_mode_label">就寝模式</string>
+    <string name="battery_saver_label">省电模式</string>
+    <string name="suggested_reply_label">快捷回复</string>
 </resources>
