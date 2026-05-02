@@ -956,6 +956,12 @@ class BluetoothService : Service() {
         // Initialize health data collector
         healthDataCollector = HealthDataCollector(this)
 
+        // Start loss-of-pulse cardiac safety monitoring
+        lossOfPulseDetector.start()
+
+        // Schedule automatic bedtime mode if configured
+        bedtimeModeManager.scheduleAlarms()
+
         // Initialize PAN manager
         panManager = BluetoothPanManager(this)
 
@@ -1698,8 +1704,8 @@ class BluetoothService : Service() {
             MessageType.GOOGLE_HOME_CONTROL    -> handleGoogleHomeControl(message)
             MessageType.BEDTIME_MODE_CONTROL   -> {
                 val enabled = message.data?.get("enabled")?.asBoolean ?: false
-                getSharedPreferences("bedtime_prefs", MODE_PRIVATE).edit()
-                    .putBoolean("bedtime_active", enabled).apply()
+                if (enabled) bedtimeModeManager.enableBedtimeMode()
+                else bedtimeModeManager.disableBedtimeMode()
             }
             MessageType.BATTERY_SAVER_MODE     -> {
                 val enabled = message.data?.get("enabled")?.asBoolean ?: false
@@ -7192,6 +7198,9 @@ class BluetoothService : Service() {
     // ── WearOS / Pixel Watch / Samsung managers (lazy init) ───────────────────
 
     private val emergencySirenManager by lazy { EmergencySirenManager(this) }
+    private val bedtimeModeManager by lazy {
+        BedtimeModeManager(this) { msg -> serviceScope.launch { sendMessage(msg) } }
+    }
     private val lossOfPulseDetector by lazy {
         LossOfPulseDetector(this) {
             // Pulse absent confirmed → notify phone
@@ -7269,8 +7278,18 @@ class BluetoothService : Service() {
     }
 
     private fun handleGoogleHomeControl(message: ProtocolMessage) {
-        Log.d(TAG, "Google Home control: ${message.data}")
-        // Would forward to Google Home API / Matter SDK in a full implementation
+        try {
+            val data = gson.fromJson(message.data, GoogleHomeControlData::class.java)
+            Log.d(TAG, "Google Home control: ${data.deviceName} → ${data.command}")
+            // Fire a local broadcast that a Google Home companion app or Matter SDK can intercept
+            val broadcastIntent = Intent("com.iamadedo.watchapp.GOOGLE_HOME_COMMAND").apply {
+                putExtra("device_id",   data.deviceId)
+                putExtra("device_name", data.deviceName)
+                putExtra("command",     data.command)
+                putExtra("value",       data.value)
+            }
+            sendBroadcast(broadcastIntent)
+        } catch (e: Exception) { Log.e(TAG, "handleGoogleHomeControl: ${e.message}") }
     }
 
     private fun handleSuggestedReply(message: ProtocolMessage) {
