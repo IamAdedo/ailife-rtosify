@@ -1335,6 +1335,25 @@
     <string name="sleep_breathing_label">Breathing Quality</string>
     <string name="nap_detected_label">Nap detected</string>
 
+    <!-- WearOS / Pixel Watch / Samsung -->
+    <string name="daily_readiness_title">Daily Readiness</string>
+    <string name="cardio_load_label">Cardio Load</string>
+    <string name="target_load_label">Target Load</string>
+    <string name="morning_briefing_title">Morning Briefing</string>
+    <string name="loss_of_pulse_title">No pulse detected on watch</string>
+    <string name="loss_of_pulse_body">Emergency services are being contacted. This may be a cardiac event.</string>
+    <string name="personal_record_title">New Personal Record!</string>
+    <string name="triathlon_title">Triathlon</string>
+    <string name="energy_score_label">Energy Score</string>
+    <string name="body_composition_title">Body Composition</string>
+    <string name="ages_index_label">AGEs Index</string>
+    <string name="ftp_label">Functional Threshold Power</string>
+    <string name="snoring_alert_title">Snoring detected last night</string>
+    <string name="snoring_alert_body">%d snoring episodes detected. Consider a sleep study if this persists.</string>
+    <string name="running_coach_title">Running Coach</string>
+    <string name="bedtime_mode_active">Bedtime mode active</string>
+    <string name="bedtime_mode_inactive">Bedtime mode ended</string>
+
 </resources>
 
 
