@@ -707,6 +707,13 @@
     <string name="family_health_title">Family Health</string>
     <string name="add_family_member">Add member</string>
 
+    <!-- Body Composition -->
+    <string name="bc_measure">Measure</string>
+    <string name="bc_done">Done</string>
+    <string name="bc_measuring">Stand still — measuring…</string>
+    <string name="bc_complete">Measurement complete</string>
+    <string name="bc_result_format">Fat: %.1f%% · Muscle: %.1fkg · BMI: %.1f · BMR: %d kcal</string>
+
     <!-- Pixel Watch / Fitbit-inspired -->
     <string name="daily_readiness_title">Daily Readiness</string>
     <string name="readiness_push">Ready to push</string>
