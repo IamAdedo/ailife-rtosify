@@ -1189,6 +1189,15 @@ class BluetoothService : Service() {
 
             // ── Huawei-inspired: Family Health ────────────────────────────────
             MessageType.FAMILY_HEALTH_REQUEST -> handleFamilyHealthRequest(message)
+
+            // ── Anti-lost ─────────────────────────────────────────────────────
+            MessageType.ANTI_LOST_RSSI_UPDATE -> {
+                val rssi = message.data?.get("rssi")?.asInt ?: 0
+                val replyMsg = antiLostPhoneHandler.onRssiUpdate(rssi)
+                if (replyMsg != null) serviceScope.launch { sendMessage(replyMsg) }
+            }
+            MessageType.ANTI_LOST_PHONE_ALERT -> antiLostPhoneHandler.onWatchConfirmedPhoneAlert()
+            MessageType.ANTI_LOST_DISMISSED   -> antiLostPhoneHandler.onDismissed()
             MessageType.MED_CONFIRM -> handleMedConfirm(message)
 
             // ── WearOS / Pixel Watch / Samsung-inspired ───────────────────────
@@ -4718,6 +4727,8 @@ class BluetoothService : Service() {
     }
 
     private val suggestedRepliesGenerator by lazy { SuggestedRepliesGenerator(this) }
+
+    private val antiLostPhoneHandler by lazy { AntiLostPhoneHandler(this) }
 
     private fun handleTranscriptRequest() {
         Log.d(TAG, "Transcript request from watch — toggling live transcript")
