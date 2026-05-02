@@ -443,5 +443,22 @@
             android:theme="@style/Theme.AppCompat.NoActionBar"
             android:screenOrientation="portrait"/>
 
+        <!-- Triathlon multi-sport tracker -->
+        <activity
+            android:name=".TriathlonActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:screenOrientation="portrait"/>
+
+        <!-- Bedtime mode scheduled alarm receiver -->
+        <receiver
+            android:name=".BedtimeModeReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.iamadedo.watchapp.BEDTIME_START"/>
+                <action android:name="com.iamadedo.watchapp.BEDTIME_END"/>
+            </intent-filter>
+        </receiver>
+
     </application>
 </manifest>
