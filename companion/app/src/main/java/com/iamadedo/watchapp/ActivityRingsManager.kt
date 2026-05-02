@@ -152,10 +152,34 @@ class ActivityRingsManager(
             if (idle >= SEDENTARY_THRESHOLD_MS && !sedentaryReminderSent) {
                 sedentaryReminderSent = true
                 vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 200, 150, 200), -1))
+                // Show local notification on watch so the user sees it on screen
+                showLocalNotification(
+                    context.getString(R.string.sedentary_reminder_title),
+                    context.getString(R.string.sedentary_reminder_body)
+                )
                 onSendMessage(ProtocolHelper.createSedentaryReminder())
             }
             handler.postDelayed(this, 60_000)
         }
+    }
+
+    private fun showLocalNotification(title: String, body: String) {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val channelId = "activity_reminders"
+        if (nm.getNotificationChannel(channelId) == null) {
+            nm.createNotificationChannel(
+                android.app.NotificationChannel(channelId, "Activity Reminders",
+                    android.app.NotificationManager.IMPORTANCE_DEFAULT)
+            )
+        }
+        val notif = androidx.core.app.NotificationCompat.Builder(context, channelId)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setSmallIcon(R.drawable.ic_smartwatch)
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .build()
+        nm.notify(title.hashCode(), notif)
     }
 
     // ── Stand reminder ────────────────────────────────────────────────────────
@@ -168,6 +192,10 @@ class ActivityRingsManager(
             if (minute >= 50 && !currentHourHasStand && !standReminderSent) {
                 standReminderSent = true
                 vibrator.vibrate(VibrationEffect.createOneShot(300, VibrationEffect.DEFAULT_AMPLITUDE))
+                showLocalNotification(
+                    context.getString(R.string.stand_reminder_title),
+                    context.getString(R.string.stand_reminder_body)
+                )
                 onSendMessage(ProtocolHelper.createStandReminder())
             }
             // Reset hourly
