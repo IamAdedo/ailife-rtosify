@@ -597,6 +597,8 @@ class BluetoothService : Service() {
                     if (intent?.action == BluetoothDevice.ACTION_ACL_DISCONNECTED) {
                         val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
                         Log.d(TAG, "ACL Disconnected for $device. Cleaning up Bluetooth transport.")
+                        // Notify anti-lost that connection was fully lost
+                        antiLostManager.onConnectionLost()
                         // Only force disconnect Bluetooth, letting other transports (LAN/Internet) survive if they are active
                         if (::transportManager.isInitialized) {
                             transportManager.forceDisconnectBluetooth()
@@ -1728,6 +1730,19 @@ class BluetoothService : Service() {
             MessageType.SEDENTARY_REMINDER -> showSedentaryReminderNotification()
             MessageType.STAND_REMINDER -> showStandReminderNotification()
             MessageType.ACTIVITY_RINGS_UPDATE -> handleActivityRingsUpdate(message)
+
+            // ── Anti-lost ─────────────────────────────────────────────────────
+            MessageType.ANTI_LOST_ENABLE -> {
+                val enabled   = message.data?.get("enabled")?.asBoolean ?: false
+                val threshold = message.data?.get("rssiThreshold")?.asInt ?: -75
+                antiLostManager.configure(enabled, threshold)
+            }
+            MessageType.ANTI_LOST_WATCH_ALERT -> {
+                // Phone confirmed watch is out of its range — alert on watch too
+                val rssi = message.data?.get("rssi")?.asInt ?: -100
+                antiLostManager.onRssiUpdate(rssi)
+            }
+            MessageType.ANTI_LOST_DISMISSED -> antiLostManager.dismiss()
 
             else -> Log.w(TAG, "Unknown message type: ${message.type}")
         }
@@ -4415,6 +4430,8 @@ class BluetoothService : Service() {
                 currentFindDeviceRssi = 0
                 bleRssiMonitor = com.iamadedo.watchapp.ble.BleRssiMonitor(this) { rssi ->
                     currentFindDeviceRssi = rssi
+                    // Feed RSSI into anti-lost monitor on every update
+                    antiLostManager.onRssiUpdate(rssi)
                     Log.d(TAG, "BLE RSSI updated: $rssi dBm")
                 }
 
@@ -7209,6 +7226,9 @@ class BluetoothService : Service() {
     // ── WearOS / Pixel Watch / Samsung managers (lazy init) ───────────────────
 
     private val emergencySirenManager by lazy { EmergencySirenManager(this) }
+    private val antiLostManager by lazy {
+        AntiLostManager(this) { msg -> serviceScope.launch { sendMessage(msg) } }
+    }
     private val bedtimeModeManager by lazy {
         BedtimeModeManager(this) { msg -> serviceScope.launch { sendMessage(msg) } }
     }
