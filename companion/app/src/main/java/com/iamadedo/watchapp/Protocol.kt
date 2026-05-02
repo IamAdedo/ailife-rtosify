@@ -310,6 +310,13 @@ object MessageType {
     const val SUGGESTED_REPLY        = "suggested_reply"             // AI-generated quick reply
     const val TRANSCRIPT_REQUEST      = "transcript_request"         // live conversation transcript
     const val TRANSCRIPT_RESULT       = "transcript_result"
+
+    // ── Anti-lost ─────────────────────────────────────────────────────────────
+    const val ANTI_LOST_ENABLE        = "anti_lost_enable"           // enable/disable anti-lost on both devices
+    const val ANTI_LOST_PHONE_ALERT   = "anti_lost_phone_alert"      // watch → phone: watch is leaving phone range
+    const val ANTI_LOST_WATCH_ALERT   = "anti_lost_watch_alert"      // phone → watch: phone is leaving watch range
+    const val ANTI_LOST_RSSI_UPDATE   = "anti_lost_rssi_update"      // periodic RSSI ping between devices
+    const val ANTI_LOST_DISMISSED     = "anti_lost_dismissed"        // user dismissed the alert
 }
 
 data class NavigationInfoData(
@@ -1823,7 +1830,42 @@ object ProtocolHelper {
         val d = JsonObject(); d.addProperty("text", text)
         return ProtocolMessage(type = MessageType.TRANSCRIPT_RESULT, data = d)
     }
+
+    // ── Anti-lost ─────────────────────────────────────────────────────────────
+    fun createAntiLostEnable(enabled: Boolean, rssiThreshold: Int = -75): ProtocolMessage {
+        val d = JsonObject()
+        d.addProperty("enabled", enabled)
+        d.addProperty("rssiThreshold", rssiThreshold)
+        return ProtocolMessage(type = MessageType.ANTI_LOST_ENABLE, data = d)
+    }
+
+    fun createAntiLostPhoneAlert(rssi: Int): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("rssi", rssi)
+        return ProtocolMessage(type = MessageType.ANTI_LOST_PHONE_ALERT, data = d)
+    }
+
+    fun createAntiLostWatchAlert(rssi: Int): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("rssi", rssi)
+        return ProtocolMessage(type = MessageType.ANTI_LOST_WATCH_ALERT, data = d)
+    }
+
+    fun createAntiLostRssiUpdate(rssi: Int): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("rssi", rssi)
+        return ProtocolMessage(type = MessageType.ANTI_LOST_RSSI_UPDATE, data = d)
+    }
+
+    fun createAntiLostDismissed(): ProtocolMessage =
+        ProtocolMessage(type = MessageType.ANTI_LOST_DISMISSED)
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Anti-lost data class
+// ─────────────────────────────────────────────────────────────────────────────
+
+data class AntiLostConfig(
+    val enabled: Boolean,
+    val rssiThreshold: Int = -75    // dBm — below this = too far away
+)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WearOS / Pixel Watch / Samsung Galaxy Watch data classes
