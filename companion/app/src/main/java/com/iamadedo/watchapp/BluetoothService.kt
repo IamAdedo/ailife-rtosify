@@ -1630,6 +1630,17 @@ class BluetoothService : Service() {
                 sleepWhiteNoisePlayer.play(soundType)
             }
             MessageType.SLEEP_WHITE_NOISE_STOP -> sleepWhiteNoisePlayer.stop()
+            MessageType.SLEEP_SESSION_START -> {
+                // Phone told watch sleep started — activate local sleep features
+                sleepTracker.startTracking()
+                snoringDetector.startSession()
+                bedtimeModeManager.enableBedtimeMode()
+            }
+            MessageType.SLEEP_SESSION_END -> {
+                sleepTracker.stopTracking()
+                snoringDetector.endSession()
+                bedtimeModeManager.disableBedtimeMode()
+            }
             MessageType.SLEEP_TIP -> {
                 val tip = message.data?.get("tip")?.asString ?: return
                 showSleepTipNotification(tip)
@@ -7222,6 +7233,19 @@ class BluetoothService : Service() {
     }
     private val dailyReadinessCalculator by lazy { DailyReadinessCalculator(this) }
     private val cardioLoadTracker by lazy { CardioLoadTracker(this) }
+    private val sleepTracker by lazy {
+        SleepTracker(this) { session ->
+            // Session complete — send to phone
+            serviceScope.launch { sendMessage(ProtocolHelper.createSleepSessionEnd(session)) }
+            // Compute daily readiness from this session
+            val readiness = dailyReadinessCalculator.compute(
+                sleepScore    = session.score,
+                restingHrBpm  = 60,   // will be updated from HealthDataCollector in full impl
+                overnightSdnn = 40f
+            )
+            serviceScope.launch { sendMessage(ProtocolHelper.createDailyReadinessScore(readiness)) }
+        }
+    }
 
     // ── WearOS handler implementations ────────────────────────────────────────
 
