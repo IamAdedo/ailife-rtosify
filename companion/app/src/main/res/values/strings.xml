@@ -755,4 +755,14 @@
     <string name="bedtime_mode_label">Bedtime Mode</string>
     <string name="battery_saver_label">Battery Saver</string>
     <string name="suggested_reply_label">Quick Reply</string>
+
+    <!-- Anti-lost -->
+    <string name="anti_lost_alert_title">Phone left behind!</string>
+    <string name="anti_lost_alert_body">Your phone may be out of range. Tap Dismiss if intentional.</string>
+    <string name="anti_lost_dismiss">Dismiss</string>
+    <string name="anti_lost_settings_label">Anti-lost</string>
+    <string name="anti_lost_enable_label">Alert when phone is left behind</string>
+    <string name="anti_lost_threshold_label">Sensitivity</string>
+    <string name="stand_reminder_body">Stand and move for at least a minute this hour.</string>
+    <string name="sedentary_reminder_body">You\'ve been still for a while. Take a short walk.</string>
 </resources>

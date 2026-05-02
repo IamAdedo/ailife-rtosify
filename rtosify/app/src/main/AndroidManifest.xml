@@ -442,5 +442,14 @@
             </intent-filter>
         </receiver>
 
+        <!-- Anti-lost dismiss action receiver -->
+        <receiver
+            android:name=".AntiLostDismissReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.iamadedo.phoneapp.ANTI_LOST_DISMISS"/>
+            </intent-filter>
+        </receiver>
+
     </application>
 </manifest>

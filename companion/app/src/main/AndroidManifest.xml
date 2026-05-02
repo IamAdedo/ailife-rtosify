@@ -467,5 +467,14 @@
             android:theme="@style/Theme.AppCompat.NoActionBar"
             android:screenOrientation="portrait"/>
 
+        <!-- Anti-lost dismiss action receiver -->
+        <receiver
+            android:name=".AntiLostDismissReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.iamadedo.watchapp.ANTI_LOST_DISMISS"/>
+            </intent-filter>
+        </receiver>
+
     </application>
 </manifest>
