@@ -271,6 +271,45 @@ object MessageType {
     // ── Huawei-inspired: Family / Health Community ────────────────────────────
     const val FAMILY_MEMBER_HEALTH = "family_member_health"         // share/receive health data with family
     const val FAMILY_HEALTH_REQUEST = "family_health_request"
+
+    // ── Pixel Watch / Fitbit-inspired ─────────────────────────────────────────
+    const val DAILY_READINESS_SCORE   = "daily_readiness_score"     // composite readiness 0-100
+    const val CARDIO_LOAD_UPDATE      = "cardio_load_update"         // how hard heart worked today
+    const val TARGET_LOAD_UPDATE      = "target_load_update"         // recommended training intensity
+    const val MORNING_BRIEFING        = "morning_briefing"           // daily summary push to watch
+    const val LOSS_OF_PULSE_ALERT     = "loss_of_pulse_alert"        // cardiac arrest detection
+    const val AUTO_BEDTIME_START      = "auto_bedtime_start"         // watch detected sleep, mute notifs
+    const val AUTO_BEDTIME_END        = "auto_bedtime_end"           // wake detected, restore notifs
+    const val WORKOUT_PR_UPDATE       = "workout_pr_update"          // personal record achieved
+    const val PACE_TARGET_CUE         = "pace_target_cue"            // haptic/audio cue during run
+    const val TRIATHLON_MODE_START    = "triathlon_mode_start"       // multi-sport sequential tracking
+    const val TRIATHLON_MODE_SEGMENT  = "triathlon_mode_segment"     // switch sport in triathlon
+    const val TRIATHLON_MODE_END      = "triathlon_mode_end"
+    const val UWB_UNLOCK_REQUEST      = "uwb_unlock_request"         // UWB proximity unlock phone
+    const val MORNING_BRIEF_RESPONSE  = "morning_brief_response"
+
+    // ── Samsung Galaxy Watch-inspired ─────────────────────────────────────────
+    const val ENERGY_SCORE_UPDATE     = "energy_score_update"        // Samsung-style daily energy score
+    const val BODY_COMPOSITION        = "body_composition"           // BIA: body fat %, muscle mass
+    const val AGES_INDEX              = "ages_index"                 // Advanced Glycation End-products index
+    const val FTP_ESTIMATE            = "ftp_estimate"               // Functional Threshold Power (cycling)
+    const val BLOOD_PRESSURE_TREND    = "blood_pressure_trend"       // PTT-based BP trend
+    const val SNORING_DETECTION       = "snoring_detection"          // mic-based snoring event during sleep
+    const val SLEEP_ANIMAL            = "sleep_animal"               // gamified sleep archetype
+    const val DOUBLE_PINCH_GESTURE    = "double_pinch_gesture"       // Samsung gesture control
+    const val EMERGENCY_SIREN         = "emergency_siren"            // 86dB audible emergency siren
+    const val RUNNING_COACH_CUE       = "running_coach_cue"          // real-time form correction cue
+    const val TRIATHLON_SEGMENT_SWAP  = "triathlon_segment_swap"     // swim→bike→run transition
+
+    // ── Wear OS platform features ─────────────────────────────────────────────
+    const val WEAR_OS_TILE_UPDATE     = "wear_os_tile_update"        // push data to custom watch tile
+    const val GOOGLE_HOME_CONTROL     = "google_home_control"        // control smart home from watch
+    const val OFFLINE_MAPS_SYNC       = "offline_maps_sync"          // sync map tiles to watch storage
+    const val BEDTIME_MODE_CONTROL    = "bedtime_mode_control"       // enable/disable bedtime DND
+    const val BATTERY_SAVER_MODE      = "battery_saver_mode"         // 15% → auto battery saver
+    const val SUGGESTED_REPLY        = "suggested_reply"             // AI-generated quick reply
+    const val TRANSCRIPT_REQUEST      = "transcript_request"         // live conversation transcript
+    const val TRANSCRIPT_RESULT       = "transcript_result"
 }
 
 data class NavigationInfoData(
@@ -1685,7 +1724,240 @@ object ProtocolHelper {
         val d = JsonObject(); d.addProperty("memberId", memberId)
         return ProtocolMessage(type = MessageType.FAMILY_HEALTH_REQUEST, data = d)
     }
+
+    // ── Pixel Watch / Fitbit-inspired ─────────────────────────────────────────
+    fun createDailyReadinessScore(data: DailyReadinessData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.DAILY_READINESS_SCORE, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createCardioLoadUpdate(data: CardioLoadData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.CARDIO_LOAD_UPDATE, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createTargetLoadUpdate(data: TargetLoadData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.TARGET_LOAD_UPDATE, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createMorningBriefing(data: MorningBriefingData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.MORNING_BRIEFING, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createLossOfPulseAlert(): ProtocolMessage =
+        ProtocolMessage(type = MessageType.LOSS_OF_PULSE_ALERT)
+
+    fun createAutoBedtimeStart(): ProtocolMessage =
+        ProtocolMessage(type = MessageType.AUTO_BEDTIME_START)
+
+    fun createAutoBedtimeEnd(): ProtocolMessage =
+        ProtocolMessage(type = MessageType.AUTO_BEDTIME_END)
+
+    fun createWorkoutPrUpdate(data: WorkoutPrData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.WORKOUT_PR_UPDATE, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createPaceTargetCue(data: PaceTargetCueData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.PACE_TARGET_CUE, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createTriathlonStart(segments: List<String>): ProtocolMessage {
+        val d = JsonObject(); d.add("segments", gson.toJsonTree(segments))
+        return ProtocolMessage(type = MessageType.TRIATHLON_MODE_START, data = d)
+    }
+
+    fun createTriathlonSegment(sport: String, index: Int): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("sport", sport); d.addProperty("index", index)
+        return ProtocolMessage(type = MessageType.TRIATHLON_MODE_SEGMENT, data = d)
+    }
+
+    fun createTriathlonEnd(data: TriathlonResultData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.TRIATHLON_MODE_END, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createUwbUnlockRequest(): ProtocolMessage =
+        ProtocolMessage(type = MessageType.UWB_UNLOCK_REQUEST)
+
+    // ── Samsung Galaxy Watch-inspired ─────────────────────────────────────────
+    fun createEnergyScore(data: EnergyScoreData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.ENERGY_SCORE_UPDATE, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createBodyComposition(data: BodyCompositionData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.BODY_COMPOSITION, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createAgesIndex(data: AgesIndexData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.AGES_INDEX, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createFtpEstimate(data: FtpData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.FTP_ESTIMATE, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createBloodPressureTrend(data: BloodPressureTrendData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.BLOOD_PRESSURE_TREND, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createSnoringDetection(data: SnoringData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.SNORING_DETECTION, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createEmergencySiren(on: Boolean): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("on", on)
+        return ProtocolMessage(type = MessageType.EMERGENCY_SIREN, data = d)
+    }
+
+    fun createRunningCoachCue(data: RunningCoachCueData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.RUNNING_COACH_CUE, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createDoublePinchGesture(): ProtocolMessage =
+        ProtocolMessage(type = MessageType.DOUBLE_PINCH_GESTURE)
+
+    // ── Wear OS platform ──────────────────────────────────────────────────────
+    fun createGoogleHomeControl(data: GoogleHomeControlData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.GOOGLE_HOME_CONTROL, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createBedtimeModeControl(enabled: Boolean): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("enabled", enabled)
+        return ProtocolMessage(type = MessageType.BEDTIME_MODE_CONTROL, data = d)
+    }
+
+    fun createBatterySaverMode(enabled: Boolean): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("enabled", enabled)
+        return ProtocolMessage(type = MessageType.BATTERY_SAVER_MODE, data = d)
+    }
+
+    fun createSuggestedReply(data: SuggestedReplyData): ProtocolMessage =
+        ProtocolMessage(type = MessageType.SUGGESTED_REPLY, data = gson.toJsonTree(data).asJsonObject)
+
+    fun createTranscriptRequest(): ProtocolMessage =
+        ProtocolMessage(type = MessageType.TRANSCRIPT_REQUEST)
+
+    fun createTranscriptResult(text: String): ProtocolMessage {
+        val d = JsonObject(); d.addProperty("text", text)
+        return ProtocolMessage(type = MessageType.TRANSCRIPT_RESULT, data = d)
+    }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WearOS / Pixel Watch / Samsung Galaxy Watch data classes
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Pixel Watch — Readiness & Load
+data class DailyReadinessData(
+    val score: Int,                     // 0-100
+    val sleepScore: Int,
+    val restingHrScore: Int,
+    val hrvScore: Int,
+    val recommendation: String,         // "PUSH", "MODERATE", "RECOVER"
+    val date: Long = System.currentTimeMillis()
+)
+
+data class CardioLoadData(
+    val todayLoad: Float,               // arbitrary units (TRIMP-like)
+    val weeklyLoad: Float,
+    val acuteLoad: Float,               // 7-day rolling
+    val chronicLoad: Float,             // 28-day rolling
+    val acuteChronicRatio: Float,       // >1.5 = overtraining risk
+    val trend: String                   // "INCREASING","STABLE","DECREASING"
+)
+
+data class TargetLoadData(
+    val targetMin: Float,
+    val targetMax: Float,
+    val suggestedWorkout: String,       // "EASY_RUN","TEMPO","INTERVAL","REST","CROSS_TRAIN"
+    val reasoning: String
+)
+
+data class MorningBriefingData(
+    val readinessScore: Int,
+    val sleepScore: Int,
+    val targetLoad: String,
+    val weatherSummary: String,
+    val stepGoalProgress: Int,          // percent of weekly goal
+    val date: Long = System.currentTimeMillis()
+)
+
+data class WorkoutPrData(
+    val workoutType: String,
+    val metric: String,                 // "PACE_5K","PACE_10K","MAX_SPEED","LONGEST_RUN"
+    val previousValue: Float,
+    val newValue: Float,
+    val unit: String
+)
+
+data class PaceTargetCueData(
+    val cueType: String,                // "TOO_FAST","ON_PACE","TOO_SLOW","INTERVAL_START","COOLDOWN"
+    val targetPaceSecPerKm: Int,
+    val currentPaceSecPerKm: Int
+)
+
+data class TriathlonResultData(
+    val totalDurationMs: Long,
+    val segments: List<TriathlonSegmentResult>
+)
+
+data class TriathlonSegmentResult(
+    val sport: String,                  // "SWIM","BIKE","RUN"
+    val durationMs: Long,
+    val distanceKm: Float,
+    val avgHr: Int?
+)
+
+// Samsung-inspired
+data class EnergyScoreData(
+    val score: Int,                     // 0-100
+    val sleepFactor: Int,               // contribution 0-100
+    val activityFactor: Int,
+    val hrvFactor: Int,
+    val spo2Factor: Int,
+    val skinTempFactor: Int,
+    val date: Long = System.currentTimeMillis()
+)
+
+data class BodyCompositionData(
+    val bodyFatPercent: Float,
+    val muscleMassKg: Float,
+    val bodyWaterPercent: Float,
+    val bmi: Float,
+    val skeletalMuscleMassKg: Float,
+    val basalMetabolicRate: Int         // kcal/day
+)
+
+data class AgesIndexData(
+    val index: Float,                   // 0-100, lower = healthier glycation
+    val biologicalAge: Int,             // estimated biological age
+    val trend: String                   // "IMPROVING","STABLE","WORSENING"
+)
+
+data class FtpData(
+    val ftpWatts: Int,                  // Functional Threshold Power
+    val estimationMethod: String,       // "HR_BASED","POWER_METER"
+    val fitnessCategory: String         // "UNTRAINED","FAIR","MODERATE","GOOD","EXCELLENT"
+)
+
+data class BloodPressureTrendData(
+    val systolicEstimate: Int,
+    val diastolicEstimate: Int,
+    val trend: String,                  // "NORMAL","ELEVATED","HIGH_STAGE_1","HIGH_STAGE_2"
+    val calibrationRequired: Boolean,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+data class SnoringData(
+    val events: Int,                    // number of snoring episodes
+    val totalMinutes: Float,
+    val peakDb: Float,
+    val sessionStart: Long,
+    val sessionEnd: Long
+)
+
+data class RunningCoachCueData(
+    val cueType: String,                // "CADENCE_LOW","CADENCE_HIGH","OVERSTRIDING","GOOD_FORM"
+    val metric: String,
+    val currentValue: Float,
+    val targetValue: Float
+)
+
+// Wear OS platform
+data class GoogleHomeControlData(
+    val deviceId: String,
+    val deviceName: String,
+    val command: String,                // "ON","OFF","DIM","LOCK","UNLOCK","SET_TEMP"
+    val value: String = ""
+)
+
+data class SuggestedReplyData(
+    val notificationKey: String,
+    val suggestions: List<String>       // 2-3 short reply options
+)
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Huawei-inspired data classes

@@ -706,4 +706,46 @@
     <!-- Family health -->
     <string name="family_health_title">Family Health</string>
     <string name="add_family_member">Add member</string>
+
+    <!-- Pixel Watch / Fitbit-inspired -->
+    <string name="daily_readiness_title">Daily Readiness</string>
+    <string name="readiness_push">Ready to push</string>
+    <string name="readiness_moderate">Moderate effort</string>
+    <string name="readiness_recover">Prioritise recovery</string>
+    <string name="cardio_load_label">Cardio Load</string>
+    <string name="target_load_label">Target Load</string>
+    <string name="morning_briefing_title">Good morning</string>
+    <string name="loss_of_pulse_title">No pulse detected</string>
+    <string name="loss_of_pulse_body">Contacting emergency services. Tap to cancel.</string>
+    <string name="personal_record_title">New Personal Record!</string>
+
+    <!-- Triathlon -->
+    <string name="triathlon_title">Triathlon</string>
+    <string name="triathlon_swim">Swim</string>
+    <string name="triathlon_bike">Bike</string>
+    <string name="triathlon_run">Run</string>
+    <string name="triathlon_t1">T1 Transition</string>
+    <string name="triathlon_t2">T2 Transition</string>
+    <string name="triathlon_next_segment">Next segment</string>
+    <string name="triathlon_finish">Finish</string>
+
+    <!-- Samsung Galaxy Watch-inspired -->
+    <string name="energy_score_label">Energy Score</string>
+    <string name="body_composition_title">Body Composition</string>
+    <string name="body_fat_label">Body Fat</string>
+    <string name="muscle_mass_label">Muscle Mass</string>
+    <string name="ages_index_label">AGEs Index</string>
+    <string name="ftp_label">FTP (Cycling Power)</string>
+    <string name="snoring_alert_title">Snoring detected</string>
+    <string name="emergency_siren_label">Emergency Siren</string>
+    <string name="running_coach_title">Running Coach</string>
+    <string name="good_form_cue">Good form!</string>
+    <string name="cadence_low_cue">Increase cadence</string>
+    <string name="cadence_high_cue">Slow turnover</string>
+    <string name="overstriding_cue">Shorten your stride</string>
+
+    <!-- Wear OS platform -->
+    <string name="bedtime_mode_label">Bedtime Mode</string>
+    <string name="battery_saver_label">Battery Saver</string>
+    <string name="suggested_reply_label">Quick Reply</string>
 </resources>

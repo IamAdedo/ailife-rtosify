@@ -1680,7 +1680,34 @@ class BluetoothService : Service() {
             // ── Huawei-inspired: Family Health ────────────────────────────────
             MessageType.FAMILY_MEMBER_HEALTH -> handleFamilyMemberHealth(message)
 
-            // ── Huawei-inspired: Sedentary / Stand reminders ──────────────────
+            // ── WearOS / Pixel Watch / Samsung-inspired ───────────────────────
+            MessageType.MORNING_BRIEFING       -> handleMorningBriefing(message)
+            MessageType.DAILY_READINESS_SCORE  -> showReadinessCard(message)
+            MessageType.TARGET_LOAD_UPDATE     -> cacheTargetLoad(message)
+            MessageType.PACE_TARGET_CUE        -> handlePaceTargetCue(message)
+            MessageType.TRIATHLON_MODE_START   -> handleTriathlonStart(message)
+            MessageType.TRIATHLON_MODE_SEGMENT -> handleTriathlonSegmentSwitch(message)
+            MessageType.EMERGENCY_SIREN        -> {
+                val on = message.data?.get("on")?.asBoolean ?: false
+                if (on) emergencySirenManager.start() else emergencySirenManager.stop()
+            }
+            MessageType.LOSS_OF_PULSE_ALERT    -> {
+                // Should not normally arrive on watch — but handle gracefully
+                Log.w(TAG, "Loss of pulse alert — phone initiated emergency call")
+            }
+            MessageType.GOOGLE_HOME_CONTROL    -> handleGoogleHomeControl(message)
+            MessageType.BEDTIME_MODE_CONTROL   -> {
+                val enabled = message.data?.get("enabled")?.asBoolean ?: false
+                getSharedPreferences("bedtime_prefs", MODE_PRIVATE).edit()
+                    .putBoolean("bedtime_active", enabled).apply()
+            }
+            MessageType.BATTERY_SAVER_MODE     -> {
+                val enabled = message.data?.get("enabled")?.asBoolean ?: false
+                Log.d(TAG, "Battery saver mode: $enabled")
+            }
+            MessageType.SUGGESTED_REPLY        -> handleSuggestedReply(message)
+            MessageType.WORKOUT_PR_UPDATE      -> showPrCelebration(message)
+
             MessageType.SEDENTARY_REMINDER -> showSedentaryReminderNotification()
             MessageType.STAND_REMINDER -> showStandReminderNotification()
             MessageType.ACTIVITY_RINGS_UPDATE -> handleActivityRingsUpdate(message)
@@ -7161,4 +7188,123 @@ class BluetoothService : Service() {
             .putString("lock_pin", pin).apply()
         Log.d(TAG, "Lock PIN updated")
     }
+
+    // ── WearOS / Pixel Watch / Samsung managers (lazy init) ───────────────────
+
+    private val emergencySirenManager by lazy { EmergencySirenManager(this) }
+    private val lossOfPulseDetector by lazy {
+        LossOfPulseDetector(this) {
+            // Pulse absent confirmed → notify phone
+            serviceScope.launch { sendMessage(ProtocolHelper.createLossOfPulseAlert()) }
+        }
+    }
+    private val triathlonTracker by lazy {
+        TriathlonTracker(this) { msg -> serviceScope.launch { sendMessage(msg) } }
+    }
+    private val snoringDetector by lazy {
+        SnoringDetector(this) { data ->
+            serviceScope.launch { sendMessage(ProtocolHelper.createSnoringDetection(data)) }
+        }
+    }
+    private val runningCoach by lazy {
+        RunningCoach(this) { cue ->
+            serviceScope.launch { sendMessage(ProtocolHelper.createRunningCoachCue(cue)) }
+        }
+    }
+    private val dailyReadinessCalculator by lazy { DailyReadinessCalculator(this) }
+    private val cardioLoadTracker by lazy { CardioLoadTracker(this) }
+
+    // ── WearOS handler implementations ────────────────────────────────────────
+
+    private fun handleMorningBriefing(message: ProtocolMessage) {
+        try {
+            val data = gson.fromJson(message.data, MorningBriefingData::class.java)
+            val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+            val notif = androidx.core.app.NotificationCompat.Builder(this, "health_channel")
+                .setContentTitle("Good morning! Readiness: ${data.readinessScore}")
+                .setContentText(data.targetLoad)
+                .setStyle(androidx.core.app.NotificationCompat.BigTextStyle()
+                    .bigText("Sleep: ${data.sleepScore} · ${data.weatherSummary}\n${data.targetLoad}"))
+                .setSmallIcon(R.drawable.ic_smartwatch)
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
+                .build()
+            nm.notify(8800, notif)
+        } catch (e: Exception) { Log.e(TAG, "handleMorningBriefing: ${e.message}") }
+    }
+
+    private fun showReadinessCard(message: ProtocolMessage) {
+        Log.d(TAG, "Readiness score: ${message.data?.get("score")?.asInt}")
+    }
+
+    private fun cacheTargetLoad(message: ProtocolMessage) {
+        getSharedPreferences("fitness_cache", MODE_PRIVATE).edit()
+            .putString("target_load", message.data?.toString()).apply()
+    }
+
+    private fun handlePaceTargetCue(message: ProtocolMessage) {
+        try {
+            val data = gson.fromJson(message.data, PaceTargetCueData::class.java)
+            val haptic = when (data.cueType) {
+                "TOO_FAST"       -> longArrayOf(0, 100, 80, 100, 80, 100)
+                "TOO_SLOW"       -> longArrayOf(0, 300, 200, 300)
+                "ON_PACE"        -> longArrayOf(0, 200)
+                "INTERVAL_START" -> longArrayOf(0, 500, 100, 200)
+                else             -> longArrayOf(0, 200)
+            }
+            vibrator.vibrate(android.os.VibrationEffect.createWaveform(haptic, -1))
+            Log.d(TAG, "Pace cue: ${data.cueType}")
+        } catch (e: Exception) { Log.e(TAG, "handlePaceTargetCue: ${e.message}") }
+    }
+
+    private fun handleTriathlonStart(message: ProtocolMessage) {
+        try {
+            val segmentsJson = message.data?.getAsJsonArray("segments") ?: return
+            val segments = (0 until segmentsJson.size()).map { segmentsJson[it].asString }
+            triathlonTracker.start(segments)
+        } catch (e: Exception) { Log.e(TAG, "handleTriathlonStart: ${e.message}") }
+    }
+
+    private fun handleTriathlonSegmentSwitch(message: ProtocolMessage) {
+        triathlonTracker.nextSegment()
+    }
+
+    private fun handleGoogleHomeControl(message: ProtocolMessage) {
+        Log.d(TAG, "Google Home control: ${message.data}")
+        // Would forward to Google Home API / Matter SDK in a full implementation
+    }
+
+    private fun handleSuggestedReply(message: ProtocolMessage) {
+        try {
+            val data = gson.fromJson(message.data, SuggestedReplyData::class.java)
+            val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+            val notif = androidx.core.app.NotificationCompat.Builder(this, "notifications_channel")
+                .setContentTitle("Quick reply")
+                .setContentText(data.suggestions.joinToString(" · "))
+                .setSmallIcon(R.drawable.ic_smartwatch)
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_LOW)
+                .build()
+            nm.notify(data.notificationKey.hashCode(), notif)
+        } catch (e: Exception) { Log.e(TAG, "handleSuggestedReply: ${e.message}") }
+    }
+
+    private fun showPrCelebration(message: ProtocolMessage) {
+        try {
+            val data = gson.fromJson(message.data, WorkoutPrData::class.java)
+            vibrator.vibrate(android.os.VibrationEffect.createWaveform(
+                longArrayOf(0, 200, 100, 200, 100, 400), -1))
+            val nm = getSystemService(NOTIFICATION_SERVICE) as android.app.NotificationManager
+            val notif = androidx.core.app.NotificationCompat.Builder(this, "health_channel")
+                .setContentTitle("🏆 New Personal Record!")
+                .setContentText("${data.metric.replace('_', ' ')}: ${data.newValue} ${data.unit}")
+                .setSmallIcon(R.drawable.ic_smartwatch)
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_DEFAULT)
+                .build()
+            nm.notify(data.metric.hashCode(), notif)
+        } catch (e: Exception) { Log.e(TAG, "showPrCelebration: ${e.message}") }
+    }
+
+    private val vibrator by lazy {
+        getSystemService(VIBRATOR_SERVICE) as android.os.Vibrator
+    }
 }
+
