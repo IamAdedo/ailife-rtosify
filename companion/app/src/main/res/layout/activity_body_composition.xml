@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="16dp"
+    android:background="@color/black">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Body Composition"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="12dp"/>
+
+    <ProgressBar
+        android:id="@+id/progress_bc"
+        style="@android:style/Widget.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:progressTint="#22CC66"
+        android:progressBackgroundTint="#333333"
+        android:layout_marginBottom="12dp"/>
+
+    <TextView
+        android:id="@+id/tv_bc_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Stand still and tap Measure"
+        android:textColor="#AAAAAA"
+        android:textSize="12sp"
+        android:gravity="center"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:id="@+id/tv_bc_result"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textColor="#22CC66"
+        android:textSize="11sp"
+        android:gravity="center"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
+        android:id="@+id/btn_bc_measure"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginBottom="8dp"
+        android:text="@string/bc_measure"
+        android:backgroundTint="#22CC66"
+        android:textColor="#FFFFFF"/>
+
+    <Button
+        android:id="@+id/btn_bc_done"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:text="@string/bc_done"
+        android:backgroundTint="#333333"
+        android:textColor="#FFFFFF"
+        android:enabled="false"/>
+
+</LinearLayout>
