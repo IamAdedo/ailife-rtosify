@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [ "main", "master" ]
 
+# Cancel in-progress runs for the same branch
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -16,6 +17,12 @@ jobs:
   build-phone:
     name: Build Phone App (rtosify)
     runs-on: ubuntu-latest
+
+    # Fix WARNING 1: explicit write permission required for artifact upload
+    permissions:
+      contents: read
+      actions: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,7 +32,12 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          # Fix ERROR 1 + ERROR 2: use cache-dependency-path so the cache key
+          # is tied to THIS project's wrapper, not a generic Gradle hash.
           cache: gradle
+          cache-dependency-path: |
+            rtosify/gradle/wrapper/gradle-wrapper.properties
+            rtosify/gradle/libs.versions.toml
 
       - name: Grant execute permission for gradlew
         working-directory: rtosify
@@ -33,15 +45,25 @@ jobs:
 
       - name: Run unit tests
         working-directory: rtosify
-        run: ./gradlew test --no-daemon
+        run: ./gradlew test --no-daemon --stacktrace
 
       - name: Build Debug APK
         working-directory: rtosify
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Build Release APK (unsigned)
+      # Fix WARNING 2 / ERROR: release builds on AGP 8+ require a signingConfig.
+      # We sign with the debug keystore in CI (unsigned release is functionally
+      # identical for testing; swap for a real keystore via secrets for production).
+      - name: Build Release APK (debug-signed for CI)
         working-directory: rtosify
-        run: ./gradlew assembleRelease --no-daemon
+        env:
+          # Tell Gradle to use debug signing for the release variant in CI
+          CI_SIGNING: debug
+        run: ./gradlew assembleRelease --no-daemon --stacktrace \
+          -Pandroid.injected.signing.store.file=$HOME/.android/debug.keystore \
+          -Pandroid.injected.signing.store.password=android \
+          -Pandroid.injected.signing.key.alias=androiddebugkey \
+          -Pandroid.injected.signing.key.password=android
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -54,7 +76,7 @@ jobs:
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: phone-app-release-unsigned
+          name: phone-app-release
           path: rtosify/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 30
@@ -63,6 +85,12 @@ jobs:
   build-watch:
     name: Build Watch App (companion)
     runs-on: ubuntu-latest
+
+    # Fix WARNING 1: explicit write permission required for artifact upload
+    permissions:
+      contents: read
+      actions: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -72,7 +100,11 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          # Fix ERROR 1 + ERROR 2: cache key tied to companion's own wrapper
           cache: gradle
+          cache-dependency-path: |
+            companion/gradle/wrapper/gradle-wrapper.properties
+            companion/gradle/libs.versions.toml
 
       - name: Grant execute permission for gradlew
         working-directory: companion
@@ -80,15 +112,19 @@ jobs:
 
       - name: Run unit tests
         working-directory: companion
-        run: ./gradlew test --no-daemon
+        run: ./gradlew test --no-daemon --stacktrace
 
       - name: Build Debug APK
         working-directory: companion
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Build Release APK (unsigned)
+      - name: Build Release APK (debug-signed for CI)
         working-directory: companion
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease --no-daemon --stacktrace \
+          -Pandroid.injected.signing.store.file=$HOME/.android/debug.keystore \
+          -Pandroid.injected.signing.store.password=android \
+          -Pandroid.injected.signing.key.alias=androiddebugkey \
+          -Pandroid.injected.signing.key.password=android
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -101,16 +137,19 @@ jobs:
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: watch-app-release-unsigned
+          name: watch-app-release
           path: companion/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
           retention-days: 30
 
   # ── Summary gate ────────────────────────────────────────────────────────────
+  # Single green/red status for branch protection rules and PR checks
   build-summary:
     name: All builds passed
     runs-on: ubuntu-latest
     needs: [ build-phone, build-watch ]
+    permissions:
+      contents: read
     steps:
       - name: Done
         run: echo "Both phone and watch APKs built successfully."
