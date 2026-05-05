@@ -1,15 +1,47 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Tema Base da Aplicação -->
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- RTOSify Phone — Dark theme overrides -->
     <style name="Theme.Smartwatch" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Cores principais (Baseadas no seu layout) -->
-        <item name="colorPrimary">#3DAADC</item>
-        <item name="colorPrimaryVariant">#2A7294</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorSecondary">#DC3D3D</item>
-        <item name="colorSecondaryVariant">#852626</item>
-        <item name="colorOnSecondary">#000000</item>
+        <!-- Primary -->
+        <item name="colorPrimary">#87CFED</item>
+        <item name="colorOnPrimary">#003549</item>
+        <item name="colorPrimaryContainer">#00506A</item>
+        <item name="colorOnPrimaryContainer">#C1E8FF</item>
+
+        <!-- Secondary -->
+        <item name="colorSecondary">#FFB4AB</item>
+        <item name="colorOnSecondary">#690005</item>
+        <item name="colorSecondaryContainer">#93000A</item>
+        <item name="colorOnSecondaryContainer">#FFDAD6</item>
+
+        <!-- Tertiary -->
+        <item name="colorTertiary">#6DDBAB</item>
+        <item name="colorOnTertiary">#003828</item>
+        <item name="colorTertiaryContainer">#00523A</item>
+        <item name="colorOnTertiaryContainer">#8AF8C7</item>
+
+        <!-- Surfaces -->
+        <item name="colorSurface">#0F1416</item>
+        <item name="colorOnSurface">#DEE3E9</item>
+        <item name="colorSurfaceVariant">#40484F</item>
+        <item name="colorOnSurfaceVariant">#C0C8CF</item>
+        <item name="colorSurfaceContainer">#1C2026</item>
+        <item name="colorSurfaceContainerHigh">#262C32</item>
+        <item name="colorSurfaceContainerHighest">#31373D</item>
+
+        <!-- Outline -->
+        <item name="colorOutline">#8A9299</item>
+        <item name="colorOutlineVariant">#40484F</item>
+
+        <!-- Error -->
+        <item name="colorError">#FFB4AB</item>
+        <item name="colorOnError">#690005</item>
+        <item name="colorErrorContainer">#93000A</item>
+        <item name="colorOnErrorContainer">#FFDAD6</item>
+
+        <!-- System bars -->
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">false</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>
