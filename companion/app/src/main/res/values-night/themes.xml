@@ -1,24 +1,47 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Tema Base da Aplicação -->
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- RTOSify Watch — Dark theme (most watches default to dark) -->
     <style name="Theme.Smartwatch" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Cores principais (Baseadas no seu layout) -->
-        <item name="colorPrimary">#3DAADC</item>
-        <item name="colorPrimaryVariant">#2A7294</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorSecondary">#DC3D3D</item>
-        <item name="colorSecondaryVariant">#852626</item>
-        <item name="colorOnSecondary">#000000</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-    </style>
+        <!-- Primary -->
+        <item name="colorPrimary">#87CFED</item>
+        <item name="colorOnPrimary">#003549</item>
+        <item name="colorPrimaryContainer">#00506A</item>
+        <item name="colorOnPrimaryContainer">#C1E8FF</item>
 
-    <style name="Theme.Smartwatch.Translucent" parent="Theme.Smartwatch">
-        <item name="android:windowBackground">@android:color/transparent</item>
-        <item name="android:windowIsTranslucent">true</item>
-        <item name="android:windowContentOverlay">@null</item>
-        <item name="android:windowNoTitle">true</item>
-        <item name="android:windowIsFloating">false</item>
-        <item name="android:backgroundDimEnabled">true</item>
+        <!-- Secondary -->
+        <item name="colorSecondary">#FFB4AB</item>
+        <item name="colorOnSecondary">#690005</item>
+        <item name="colorSecondaryContainer">#93000A</item>
+        <item name="colorOnSecondaryContainer">#FFDAD6</item>
+
+        <!-- Tertiary -->
+        <item name="colorTertiary">#6DDBAB</item>
+        <item name="colorOnTertiary">#003828</item>
+        <item name="colorTertiaryContainer">#00523A</item>
+        <item name="colorOnTertiaryContainer">#8AF8C7</item>
+
+        <!-- Surfaces — deep dark for OLED watch screens -->
+        <item name="colorSurface">#080C0F</item>
+        <item name="colorOnSurface">#DEE3E9</item>
+        <item name="colorSurfaceVariant">#40484F</item>
+        <item name="colorOnSurfaceVariant">#C0C8CF</item>
+        <item name="colorSurfaceContainer">#141820</item>
+        <item name="colorSurfaceContainerHigh">#1E242C</item>
+        <item name="colorSurfaceContainerHighest">#282E38</item>
+
+        <!-- Outline -->
+        <item name="colorOutline">#8A9299</item>
+        <item name="colorOutlineVariant">#40484F</item>
+
+        <!-- Error -->
+        <item name="colorError">#FFB4AB</item>
+        <item name="colorOnError">#690005</item>
+        <item name="colorErrorContainer">#93000A</item>
+        <item name="colorOnErrorContainer">#FFDAD6</item>
+
+        <!-- System bars -->
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

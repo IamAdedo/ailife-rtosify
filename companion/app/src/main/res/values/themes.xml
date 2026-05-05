@@ -1,18 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Tema Base da Aplicação -->
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         RTOSify Watch App — Material 3 Theme
+         Optimised for small watch screens: denser type, high-contrast surfaces.
+         Default light (when watch uses day mode). Dark override in values-night/.
+         ═══════════════════════════════════════════════════════════════════════ -->
+
     <style name="Theme.Smartwatch" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Cores principais (Baseadas no seu layout) -->
+        <!-- Primary -->
         <item name="colorPrimary">#3DAADC</item>
-        <item name="colorPrimaryVariant">#2A7294</item>
-        <item name="colorOnPrimary">#000000</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorPrimaryContainer">#D0EEFA</item>
+        <item name="colorOnPrimaryContainer">#003549</item>
+
+        <!-- Secondary — alerts, heart rate -->
         <item name="colorSecondary">#DC3D3D</item>
-        <item name="colorSecondaryVariant">#852626</item>
-        <item name="colorOnSecondary">#000000</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">#FFDAD6</item>
+        <item name="colorOnSecondaryContainer">#410002</item>
+
+        <!-- Tertiary — fitness positive, activity rings -->
+        <item name="colorTertiary">#22CC88</item>
+        <item name="colorOnTertiary">#FFFFFF</item>
+        <item name="colorTertiaryContainer">#B8F5DA</item>
+        <item name="colorOnTertiaryContainer">#002116</item>
+
+        <!-- Surfaces — watch UIs tend to prefer slightly darker surfaces -->
+        <item name="colorSurface">#F5F8FC</item>
+        <item name="colorOnSurface">#181C20</item>
+        <item name="colorSurfaceVariant">#DCE4EC</item>
+        <item name="colorOnSurfaceVariant">#40484F</item>
+        <item name="colorSurfaceContainer">#E8EEF5</item>
+        <item name="colorSurfaceContainerHigh">#E2E8EF</item>
+        <item name="colorSurfaceContainerHighest">#DCE3EA</item>
+
+        <!-- Outline -->
+        <item name="colorOutline">#70787F</item>
+        <item name="colorOutlineVariant">#C0C8CF</item>
+
+        <!-- Error -->
+        <item name="colorError">#BA1A1A</item>
+        <item name="colorOnError">#FFFFFF</item>
+        <item name="colorErrorContainer">#FFDAD6</item>
+        <item name="colorOnErrorContainer">#410002</item>
+
+        <!-- System bars — transparent edge-to-edge -->
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+
+        <!-- Shape — more rounded for watch touch targets -->
+        <item name="shapeAppearanceSmallComponent">@style/Shape.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/Shape.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/Shape.Large</item>
     </style>
 
+    <!-- ── Shapes ─────────────────────────────────────────────────────────── -->
+    <style name="Shape.Small" parent="ShapeAppearance.Material3.SmallComponent">
+        <item name="cornerSize">10dp</item>
+    </style>
+    <style name="Shape.Medium" parent="ShapeAppearance.Material3.MediumComponent">
+        <item name="cornerSize">16dp</item>
+    </style>
+    <style name="Shape.Large" parent="ShapeAppearance.Material3.LargeComponent">
+        <item name="cornerSize">24dp</item>
+    </style>
+    <style name="Shape.Circle" parent="">
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <!-- ── Dialer button ──────────────────────────────────────────────────── -->
     <style name="DialerButton" parent="Widget.Material3.Button">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">wrap_content</item>
@@ -23,6 +81,7 @@
         <item name="android:layout_margin">1dp</item>
     </style>
 
+    <!-- ── Day toggle button ─────────────────────────────────────────────── -->
     <style name="DayToggleButton" parent="Widget.Material3.Button.TextButton">
         <item name="android:layout_width">36dp</item>
         <item name="android:layout_height">40dp</item>
@@ -35,14 +94,11 @@
         <item name="android:minHeight">0dp</item>
         <item name="backgroundTint">@color/day_button_selector</item>
         <item name="android:textColor">@color/day_button_text_selector</item>
-        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.App.Circle</item>
+        <item name="shapeAppearanceOverlay">@style/Shape.Circle</item>
         <item name="android:textSize">12sp</item>
     </style>
 
-    <style name="ShapeAppearance.App.Circle" parent="">
-        <item name="cornerSize">50%</item>
-    </style>
-
+    <!-- ── Translucent overlay ───────────────────────────────────────────── -->
     <style name="Theme.Smartwatch.Translucent" parent="Theme.Smartwatch">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>
