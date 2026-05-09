@@ -1,120 +1,241 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="12dp"
-    android:background="@color/black">
+    android:background="?android:attr/colorBackground">
 
-    <!-- Workout type header -->
+    <!-- Workout type -->
     <TextView
         android:id="@+id/tv_workout_type"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Running"
-        android:textColor="#FFFFFF"
-        android:textSize="14sp"
-        android:textStyle="bold"
+        android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+        android:textColor="?android:attr/textColorSecondary"
         android:gravity="center"
-        android:layout_marginBottom="4dp" />
+        android:textAllCaps="true"
+        android:letterSpacing="0.08"
+        android:layout_marginBottom="2dp"/>
 
-    <!-- Elapsed time — prominent -->
+    <!-- Elapsed time — hero number -->
     <TextView
         android:id="@+id/tv_workout_elapsed"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="00:00"
-        android:textColor="#FFFFFF"
-        android:textSize="48sp"
-        android:textStyle="bold"
+        android:textAppearance="@style/TextAppearance.Material3.DisplaySmall"
+        android:textColor="?android:attr/textColorPrimary"
+        android:fontFamily="monospace"
         android:gravity="center"
-        android:layout_marginBottom="8dp" />
+        android:layout_marginBottom="12dp"/>
 
-    <!-- Heart rate + zone row -->
+    <!-- HR + Zone row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginBottom="4dp">
+        android:layout_marginBottom="6dp">
 
-        <TextView
-            android:id="@+id/tv_workout_hr"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="-- bpm"
-            android:textColor="#FF4444"
-            android:textSize="20sp"
-            android:gravity="center" />
+            android:layout_marginEnd="6dp"
+            app:cardCornerRadius="14dp"
+            app:cardBackgroundColor="?attr/colorSecondaryContainer"
+            app:strokeWidth="0dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="10dp">
+                <TextView
+                    android:id="@+id/tv_workout_hr"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="-- bpm"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                    android:textColor="?attr/colorOnSecondaryContainer"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Heart Rate"
+                    android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                    android:textColor="?attr/colorOnSecondaryContainer"
+                    android:alpha="0.7"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-        <TextView
-            android:id="@+id/tv_workout_zone"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Zone --"
-            android:textColor="#FF8C00"
-            android:textSize="16sp"
-            android:gravity="center" />
+            app:cardCornerRadius="14dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+            app:strokeWidth="0dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="10dp">
+                <TextView
+                    android:id="@+id/tv_workout_zone"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Zone --"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                    android:textColor="?android:attr/textColorPrimary"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="HR Zone"
+                    android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                    android:textColor="?android:attr/textColorSecondary"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 
-    <!-- Pace + distance row -->
+    <!-- Pace + Distance row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="4dp">
+        android:layout_marginBottom="6dp">
 
-        <TextView
-            android:id="@+id/tv_workout_pace"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="--:-- /km"
-            android:textColor="#AAFFAA"
-            android:textSize="16sp"
-            android:gravity="center" />
+            android:layout_marginEnd="6dp"
+            app:cardCornerRadius="14dp"
+            app:cardBackgroundColor="?attr/colorTertiaryContainer"
+            app:strokeWidth="0dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="10dp">
+                <TextView
+                    android:id="@+id/tv_workout_pace"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="--:-- /km"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                    android:textColor="?attr/colorOnTertiaryContainer"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Pace"
+                    android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                    android:textColor="?attr/colorOnTertiaryContainer"
+                    android:alpha="0.7"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-        <TextView
-            android:id="@+id/tv_workout_distance"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="0.00 km"
-            android:textColor="#AAAAFF"
-            android:textSize="16sp"
-            android:gravity="center" />
+            app:cardCornerRadius="14dp"
+            app:cardBackgroundColor="?attr/colorPrimaryContainer"
+            app:strokeWidth="0dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="10dp">
+                <TextView
+                    android:id="@+id/tv_workout_distance"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0.00 km"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                    android:textColor="?attr/colorOnPrimaryContainer"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Distance"
+                    android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                    android:textColor="?attr/colorOnPrimaryContainer"
+                    android:alpha="0.7"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 
-    <!-- Calories + cadence row -->
+    <!-- Calories + Cadence row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginBottom="12dp">
 
-        <TextView
-            android:id="@+id/tv_workout_calories"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="0 kcal"
-            android:textColor="#FFCC44"
-            android:textSize="14sp"
-            android:gravity="center" />
+            android:layout_marginEnd="6dp"
+            app:cardCornerRadius="14dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+            app:strokeWidth="0dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="10dp">
+                <TextView
+                    android:id="@+id/tv_workout_calories"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0 kcal"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                    android:textColor="?android:attr/textColorPrimary"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Calories"
+                    android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                    android:textColor="?android:attr/textColorSecondary"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-        <TextView
-            android:id="@+id/tv_workout_cadence"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="-- spm"
-            android:textColor="#CCCCCC"
-            android:textSize="14sp"
-            android:gravity="center" />
+            app:cardCornerRadius="14dp"
+            app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+            app:strokeWidth="0dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="10dp">
+                <TextView
+                    android:id="@+id/tv_workout_cadence"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="-- spm"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                    android:textColor="?android:attr/textColorPrimary"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Cadence"
+                    android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                    android:textColor="?android:attr/textColorSecondary"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 
@@ -122,27 +243,26 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center">
+        android:orientation="horizontal">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_workout_pause"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
             android:layout_marginEnd="8dp"
             android:text="@string/workout_pause"
-            android:backgroundTint="#444444"
-            android:textColor="#FFFFFF" />
+            style="@style/Widget.Material3.Button.TonalButton"/>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_workout_stop"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
             android:text="@string/workout_stop"
-            android:backgroundTint="#CC0000"
-            android:textColor="#FFFFFF" />
+            app:backgroundTint="?attr/colorErrorContainer"
+            app:strokeColor="@android:color/transparent"
+            android:textColor="?attr/colorOnErrorContainer"/>
 
     </LinearLayout>
 
