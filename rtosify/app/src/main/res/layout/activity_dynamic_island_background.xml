@@ -51,7 +51,7 @@
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="300dp"
-                android:background="#000000">
+                android:background="?android:attr/colorBackground">
 
                 <!-- The real view from the watch, used as preview -->
                 <com.iamadedo.phoneapp.DynamicIslandView

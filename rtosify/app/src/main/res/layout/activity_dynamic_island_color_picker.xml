@@ -59,7 +59,7 @@
                     <FrameLayout
                         android:layout_width="match_parent"
                         android:layout_height="150dp"
-                        android:background="#000000">
+                        android:background="?android:attr/colorBackground">
 
                         <com.iamadedo.phoneapp.DynamicIslandView
                             android:id="@+id/dynamicIslandPreview"

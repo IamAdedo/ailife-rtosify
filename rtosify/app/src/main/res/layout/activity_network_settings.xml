@@ -66,7 +66,7 @@
                         android:layout_marginTop="8dp"
                         android:text="@string/network_active_format"
                         android:textAppearance="?attr/textAppearanceBodyMedium"
-                        android:textColor="#4CAF50" />
+                        android:textColor="?attr/colorTertiary" />
 
                     <!-- Connection Layers Status -->
                     <LinearLayout

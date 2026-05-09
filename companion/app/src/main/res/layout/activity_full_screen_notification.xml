@@ -135,7 +135,7 @@
                     android:text="@string/action_reply"
                     android:visibility="gone"
                     android:background="@drawable/bg_action_button"
-                    android:textColor="#FFFFFF"
+                    android:textColor="?android:attr/textColorPrimaryInverse"
                     android:textAllCaps="false"/>
 
                 <com.google.android.material.button.MaterialButton
@@ -145,7 +145,7 @@
                     android:layout_marginTop="4dp"
                     android:text="@string/action_dismiss"
                     android:background="@drawable/bg_action_button"
-                    android:textColor="#FF4444"
+                    android:textColor="?attr/colorError"
                     android:textAllCaps="false"/>
 
             </LinearLayout>

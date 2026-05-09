@@ -62,7 +62,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/file_dismiss"
-            android:backgroundTint="#555555"/>
+            android:backgroundTint="?attr/colorSurfaceVariant"/>
     </LinearLayout>
 
 </LinearLayout>

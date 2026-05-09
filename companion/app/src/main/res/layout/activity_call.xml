@@ -25,7 +25,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="000 000 000"
-        android:textColor="#AAAAAA"
+        android:textColor="?android:attr/textColorSecondary"
         android:textAppearance="?attr/textAppearanceBodyMedium"
         android:layout_marginTop="4dp"
         android:gravity="center" />
@@ -35,7 +35,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/call_incoming"
-        android:textColor="#4CAF50"
+        android:textColor="?attr/colorTertiary"
         android:textAppearance="?attr/textAppearanceLabelLarge"
         android:layout_marginTop="16dp"
         android:textStyle="bold" />

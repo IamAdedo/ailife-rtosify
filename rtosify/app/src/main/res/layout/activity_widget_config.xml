@@ -4,13 +4,13 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="24dp"
-    android:background="#121212">
+    android:background="?android:attr/colorBackground">
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/widget_config_title"
-        android:textColor="#FFFFFF"
+        android:textColor="?android:attr/textColorPrimaryInverse"
         android:textSize="24sp"
         android:textStyle="bold"
         android:layout_marginBottom="32dp"/>
@@ -19,7 +19,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/widget_update_interval"
-        android:textColor="#FFFFFF"
+        android:textColor="?android:attr/textColorPrimaryInverse"
         android:textSize="16sp"
         android:layout_marginBottom="8dp"/>
 
@@ -27,7 +27,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/widget_update_interval_desc"
-        android:textColor="#AAAAAA"
+        android:textColor="?android:attr/textColorSecondary"
         android:textSize="12sp"
         android:layout_marginBottom="16dp"/>
 
@@ -41,10 +41,10 @@
             android:id="@+id/etUpdateInterval"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#333333"
+            android:background="?attr/colorSurfaceContainerHighest"
             android:inputType="number"
             android:padding="12dp"
-            android:textColor="#FFFFFF"
+            android:textColor="?android:attr/textColorPrimaryInverse"
             android:textColorHint="#888888"/>
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -52,8 +52,8 @@
         android:id="@+id/btnSaveConfig"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:backgroundTint="#2196F3"
+        android:backgroundTint="?attr/colorPrimary"
         android:text="@string/widget_save_config"
-        android:textColor="#FFFFFF"/>
+        android:textColor="?android:attr/textColorPrimaryInverse"/>
 
 </LinearLayout>

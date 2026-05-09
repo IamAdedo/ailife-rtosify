@@ -42,7 +42,7 @@
         android:layout_marginHorizontal="16dp"
         android:layout_marginBottom="8dp"
         android:visibility="gone"
-        app:cardBackgroundColor="#1E1E1E"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerHighest"
         app:cardCornerRadius="8dp"
         app:strokeWidth="0dp">
 
@@ -68,7 +68,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
                 android:text="UID: 2000"
-                android:textColor="#AAAAAA"
+                android:textColor="?android:attr/textColorSecondary"
                 android:textSize="12sp" />
 
             <TextView
@@ -98,7 +98,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="monospace"
-            android:textColor="#CCCCCC"
+            android:textColor="?android:attr/textColorPrimary"
             android:textSize="12sp" />
     </androidx.core.widget.NestedScrollView>
 
@@ -106,7 +106,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#1E1E1E"
+        android:background="?attr/colorSurfaceContainerHighest"
         android:orientation="vertical">
 
         <!-- Button Row -->
@@ -154,7 +154,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="monospace"
                 android:text="/sdcard"
-                android:textColor="#888888"
+                android:textColor="?android:attr/textColorSecondary"
                 android:textSize="10sp"
                 android:maxLines="1"
                 android:ellipsize="start" />

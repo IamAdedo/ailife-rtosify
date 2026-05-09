@@ -53,6 +53,6 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
         android:text="@android:string/cancel"
-        android:textColor="#FF5252" />
+        android:textColor="?attr/colorError" />
 
 </LinearLayout>

@@ -25,14 +25,14 @@
             android:layout_height="64dp"
             android:layout_marginEnd="24dp"
             android:background="@drawable/ic_slideshow"
-            android:backgroundTint="#FF0000" />
+            android:backgroundTint="?attr/colorError" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_shutter"
             android:layout_width="80dp"
             android:layout_height="80dp"
             android:background="@drawable/ic_camera_icon"
-            android:backgroundTint="#FFFFFF" />
+            android:backgroundTint="?android:attr/colorBackground" />
 
     </LinearLayout>
 
@@ -44,7 +44,7 @@
         android:background="#80000000"
         android:padding="8dp"
         android:text="00:00"
-        android:textColor="#FFFFFF"
+        android:textColor="?android:attr/textColorPrimaryInverse"
         android:textSize="18sp"
         android:visibility="gone"
         xmlns:app="http://schemas.android.com/apk/res-auto"

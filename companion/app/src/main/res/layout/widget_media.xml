@@ -85,7 +85,7 @@
                 android:layout_width="72dp"
                 android:layout_height="72dp"
                 android:src="@drawable/ic_media_play"
-                android:background="#009688"
+                android:background="?attr/colorTertiary"
                 android:scaleType="centerInside"
                 android:layout_marginLeft="16dp"
                 android:layout_marginRight="16dp"

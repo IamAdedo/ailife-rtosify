@@ -134,7 +134,7 @@
             android:gravity="center"
             android:orientation="vertical"
             android:padding="8dp"
-            android:background="#00000000">
+            android:background="@android:color/transparent">
 
             <ImageView
                 android:id="@+id/imgWidgetDnd"
@@ -162,7 +162,7 @@
             android:gravity="center"
             android:orientation="vertical"
             android:padding="8dp"
-            android:background="#00000000">
+            android:background="@android:color/transparent">
 
             <ImageView
                 android:id="@+id/imgWidgetMirror"
