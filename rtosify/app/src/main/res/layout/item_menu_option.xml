@@ -1,54 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  Phone app menu row — Material 3, edge-to-edge feel.
+  Matches the companion watch design language but with phone-appropriate sizing.
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingHorizontal="24dp"
-    android:paddingVertical="16dp"
+    android:paddingStart="20dp"
+    android:paddingEnd="16dp"
+    android:paddingVertical="14dp"
     android:minHeight="72dp"
-    android:background="?android:attr/selectableItemBackground">
+    android:background="?android:attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true">
 
-    <!-- Ícone (ID: imgIcon para coincidir com seu Adapter) -->
-    <ImageView
-        android:id="@+id/imgIcon"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        app:tint="?android:attr/textColorSecondary"/>
+    <!-- Tonal icon container -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        app:cardCornerRadius="16dp"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerHighest"
+        app:strokeWidth="0dp"
+        android:layout_marginEnd="20dp">
 
+        <ImageView
+            android:id="@+id/imgIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            app:tint="?attr/colorPrimary"/>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Title + subtitle -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:orientation="vertical"
-        android:layout_marginStart="24dp">
+        android:orientation="vertical">
 
-        <!-- Título (ID: tvTitle para coincidir com seu Adapter) -->
         <TextView
             android:id="@+id/tvTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+            android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
             android:textColor="?android:attr/textColorPrimary"/>
 
-        <!-- Subtítulo (ID: tvSubtitle para coincidir com seu Adapter) -->
         <TextView
             android:id="@+id/tvSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="@style/TextAppearance.Material3.BodySmall"
             android:textColor="?android:attr/textColorSecondary"
+            android:layout_marginTop="2dp"
             android:visibility="gone"/>
+
     </LinearLayout>
 
-    <!-- Extra Info (ID: tvExtraInfo para coincidir com seu Adapter) -->
+    <!-- Badge / extra info -->
     <TextView
         android:id="@+id/tvExtraInfo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
-        android:textColor="?attr/colorPrimary"
+        android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+        android:textColor="?attr/colorOnPrimaryContainer"
+        android:background="@drawable/badge_background"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="4dp"
+        android:layout_marginEnd="10dp"
         android:visibility="gone"/>
+
+    <!-- Chevron -->
+    <ImageView
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:src="@drawable/ic_chevron_right"
+        app:tint="?android:attr/textColorSecondary"
+        android:alpha="0.4"/>
 
 </LinearLayout>
