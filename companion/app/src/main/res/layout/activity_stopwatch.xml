@@ -1,57 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="12dp"
-    android:background="@color/black">
+    android:background="?android:attr/colorBackground">
 
+    <!-- Elapsed time — hero -->
     <TextView
         android:id="@+id/tv_stopwatch_elapsed"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="00:00.00"
-        android:textColor="#FFFFFF"
-        android:textSize="44sp"
-        android:textStyle="bold"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textAppearance="@style/TextAppearance.Material3.DisplaySmall"
         android:fontFamily="monospace"
         android:gravity="center"
         android:layout_marginTop="8dp"
-        android:layout_marginBottom="12dp"/>
+        android:layout_marginBottom="16dp"/>
 
+    <!-- Buttons -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_stopwatch_start_stop"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
-            android:layout_marginEnd="6dp"
+            android:layout_marginEnd="8dp"
             android:text="@string/stopwatch_start"
-            android:backgroundTint="#2ECC71"
-            android:textColor="#FFFFFF"/>
+            style="@style/Widget.Material3.Button"/>
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btn_stopwatch_lap_reset"
             android:layout_width="0dp"
             android:layout_height="48dp"
             android:layout_weight="1"
             android:text="@string/stopwatch_lap"
-            android:backgroundTint="#444444"
-            android:textColor="#FFFFFF"/>
+            style="@style/Widget.Material3.Button.TonalButton"/>
 
     </LinearLayout>
 
+    <!-- Lap list -->
     <ListView
         android:id="@+id/lv_stopwatch_laps"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="8dp"
-        android:divider="#333333"
+        android:divider="?attr/colorOutlineVariant"
         android:dividerHeight="1dp"/>
 
 </LinearLayout>

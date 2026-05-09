@@ -1,67 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
     android:padding="16dp"
-    android:background="@color/black">
+    android:background="?android:attr/colorBackground">
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Body Composition"
-        android:textColor="#FFFFFF"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:layout_marginBottom="12dp"/>
-
-    <ProgressBar
-        android:id="@+id/progress_bc"
-        style="@android:style/Widget.ProgressBar.Horizontal"
-        android:layout_width="match_parent"
-        android:layout_height="8dp"
-        android:progressTint="#22CC66"
-        android:progressBackgroundTint="#333333"
-        android:layout_marginBottom="12dp"/>
-
-    <TextView
-        android:id="@+id/tv_bc_status"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Stand still and tap Measure"
-        android:textColor="#AAAAAA"
-        android:textSize="12sp"
-        android:gravity="center"
-        android:layout_marginBottom="8dp"/>
-
-    <TextView
-        android:id="@+id/tv_bc_result"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text=""
-        android:textColor="#22CC66"
-        android:textSize="11sp"
+        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+        android:textColor="?android:attr/textColorPrimary"
         android:gravity="center"
         android:layout_marginBottom="16dp"/>
 
-    <Button
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/progress_bc"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        app:indicatorColor="?attr/colorTertiary"
+        app:trackColor="?attr/colorSurfaceVariant"
+        app:trackThickness="8dp"
+        app:trackCornerRadius="4dp"/>
+
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        app:cardCornerRadius="16dp"
+        app:cardBackgroundColor="?attr/colorSurfaceContainer"
+        app:strokeWidth="0dp">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/tv_bc_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Stand still and tap Measure"
+                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                android:textColor="?android:attr/textColorSecondary"
+                android:gravity="center"
+                android:layout_marginBottom="8dp"/>
+
+            <TextView
+                android:id="@+id/tv_bc_result"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
+                android:textColor="?attr/colorTertiary"
+                android:gravity="center"/>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_bc_measure"
         android:layout_width="match_parent"
         android:layout_height="48dp"
         android:layout_marginBottom="8dp"
         android:text="@string/bc_measure"
-        android:backgroundTint="#22CC66"
-        android:textColor="#FFFFFF"/>
+        style="@style/Widget.Material3.Button"/>
 
-    <Button
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_bc_done"
         android:layout_width="match_parent"
         android:layout_height="44dp"
         android:text="@string/bc_done"
-        android:backgroundTint="#333333"
-        android:textColor="#FFFFFF"
+        style="@style/Widget.Material3.Button.TonalButton"
         android:enabled="false"/>
 
 </LinearLayout>

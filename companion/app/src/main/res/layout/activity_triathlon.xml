@@ -1,87 +1,132 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="12dp"
-    android:background="@color/black">
+    android:background="?android:attr/colorBackground">
 
+    <!-- Sport label -->
     <TextView
         android:id="@+id/tv_triathlon_sport"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/triathlon_swim"
-        android:textColor="#4488FF"
-        android:textSize="16sp"
-        android:textStyle="bold"
+        android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+        android:textColor="?attr/colorPrimary"
         android:gravity="center"
-        android:layout_marginBottom="4dp"/>
+        android:textAllCaps="true"
+        android:letterSpacing="0.08"
+        android:layout_marginBottom="2dp"/>
 
+    <!-- Elapsed -->
     <TextView
         android:id="@+id/tv_triathlon_elapsed"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="00:00"
-        android:textColor="#FFFFFF"
-        android:textSize="44sp"
-        android:textStyle="bold"
+        android:textAppearance="@style/TextAppearance.Material3.DisplaySmall"
+        android:textColor="?android:attr/textColorPrimary"
         android:fontFamily="monospace"
         android:gravity="center"
-        android:layout_marginBottom="4dp"/>
+        android:layout_marginBottom="8dp"/>
 
+    <!-- HR + Distance row -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="12dp">
 
-        <TextView
-            android:id="@+id/tv_triathlon_hr"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="-- bpm"
-            android:textColor="#FF4444"
-            android:textSize="16sp"
-            android:gravity="center"/>
+            android:layout_marginEnd="6dp"
+            app:cardCornerRadius="14dp"
+            app:cardBackgroundColor="?attr/colorSecondaryContainer"
+            app:strokeWidth="0dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="10dp">
+                <TextView
+                    android:id="@+id/tv_triathlon_hr"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="-- bpm"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                    android:textColor="?attr/colorOnSecondaryContainer"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Heart Rate"
+                    android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                    android:textColor="?attr/colorOnSecondaryContainer"
+                    android:alpha="0.7"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-        <TextView
-            android:id="@+id/tv_triathlon_dist"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="0.00 km"
-            android:textColor="#AAAAFF"
-            android:textSize="16sp"
-            android:gravity="center"/>
+            app:cardCornerRadius="14dp"
+            app:cardBackgroundColor="?attr/colorPrimaryContainer"
+            app:strokeWidth="0dp">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="10dp">
+                <TextView
+                    android:id="@+id/tv_triathlon_dist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0.00 km"
+                    android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                    android:textColor="?attr/colorOnPrimaryContainer"/>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Distance"
+                    android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                    android:textColor="?attr/colorOnPrimaryContainer"
+                    android:alpha="0.7"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
     </LinearLayout>
 
-    <!-- Segment indicator dots -->
+    <!-- Segment dots -->
     <LinearLayout
         android:id="@+id/ll_triathlon_segments"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
-        android:layout_marginBottom="12dp"/>
+        android:layout_marginBottom="16dp"/>
 
-    <Button
+    <!-- Next segment -->
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_triathlon_next"
         android:layout_width="match_parent"
         android:layout_height="52dp"
-        android:layout_marginBottom="6dp"
+        android:layout_marginBottom="8dp"
         android:text="@string/triathlon_next_segment"
-        android:backgroundTint="#4488FF"
-        android:textColor="#FFFFFF"
-        android:textStyle="bold"/>
+        style="@style/Widget.Material3.Button"/>
 
-    <Button
+    <!-- Finish -->
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/btn_triathlon_finish"
         android:layout_width="match_parent"
         android:layout_height="44dp"
         android:text="@string/triathlon_finish"
-        android:backgroundTint="#CC0000"
-        android:textColor="#FFFFFF"/>
+        app:backgroundTint="?attr/colorErrorContainer"
+        android:textColor="?attr/colorOnErrorContainer"/>
 
 </LinearLayout>
