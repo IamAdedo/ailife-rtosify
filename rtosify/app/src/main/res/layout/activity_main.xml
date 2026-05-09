@@ -589,6 +589,149 @@
                 android:visibility="invisible"
                 tools:visibility="visible"/>
 
+            <!-- ── READINESS + ENERGY SCORE ROW ───────────────────────────── -->
+            <LinearLayout
+                android:id="@+id/layoutReadinessRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingHorizontal="16dp"
+                android:paddingBottom="8dp"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <!-- Daily Readiness -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardReadiness"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    app:cardCornerRadius="20dp"
+                    app:cardBackgroundColor="?attr/colorPrimaryContainer"
+                    app:strokeWidth="0dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?android:attr/selectableItemBackground">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="READINESS"
+                            android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                            android:textColor="?attr/colorOnPrimaryContainer"
+                            android:alpha="0.7"
+                            android:letterSpacing="0.08"/>
+                        <TextView
+                            android:id="@+id/tvReadinessScore"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="--"
+                            android:textAppearance="@style/TextAppearance.Material3.DisplaySmall"
+                            android:textColor="?attr/colorOnPrimaryContainer"
+                            android:textStyle="bold"/>
+                        <TextView
+                            android:id="@+id/tvReadinessLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="No data"
+                            android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
+                            android:textColor="?attr/colorOnPrimaryContainer"
+                            android:alpha="0.8"/>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Energy Score -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardEnergy"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    app:cardCornerRadius="20dp"
+                    app:cardBackgroundColor="?attr/colorTertiaryContainer"
+                    app:strokeWidth="0dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?android:attr/selectableItemBackground">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="ENERGY"
+                            android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
+                            android:textColor="?attr/colorOnTertiaryContainer"
+                            android:alpha="0.7"
+                            android:letterSpacing="0.08"/>
+                        <TextView
+                            android:id="@+id/tvEnergyScore"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="--"
+                            android:textAppearance="@style/TextAppearance.Material3.DisplaySmall"
+                            android:textColor="?attr/colorOnTertiaryContainer"
+                            android:textStyle="bold"/>
+                        <TextView
+                            android:id="@+id/tvEnergyLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="No data"
+                            android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
+                            android:textColor="?attr/colorOnTertiaryContainer"
+                            android:alpha="0.8"/>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+
+            <!-- ── ANTI-LOST STATUS BANNER (shown when anti-lost is alerting) ─ -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardAntiLostAlert"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="8dp"
+                app:cardCornerRadius="16dp"
+                app:cardBackgroundColor="?attr/colorErrorContainer"
+                app:strokeWidth="0dp"
+                android:visibility="gone"
+                tools:visibility="visible">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="14dp">
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_smartwatch"
+                        app:tint="?attr/colorOnErrorContainer"
+                        android:layout_marginEnd="12dp"/>
+                    <TextView
+                        android:id="@+id/tvAntiLostMessage"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/anti_lost_phone_alert_body"
+                        android:textAppearance="@style/TextAppearance.Material3.LabelLarge"
+                        android:textColor="?attr/colorOnErrorContainer"/>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnAntiLostDismiss"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/anti_lost_dismiss"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:textColor="?attr/colorOnErrorContainer"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- MENU RECYCLER VIEW -->
             <androidx.recyclerview.widget.RecyclerView
