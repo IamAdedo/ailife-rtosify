@@ -1337,6 +1337,9 @@
 
     <!-- WearOS / Pixel Watch / Samsung -->
     <string name="daily_readiness_title">Daily Readiness</string>
+    <string name="readiness_push">Push — ready to train hard</string>
+    <string name="readiness_moderate">Moderate — steady effort today</string>
+    <string name="readiness_recover">Recover — rest or light activity</string>
     <string name="cardio_load_label">Cardio Load</string>
     <string name="target_load_label">Target Load</string>
     <string name="morning_briefing_title">Morning Briefing</string>
