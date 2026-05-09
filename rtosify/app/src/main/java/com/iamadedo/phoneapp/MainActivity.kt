@@ -95,7 +95,14 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
     private lateinit var layoutHealthDataContent: LinearLayout
     private lateinit var layoutHealthAppNotInstalled: LinearLayout
 
-
+    // Readiness + Energy + Anti-lost UI
+    private var layoutReadinessRow: android.view.View? = null
+    private var tvReadinessScore: TextView? = null
+    private var tvReadinessLabel: TextView? = null
+    private var tvEnergyScore: TextView? = null
+    private var tvEnergyLabel: TextView? = null
+    private var cardAntiLostAlert: com.google.android.material.card.MaterialCardView? = null
+    private var tvAntiLostMessage: TextView? = null
 
     private lateinit var prefs: SharedPreferences
     // Activity launchers
@@ -338,7 +345,18 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
         layoutHealthDataContent = findViewById(R.id.layoutHealthDataContent)
         layoutHealthAppNotInstalled = findViewById(R.id.layoutHealthAppNotInstalled)
 
-
+        // New readiness + energy + anti-lost views (nullable — added by us, may not exist in older layouts)
+        layoutReadinessRow = findViewById(R.id.layoutReadinessRow)
+        tvReadinessScore   = findViewById(R.id.tvReadinessScore)
+        tvReadinessLabel   = findViewById(R.id.tvReadinessLabel)
+        tvEnergyScore      = findViewById(R.id.tvEnergyScore)
+        tvEnergyLabel      = findViewById(R.id.tvEnergyLabel)
+        cardAntiLostAlert  = findViewById(R.id.cardAntiLostAlert)
+        tvAntiLostMessage  = findViewById(R.id.tvAntiLostMessage)
+        findViewById<android.widget.Button?>(R.id.btnAntiLostDismiss)?.setOnClickListener {
+            cardAntiLostAlert?.visibility = android.view.View.GONE
+            antiLostPhoneHandler.onDismissed()
+        }
 
         switchService = findViewById(R.id.switchService)
 
@@ -856,6 +874,30 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
                 "API_DISABLED" -> {
                     tvStepsDetails.text = getString(R.string.health_error_api_disabled)
                 }
+            }
+        }
+
+        // Update readiness + energy score tiles from SharedPreferences (written by BluetoothService)
+        val healthSummary = getSharedPreferences("health_summary", Context.MODE_PRIVATE)
+        val readiness = healthSummary.getInt("readiness_score", -1)
+        val energy    = healthSummary.getInt("energy_score", -1)
+        if (readiness >= 0 || energy >= 0) {
+            layoutReadinessRow?.visibility = android.view.View.VISIBLE
+        }
+        if (readiness >= 0) {
+            tvReadinessScore?.text = readiness.toString()
+            tvReadinessLabel?.text = when {
+                readiness >= 70 -> getString(R.string.readiness_push)
+                readiness >= 45 -> getString(R.string.readiness_moderate)
+                else            -> getString(R.string.readiness_recover)
+            }
+        }
+        if (energy >= 0) {
+            tvEnergyScore?.text = energy.toString()
+            tvEnergyLabel?.text = when {
+                energy >= 75 -> "High energy"
+                energy >= 50 -> "Moderate"
+                else         -> "Low energy"
             }
         }
     }
@@ -1801,6 +1843,19 @@ class MainActivity : AppCompatActivity(), BluetoothService.ServiceCallback {
 
     override fun onHealthDataUpdated(healthData: HealthDataUpdate) {
         runOnUiThread { updateHealthDataCard(healthData) }
+    }
+
+    override fun onAntiLostAlert(message: String) {
+        runOnUiThread {
+            cardAntiLostAlert?.visibility = android.view.View.VISIBLE
+            tvAntiLostMessage?.text = message
+        }
+    }
+
+    override fun onAntiLostResolved() {
+        runOnUiThread {
+            cardAntiLostAlert?.visibility = android.view.View.GONE
+        }
     }
 
     override fun onDeviceInfoReceived(info: DeviceInfoData) {

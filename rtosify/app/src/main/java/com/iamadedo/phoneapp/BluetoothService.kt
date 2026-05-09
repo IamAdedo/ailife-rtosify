@@ -250,6 +250,10 @@ class BluetoothService : Service() {
         fun onWifiTestAck(success: Boolean) {}
         fun onWifiTestReceived(message: String) {}
         fun onTransferCancelled() {}
+        /** Called when the anti-lost monitor detects the watch going out of range */
+        fun onAntiLostAlert(message: String) {}
+        /** Called when anti-lost resolves or user dismisses */
+        fun onAntiLostResolved() {}
     }
 
     interface AlarmCallback {
@@ -1194,10 +1198,19 @@ class BluetoothService : Service() {
             MessageType.ANTI_LOST_RSSI_UPDATE -> {
                 val rssi = message.data?.get("rssi")?.asInt ?: 0
                 val replyMsg = antiLostPhoneHandler.onRssiUpdate(rssi)
-                if (replyMsg != null) serviceScope.launch { sendMessage(replyMsg) }
+                if (replyMsg != null) {
+                    serviceScope.launch { sendMessage(replyMsg) }
+                    callback?.onAntiLostAlert(getString(R.string.anti_lost_phone_alert_body))
+                }
             }
-            MessageType.ANTI_LOST_PHONE_ALERT -> antiLostPhoneHandler.onWatchConfirmedPhoneAlert()
-            MessageType.ANTI_LOST_DISMISSED   -> antiLostPhoneHandler.onDismissed()
+            MessageType.ANTI_LOST_PHONE_ALERT -> {
+                antiLostPhoneHandler.onWatchConfirmedPhoneAlert()
+                callback?.onAntiLostAlert(getString(R.string.anti_lost_phone_alert_body))
+            }
+            MessageType.ANTI_LOST_DISMISSED -> {
+                antiLostPhoneHandler.onDismissed()
+                callback?.onAntiLostResolved()
+            }
             MessageType.MED_CONFIRM -> handleMedConfirm(message)
 
             // ── WearOS / Pixel Watch / Samsung-inspired ───────────────────────
