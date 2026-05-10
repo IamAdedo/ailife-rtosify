@@ -4,33 +4,42 @@
     android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:fillViewport="true"
+    android:background="?android:attr/colorBackground">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center"
-        android:padding="24dp"
-        android:background="?android:attr/colorBackground">
+        android:padding="32dp">
 
-        <ImageView
-            android:id="@+id/imgStatus"
-            android:layout_width="72dp"
-            android:layout_height="72dp"
-            android:src="@drawable/ic_smartwatch"
-            app:tint="?attr/colorPrimary"
-            android:layout_marginBottom="24dp"/>
+        <!-- App icon in tonal container -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            app:cardCornerRadius="28dp"
+            app:cardBackgroundColor="?attr/colorPrimaryContainer"
+            app:strokeWidth="0dp"
+            android:layout_marginBottom="28dp">
+            <ImageView
+                android:id="@+id/imgStatus"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_smartwatch"
+                app:tint="?attr/colorOnPrimaryContainer"/>
+        </com.google.android.material.card.MaterialCardView>
 
         <TextView
             android:id="@+id/tvWelcomeTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/welcome_configuring"
-            android:textAppearance="@style/TextAppearance.Material3.DisplaySmall"
-            android:textStyle="bold"
+            android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
             android:textColor="?android:attr/textColorPrimary"
-            android:textAlignment="center"/>
+            android:textAlignment="center"
+            android:layout_marginBottom="8dp"/>
 
         <TextView
             android:id="@+id/tvWelcomeStatus"
@@ -39,55 +48,53 @@
             android:text="@string/welcome_preparing"
             android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
             android:textColor="?android:attr/textColorSecondary"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="32dp"
             android:textAlignment="center"/>
 
-        <ImageView
-            android:id="@+id/imgQrCode"
-            android:layout_width="250dp"
-            android:layout_height="250dp"
-            android:layout_marginBottom="16dp"
-            android:background="@android:color/white"
-            android:padding="8dp"
-            android:visibility="gone" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnFinishedSetup"
+        <!-- QR code wrapped in white card (QR needs white background to scan) -->
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/welcome_btn_finished"
+            app:cardCornerRadius="20dp"
+            app:cardBackgroundColor="@color/white"
+            app:strokeColor="?attr/colorOutlineVariant"
+            app:strokeWidth="1dp"
+            android:layout_marginBottom="28dp"
             android:visibility="gone"
-            android:layout_marginBottom="16dp"/>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnAlreadyPaired"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/welcome_btn_already_paired"
-            android:visibility="gone"
-            android:layout_marginBottom="16dp"/>
+            android:id="@+id/cardQr">
+            <ImageView
+                android:id="@+id/imgQrCode"
+                android:layout_width="240dp"
+                android:layout_height="240dp"
+                android:padding="16dp"/>
+        </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.progressindicator.CircularProgressIndicator
             android:id="@+id/progressBarSetup"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:indeterminate="true"
-            android:layout_marginBottom="24dp"
-            android:visibility="visible"/>
+            android:layout_marginBottom="32dp"/>
 
-        <!-- Cards were removed to simplify the automatic process -->
-        <View
-            android:id="@+id/cardSmartphone"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:visibility="gone" />
-        <View
-            android:id="@+id/cardWatch"
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:visibility="gone" />
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnFinishedSetup"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="@string/welcome_btn_finished"
+            android:visibility="gone"
+            android:layout_marginBottom="12dp"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAlreadyPaired"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="@string/welcome_btn_already_paired"
+            android:visibility="gone"/>
+
+        <!-- Hidden stubs for backward-compat with existing code -->
+        <View android:id="@+id/cardSmartphone" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone"/>
+        <View android:id="@+id/cardWatch" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone"/>
 
     </LinearLayout>
 </ScrollView>
