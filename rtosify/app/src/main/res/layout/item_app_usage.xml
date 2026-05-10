@@ -37,8 +37,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            app:indicatorColor="#00E676"
-            app:trackColor="#3300E676"
+            app:indicatorColor="?attr/colorTertiary"
+            app:trackColor="?attr/colorTertiaryContainer"
             android:layout_marginEnd="16dp"/>
     </LinearLayout>
 
