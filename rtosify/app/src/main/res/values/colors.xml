@@ -1,25 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
+
+    <!-- ── Semantic primitives (not for direct use in layouts — use theme attrs) ── -->
+
+    <!-- Brand palette -->
+    <color name="brand_blue">#3DAADC</color>
+    <color name="brand_blue_dark">#00506A</color>
+    <color name="brand_green">#22CC88</color>
+    <color name="brand_red">#DC3D3D</color>
+
+    <!-- Absolute values — only where theme attrs cannot be used -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="upload">#FBC600</color>
-    
-    <!-- File Manager UI Colors -->
+    <color name="transparent">#00000000</color>
+
+    <!-- Upload progress -->
+    <color name="upload_amber">#FBC600</color>
+
+    <!-- App Widget — RemoteViews requires @color/ references -->
+    <!-- Light widget theme (phone home-screen widgets default to light) -->
+    <color name="widget_background">#FFF5F8FC</color>
+    <color name="widget_text_primary">#FF181C20</color>
+    <color name="widget_text_secondary">#FF40484F</color>
+    <color name="widget_divider">#1F181C20</color>
+
+    <!-- Dynamic Island overlay — needs alpha transparency in code -->
+    <color name="island_background">#E6000000</color>
+
+    <!-- File manager accent (used in code, not XML) -->
     <color name="colorAccent">#3DAADC</color>
-    <color name="accent_blue">#3DAADC</color>
-    <color name="colorBackground">#121212</color>
-    <color name="colorCardBackground">#1E1E1E</color>
-    <color name="colorTextPrimary">#FFFFFF</color>
-    <color name="colorTextSecondary">#B0B0B0</color>
- 
-    <!-- Widget Adaptive Colors -->
-    <color name="widget_background">#F5F5F5</color>
-    <color name="widget_text_primary">#212121</color>
-    <color name="widget_text_secondary">#757575</color>
-    <color name="widget_divider">#1F000000</color>
+
 </resources>

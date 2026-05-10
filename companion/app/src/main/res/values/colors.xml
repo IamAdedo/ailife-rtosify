@@ -1,21 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
+
+    <!-- ── Semantic primitives (not for direct use in layouts — use theme attrs) ── -->
+    <!-- These are referenced by themes.xml and kept here for reference.           -->
+    <!-- In layouts always use ?attr/colorPrimary etc, never @color/brand_blue     -->
+
+    <!-- Brand palette -->
+    <color name="brand_blue">#3DAADC</color>
+    <color name="brand_blue_dark">#00506A</color>
+    <color name="brand_green">#22CC88</color>
+    <color name="brand_red">#DC3D3D</color>
+
+    <!-- Absolute values — only for contexts where theme attrs cannot be used    -->
+    <!-- (e.g. RemoteViews widgets, notification icons, map overlays)            -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="upload">#FBC600</color>
-    <color name="call_answer">#4CAF50</color>
-    <color name="call_reject">#F44336</color>
+    <color name="transparent">#00000000</color>
 
-    <!-- Widget Adaptive Colors -->
-    <color name="widget_background">#212121</color>
-    <color name="widget_background_media">#CC000000</color>
-    <color name="widget_text_primary">#FFFFFF</color>
-    <color name="widget_text_secondary">#AAAAAA</color>
-    <color name="widget_divider">#44FFFFFF</color>
-    <color name="widget_button_background">#444444</color>
+    <!-- Call screen — used in activity_call.xml via code, not XML -->
+    <color name="call_answer">#22CC88</color>
+    <color name="call_reject">#DC3D3D</color>
+
+    <!-- Upload progress indicator -->
+    <color name="upload_amber">#FBC600</color>
+
+    <!-- App Widget — RemoteViews can only use @color/, not ?attr/ -->
+    <!-- These are kept intentionally hardcoded for widget compatibility -->
+    <color name="widget_background">#FF1C2028</color>
+    <color name="widget_background_media">#CC0F1416</color>
+    <color name="widget_text_primary">#FFDEE3E9</color>
+    <color name="widget_text_secondary">#FFC0C8CF</color>
+    <color name="widget_divider">#2ADEE3E9</color>
+    <color name="widget_button_background">#FF282E38</color>
+
 </resources>
