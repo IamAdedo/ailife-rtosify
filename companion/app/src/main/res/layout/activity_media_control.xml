@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/rootLayout"
@@ -12,7 +13,8 @@
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="?android:attr/colorBackground">
+        android:background="?android:attr/colorBackground"
+        app:liftOnScroll="true">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -20,7 +22,7 @@
             android:layout_height="?attr/actionBarSize"
             app:navigationIcon="?attr/homeAsUpIndicator"
             app:navigationIconTint="?attr/colorOnSurface"
-            app:title="@string/menu_media_control" />
+            app:title="@string/menu_media_control"/>
 
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -28,6 +30,7 @@
         android:id="@+id/scrollView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:overScrollMode="never"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
@@ -36,80 +39,74 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:gravity="center"
-            android:padding="12dp">
+            android:padding="16dp">
 
-            <!-- Album Art Section - Compact for smartwatch -->
+            <!-- Album Art — larger, more prominent -->
             <com.google.android.material.card.MaterialCardView
-                android:layout_width="120dp"
-                android:layout_height="120dp"
-                app:cardCornerRadius="16dp"
+                android:layout_width="160dp"
+                android:layout_height="160dp"
+                app:cardCornerRadius="20dp"
                 app:cardElevation="0dp"
-                app:strokeWidth="0dp"
-                app:cardBackgroundColor="?attr/colorSurfaceContainer"
-                android:layout_marginBottom="8dp">
-
+                app:strokeColor="?attr/colorOutlineVariant"
+                app:strokeWidth="1dp"
+                app:cardBackgroundColor="?attr/colorSurfaceContainerHigh"
+                android:layout_marginBottom="16dp">
                 <ImageView
                     android:id="@+id/albumArt"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:scaleType="centerCrop"
                     android:background="@drawable/bg_album_art_placeholder"
-                    android:contentDescription="@string/media_album_art_desc" />
+                    android:contentDescription="@string/media_album_art_desc"/>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Track Info Section - Compact -->
-            <LinearLayout
+            <!-- Track info -->
+            <TextView
+                android:id="@+id/trackTitle"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
+                android:text="@string/media_no_media"
+                android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
+                android:textColor="?android:attr/textColorPrimary"
                 android:gravity="center"
-                android:layout_marginBottom="8dp">
+                android:maxLines="1"
+                android:ellipsize="marquee"
+                android:marqueeRepeatLimit="marquee_forever"
+                android:singleLine="true"
+                android:scrollHorizontally="true"
+                android:focusable="true"
+                android:focusableInTouchMode="true"/>
 
-                <TextView
-                    android:id="@+id/trackTitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/media_no_media"
-                    android:textAppearance="?attr/textAppearanceTitleMedium"
-                    android:textStyle="bold"
-                    android:maxLines="1"
-                    android:ellipsize="marquee"
-                    android:marqueeRepeatLimit="marquee_forever"
-                    android:singleLine="true"
-                    android:scrollHorizontally="true"
-                    android:focusable="true"
-                    android:focusableInTouchMode="true" />
+            <TextView
+                android:id="@+id/trackArtist"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/media_unknown_artist"
+                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
+                android:textColor="?android:attr/textColorSecondary"
+                android:gravity="center"
+                android:maxLines="1"
+                android:ellipsize="end"
+                android:layout_marginTop="2dp"
+                android:layout_marginBottom="16dp"/>
 
-                <TextView
-                    android:id="@+id/trackArtist"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/media_unknown_artist"
-                    android:textAppearance="?attr/textAppearanceBodySmall"
-                    android:textColor="?android:attr/textColorSecondary"
-                    android:maxLines="1"
-                    android:ellipsize="end"
-                    android:layout_marginTop="2dp" />
-            </LinearLayout>
-
-            <!-- Progress Section - Compact -->
+            <!-- Progress + timestamps -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_marginBottom="8dp"
-                android:paddingHorizontal="8dp">
+                android:layout_marginBottom="4dp">
 
                 <androidx.compose.ui.platform.ComposeView
                     android:id="@+id/composeSlider"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"/>
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginTop="4dp">
+                    android:layout_marginTop="2dp">
 
                     <TextView
                         android:id="@+id/currentTime"
@@ -117,9 +114,9 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="0:00"
-                        android:textAppearance="?attr/textAppearanceLabelSmall"
+                        android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
                         android:textColor="?android:attr/textColorSecondary"
-                        android:gravity="start" />
+                        android:gravity="start"/>
 
                     <TextView
                         android:id="@+id/totalTime"
@@ -127,93 +124,105 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="0:00"
-                        android:textAppearance="?attr/textAppearanceLabelSmall"
+                        android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
                         android:textColor="?android:attr/textColorSecondary"
-                        android:gravity="end" />
+                        android:gravity="end"/>
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Playback Controls - Compact horizontal layout -->
+            <!-- Playback controls row -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
                 android:gravity="center"
-                android:layout_marginBottom="6dp">
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="12dp">
 
                 <ImageButton
                     android:id="@+id/btn_prev"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_media_prev"
                     app:tint="?attr/colorOnSurface"
                     android:contentDescription="@string/media_prev_desc"
                     android:scaleType="centerInside"
-                    android:padding="10dp" />
+                    android:padding="10dp"/>
 
+                <!-- Play/pause as filled tonal FAB -->
                 <com.google.android.material.floatingactionbutton.FloatingActionButton
                     android:id="@+id/btn_play_pause"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    app:fabSize="mini"
+                    app:fabSize="normal"
                     android:src="@drawable/ic_media_play"
                     android:contentDescription="@string/media_play_pause_desc"
-                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginHorizontal="20dp"
                     app:backgroundTint="?attr/colorPrimary"
-                    app:tint="?attr/colorOnPrimary" />
+                    app:tint="?attr/colorOnPrimary"/>
 
                 <ImageButton
                     android:id="@+id/btn_next"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
                     android:src="@drawable/ic_media_next"
                     app:tint="?attr/colorOnSurface"
                     android:contentDescription="@string/media_next_desc"
                     android:scaleType="centerInside"
-                    android:padding="10dp" />
+                    android:padding="10dp"/>
             </LinearLayout>
 
-            <!-- Volume Controls - Simplified horizontal -->
-            <LinearLayout
-                android:layout_width="wrap_content"
+            <!-- Volume row -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center">
+                app:cardCornerRadius="16dp"
+                app:cardBackgroundColor="?attr/colorSurfaceContainer"
+                app:strokeWidth="0dp"
+                app:cardElevation="0dp">
 
-                <ImageButton
-                    android:id="@+id/btn_vol_down"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:src="@drawable/ic_volume_down"
-                    app:tint="?attr/colorOnSurfaceVariant"
-                    android:contentDescription="@string/media_vol_down_desc"
-                    android:scaleType="centerInside"
-                    android:padding="8dp" />
-
-                <TextView
-                    android:id="@+id/volumeLevel"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="--"
-                    android:textAppearance="?attr/textAppearanceTitleSmall"
-                    android:minWidth="32dp"
-                    android:gravity="center"
-                    android:layout_marginHorizontal="8dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="8dp">
 
-                <ImageButton
-                    android:id="@+id/btn_vol_up"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:src="@drawable/ic_volume_up"
-                    app:tint="?attr/colorOnSurfaceVariant"
-                    android:contentDescription="@string/media_vol_up_desc"
-                    android:scaleType="centerInside"
-                    android:padding="8dp" />
-            </LinearLayout>
+                    <ImageButton
+                        android:id="@+id/btn_vol_down"
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:src="@drawable/ic_volume_down"
+                        app:tint="?attr/colorOnSurfaceVariant"
+                        android:contentDescription="@string/media_vol_down_desc"
+                        android:scaleType="centerInside"
+                        android:padding="10dp"/>
+
+                    <TextView
+                        android:id="@+id/volumeLevel"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="--"
+                        android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
+                        android:textColor="?android:attr/textColorPrimary"
+                        android:gravity="center"/>
+
+                    <ImageButton
+                        android:id="@+id/btn_vol_up"
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:src="@drawable/ic_volume_up"
+                        app:tint="?attr/colorOnSurfaceVariant"
+                        android:contentDescription="@string/media_vol_up_desc"
+                        android:scaleType="centerInside"
+                        android:padding="10dp"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
