@@ -30,7 +30,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Remote Back"
             android:src="@drawable/ic_back"
-            app:tint="#FFFFFF" />
+            app:tint="?android:attr/textColorPrimaryInverse" />
 
         <View
             android:layout_width="24dp"
@@ -43,7 +43,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="Remote Home"
             android:src="@drawable/ic_home"
-            app:tint="#FFFFFF" />
+            app:tint="?android:attr/textColorPrimaryInverse" />
 
     </LinearLayout>
 

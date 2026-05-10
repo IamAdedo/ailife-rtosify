@@ -196,7 +196,7 @@
                     android:imeOptions="actionDone"
                     android:inputType="text"
                     android:textColor="@android:color/white"
-                    android:textColorHint="#666666"
+                    android:textColorHint="?android:attr/textColorHint"
                     android:textSize="14sp" />
             </com.google.android.material.textfield.TextInputLayout>
 

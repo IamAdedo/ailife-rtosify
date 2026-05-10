@@ -47,7 +47,7 @@
                     android:textColor="@color/white"
                     android:textSize="14sp"
                     android:padding="8dp"
-                    android:textColorHint="#80FFFFFF"
+                    android:textColorHint="?android:attr/textColorHint"
                     android:inputType="textShortMessage|textAutoCorrect"/>
             </com.google.android.material.textfield.TextInputLayout>
 

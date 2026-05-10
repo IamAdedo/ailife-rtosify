@@ -45,7 +45,7 @@
             android:inputType="number"
             android:padding="12dp"
             android:textColor="?android:attr/textColorPrimaryInverse"
-            android:textColorHint="#888888"/>
+            android:textColorHint="?android:attr/textColorHint"/>
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.button.MaterialButton

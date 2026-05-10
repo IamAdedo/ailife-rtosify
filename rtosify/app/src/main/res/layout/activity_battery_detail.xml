@@ -61,7 +61,7 @@
                             android:layout_gravity="center"
                             android:max="100"
                             android:progress="0"
-                            app:indicatorColor="#00E676"
+                            app:indicatorColor="?attr/colorTertiary"
                             app:indicatorSize="120dp"
                             app:trackColor="?attr/colorSurfaceVariant"
                             app:trackCornerRadius="4dp"
