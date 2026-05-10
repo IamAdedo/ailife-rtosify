@@ -75,7 +75,7 @@
                 android:layout_width="56dp"
                 android:layout_height="56dp"
                 android:src="@drawable/ic_media_prev"
-                android:background="#00000000"
+                android:background="@android:color/transparent"
                 android:tint="@color/widget_text_primary"
                 android:scaleType="centerInside"
                 android:contentDescription="@string/media_prev_desc" />
@@ -96,7 +96,7 @@
                 android:layout_width="56dp"
                 android:layout_height="56dp"
                 android:src="@drawable/ic_media_next"
-                android:background="#00000000"
+                android:background="@android:color/transparent"
                 android:tint="@color/widget_text_primary"
                 android:scaleType="centerInside"
                 android:contentDescription="@string/media_next_desc" />

@@ -19,7 +19,7 @@
         android:layout_marginTop="24dp"
         android:layout_centerHorizontal="true"
         android:layout_alignParentTop="true"
-        app:cardBackgroundColor="#DD000000"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerHighest"
         app:cardCornerRadius="12dp"
         app:cardElevation="4dp">
 
@@ -84,7 +84,7 @@
         android:layout_margin="4dp"
         android:layout_above="@id/buttonContainer"
         android:layout_alignParentStart="true"
-        app:cardBackgroundColor="#DD000000"
+        app:cardBackgroundColor="?attr/colorSurfaceContainerHighest"
         app:cardCornerRadius="8dp"
         app:cardElevation="4dp">
 

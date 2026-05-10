@@ -41,7 +41,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
-        android:background="#80000000"
+        android:background="@android:color/transparent"
         android:padding="8dp"
         android:text="00:00"
         android:textColor="?android:attr/textColorPrimaryInverse"
