@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [ "main", "master" ]
 
-# Cancel in-progress runs for the same branch
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -18,7 +17,6 @@ jobs:
     name: Build Phone App (rtosify)
     runs-on: ubuntu-latest
 
-    # Fix WARNING 1: explicit write permission required for artifact upload
     permissions:
       contents: read
       actions: write
@@ -32,8 +30,6 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          # Fix ERROR 1 + ERROR 2: use cache-dependency-path so the cache key
-          # is tied to THIS project's wrapper, not a generic Gradle hash.
           cache: gradle
           cache-dependency-path: |
             rtosify/gradle/wrapper/gradle-wrapper.properties
@@ -51,19 +47,36 @@ jobs:
         working-directory: rtosify
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      # Fix WARNING 2 / ERROR: release builds on AGP 8+ require a signingConfig.
-      # We sign with the debug keystore in CI (unsigned release is functionally
-      # identical for testing; swap for a real keystore via secrets for production).
-      - name: Build Release APK (debug-signed for CI)
+      # Release: inject debug keystore via local.properties so AGP 8+ is satisfied
+      # For production, replace with encrypted GitHub secrets + a real keystore
+      - name: Create signing properties for release
+        run: |
+          echo "KEYSTORE_PATH=$HOME/.android/debug.keystore" >> rtosify/local.properties
+          echo "KEY_ALIAS=androiddebugkey"                   >> rtosify/local.properties
+          echo "KEY_PASSWORD=android"                        >> rtosify/local.properties
+          echo "STORE_PASSWORD=android"                      >> rtosify/local.properties
+
+      - name: Add signingConfig to release build
         working-directory: rtosify
-        env:
-          # Tell Gradle to use debug signing for the release variant in CI
-          CI_SIGNING: debug
-        run: ./gradlew assembleRelease --no-daemon --stacktrace \
-          -Pandroid.injected.signing.store.file=$HOME/.android/debug.keystore \
-          -Pandroid.injected.signing.store.password=android \
-          -Pandroid.injected.signing.key.alias=androiddebugkey \
-          -Pandroid.injected.signing.key.password=android
+        run: |
+          # Patch signingConfigs into the app build file for CI only
+          # (avoids requiring secrets setup for contributors)
+          cat >> app/build.gradle.kts << 'EOF'
+
+          // CI-injected signing — uses debug keystore for release builds in CI
+          android.signingConfigs.create("ciRelease") {
+              storeFile = file(System.getenv("HOME") + "/.android/debug.keystore")
+              storePassword = "android"
+              keyAlias = "androiddebugkey"
+              keyPassword = "android"
+          }
+          android.buildTypes.getByName("release").signingConfig =
+              android.signingConfigs.getByName("ciRelease")
+          EOF
+
+      - name: Build Release APK
+        working-directory: rtosify
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -86,7 +99,6 @@ jobs:
     name: Build Watch App (companion)
     runs-on: ubuntu-latest
 
-    # Fix WARNING 1: explicit write permission required for artifact upload
     permissions:
       contents: read
       actions: write
@@ -100,7 +112,6 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          # Fix ERROR 1 + ERROR 2: cache key tied to companion's own wrapper
           cache: gradle
           cache-dependency-path: |
             companion/gradle/wrapper/gradle-wrapper.properties
@@ -118,13 +129,24 @@ jobs:
         working-directory: companion
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Build Release APK (debug-signed for CI)
+      - name: Add signingConfig to release build
         working-directory: companion
-        run: ./gradlew assembleRelease --no-daemon --stacktrace \
-          -Pandroid.injected.signing.store.file=$HOME/.android/debug.keystore \
-          -Pandroid.injected.signing.store.password=android \
-          -Pandroid.injected.signing.key.alias=androiddebugkey \
-          -Pandroid.injected.signing.key.password=android
+        run: |
+          cat >> app/build.gradle.kts << 'EOF'
+
+          android.signingConfigs.create("ciRelease") {
+              storeFile = file(System.getenv("HOME") + "/.android/debug.keystore")
+              storePassword = "android"
+              keyAlias = "androiddebugkey"
+              keyPassword = "android"
+          }
+          android.buildTypes.getByName("release").signingConfig =
+              android.signingConfigs.getByName("ciRelease")
+          EOF
+
+      - name: Build Release APK
+        working-directory: companion
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -142,8 +164,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  # ── Summary gate ────────────────────────────────────────────────────────────
-  # Single green/red status for branch protection rules and PR checks
+  # ── Summary gate ─────────────────────────────────────────────────────────────
   build-summary:
     name: All builds passed
     runs-on: ubuntu-latest
