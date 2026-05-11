@@ -41,7 +41,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="32dp"
                 android:text="@string/pairing_title"
-                android:textAppearance="?attr/textAppearanceHeadlineMedium"
+                android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
                 android:textStyle="bold" />
 
             <com.google.android.material.card.MaterialCardView
@@ -81,7 +81,7 @@
                             android:layout_marginStart="16dp"
                             android:layout_weight="1"
                             android:text="@string/pairing_step_key_exchange"
-                            android:textAppearance="?attr/textAppearanceBodyLarge"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
                             android:textColor="?android:attr/textColorPrimary" />
                     </LinearLayout>
 
@@ -109,7 +109,7 @@
                             android:layout_marginStart="16dp"
                             android:layout_weight="1"
                             android:text="@string/pairing_step_discovery"
-                            android:textAppearance="?attr/textAppearanceBodyLarge"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
                             android:textColor="?android:attr/textColorPrimary" />
                     </LinearLayout>
 
@@ -137,7 +137,7 @@
                             android:layout_marginStart="16dp"
                             android:layout_weight="1"
                             android:text="@string/pairing_step_connecting"
-                            android:textAppearance="?attr/textAppearanceBodyLarge"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
                             android:textColor="?android:attr/textColorPrimary" />
                     </LinearLayout>
 
@@ -165,7 +165,7 @@
                             android:layout_marginStart="16dp"
                             android:layout_weight="1"
                             android:text="@string/pairing_step_testing"
-                            android:textAppearance="?attr/textAppearanceBodyLarge"
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge"
                             android:textColor="?android:attr/textColorPrimary" />
                     </LinearLayout>
 
@@ -174,7 +174,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="40dp"
-                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                         android:textColor="?android:attr/textColorSecondary"
                         android:visibility="gone" />
 
@@ -195,7 +195,7 @@
                 android:layout_marginBottom="32dp"
                 android:gravity="center"
                 android:text="@string/wifi_pairing_ready"
-                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
                 android:textColor="?android:attr/textColorSecondary" />
 
             <View

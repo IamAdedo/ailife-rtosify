@@ -60,7 +60,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/internet_test_signaling"
-                            android:textAppearance="?attr/textAppearanceLabelMedium"
+                            android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
                             android:textColor="?android:attr/textColorSecondary" />
                         <View
                             android:id="@+id/indicatorSignaling"
@@ -90,7 +90,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/internet_test_stun"
-                            android:textAppearance="?attr/textAppearanceLabelMedium"
+                            android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
                             android:textColor="?android:attr/textColorSecondary" />
                         <View
                             android:id="@+id/indicatorStun"
@@ -120,7 +120,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/internet_test_turn"
-                            android:textAppearance="?attr/textAppearanceLabelMedium"
+                            android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
                             android:textColor="?android:attr/textColorSecondary" />
                         <View
                             android:id="@+id/indicatorTurn"
@@ -145,7 +145,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:text="@string/internet_test_log_title"
-                android:textAppearance="?attr/textAppearanceTitleSmall"
+                android:textAppearance="@style/TextAppearance.Material3.TitleSmall"
                 android:textColor="?android:attr/textColorSecondary" />
 
             <com.google.android.material.card.MaterialCardView
@@ -169,7 +169,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:fontFamily="monospace"
-                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                         android:textColor="?attr/colorPrimary" />
                 </ScrollView>
             </com.google.android.material.card.MaterialCardView>

@@ -36,7 +36,7 @@
             android:background="?attr/colorSurfaceContainer"
             android:padding="12dp"
             android:text="@string/symbol_slash"
-            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
             android:textColor="?attr/colorPrimary" />
 
         <androidx.recyclerview.widget.RecyclerView

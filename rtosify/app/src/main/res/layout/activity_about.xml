@@ -52,7 +52,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="@string/app_name"
-                android:textAppearance="?attr/textAppearanceHeadlineMedium"
+                android:textAppearance="@style/TextAppearance.Material3.HeadlineMedium"
                 android:textStyle="bold" />
 
             <TextView
@@ -61,7 +61,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:text="Version 1.0.0"
-                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
                 android:textColor="?android:attr/textColorSecondary" />
 
             <TextView
@@ -71,7 +71,7 @@
                 android:layout_marginTop="2dp"
                 android:layout_marginBottom="16dp"
                 android:text="Companion: 1.0.0"
-                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                 android:textColor="?android:attr/textColorSecondary" />
 
             <TextView
@@ -80,7 +80,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:text="@string/about_credit_label"
-                android:textAppearance="?attr/textAppearanceTitleSmall" />
+                android:textAppearance="@style/TextAppearance.Material3.TitleSmall" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnOriginalProject"
@@ -118,13 +118,13 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/about_auto_updates_title"
-                            android:textAppearance="?attr/textAppearanceTitleMedium" />
+                            android:textAppearance="@style/TextAppearance.Material3.TitleMedium" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/about_auto_updates_desc"
-                            android:textAppearance="?attr/textAppearanceBodySmall"
+                            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                             android:textColor="?android:attr/textColorSecondary" />
                     </LinearLayout>
 
@@ -175,7 +175,7 @@
                 android:layout_marginTop="32dp"
                 android:gravity="center"
                 android:text="@string/about_copyright"
-                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                 android:textColor="?android:attr/textColorSecondary" />
 
         </LinearLayout>

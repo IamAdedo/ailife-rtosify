@@ -35,14 +35,14 @@
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:singleLine="true"
-                android:textAppearance="?attr/textAppearanceLabelMedium"
+                android:textAppearance="@style/TextAppearance.Material3.LabelMedium"
                 android:textColor="?android:attr/textColorSecondary" />
 
             <TextView
                 android:id="@+id/tvTime"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textAppearance="?attr/textAppearanceLabelSmall"
+                android:textAppearance="@style/TextAppearance.Material3.LabelSmall"
                 android:textColor="?android:attr/textColorSecondary" />
         </LinearLayout>
 
@@ -53,7 +53,7 @@
             android:layout_marginTop="4dp"
             android:ellipsize="end"
             android:maxLines="1"
-            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
             android:textStyle="bold" />
 
         <TextView
@@ -63,7 +63,7 @@
             android:layout_marginTop="2dp"
             android:ellipsize="end"
             android:maxLines="3"
-            android:textAppearance="?attr/textAppearanceBodyMedium" />
+            android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
 
         <!-- Expanded Area -->
         <LinearLayout
@@ -78,7 +78,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:textAppearance="?attr/textAppearanceBodyMedium" />
+                android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
 
             <ImageView
                 android:id="@+id/imgBigPicture"

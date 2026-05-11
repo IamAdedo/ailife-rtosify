@@ -41,7 +41,7 @@
                 android:layout_height="wrap_content"
                 android:paddingBottom="16dp"
                 android:text="@string/desc_full_screen_settings"
-                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:textAppearance="@style/TextAppearance.Material3.BodyMedium"
                 android:textColor="?android:attr/textColorSecondary" />
 
             <com.google.android.material.card.MaterialCardView
@@ -63,7 +63,7 @@
                         android:layout_height="wrap_content"
                         android:paddingBottom="8dp"
                         android:text="@string/header_behavior"
-                        android:textAppearance="?attr/textAppearanceTitleMedium"
+                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
                         android:textStyle="bold" />
 
                     <LinearLayout
@@ -82,13 +82,13 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/lbl_stacking_enabled"
-                                android:textAppearance="?attr/textAppearanceBodyLarge" />
+                                android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/desc_stacking_enabled"
-                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                                 android:textColor="?android:attr/textColorSecondary" />
                         </LinearLayout>
 
@@ -119,13 +119,13 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/lbl_close_on_screen_off"
-                                android:textAppearance="?attr/textAppearanceBodyLarge" />
+                                android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/desc_close_on_screen_off"
-                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                                 android:textColor="?android:attr/textColorSecondary" />
                         </LinearLayout>
 
@@ -156,13 +156,13 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/lbl_keep_screen_on"
-                                android:textAppearance="?attr/textAppearanceBodyLarge" />
+                                android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/desc_keep_screen_on"
-                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textAppearance="@style/TextAppearance.Material3.BodySmall"
                                 android:textColor="?android:attr/textColorSecondary" />
                         </LinearLayout>
 
@@ -193,7 +193,7 @@
                         android:layout_height="wrap_content"
                         android:paddingBottom="16dp"
                         android:text="@string/lbl_text_size_timeout"
-                        android:textAppearance="?attr/textAppearanceTitleMedium"
+                        android:textAppearance="@style/TextAppearance.Material3.TitleMedium"
                         android:textStyle="bold" />
 
                     <!-- App Name Size -->
@@ -202,7 +202,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/lbl_app_name_size"
-                        android:textAppearance="?attr/textAppearanceBodyMedium" />
+                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
 
                     <com.google.android.material.slider.Slider
                         android:id="@+id/sliderAppNameSize"
@@ -219,7 +219,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:text="@string/lbl_title_size"
-                        android:textAppearance="?attr/textAppearanceBodyMedium" />
+                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
 
                     <com.google.android.material.slider.Slider
                         android:id="@+id/sliderTitleSize"
@@ -236,7 +236,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:text="@string/lbl_content_size"
-                        android:textAppearance="?attr/textAppearanceBodyMedium" />
+                        android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
 
                     <com.google.android.material.slider.Slider
                         android:id="@+id/sliderContentSize"
@@ -263,7 +263,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="@string/lbl_auto_close"
-                            android:textAppearance="?attr/textAppearanceBodyLarge" />
+                            android:textAppearance="@style/TextAppearance.Material3.BodyLarge" />
 
                         <com.google.android.material.materialswitch.MaterialSwitch
                             android:id="@+id/switchAutoClose"
@@ -285,7 +285,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:text="@string/lbl_auto_close_timeout"
-                            android:textAppearance="?attr/textAppearanceBodyMedium" />
+                            android:textAppearance="@style/TextAppearance.Material3.BodyMedium" />
 
                         <com.google.android.material.slider.Slider
                             android:id="@+id/sliderTimeout"
