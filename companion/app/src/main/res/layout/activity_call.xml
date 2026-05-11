@@ -88,7 +88,7 @@
             app:maxImageSize="28dp"
             app:tint="?attr/colorOnErrorContainer"
             app:borderWidth="0dp"
-            app:shapeAppearanceOverlay="@style/ShapeAppearance.App.Circle"
+            app:shapeAppearanceOverlay="@style/Shape.Circle"
             android:contentDescription="@string/call_reject"/>
 
         <Space android:layout_width="48dp" android:layout_height="wrap_content"/>
@@ -104,7 +104,7 @@
             app:maxImageSize="28dp"
             app:tint="?attr/colorOnTertiaryContainer"
             app:borderWidth="0dp"
-            app:shapeAppearanceOverlay="@style/ShapeAppearance.App.Circle"
+            app:shapeAppearanceOverlay="@style/Shape.Circle"
             android:contentDescription="@string/call_answer"/>
 
     </LinearLayout>

@@ -41,42 +41,29 @@ jobs:
 
       - name: Run unit tests
         working-directory: rtosify
-        run: ./gradlew test --no-daemon --stacktrace
+        run: ./gradlew test --no-daemon
 
       - name: Build Debug APK
         working-directory: rtosify
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleDebug --no-daemon
 
-      # Release: inject debug keystore via local.properties so AGP 8+ is satisfied
-      # For production, replace with encrypted GitHub secrets + a real keystore
-      - name: Create signing properties for release
-        run: |
-          echo "KEYSTORE_PATH=$HOME/.android/debug.keystore" >> rtosify/local.properties
-          echo "KEY_ALIAS=androiddebugkey"                   >> rtosify/local.properties
-          echo "KEY_PASSWORD=android"                        >> rtosify/local.properties
-          echo "STORE_PASSWORD=android"                      >> rtosify/local.properties
-
-      - name: Add signingConfig to release build
+      # Build release APK unsigned (minify + resources shrink still applied)
+      # Sign with apksigner using the pre-installed debug keystore.
+      # For production: replace KEY_* env vars with GitHub encrypted secrets.
+      - name: Build Release APK (unsigned)
         working-directory: rtosify
+        run: ./gradlew assembleRelease --no-daemon -x lintRelease
+
+      - name: Sign Release APK with debug keystore
         run: |
-          # Patch signingConfigs into the app build file for CI only
-          # (avoids requiring secrets setup for contributors)
-          cat >> app/build.gradle.kts << 'EOF'
-
-          // CI-injected signing — uses debug keystore for release builds in CI
-          android.signingConfigs.create("ciRelease") {
-              storeFile = file(System.getenv("HOME") + "/.android/debug.keystore")
-              storePassword = "android"
-              keyAlias = "androiddebugkey"
-              keyPassword = "android"
-          }
-          android.buildTypes.getByName("release").signingConfig =
-              android.signingConfigs.getByName("ciRelease")
-          EOF
-
-      - name: Build Release APK
-        working-directory: rtosify
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
+          APK=$(find rtosify/app/build/outputs/apk/release -name "*.apk" | head -1)
+          $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)/apksigner sign \
+            --ks ~/.android/debug.keystore \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --ks-key-alias androiddebugkey \
+            --out "${APK%.*}-signed.apk" \
+            "$APK"
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -90,7 +77,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: phone-app-release
-          path: rtosify/app/build/outputs/apk/release/*.apk
+          path: rtosify/app/build/outputs/apk/release/*-signed.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -123,30 +110,26 @@ jobs:
 
       - name: Run unit tests
         working-directory: companion
-        run: ./gradlew test --no-daemon --stacktrace
+        run: ./gradlew test --no-daemon
 
       - name: Build Debug APK
         working-directory: companion
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleDebug --no-daemon
 
-      - name: Add signingConfig to release build
+      - name: Build Release APK (unsigned)
         working-directory: companion
+        run: ./gradlew assembleRelease --no-daemon -x lintRelease
+
+      - name: Sign Release APK with debug keystore
         run: |
-          cat >> app/build.gradle.kts << 'EOF'
-
-          android.signingConfigs.create("ciRelease") {
-              storeFile = file(System.getenv("HOME") + "/.android/debug.keystore")
-              storePassword = "android"
-              keyAlias = "androiddebugkey"
-              keyPassword = "android"
-          }
-          android.buildTypes.getByName("release").signingConfig =
-              android.signingConfigs.getByName("ciRelease")
-          EOF
-
-      - name: Build Release APK
-        working-directory: companion
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
+          APK=$(find companion/app/build/outputs/apk/release -name "*.apk" | head -1)
+          $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | sort -V | tail -1)/apksigner sign \
+            --ks ~/.android/debug.keystore \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --ks-key-alias androiddebugkey \
+            --out "${APK%.*}-signed.apk" \
+            "$APK"
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -160,7 +143,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: watch-app-release
-          path: companion/app/build/outputs/apk/release/*.apk
+          path: companion/app/build/outputs/apk/release/*-signed.apk
           if-no-files-found: error
           retention-days: 30
 
@@ -173,4 +156,4 @@ jobs:
       contents: read
     steps:
       - name: Done
-        run: echo "Both phone and watch APKs built successfully."
+        run: echo "Both phone and watch APKs built and signed successfully."
