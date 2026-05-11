@@ -20,9 +20,11 @@
     <!-- App Widget — RemoteViews requires @color/ references -->
     <!-- Light widget theme (phone home-screen widgets default to light) -->
     <color name="widget_background">#FFF5F8FC</color>
+    <color name="widget_background_media">#F0EDF1F7</color>
     <color name="widget_text_primary">#FF181C20</color>
     <color name="widget_text_secondary">#FF40484F</color>
     <color name="widget_divider">#1F181C20</color>
+    <color name="widget_button_background">#FFE2E8EF</color>
 
     <!-- Dynamic Island overlay — needs alpha transparency in code -->
     <color name="island_background">#E6000000</color>

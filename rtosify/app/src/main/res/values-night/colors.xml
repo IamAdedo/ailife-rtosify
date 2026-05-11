@@ -2,7 +2,9 @@
 <resources>
     <!-- App Widget adaptive dark colors — RemoteViews requires @color/ references -->
     <color name="widget_background">#FF1C2028</color>
+    <color name="widget_background_media">#CC0F1416</color>
     <color name="widget_text_primary">#FFDEE3E9</color>
     <color name="widget_text_secondary">#FFC0C8CF</color>
     <color name="widget_divider">#2ADEE3E9</color>
+    <color name="widget_button_background">#FF282E38</color>
 </resources>
